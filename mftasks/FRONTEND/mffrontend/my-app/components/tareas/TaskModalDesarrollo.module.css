@@ -1,0 +1,86 @@
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal {
+    width: 800px;
+    max-width: 90%;
+    background: white;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,.25);
+    animation: aparecer .25s ease;
+}
+
+.modalHeader {
+    background: #3128bb;
+    color: white;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modalBody {
+    display: flex;
+    gap: 25px;
+    padding: 25px;
+}
+
+.modalColumn {
+    flex: 1;
+}
+
+.modalFooter {
+    padding: 20px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn {
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btnYes {
+    background: #2563eb;
+    color: white;
+}
+
+.btnNo {
+    background: #ff6c61;
+    color: white;
+}
+
+.btnSecondary {
+    background: #ececec;
+}
+
+.close {
+    background: transparent;
+    color: white;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+@keyframes aparecer {
+    from {
+        opacity: 0;
+        transform: scale(.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

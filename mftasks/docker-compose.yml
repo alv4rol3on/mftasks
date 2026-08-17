@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: ./BACKEND/mfbackend
+      dockerfile: Dockerfile
+
+    container_name: mf-backend
+
+    working_dir: /app
+
+    command: python manage.py runserver 0.0.0.0:8000
+
+    volumes:
+      - ./BACKEND/mfbackend:/app
+
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./FRONTEND/mffrontend/my-app
+      dockerfile: Dockerfile
+
+    container_name: mf-frontend
+
+    working_dir: /app
+
+    command: npm run dev
+
+    volumes:
+      - ./FRONTEND/mffrontend/my-app:/app
+      - /app/node_modules
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      HOSTNAME: 0.0.0.0
+
+    depends_on:
+      - backend

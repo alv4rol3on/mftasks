@@ -1,0 +1,124 @@
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+    width: 220px;
+    height: 100vh;
+    background: #171616;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: .3s;
+}
+
+.sidebar-logo-container {
+    height: 130px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sidebar-logo {
+    width: 46px;
+    height: 60px;
+    background: #ff5b5b;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 0 12px;
+    text-align: center;
+}
+
+.sidebar-link {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 56px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: white;
+    font-size: 18px;
+    transition: .2s;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+    background: #4D4D4D;
+}
+
+/* ---------- Botón ---------- */
+
+.menu-button {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+}
+
+/* ---------- Overlay ---------- */
+
+.sidebar-overlay {
+    display: none;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width:768px){
+
+    .menu-button{
+        display:block;
+    }
+
+    .sidebar{
+
+        position:fixed;
+        top:0;
+        left:0;
+
+        width:250px;
+        height:100vh;
+
+        transform:translateX(-100%);
+        transition:.3s;
+
+        z-index:1000;
+    }
+
+    .sidebar.open{
+        transform:translateX(0);
+    }
+
+    .sidebar-overlay{
+
+        display:block;
+        position:fixed;
+        inset:0;
+
+        background:rgba(0,0,0,.45);
+
+        opacity:0;
+        visibility:hidden;
+
+        transition:.3s;
+
+        z-index:999;
+    }
+
+    .sidebar-overlay.show{
+
+        opacity:1;
+        visibility:visible;
+
+    }
+
+}

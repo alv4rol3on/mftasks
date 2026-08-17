@@ -1,0 +1,80 @@
+.taskTableContainer {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-top: 15px;
+}
+
+.taskTable {
+    min-width: 1100px;
+    background: #fff;
+    border: 1px solid #d8d8d8;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.taskHeader,
+.taskRow {
+    display: grid;
+    grid-template-columns: 70px 3fr 2fr 180px 180px 120px;
+    align-items: center;
+}
+
+.taskHeader {
+    background: #f3f4f6;
+    color: #444;
+    font-weight: 600;
+    border-bottom: 2px solid #ddd;
+}
+
+.taskHeader div,
+.taskRow div {
+    padding: 14px 18px;
+    white-space: nowrap;
+}
+
+.taskRow {
+    border-bottom: 1px solid #ececec;
+    transition: background .2s;
+}
+
+.taskRow:last-child {
+    border-bottom: none;
+}
+
+.taskRow:hover {
+    background: #f8fbff;
+}
+
+.taskSubject {
+    font-weight: 600;
+    color: #1d3557;
+}
+
+.btnDetalles {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.btnDetalles:hover {
+    background: #1d4ed8;
+}
+
+/* Scroll horizontal */
+.taskTableContainer::-webkit-scrollbar {
+    height: 8px;
+}
+
+.taskTableContainer::-webkit-scrollbar-thumb {
+    background: #b5b5b5;
+    border-radius: 4px;
+}
+
+.taskTableContainer::-webkit-scrollbar-thumb:hover {
+    background: #8d8d8d;
+}
