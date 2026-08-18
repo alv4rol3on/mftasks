@@ -1,28 +1,48 @@
 "use client";
 
+import { useState } from "react";
 import styles from "./TaskModalSolicitudes.module.css";
-
-type Task = {
-    id: number;
-    asunto: string;
-    descripcion: string;
-    cliente: string;
-    estado: string;
-    fecha_solicitud: string;
-    fecha_inicio: string;
-    fecha_fin_aproximada: string;
-};
+import { Task } from "@/lib/types";
 
 type Props = {
     tarea: Task | null;
     onClose: () => void;
+    accionando?: number | null;
+    onAprobar: (tarea: Task) => void;
+    onRechazar: (tarea: Task, motivo: string) => void;
 };
 
-export default function TaskModal({ tarea, onClose }: Props) {
+export default function TaskModal({
+    tarea,
+    onClose,
+    accionando,
+    onAprobar,
+    onRechazar,
+}: Props) {
+    const [rechazando, setRechazando] = useState(false);
+    const [motivo, setMotivo] = useState("");
+
     if (!tarea) return null;
 
+    const puedeOperar = tarea.puedo_operar && tarea.estado === "EN_ESPERA";
+
+    const cerrar = () => {
+        setRechazando(false);
+        setMotivo("");
+        onClose();
+    };
+
+    const confirmarRechazo = () => {
+        if (!motivo.trim()) return;
+        onRechazar(tarea, motivo.trim());
+        setRechazando(false);
+        setMotivo("");
+    };
+
+    const ocupado = accionando === tarea.id;
+
     return (
-        <div className={styles.modalOverlay} onClick={onClose}>
+        <div className={styles.modalOverlay} onClick={cerrar}>
             <div
                 className={styles.modal}
                 onClick={(e) => e.stopPropagation()}
@@ -34,7 +54,7 @@ export default function TaskModal({ tarea, onClose }: Props) {
                         <p>{tarea.asunto}</p>
                     </div>
 
-                    <button className={styles.close} onClick={onClose}>
+                    <button className={styles.close} onClick={cerrar}>
                         ✕
                     </button>
                 </div>
@@ -48,7 +68,12 @@ export default function TaskModal({ tarea, onClose }: Props) {
                             <tbody>
                                 <tr>
                                     <td><strong>Cliente</strong></td>
-                                    <td>{tarea.cliente}</td>
+                                    <td>{tarea.cliente_nombre}</td>
+                                </tr>
+
+                                <tr>
+                                    <td><strong>Equipo</strong></td>
+                                    <td>{tarea.equipo_nombre}</td>
                                 </tr>
 
                                 <tr>
@@ -57,9 +82,9 @@ export default function TaskModal({ tarea, onClose }: Props) {
                                 </tr>
 
                                 <tr>
-                                    <td><strong>Fecha de Solicitud</strong></td>
+                                    <td><strong>Fecha de solicitud</strong></td>
                                     <td>
-                                        {new Date(tarea.fecha_solicitud).toLocaleString("es-PE", {
+                                        {new Date(tarea.fecha_creacion).toLocaleString("es-PE", {
                                             day: "2-digit",
                                             month: "2-digit",
                                             year: "numeric",
@@ -82,14 +107,61 @@ export default function TaskModal({ tarea, onClose }: Props) {
                 </div>
 
                 {/* Pie */}
-                <div className={styles.modalFooter}>
-                    <button className={styles.btnYes}>
-                        Comenzar asignaciones
-                    </button>
-                    <button className={styles.btnNo}>
-                        Rechazar solicitud
-                    </button>
-                </div>
+                {puedeOperar && (
+                    <div className={styles.modalFooter}>
+                        {rechazando ? (
+                            <>
+                                <textarea
+                                    placeholder="Motivo del rechazo (obligatorio)"
+                                    value={motivo}
+                                    onChange={(e) => setMotivo(e.target.value)}
+                                    rows={3}
+                                    style={{
+                                        flex: 1,
+                                        padding: "8px",
+                                        borderRadius: "6px",
+                                        border: "1px solid #ccc",
+                                    }}
+                                />
+
+                                <button
+                                    className={`${styles.btn} ${styles.btnNo}`}
+                                    onClick={confirmarRechazo}
+                                    disabled={ocupado || !motivo.trim()}
+                                >
+                                    Confirmar rechazo
+                                </button>
+
+                                <button
+                                    className={`${styles.btn} ${styles.btnSecondary}`}
+                                    onClick={() => {
+                                        setRechazando(false);
+                                        setMotivo("");
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    className={`${styles.btn} ${styles.btnYes}`}
+                                    onClick={() => onAprobar(tarea)}
+                                    disabled={ocupado}
+                                >
+                                    {ocupado ? "Procesando…" : "Aprobar"}
+                                </button>
+
+                                <button
+                                    className={`${styles.btn} ${styles.btnNo}`}
+                                    onClick={() => setRechazando(true)}
+                                >
+                                    Rechazar solicitud
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

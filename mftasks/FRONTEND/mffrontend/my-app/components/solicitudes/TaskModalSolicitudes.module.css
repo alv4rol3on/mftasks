@@ -74,6 +74,31 @@
     cursor: pointer;
 }
 
+.infoTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.infoTable td {
+    padding: 6px 0;
+    vertical-align: top;
+}
+
+.infoTable td:first-child {
+    width: 42%;
+    color: #555;
+}
+
+.descriptionBox {
+    background: #f7f7f7;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 12px;
+    white-space: pre-wrap;
+    min-height: 80px;
+}
+
 @keyframes aparecer {
     from {
         opacity: 0;

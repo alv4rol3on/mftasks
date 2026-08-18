@@ -1,34 +1,70 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import TaskTableSolicitudes from "@/components/solicitudes/TaskTableSolicitudes";
+import { apiFetch } from "@/lib/api";
+import { Task } from "@/lib/types";
 
-type Task = {
-  id: number;
-  asunto: string;
-  descripcion: string;
-  cliente: string;
-  estado: string;
-  fecha_solicitud: string;
-  fecha_inicio: string;
-  fecha_fin_aproximada: string;
-};
+export default function SolicitudesPage() {
+  const [tareas, setTareas] = useState<Task[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [accionando, setAccionando] = useState<number | null>(null);
 
-async function getTasks(): Promise<Task[]> {
-  const res = await fetch("http://backend:8000/api/tasks/tasks/", {
-    cache: "no-store",
-  });
+  const cargar = useCallback(() => {
+    apiFetch<Task[]>("/api/tasks/tasks/")
+      .then((data) => {
+        setError(null);
+        setTareas(data.filter((tarea) => tarea.estado === "EN_ESPERA"));
+      })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setCargando(false));
+  }, []);
 
-  if (!res.ok) {
-    throw new Error("Error al cargar las tareas");
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  const aprobar = async (tarea: Task) => {
+    setAccionando(tarea.id);
+    setError(null);
+
+    try {
+      await apiFetch(`/api/tasks/tasks/${tarea.id}/aprobar/`, {
+        method: "POST",
+      });
+      await cargar();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAccionando(null);
+    }
+  };
+
+  const rechazar = async (tarea: Task, motivo: string) => {
+    setAccionando(tarea.id);
+    setError(null);
+
+    try {
+      await apiFetch(`/api/tasks/tasks/${tarea.id}/rechazar/`, {
+        method: "POST",
+        body: JSON.stringify({ motivo_rechazo: motivo }),
+      });
+      await cargar();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAccionando(null);
+    }
+  };
+
+  if (cargando) {
+    return <div>Cargando solicitudes…</div>;
   }
 
-  return res.json();
-}
-
-export default async function SolicitudesPage() {
-  const tareas = await getTasks();
-
-  const tareasPendientes = tareas.filter(
-    (tarea) => tarea.estado === "EN_ESPERA"
-  );
+  if (error) {
+    return <div>Error al cargar las solicitudes: {error}</div>;
+  }
 
   return (
     <div>
@@ -36,7 +72,12 @@ export default async function SolicitudesPage() {
         Solicitudes recibidas
       </h2>
 
-      <TaskTableSolicitudes tareas={tareasPendientes} />
+      <TaskTableSolicitudes
+        tareas={tareas}
+        accionando={accionando}
+        onAprobar={aprobar}
+        onRechazar={rechazar}
+      />
     </div>
   );
 }

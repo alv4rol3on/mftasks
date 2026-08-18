@@ -74,6 +74,54 @@
     cursor: pointer;
 }
 
+.infoTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.infoTable td {
+    padding: 6px 0;
+    vertical-align: top;
+}
+
+.infoTable td:first-child {
+    width: 42%;
+    color: #555;
+}
+
+.descriptionBox {
+    background: #f7f7f7;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 12px;
+    white-space: pre-wrap;
+    min-height: 80px;
+    margin-bottom: 20px;
+}
+
+.sinSubtareas {
+    color: #777;
+    font-style: italic;
+}
+
+.subtareasTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.subtareasTable th,
+.subtareasTable td {
+    border: 1px solid #e5e5e5;
+    padding: 8px;
+    text-align: left;
+}
+
+.subtareasTable th {
+    background: #f3f4f6;
+}
+
 @keyframes aparecer {
     from {
         opacity: 0;

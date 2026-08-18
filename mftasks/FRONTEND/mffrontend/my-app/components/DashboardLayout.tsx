@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMsal } from "@azure/msal-react";
 import Sidebar from "./Sidebar";
 import "../components/DashboardLayout.css";
+import {
+    cerrarSesion,
+    isAutenticado,
+    obtenerDatosMe,
+} from "../lib/auth";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,16 +19,29 @@ export default function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   const router = useRouter();
+  const { instance } = useMsal();
 
   // Estado para el menú hamburguesa
   const [menuOpen, setMenuOpen] = useState(false);
+  const [nombre, setNombre] = useState("");
 
-  const handleLogout = () => {
-    // Eliminar los tokens almacenados
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+  useEffect(() => {
+    if (!isAutenticado()) {
+      router.replace("/");
+      return;
+    }
 
-    // Redirigir al login
+    obtenerDatosMe()
+      .then((usuario) => {
+        setNombre(`${usuario.nombres} ${usuario.apellidos}`);
+      })
+      .catch(() => {
+        router.replace("/");
+      });
+  }, [router]);
+
+  const handleLogout = async () => {
+    await cerrarSesion(instance);
     router.push("/");
   };
 
@@ -44,7 +63,7 @@ export default function DashboardLayout({
             ☰
           </button>
 
-          <h1>Hola, &lt;Nombre de usuario&gt;</h1>
+          <h1>Hola, {nombre || "..."}</h1>
 
           <button
             type="button"

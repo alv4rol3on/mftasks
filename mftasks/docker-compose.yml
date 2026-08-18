@@ -10,6 +10,11 @@ services:
 
     command: python manage.py runserver 0.0.0.0:8000
 
+    environment:
+      AZURE_TENANT_ID: 8d669035-9c23-4bfe-8439-816c8408e589
+      AZURE_CLIENT_ID: 10a3c5ce-2a51-456e-8bc2-6256f4720848
+      AZURE_ALLOWED_DOMAINS: ""
+
     volumes:
       - ./BACKEND/mfbackend:/app
 

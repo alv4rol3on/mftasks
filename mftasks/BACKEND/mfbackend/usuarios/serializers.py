@@ -48,9 +48,24 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
 class EquipoDetailSerializer(serializers.ModelSerializer):
 
-    asignador = UserSerializer(read_only=True)
-    asistente = UserSerializer(read_only=True)
+    lider = UserSerializer(read_only=True)
+
+    miembros = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipo
-        fields = "__all__"
+        fields = [
+            "id",
+            "nombre",
+            "lider",
+            "activo",
+            "fecha_creacion",
+            "miembros",
+        ]
+
+    def get_miembros(self, obj):
+
+        return UserSerializer(
+            [m.usuario for m in obj.miembros.all()],
+            many=True,
+        ).data

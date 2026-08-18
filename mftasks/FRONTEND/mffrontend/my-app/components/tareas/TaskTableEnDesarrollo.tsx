@@ -2,20 +2,9 @@
 
 import { useState } from "react";
 import TaskModal from "./TaskModal";
-import styles from "./TaskTableEnDesarrollo.module.css"
-
-
-type Task = {
-  id: number;
-  asunto: string;
-  descripcion: string;
-  cliente: string;
-  estado: string;
-  fecha_solicitud: string;
-  fecha_inicio: string;
-  fecha_entrega_aproximada: string;
-};
-
+import TaskIniciarModal from "./TaskIniciarModal";
+import styles from "./TaskTableEnDesarrollo.module.css";
+import { Task } from "@/lib/types";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -27,43 +16,51 @@ const formatter = new Intl.DateTimeFormat("es-PE", {
 });
 
 const formatearFecha = (fecha: string | null | undefined) => {
-
   if (!fecha) return "-";
 
   const date = new Date(fecha);
 
-  if (isNaN(date.getTime())) {
-    console.error("Fecha inválida:", fecha);
-    return "-";
-  }
+  if (isNaN(date.getTime())) return "-";
 
   return formatter.format(date);
 };
-//formatter.format(new Date(fecha));
+
+interface TaskTableEnDesarrolloProps {
+  tareas: Task[];
+  accionando?: number | null;
+  onIniciar: (
+    tarea: Task,
+    payload: {
+      fecha_inicio: string;
+      fecha_entrega_aproximada: string;
+      subtareas: { descripcion: string; asignado: number; peso: number }[];
+    }
+  ) => void;
+}
 
 export default function TaskTableEnDesarrollo({
   tareas,
-}: {
-  tareas: Task[];
-}) {
+  accionando,
+  onIniciar,
+}: TaskTableEnDesarrolloProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
 
   return (
     <>
       <div className={styles.taskTableContainer}>
         <div className={styles.taskTable}>
-
           <div className={styles.taskHeader}>
             <div>ID</div>
             <div>Asunto</div>
             <div>Cliente</div>
+            <div>Equipo</div>
+            <div>Estado</div>
             <div>Fecha de inicio</div>
-            <div>Fecha de entrega aproximada</div>
             <div>Acciones</div>
           </div>
 
           {tareas.map((tarea) => (
-            
             <div className={styles.taskRow} key={tarea.id}>
               <div>{tarea.id}</div>
 
@@ -71,11 +68,13 @@ export default function TaskTableEnDesarrollo({
                 {tarea.asunto}
               </div>
 
-              <div>{tarea.cliente}</div>
+              <div>{tarea.cliente_nombre}</div>
+
+              <div>{tarea.equipo_nombre}</div>
+
+              <div>{tarea.estado}</div>
 
               <div>{formatearFecha(tarea.fecha_inicio)}</div>
-
-              <div>{formatearFecha(tarea.fecha_entrega_aproximada)}</div>
 
               <div>
                 <button
@@ -84,10 +83,19 @@ export default function TaskTableEnDesarrollo({
                 >
                   Ver detalles
                 </button>
+
+                {tarea.puedo_operar && tarea.estado === "APROBADO" && (
+                  <button
+                    className={styles.btnIniciar}
+                    onClick={() => setTaskParaIniciar(tarea)}
+                    disabled={accionando === tarea.id}
+                  >
+                    Iniciar
+                  </button>
+                )}
               </div>
             </div>
           ))}
-
         </div>
       </div>
 
@@ -95,6 +103,15 @@ export default function TaskTableEnDesarrollo({
         tarea={selectedTask}
         onClose={() => setSelectedTask(null)}
       />
+
+      {taskParaIniciar && (
+        <TaskIniciarModal
+          tarea={taskParaIniciar}
+          accionando={accionando === taskParaIniciar.id}
+          onClose={() => setTaskParaIniciar(null)}
+          onSubmit={onIniciar}
+        />
+      )}
     </>
   );
 }
