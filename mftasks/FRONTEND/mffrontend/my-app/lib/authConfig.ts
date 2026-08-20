@@ -1,9 +1,15 @@
 import { Configuration } from "@azure/msal-browser";
 
-const clientId = process.env.NEXT_PUBLIC_CLIENT_ID;
+const clientId = process.env.NEXT_PUBLIC_CLIENT_ID; 
 const tenantId = process.env.NEXT_PUBLIC_TENANT_ID;
 const redirectUri =
     process.env.NEXT_PUBLIC_REDIRECT_URI || "http://localhost:3000";
+
+console.log("=== MSAL CONFIG ===");
+console.log("CLIENT ID:", clientId);
+console.log("TENANT ID:", tenantId);
+console.log("REDIRECT URI:", redirectUri);
+console.log("==================");
 
 export const msalConfig: Configuration = {
     auth: {

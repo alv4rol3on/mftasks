@@ -78,3 +78,12 @@
 .taskTableContainer::-webkit-scrollbar-thumb:hover {
     background: #8d8d8d;
 }
+
+.noTasks {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 150px;
+  font-size: 16px;
+  color: #666;
+}

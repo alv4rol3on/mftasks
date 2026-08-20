@@ -42,41 +42,47 @@ export default function TaskTableSolicitudes({
   return (
     <>
       <div className={styles.taskTableContainer}>
-        <div className={styles.taskTable}>
-          <div className={styles.taskHeader}>
-            <div>ID</div>
-            <div>Asunto</div>
-            <div>Cliente</div>
-            <div>Equipo</div>
-            <div>Fecha de solicitud</div>
-            <div>Acciones</div>
+        {tareas.length === 0 ? (
+          <div className={styles.noTasks}>
+            Por el momento no hay solicitudes pendientes para su revisión
           </div>
-
-          {tareas.map((tarea) => (
-            <div className={styles.taskRow} key={tarea.id}>
-              <div>{tarea.id}</div>
-
-              <div className={styles.taskSubject}>
-                {tarea.asunto}
-              </div>
-
-              <div>{tarea.cliente_nombre}</div>
-
-              <div>{tarea.equipo_nombre}</div>
-
-              <div>{formatearFecha(tarea.fecha_creacion)}</div>
-
-              <div>
-                <button
-                  className={styles.btnDetalles}
-                  onClick={() => setSelectedTask(tarea)}
-                >
-                  Ver detalles
-                </button>
-              </div>
+        ) : (
+          <div className={styles.taskTable}>
+            <div className={styles.taskHeader}>
+              <div>ID</div>
+              <div>Asunto</div>
+              <div>Cliente</div>
+              <div>Equipo</div>
+              <div>Fecha de solicitud</div>
+              <div>Acciones</div>
             </div>
-          ))}
-        </div>
+
+            {tareas.map((tarea) => (
+              <div className={styles.taskRow} key={tarea.id}>
+                <div>{tarea.id}</div>
+
+                <div className={styles.taskSubject}>
+                  {tarea.asunto}
+                </div>
+
+                <div>{tarea.cliente_nombre}</div>
+
+                <div>{tarea.equipo_nombre}</div>
+
+                <div>{formatearFecha(tarea.fecha_creacion)}</div>
+
+                <div>
+                  <button
+                    className={styles.btnDetalles}
+                    onClick={() => setSelectedTask(tarea)}
+                  >
+                    Ver detalles
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <TaskModal
