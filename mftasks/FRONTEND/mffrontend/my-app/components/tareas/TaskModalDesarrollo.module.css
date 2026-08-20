@@ -11,6 +11,7 @@
 .modal {
     width: 800px;
     max-width: 90%;
+    max-height: 90vh;
     background: white;
     border-radius: 14px;
     overflow: hidden;
@@ -28,7 +29,8 @@
 }
 
 .modalBody {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 25px;
     padding: 25px;
 }
@@ -109,17 +111,18 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    
 }
 
 .subtareasTable th,
 .subtareasTable td {
-    border: 1px solid #e5e5e5;
+    border: 1px solid #050505;
     padding: 8px;
     text-align: left;
 }
 
 .subtareasTable th {
-    background: #f3f4f6;
+    background: #ffffff;
 }
 
 @keyframes aparecer {
@@ -130,5 +133,39 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+.estadoEnEspera {
+    background-color: #fdff80;
+}
+
+.estadoEnDesarrollo {
+    background-color: #7491e0;
+    color: white;
+}
+
+.estadoSolucionado {
+    background-color: #16a34a;
+    color: white;
+}
+
+.progresoSection {
+    grid-column: 1 / -1;
+}
+
+.subtareasContainer {
+    max-height: 220px;
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+@media (max-width: 700px) {
+    .modalBody {
+        grid-template-columns: 1fr;
+    }
+
+    .progresoSection {
+        grid-column: 1;
     }
 }

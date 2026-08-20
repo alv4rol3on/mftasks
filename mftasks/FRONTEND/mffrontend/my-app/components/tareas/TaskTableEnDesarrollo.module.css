@@ -6,17 +6,19 @@
 }
 
 .taskTable {
-    min-width: 1250px;
+    width: 100%;
+    min-width: 1000px;
     background: #fff;
     border: 1px solid #d8d8d8;
     border-radius: 10px;
     font-size: 14px;
+    overflow: hidden;
 }
 
 .taskHeader,
 .taskRow {
     display: grid;
-    grid-template-columns: 60px 3fr 2fr 160px 140px 170px 180px;
+    grid-template-columns: 60px minmax(220px, 3fr) minmax(150px, 2fr) 160px 140px 170px 180px;
     align-items: center;
 }
 
@@ -30,6 +32,10 @@
 .taskHeader div,
 .taskRow div {
     padding: 14px 18px;
+    min-width: 0;
+}
+
+.taskHeader div {
     white-space: nowrap;
 }
 
@@ -49,31 +55,34 @@
 .taskSubject {
     font-weight: 600;
     color: #1d3557;
+
+    /* Permite que el asunto ocupe varias líneas */
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
-.btnDetalles {
-    padding: 8px 14px;
-    border: none;
-    border-radius: 6px;
-    background: #2563eb;
-    color: white;
-    cursor: pointer;
-    transition: background .2s;
-}
-
-.btnDetalles:hover {
-    background: #1d4ed8;
-}
-
+.btnDetalles,
 .btnIniciar {
     padding: 8px 14px;
     border: none;
     border-radius: 6px;
-    background: #16a34a;
     color: white;
     cursor: pointer;
-    margin-left: 8px;
     transition: background .2s;
+    white-space: nowrap;
+}
+
+.btnDetalles {
+    background: rgb(58, 194, 248);
+}
+
+.btnDetalles:hover {
+    background: #c4c6ce;
+}
+
+.btnIniciar {
+    background: #16a34a;
+    margin-left: 8px;
 }
 
 .btnIniciar:hover:not(:disabled) {
@@ -85,7 +94,158 @@
     cursor: not-allowed;
 }
 
-/* Scroll horizontal */
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    .taskTable {
+        min-width: 900px;
+    }
+
+    .taskHeader,
+    .taskRow {
+        grid-template-columns:
+            55px
+            minmax(180px, 2.5fr)
+            minmax(130px, 1.5fr)
+            130px
+            120px
+            150px
+            160px;
+    }
+
+    .taskHeader div,
+    .taskRow div {
+        padding: 12px 12px;
+    }
+}
+
+
+/* =========================================================
+   MÓVIL
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .taskTableContainer {
+        overflow-x: visible;
+    }
+
+    .taskTable {
+        min-width: 0;
+        width: 100%;
+        border: none;
+        background: transparent;
+        overflow: visible;
+    }
+
+    /* Ocultamos encabezado */
+    .taskHeader {
+        display: none;
+    }
+
+    /* Cada fila se convierte en una tarjeta */
+    .taskRow {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        padding: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .taskRow:hover {
+        background: #fff;
+    }
+
+    .taskRow div {
+        padding: 10px;
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* ID */
+    .taskRow div:nth-child(1) {
+        font-weight: 600;
+        color: #555;
+    }
+
+    /* Asunto ocupa toda la fila */
+    .taskRow div:nth-child(2) {
+        grid-column: 1 / -1;
+        font-size: 15px;
+    }
+
+    /* Cliente */
+    .taskRow div:nth-child(3) {
+        grid-column: 1 / -1;
+    }
+
+    /* Equipo */
+    .taskRow div:nth-child(4) {
+        grid-column: 1 / -1;
+    }
+
+    /* Estado */
+    .taskRow div:nth-child(5) {
+        grid-column: 1 / -1;
+    }
+
+    /* Fecha */
+    .taskRow div:nth-child(6) {
+        grid-column: 1 / -1;
+    }
+
+    /* Acciones */
+    .taskRow div:nth-child(7) {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 14px;
+        border-top: 1px solid #eee;
+    }
+
+    .btnDetalles,
+    .btnIniciar {
+        flex: 1;
+        min-width: 120px;
+        margin-left: 0;
+    }
+}
+
+
+/* =========================================================
+   MÓVILES PEQUEÑOS
+   ========================================================= */
+
+@media (max-width: 400px) {
+
+    .taskRow {
+        grid-template-columns: 1fr;
+    }
+
+    .taskRow div {
+        grid-column: 1 / -1 !important;
+    }
+
+    .btnDetalles,
+    .btnIniciar {
+        width: 100%;
+        flex: none;
+    }
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
 .taskTableContainer::-webkit-scrollbar {
     height: 8px;
 }

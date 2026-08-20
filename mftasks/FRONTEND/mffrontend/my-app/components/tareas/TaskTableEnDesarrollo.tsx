@@ -81,7 +81,7 @@ export default function TaskTableEnDesarrollo({
                   className={styles.btnDetalles}
                   onClick={() => setSelectedTask(tarea)}
                 >
-                  Ver detalles
+                  info
                 </button>
 
                 {tarea.puedo_operar && tarea.estado === "APROBADO" && (

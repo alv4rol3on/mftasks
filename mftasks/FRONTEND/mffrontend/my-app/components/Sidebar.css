@@ -3,7 +3,7 @@
 .sidebar {
     width: 220px;
     height: 100vh;
-    background: #171616;
+    background: #252525;
     color: white;
     display: flex;
     flex-direction: column;
@@ -51,7 +51,7 @@
 
 .sidebar-link:hover,
 .sidebar-link.active {
-    background: #4D4D4D;
+    background: #525252;
 }
 
 /* ---------- Botón ---------- */

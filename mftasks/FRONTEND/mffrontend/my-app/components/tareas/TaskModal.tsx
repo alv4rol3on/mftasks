@@ -4,22 +4,22 @@ import styles from "./TaskModalDesarrollo.module.css";
 import { Task } from "@/lib/types";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
-  timeZone: "America/Lima",
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
+    timeZone: "America/Lima",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
 });
 
 const formatearFecha = (fecha: string | null | undefined) => {
-  if (!fecha) return "-";
+    if (!fecha) return "-";
 
-  const date = new Date(fecha);
+    const date = new Date(fecha);
 
-  if (isNaN(date.getTime())) return "-";
+    if (isNaN(date.getTime())) return "-";
 
-  return formatter.format(date);
+    return formatter.format(date);
 };
 
 type Props = {
@@ -48,6 +48,7 @@ export default function TaskModal({ tarea, onClose }: Props) {
                 </div>
 
                 <div className={styles.modalBody}>
+
                     <div className={styles.modalColumn}>
                         <h3>Información</h3>
 
@@ -92,36 +93,53 @@ export default function TaskModal({ tarea, onClose }: Props) {
                         <div className={styles.descriptionBox}>
                             {tarea.descripcion}
                         </div>
+                    </div>
 
-                        <h3>Subtareas</h3>
+                    <div className={styles.progresoSection}>
+                        <h3>Progreso</h3>
 
                         {tarea.subtareas.length === 0 ? (
                             <p className={styles.sinSubtareas}>
-                                Esta tarea aún no tiene subtareas asignadas.
+                                Esta tarea ha sido aprobada y se encuentra en proceso de asignación
                             </p>
                         ) : (
-                            <table className={styles.subtareasTable}>
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Asignado</th>
-                                        <th>Estado</th>
-                                        <th>Peso</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {tarea.subtareas.map((subtarea) => (
-                                        <tr key={subtarea.id}>
-                                            <td>{subtarea.descripcion}</td>
-                                            <td>{subtarea.asignado_nombre}</td>
-                                            <td>{subtarea.estado}</td>
-                                            <td>{subtarea.peso}</td>
+                            <div className={styles.subtareasContainer}>
+                                <table className={styles.subtareasTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Descripción</th>
+                                            <th>Asignado</th>
+                                            <th>Estado</th>
+                                            <th>Peso</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+
+                                    <tbody>
+                                        {tarea.subtareas.map((subtarea) => (
+                                            <tr
+                                                key={subtarea.id}
+                                                className={
+                                                    subtarea.estado === "EN_ESPERA"
+                                                        ? styles.estadoEnEspera
+                                                        : subtarea.estado === "EN_DESARROLLO"
+                                                            ? styles.estadoEnDesarrollo
+                                                            : subtarea.estado === "SOLUCIONADO"
+                                                                ? styles.estadoSolucionado
+                                                                : ""
+                                                }
+                                            >
+                                                <td>{subtarea.descripcion}</td>
+                                                <td>{subtarea.asignado_nombre}</td>
+                                                <td>{subtarea.estado}</td>
+                                                <td>{subtarea.peso}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
+
                 </div>
             </div>
         </div>
