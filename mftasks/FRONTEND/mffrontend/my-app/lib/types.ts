@@ -21,6 +21,8 @@ export interface Task {
     equipo_nombre: string;
     aprobador: number | null;
     aprobador_nombre: string | null;
+    solicitante: number | null;
+    solicitante_nombre: string | null;
     estado: string;
     motivo_rechazo: string;
     fecha_creacion: string;
@@ -30,6 +32,35 @@ export interface Task {
     progreso: string;
     subtareas: Subtarea[];
     puedo_operar: boolean;
+}
+
+export interface ResumenCliente {
+    tipo: "cliente";
+    en_espera: number;
+    aprobadas: number;
+    en_desarrollo: number;
+    rechazadas: number;
+    solucionadas: number;
+    total: number;
+}
+
+export interface ResumenAsignador {
+    tipo: "asignador";
+    por_aprobar: number;
+}
+
+export interface ResumenAsistente {
+    tipo: "asistente";
+    pendientes: number;
+    tareas_pendientes: number;
+}
+
+export interface ClienteInfo {
+    id: number;
+    nombre: string;
+    razon_social?: string;
+    ruc?: string | null;
+    activo: boolean;
 }
 
 export interface EquipoMiembro {

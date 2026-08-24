@@ -19,5 +19,5 @@ class EsAdministrador(BasePermission):
             return False
 
         return request.user.roles.filter(
-            rol__nombre="Administrador"
+            rol__nombre__iexact="Administrador"
         ).exists()

@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import TaskTableEnDesarrollo from "@/components/tareas/TaskTableEnDesarrollo";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
+import { useToast } from "@/components/ui/Toast";
 
 export default function TareasPage() {
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionando, setAccionando] = useState<number | null>(null);
+  const [completandoId, setCompletandoId] = useState<number | null>(null);
+  const { showToast } = useToast();
 
   const cargar = useCallback(() => {
     apiFetch<Task[]>("/api/tasks/tasks/")
@@ -46,11 +49,29 @@ export default function TareasPage() {
         method: "POST",
         body: JSON.stringify(payload),
       });
+      showToast("Tarea iniciada correctamente", "success");
       await cargar();
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setAccionando(null);
+    }
+  };
+
+  const completarSubtarea = async (tareaId: number, subtareaId: number) => {
+    setCompletandoId(subtareaId);
+    try {
+      await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, {
+        method: "POST",
+      });
+      showToast("Subtarea completada", "success");
+      await cargar();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setCompletandoId(null);
     }
   };
 
@@ -71,7 +92,9 @@ export default function TareasPage() {
       <TaskTableEnDesarrollo
         tareas={tareas}
         accionando={accionando}
+        completandoId={completandoId}
         onIniciar={iniciar}
+        onCompletarSubtarea={completarSubtarea}
       />
     </div>
   );

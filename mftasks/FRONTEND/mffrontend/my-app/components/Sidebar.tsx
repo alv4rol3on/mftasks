@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import "../components/Sidebar.css";
+import { getUsuarioActual } from "@/lib/auth";
 
-const menu = [
-  { nombre: "Inicio", ruta: "/mfpages/home" },
-  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas" },
-  { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes" },
-  { nombre: "Administración de asistentes", ruta: "/mfpages/asistentes" },
+const menuAll = [
+  { nombre: "Inicio", ruta: "/mfpages/home", roles: ["all"] },
+  { nombre: "Mis Solicitudes", ruta: "/mfpages/cliente/mis-solicitudes", roles: ["cliente", "administrador"] },
+  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", roles: ["asignador", "asistente", "administrador"] },
+  { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", roles: ["asignador", "administrador"] },
+  { nombre: "Administración de asistentes", ruta: "/mfpages/asistentes", roles: ["administrador", "asignador"] },
 ];
 
 interface SidebarProps {
@@ -22,6 +24,19 @@ export default function Sidebar({
   setMenuOpen,
 }: SidebarProps) {
   const pathname = usePathname();
+  const menu = useMemo(() => {
+    const user = getUsuarioActual();
+    const roles = (user?.roles ?? []).map((r) => r.toLowerCase());
+    const isAdmin = roles.includes("administrador");
+    if (isAdmin) return menuAll;
+    if (roles.includes("cliente") && !roles.includes("asignador") && !roles.includes("asistente")) {
+      return menuAll.filter((m) => m.roles.includes("cliente") || m.roles.includes("all"));
+    }
+    return menuAll.filter((m) => {
+      if (m.roles.includes("all")) return true;
+      return m.roles.some((r) => roles.includes(r));
+    });
+  }, [pathname]);
 
   // Bloquear scroll del body cuando el menú fullscreen está abierto (solo móvil)
   useEffect(() => {

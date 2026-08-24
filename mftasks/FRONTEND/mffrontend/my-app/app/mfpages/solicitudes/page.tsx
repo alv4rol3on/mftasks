@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import TaskTableSolicitudes from "@/components/solicitudes/TaskTableSolicitudes";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
+import { useToast } from "@/components/ui/Toast";
 
 export default function SolicitudesPage() {
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionando, setAccionando] = useState<number | null>(null);
+  const { showToast } = useToast();
 
   const cargar = useCallback(() => {
     apiFetch<Task[]>("/api/tasks/tasks/")
@@ -33,9 +35,12 @@ export default function SolicitudesPage() {
       await apiFetch(`/api/tasks/tasks/${tarea.id}/aprobar/`, {
         method: "POST",
       });
+      showToast("tarea aceptada", "success");
       await cargar();
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setAccionando(null);
     }
@@ -50,9 +55,12 @@ export default function SolicitudesPage() {
         method: "POST",
         body: JSON.stringify({ motivo_rechazo: motivo }),
       });
+      showToast("tarea rechazado", "error");
       await cargar();
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setAccionando(null);
     }

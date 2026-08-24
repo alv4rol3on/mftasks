@@ -38,12 +38,36 @@ export function getUsuarioActual(): DatosUsuario | null {
     }
 }
 
+function rolesLower(roles?: string[]) {
+    return (roles ?? []).map((r) => r.toLowerCase());
+}
+
 export function esAdmin(): boolean {
     const usuario = getUsuarioActual();
-
     if (!usuario) return false;
+    return rolesLower(usuario.roles).includes("administrador");
+}
 
-    return (usuario.roles ?? []).includes("Administrador");
+export function esAsignador(): boolean {
+    const usuario = getUsuarioActual();
+    if (!usuario) return false;
+    const roles = rolesLower(usuario.roles);
+    if (roles.includes("administrador")) return true;
+    return roles.includes("asignador");
+}
+
+export function esAsistente(): boolean {
+    const usuario = getUsuarioActual();
+    if (!usuario) return false;
+    const roles = rolesLower(usuario.roles);
+    if (roles.includes("administrador") || roles.includes("asignador") || roles.includes("cliente")) return false;
+    return roles.includes("asistente") || roles.length === 0;
+}
+
+export function esCliente(): boolean {
+    const usuario = getUsuarioActual();
+    if (!usuario) return false;
+    return rolesLower(usuario.roles).includes("cliente");
 }
 
 export function isAutenticado(): boolean {

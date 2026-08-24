@@ -28,6 +28,7 @@ const formatearFecha = (fecha: string | null | undefined) => {
 interface TaskTableEnDesarrolloProps {
   tareas: Task[];
   accionando?: number | null;
+  completandoId?: number | null;
   onIniciar: (
     tarea: Task,
     payload: {
@@ -36,12 +37,15 @@ interface TaskTableEnDesarrolloProps {
       subtareas: { descripcion: string; asignado: number; peso: number }[];
     }
   ) => void;
+  onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
 }
 
 export default function TaskTableEnDesarrollo({
   tareas,
   accionando,
+  completandoId,
   onIniciar,
+  onCompletarSubtarea,
 }: TaskTableEnDesarrolloProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
@@ -102,6 +106,8 @@ export default function TaskTableEnDesarrollo({
       <TaskModal
         tarea={selectedTask}
         onClose={() => setSelectedTask(null)}
+        onCompletarSubtarea={onCompletarSubtarea}
+        completandoId={completandoId}
       />
 
       {taskParaIniciar && (

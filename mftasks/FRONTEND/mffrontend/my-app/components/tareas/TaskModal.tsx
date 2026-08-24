@@ -2,6 +2,7 @@
 
 import styles from "./TaskModalDesarrollo.module.css";
 import { Task } from "@/lib/types";
+import { getUsuarioActual } from "@/lib/auth";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima",
@@ -25,10 +26,13 @@ const formatearFecha = (fecha: string | null | undefined) => {
 type Props = {
     tarea: Task | null;
     onClose: () => void;
+    onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
+    completandoId?: number | null;
 };
 
-export default function TaskModal({ tarea, onClose }: Props) {
+export default function TaskModal({ tarea, onClose, onCompletarSubtarea, completandoId }: Props) {
     if (!tarea) return null;
+    const usuario = getUsuarioActual();
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
@@ -111,11 +115,15 @@ export default function TaskModal({ tarea, onClose }: Props) {
                                             <th>Asignado</th>
                                             <th>Estado</th>
                                             <th>Peso</th>
+                                            <th>Acción</th>
                                         </tr>
                                     </thead>
 
                                     <tbody>
-                                        {tarea.subtareas.map((subtarea) => (
+                                        {tarea.subtareas.map((subtarea) => {
+                                            const esMiSubtarea = usuario?.id === subtarea.asignado;
+                                            const puedeCompletar = esMiSubtarea && subtarea.estado !== "SOLUCIONADO" && !!onCompletarSubtarea;
+                                            return (
                                             <tr
                                                 key={subtarea.id}
                                                 className={
@@ -132,8 +140,31 @@ export default function TaskModal({ tarea, onClose }: Props) {
                                                 <td>{subtarea.asignado_nombre}</td>
                                                 <td>{subtarea.estado}</td>
                                                 <td>{subtarea.peso}</td>
+                                                <td>
+                                                    {puedeCompletar ? (
+                                                        <button
+                                                            onClick={() => onCompletarSubtarea!(tarea.id, subtarea.id)}
+                                                            disabled={completandoId === subtarea.id}
+                                                            style={{
+                                                                background: "#16a34a",
+                                                                color: "white",
+                                                                border: "none",
+                                                                padding: "4px 10px",
+                                                                borderRadius: 6,
+                                                                cursor: "pointer",
+                                                                fontSize: 12,
+                                                            }}
+                                                        >
+                                                            {completandoId === subtarea.id ? "Guardando…" : "Completar"}
+                                                        </button>
+                                                    ) : subtarea.estado === "SOLUCIONADO" ? (
+                                                        <span style={{ color: "#16a34a", fontSize: 12 }}>✓ Terminada</span>
+                                                    ) : (
+                                                        <span style={{ color: "#9ca3af", fontSize: 12 }}>-</span>
+                                                    )}
+                                                </td>
                                             </tr>
-                                        ))}
+                                        )})}
                                     </tbody>
                                 </table>
                             </div>

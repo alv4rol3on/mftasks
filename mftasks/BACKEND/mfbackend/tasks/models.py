@@ -34,7 +34,17 @@ class Tarea(models.Model):
     aprobador = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
-        related_name="tareas_aprobadas"
+        related_name="tareas_aprobadas",
+        null=True,
+        blank=True,
+    )
+
+    solicitante = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tareas_solicitadas"
     )
 
     equipo = models.ForeignKey(

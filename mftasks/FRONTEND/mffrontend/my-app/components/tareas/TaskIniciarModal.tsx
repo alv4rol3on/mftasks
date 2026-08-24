@@ -41,7 +41,13 @@ export default function TaskIniciarModal({
 
     useEffect(() => {
         apiFetch<EquipoInfo>(`/api/usuarios/equipos/${tarea.equipo}/`)
-            .then((equipo) => setMiembros(equipo.miembros))
+            .then((equipo) => {
+                const todos: EquipoMiembro[] = [...equipo.miembros];
+                if (equipo.lider && !todos.some((m) => m.id === equipo.lider!.id)) {
+                    todos.unshift(equipo.lider);
+                }
+                setMiembros(todos);
+            })
             .catch((e: Error) => setError(e.message));
     }, [tarea.equipo]);
 
