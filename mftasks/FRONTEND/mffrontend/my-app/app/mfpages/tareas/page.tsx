@@ -13,6 +13,7 @@ export default function TareasPage() {
   const [accionando, setAccionando] = useState<number | null>(null);
   const [completandoId, setCompletandoId] = useState<number | null>(null);
   const { showToast } = useToast();
+  const [tareaSeleccionada, setTareaSeleccionada] = useState<Task | null>(null);
 
   const cargar = useCallback(() => {
     apiFetch<Task[]>("/api/tasks/tasks/")
@@ -62,12 +63,22 @@ export default function TareasPage() {
 
   const completarSubtarea = async (tareaId: number, subtareaId: number) => {
     setCompletandoId(subtareaId);
+
     try {
-      await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, {
-        method: "POST",
-      });
+      await apiFetch(
+        `/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`,
+        {
+          method: "POST",
+        }
+      );
+
       showToast("Subtarea completada", "success");
+
       await cargar();
+
+      // Cerrar el popup
+      setTareaSeleccionada(null);
+
     } catch (e) {
       showToast((e as Error).message, "error");
     } finally {

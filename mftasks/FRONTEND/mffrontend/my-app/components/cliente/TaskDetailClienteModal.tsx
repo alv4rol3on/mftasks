@@ -67,7 +67,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
             </div>
             {tarea.subtareas.length === 0 ? (
               <p className={styles.sinSubtareas}>
-                {tarea.estado === "EN_ESPERA" ? "Tu solicitud está en espera de aprobación." : tarea.estado === "RECHAZADO" ? "Solicitud rechazada." : "Aprobada, en asignación de tareas."}
+                {tarea.estado === "EN_ESPERA" ? "Tu solicitud está en espera de una respuesta por parte del equipo asignado" : tarea.estado === "RECHAZADO" ? "Solicitud rechazada." : tarea.estado === "SOLUCIONADO" ? "Solicitud completada.": "Aprobada, en asignación de tareas."}
               </p>
             ) : (
               <div className={styles.subtareasContainer}>

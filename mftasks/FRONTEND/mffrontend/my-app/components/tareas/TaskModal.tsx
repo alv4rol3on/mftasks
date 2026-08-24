@@ -155,10 +155,10 @@ export default function TaskModal({ tarea, onClose, onCompletarSubtarea, complet
                                                                 fontSize: 12,
                                                             }}
                                                         >
-                                                            {completandoId === subtarea.id ? "Guardando…" : "Completar"}
+                                                            {completandoId === subtarea.id ? "Guardando…" : "Marcar como completado"}
                                                         </button>
                                                     ) : subtarea.estado === "SOLUCIONADO" ? (
-                                                        <span style={{ color: "#16a34a", fontSize: 12 }}>✓ Terminada</span>
+                                                        <span style={{ color: "#FFFFFF", fontSize: 12 }}>✓ Terminada</span>
                                                     ) : (
                                                         <span style={{ color: "#9ca3af", fontSize: 12 }}>-</span>
                                                     )}
