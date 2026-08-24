@@ -6,17 +6,23 @@
     justify-content: center;
     align-items: center;
     z-index: 999;
+    padding: 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .modal {
-    width: 800px;
+    width: min(800px, calc(100vw - 32px));
     max-width: 90%;
     max-height: 90vh;
+    max-height: 90dvh;
     background: white;
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 20px 40px rgba(0,0,0,.25);
     animation: aparecer .25s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 .modalHeader {
@@ -26,6 +32,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
+    gap: 12px;
 }
 
 .modalBody {
@@ -33,10 +41,15 @@
     grid-template-columns: 1fr 1fr;
     gap: 25px;
     padding: 25px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modalColumn {
     flex: 1;
+    min-width: 0;
 }
 
 .modalFooter {
@@ -45,6 +58,8 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
 .btn {
@@ -74,6 +89,7 @@
     border: none;
     font-size: 20px;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .infoTable {
@@ -85,6 +101,7 @@
 .infoTable td {
     padding: 6px 0;
     vertical-align: top;
+    word-break: break-word;
 }
 
 .infoTable td:first-child {
@@ -100,6 +117,8 @@
     white-space: pre-wrap;
     min-height: 80px;
     margin-bottom: 20px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .sinSubtareas {
@@ -119,6 +138,7 @@
     border: 1px solid #050505;
     padding: 8px;
     text-align: left;
+    word-break: break-word;
 }
 
 .subtareasTable th {
@@ -158,14 +178,121 @@
     max-height: 220px;
     overflow-y: auto;
     border-radius: 8px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* --- Clases para TaskIniciarModal (reemplazan inline styles no responsive) --- */
+.iniciarBody {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.fechasRow {
+    display: flex;
+    gap: 16px;
+}
+
+.fechasRow label {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.subtareaRow {
+    display: grid;
+    grid-template-columns: 1fr 180px 80px 36px;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.inputField {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    min-width: 0;
 }
 
 @media (max-width: 700px) {
     .modalBody {
         grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 16px;
     }
 
     .progresoSection {
         grid-column: 1;
+    }
+
+    .subtareasContainer {
+        max-height: 40vh;
+    }
+
+    .fechasRow {
+        flex-direction: column;
+    }
+
+    .subtareaRow {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .subtareaRow input:first-child {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .modalOverlay {
+        align-items: flex-start;
+        padding: 12px;
+        padding-top: max(12px, env(safe-area-inset-top));
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .modal {
+        width: calc(100vw - 24px);
+        max-width: 100%;
+        max-height: 85vh;
+        max-height: 85dvh;
+        margin: auto 0;
+    }
+
+    .modalHeader {
+        padding: 14px 16px;
+    }
+
+    .modalHeader h2 {
+        font-size: 16px;
+    }
+
+    .modalFooter {
+        padding: 14px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal {
+        width: calc(100vw - 16px);
+        border-radius: 12px;
+    }
+
+    .modalBody {
+        padding: 14px;
+    }
+
+    .subtareaRow {
+        grid-template-columns: 1fr;
+    }
+
+    .subtareaRow input:first-child {
+        grid-column: auto;
     }
 }

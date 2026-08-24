@@ -111,32 +111,25 @@ export default function TaskIniciarModal({
                     </button>
                 </div>
 
-                <div
-                    style={{
-                        padding: "20px 24px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "16px",
-                    }}
-                >
-                    <div style={{ display: "flex", gap: "16px" }}>
-                        <label style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                <div className={styles.iniciarBody}>
+                    <div className={styles.fechasRow}>
+                        <label>
                             Fecha de inicio
                             <input
                                 type="datetime-local"
                                 value={fechaInicio}
                                 onChange={(e) => setFechaInicio(e.target.value)}
-                                style={inputStyle}
+                                className={styles.inputField}
                             />
                         </label>
 
-                        <label style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                        <label>
                             Fecha de entrega aproximada
                             <input
                                 type="datetime-local"
                                 value={fechaEntrega}
                                 onChange={(e) => setFechaEntrega(e.target.value)}
-                                style={inputStyle}
+                                className={styles.inputField}
                             />
                         </label>
                     </div>
@@ -147,12 +140,7 @@ export default function TaskIniciarModal({
                         {subtareas.map((subtarea, index) => (
                             <div
                                 key={index}
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr 180px 80px 36px",
-                                    gap: "8px",
-                                    marginBottom: "8px",
-                                }}
+                                className={styles.subtareaRow}
                             >
                                 <input
                                     type="text"
@@ -161,7 +149,7 @@ export default function TaskIniciarModal({
                                     onChange={(e) =>
                                         actualizar(index, "descripcion", e.target.value)
                                     }
-                                    style={inputStyle}
+                                    className={styles.inputField}
                                 />
 
                                 <select
@@ -173,7 +161,7 @@ export default function TaskIniciarModal({
                                             e.target.value ? Number(e.target.value) : ""
                                         )
                                     }
-                                    style={inputStyle}
+                                    className={styles.inputField}
                                 >
                                     <option value="">Asignar a…</option>
                                     {miembros.map((m) => (
@@ -190,14 +178,15 @@ export default function TaskIniciarModal({
                                     onChange={(e) =>
                                         actualizar(index, "peso", Number(e.target.value))
                                     }
-                                    style={inputStyle}
+                                    className={styles.inputField}
                                 />
 
                                 <button
                                     type="button"
                                     onClick={() => quitar(index)}
                                     disabled={subtareas.length === 1}
-                                    style={{ ...inputStyle, cursor: "pointer" }}
+                                    className={styles.inputField}
+                                    style={{ cursor: "pointer" }}
                                 >
                                     ✕
                                 </button>
@@ -245,9 +234,3 @@ export default function TaskIniciarModal({
     );
 }
 
-const inputStyle: React.CSSProperties = {
-    padding: "8px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-    fontSize: "14px",
-};

@@ -58,6 +58,9 @@ export default function DashboardLayout({
           <button
             type="button"
             className="menu-button"
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+            aria-expanded={menuOpen}
+            aria-controls="sidebar"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             ☰

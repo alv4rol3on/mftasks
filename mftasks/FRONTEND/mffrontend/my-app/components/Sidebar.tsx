@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import "../components/Sidebar.css";
 
 const menu = [
@@ -22,6 +23,22 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
 
+  // Bloquear scroll del body cuando el menú fullscreen está abierto (solo móvil)
+  useEffect(() => {
+    if (menuOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setMenuOpen(false);
+      };
+      window.addEventListener("keydown", onKey);
+      return () => {
+        document.body.style.overflow = prev;
+        window.removeEventListener("keydown", onKey);
+      };
+    }
+  }, [menuOpen, setMenuOpen]);
+
   return (
     <>
       {/* Fondo oscuro */}
@@ -31,7 +48,15 @@ export default function Sidebar({
       />
 
       {/* Sidebar */}
-      <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
+      <aside id="sidebar" className={`sidebar ${menuOpen ? "open" : ""}`} aria-hidden={!menuOpen ? true : undefined}>
+        <button
+          type="button"
+          className="sidebar-close"
+          aria-label="Cerrar menú"
+          onClick={() => setMenuOpen(false)}
+        >
+          ✕
+        </button>
         <div className="sidebar-logo-container">
           <div className="sidebar-logo">
             LOGO

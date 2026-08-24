@@ -1,3 +1,4 @@
+import "./globals.css";
 import AuthProvider from "./providers/MsalProviders";
 
 export default function RootLayout({
