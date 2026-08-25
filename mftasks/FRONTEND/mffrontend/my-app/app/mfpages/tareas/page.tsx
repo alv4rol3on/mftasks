@@ -11,6 +11,7 @@ export default function TareasPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionando, setAccionando] = useState<number | null>(null);
+  const [empezandoId, setEmpezandoId] = useState<number | null>(null);
   const [completandoId, setCompletandoId] = useState<number | null>(null);
   const { showToast } = useToast();
   const [tareaSeleccionada, setTareaSeleccionada] = useState<Task | null>(null);
@@ -61,6 +62,30 @@ export default function TareasPage() {
     }
   };
 
+  const empezarSubtarea = async (
+    tareaId: number,
+    subtareaId: number
+  ) => {
+    setEmpezandoId(subtareaId);
+
+    try {
+      await apiFetch(
+        `/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/empezar/`,
+        {
+          method: "POST",
+        }
+      );
+
+      showToast("Subtarea iniciada", "success");
+
+      await cargar();
+    } catch (error) {
+      showToast((error as Error).message, "error");
+    } finally {
+      setEmpezandoId(null);
+    }
+  };
+
   const completarSubtarea = async (tareaId: number, subtareaId: number) => {
     setCompletandoId(subtareaId);
 
@@ -77,7 +102,7 @@ export default function TareasPage() {
       await cargar();
 
       // Cerrar el popup
-      setTareaSeleccionada(null);
+      //setTareaSeleccionada(null);
 
     } catch (e) {
       showToast((e as Error).message, "error");
@@ -103,8 +128,10 @@ export default function TareasPage() {
       <TaskTableEnDesarrollo
         tareas={tareas}
         accionando={accionando}
+        empezandoId={empezandoId}
         completandoId={completandoId}
         onIniciar={iniciar}
+        onEmpezarSubtarea={empezarSubtarea}
         onCompletarSubtarea={completarSubtarea}
       />
     </div>

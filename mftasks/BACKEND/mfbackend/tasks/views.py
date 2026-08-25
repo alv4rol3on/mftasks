@@ -420,6 +420,84 @@ class TaskViewSet(viewsets.ModelViewSet):
             "tareas_pendientes": tareas_pendientes,
         })
 
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/empezar",
+    )
+    def empezar_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+
+        subtarea = get_object_or_404(
+            Subtarea,
+            id=subtarea_id,
+            tarea=tarea
+        )
+
+        # Administrador no puede empezar subtareas
+        if request.user.roles.filter(
+            rol__nombre__iexact="Administrador"
+        ).exists():
+            return Response(
+                {
+                    "detail": "Los administradores no pueden empezar subtareas."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Verificar que pertenece al equipo
+        is_member = (
+            tarea.equipo.lider_id == request.user.id
+            or tarea.equipo.miembros.filter(
+                usuario=request.user
+            ).exists()
+        )
+
+        if not is_member:
+            return Response(
+                {
+                    "detail": "No perteneces al equipo de esta solicitud."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Solo el usuario asignado puede empezar
+        if subtarea.asignado_id != request.user.id:
+            return Response(
+                {
+                    "detail": "Solo el usuario asignado puede empezar esta subtarea."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Solo se puede empezar desde EN_ESPERA
+        if subtarea.estado != Subtarea.Estado.EN_ESPERA:
+            return Response(
+                {
+                    "detail": "La subtarea no está en espera."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cambiar estado
+        subtarea.estado = Subtarea.Estado.EN_DESARROLLO
+        subtarea.fecha_inicio = timezone.now()
+        subtarea.save()
+
+        return Response(
+            SubtareaSerializer(subtarea).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+
+
+
+
+
+
     @action(
         detail=True,
         methods=["post"],

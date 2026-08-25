@@ -26,11 +26,13 @@ const formatearFecha = (fecha: string | null | undefined) => {
 type Props = {
     tarea: Task | null;
     onClose: () => void;
+    onEmpezarTarea?: (tareaId: number, subtareaId: number) => void;
     onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
+    empezandoId?: number | null;
     completandoId?: number | null;
 };
 
-export default function TaskModal({ tarea, onClose, onCompletarSubtarea, completandoId }: Props) {
+export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarSubtarea, empezandoId, completandoId }: Props) {
     if (!tarea) return null;
     const usuario = getUsuarioActual();
 
@@ -122,49 +124,77 @@ export default function TaskModal({ tarea, onClose, onCompletarSubtarea, complet
                                     <tbody>
                                         {tarea.subtareas.map((subtarea) => {
                                             const esMiSubtarea = usuario?.id === subtarea.asignado;
-                                            const puedeCompletar = esMiSubtarea && subtarea.estado !== "SOLUCIONADO" && !!onCompletarSubtarea;
+                                            const puedeEmpezar = esMiSubtarea && subtarea.estado === "EN_ESPERA" && !!onEmpezarTarea;
+                                            const puedeCompletar = esMiSubtarea && subtarea.estado === "EN_DESARROLLO" && !!onCompletarSubtarea;
                                             return (
-                                            <tr
-                                                key={subtarea.id}
-                                                className={
-                                                    subtarea.estado === "EN_ESPERA"
-                                                        ? styles.estadoEnEspera
-                                                        : subtarea.estado === "EN_DESARROLLO"
-                                                            ? styles.estadoEnDesarrollo
-                                                            : subtarea.estado === "SOLUCIONADO"
-                                                                ? styles.estadoSolucionado
-                                                                : ""
-                                                }
-                                            >
-                                                <td>{subtarea.descripcion}</td>
-                                                <td>{subtarea.asignado_nombre}</td>
-                                                <td>{subtarea.estado}</td>
-                                                <td>{subtarea.peso}</td>
-                                                <td>
-                                                    {puedeCompletar ? (
-                                                        <button
-                                                            onClick={() => onCompletarSubtarea!(tarea.id, subtarea.id)}
-                                                            disabled={completandoId === subtarea.id}
-                                                            style={{
-                                                                background: "#16a34a",
-                                                                color: "white",
-                                                                border: "none",
-                                                                padding: "4px 10px",
-                                                                borderRadius: 6,
-                                                                cursor: "pointer",
-                                                                fontSize: 12,
-                                                            }}
-                                                        >
-                                                            {completandoId === subtarea.id ? "Guardando…" : "Marcar como completado"}
-                                                        </button>
-                                                    ) : subtarea.estado === "SOLUCIONADO" ? (
-                                                        <span style={{ color: "#FFFFFF", fontSize: 12 }}>✓ Terminada</span>
-                                                    ) : (
-                                                        <span style={{ color: "#9ca3af", fontSize: 12 }}>-</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        )})}
+                                                <tr
+                                                    key={subtarea.id}
+                                                    className={
+                                                        subtarea.estado === "EN_ESPERA"
+                                                            ? styles.estadoEnEspera
+                                                            : subtarea.estado === "EN_DESARROLLO"
+                                                                ? styles.estadoEnDesarrollo
+                                                                : subtarea.estado === "SOLUCIONADO"
+                                                                    ? styles.estadoSolucionado
+                                                                    : ""
+                                                    }
+                                                >
+                                                    <td>{subtarea.descripcion}</td>
+                                                    <td>{subtarea.asignado_nombre}</td>
+                                                    <td>{subtarea.estado}</td>
+                                                    <td>{subtarea.peso}</td>
+                                                    <td>
+                                                        {puedeEmpezar ? (
+                                                            <button
+                                                                onClick={() =>
+                                                                    onEmpezarTarea!(tarea.id, subtarea.id)
+                                                                }
+                                                                disabled={empezandoId === subtarea.id}
+                                                                style={{
+                                                                    background: "#0891b2",
+                                                                    color: "white",
+                                                                    border: "none",
+                                                                    padding: "4px 10px",
+                                                                    borderRadius: 6,
+                                                                    cursor: "pointer",
+                                                                    fontSize: 12,
+                                                                }}
+                                                            >
+                                                                {empezandoId === subtarea.id
+                                                                    ? "Iniciando…"
+                                                                    : "Empezar"}
+                                                            </button>
+                                                        ) : puedeCompletar ? (
+                                                            <button
+                                                                onClick={() =>
+                                                                    onCompletarSubtarea!(tarea.id, subtarea.id)
+                                                                }
+                                                                disabled={completandoId === subtarea.id}
+                                                                style={{
+                                                                    background: "#16a34a",
+                                                                    color: "white",
+                                                                    border: "none",
+                                                                    padding: "4px 10px",
+                                                                    borderRadius: 6,
+                                                                    cursor: "pointer",
+                                                                    fontSize: 12,
+                                                                }}
+                                                            >
+                                                                {completandoId === subtarea.id
+                                                                    ? "Guardando…"
+                                                                    : "Marcar como completado"}
+                                                            </button>
+                                                        ) : subtarea.estado === "SOLUCIONADO" ? (
+                                                            <span style={{ color: "#FFFFFF", fontSize: 12 }}>
+                                                                ✓ Terminada
+                                                            </span>
+                                                        ) : (
+                                                            <span style={{ color: "#9ca3af", fontSize: 12 }}>-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
                                     </tbody>
                                 </table>
                             </div>

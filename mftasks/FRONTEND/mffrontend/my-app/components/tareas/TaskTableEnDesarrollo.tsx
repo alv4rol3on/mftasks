@@ -28,6 +28,7 @@ const formatearFecha = (fecha: string | null | undefined) => {
 interface TaskTableEnDesarrolloProps {
   tareas: Task[];
   accionando?: number | null;
+  empezandoId?: number | null;
   completandoId?: number | null;
   onIniciar: (
     tarea: Task,
@@ -37,18 +38,23 @@ interface TaskTableEnDesarrolloProps {
       subtareas: { descripcion: string; asignado: number; peso: number }[];
     }
   ) => void;
+  onEmpezarSubtarea?: (tareaId: number, subtareaId: number) => void;
   onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
 }
 
 export default function TaskTableEnDesarrollo({
   tareas,
   accionando,
+  empezandoId,
   completandoId,
   onIniciar,
+  onEmpezarSubtarea,
   onCompletarSubtarea,
 }: TaskTableEnDesarrolloProps) {
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
+  const selectedTask =
+    tareas.find((tarea) => tarea.id === selectedTaskId) ?? null;
 
   return (
     <>
@@ -83,11 +89,10 @@ export default function TaskTableEnDesarrollo({
               <div>
                 <button
                   className={styles.btnDetalles}
-                  onClick={() => setSelectedTask(tarea)}
+                  onClick={() => setSelectedTaskId(tarea.id)}
                 >
                   info
                 </button>
-
                 {tarea.puedo_operar && tarea.estado === "APROBADO" && (
                   <button
                     className={styles.btnIniciar}
@@ -102,11 +107,12 @@ export default function TaskTableEnDesarrollo({
           ))}
         </div>
       </div>
-
       <TaskModal
         tarea={selectedTask}
-        onClose={() => setSelectedTask(null)}
+        onClose={() => setSelectedTaskId(null)}
+        onEmpezarTarea={onEmpezarSubtarea}
         onCompletarSubtarea={onCompletarSubtarea}
+        empezandoId={empezandoId}
         completandoId={completandoId}
       />
 
