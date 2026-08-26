@@ -2,10 +2,11 @@ cosas por hacer:
 - Hay pestañas a las que no todos los usuarios deberían tener acceso
 - Nueva pestaña EQUIPOS(anteriormente ADMINISTRACION DE ASISTENTES) donde aparecerán los equipos en los que eres líder o integrante
 - Los clientes también podrían ver la pestaña EQUIPOS y poder ver los equipos de los que son clientes
-- La pestaña EQUIPOS PUEDE ENTRAR CUAOLQUIER ROL pero con diferentes opciones:
-	- El rol LIDER puede administrar el rol de sus demás integrantes de equipo, como el inactivar(forma de eliminar), indisponibilidad(vacaciones por ejemplo) o otorgar un NUEVO ROL llamado SUB-LIDER
-	- Este rol SUB-LIDER puede hacer todas las funciones del LIDER excepto el administrar roles
-	- En esta pestaña, los asistentes pueden verificar los equipos en los que pertenecen y la información básica de los integrantes
+- Nueva pestaña EQUIPOS(anteriormente ADMINISTRACION DE ASISTENTES) donde aparecerán los equipos en los que eres líder o integrante
+- La pestaña EQUIPOS PUEDE ENTRAR CUALQUIER ROL pero con diferentes opciones:
+	- El lider del grupo puede administrar el rol de sus demás integrantes de equipo, como el inactivar(forma de eliminar), indisponibilidad(vacaciones por ejemplo) o otorgar un NUEVO ROL llamado SUB-LIDER
+	- Este rol sublider puede hacer todas las funciones del LIDER excepto el administrar roles
+	- En esta pestaña, los de rol asistentes pueden verificar los equipos en los que pertenecen y la información básica de los integrantes
 	- Los clientes pueden ver los equipos de los que puede solicitar servicios(mas no cuenta como miembro) y la información básica de los integrantes
 
 

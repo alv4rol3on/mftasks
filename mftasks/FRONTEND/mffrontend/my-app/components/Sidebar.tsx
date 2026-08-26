@@ -11,8 +11,7 @@ const menuAll = [
   { nombre: "Mis Solicitudes", ruta: "/mfpages/cliente/mis-solicitudes", roles: ["cliente"] },
   { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", roles: ["asignador", "asistente", "administrador"] },
   { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", roles: ["asignador", "administrador"] },
-  { nombre: "Equipos", ruta: "/mfpages/equipos", roles: ["cliente", "asignador"] },
-  { nombre: "Administración de asistentes", ruta: "/mfpages/asistentes", roles: ["administrador", "asignador"] },
+  { nombre: "Equipos", ruta: "/mfpages/equipos", roles: ["all"] },
 ];
 
 interface SidebarProps {

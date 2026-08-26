@@ -74,7 +74,7 @@ export default function TaskTableSolicitudes({
                 <div>
                   <button
                     className={styles.btnDetalles}
-                    onClick={() => setSelectedTaskId(tarea.id)}
+                    onClick={() => setSelectedTask(tarea)}
                   >
                     Ver detalles
                   </button>

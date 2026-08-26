@@ -218,10 +218,15 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         equipo = tarea.equipo
 
+        from usuarios.models import EquipoMiembro
         miembros_ids = set(
-            equipo.miembros.values_list("usuario_id", flat=True)
+            equipo.miembros.filter(
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO
+            ).values_list("usuario_id", flat=True)
         )
+        # líder siempre asignable si está activo a nivel User
         miembros_ids.add(equipo.lider_id)
+        # sub-líder activo también ya está en miembros ACTIVO
 
         subtareas_crear = []
 
@@ -300,8 +305,11 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         equipo = tarea.equipo
 
+        from usuarios.models import EquipoMiembro
         miembros_ids = set(
-            equipo.miembros.values_list("usuario_id", flat=True)
+            equipo.miembros.filter(
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO
+            ).values_list("usuario_id", flat=True)
         )
         miembros_ids.add(equipo.lider_id)
 

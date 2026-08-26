@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import styles from "./TaskModalDesarrollo.module.css";
 import { apiFetch } from "@/lib/api";
-import { EquipoInfo, EquipoMiembro, Task } from "@/lib/types";
+import { EquipoInfo, EquipoMiembro, EquipoMiembroDetallado, Task } from "@/lib/types";
 
 interface SubtareaForm {
     descripcion: string;
@@ -42,7 +42,20 @@ export default function TaskIniciarModal({
     useEffect(() => {
         apiFetch<EquipoInfo>(`/api/usuarios/equipos/${tarea.equipo}/`)
             .then((equipo) => {
-                const todos: EquipoMiembro[] = [...equipo.miembros];
+                // miembros viene como EquipoMiembroDetallado[]; normalizar a EquipoMiembro (user id)
+                const miembrosRaw = equipo.miembros as unknown as (EquipoMiembro | EquipoMiembroDetallado)[];
+                const normalizados: EquipoMiembro[] = miembrosRaw
+                    .map((m) => {
+                        // si es detallado, usar id_usuario; filtrar inactivos/indisponibles no asignables
+                        const det = m as EquipoMiembroDetallado;
+                        if ("id_usuario" in det) {
+                            if (det.estado && det.estado !== "ACTIVO") return null;
+                            return { id: det.id_usuario, email: det.email, nombres: det.nombres, apellidos: det.apellidos, cargo: det.cargo } as EquipoMiembro;
+                        }
+                        return m as EquipoMiembro;
+                    })
+                    .filter(Boolean) as EquipoMiembro[];
+                const todos: EquipoMiembro[] = [...normalizados];
                 if (equipo.lider && !todos.some((m) => m.id === equipo.lider!.id)) {
                     todos.unshift(equipo.lider);
                 }

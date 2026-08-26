@@ -180,11 +180,15 @@ class EquipoMiembroAdmin(admin.ModelAdmin):
     list_display = (
         "equipo",
         "usuario",
+        "rol_en_equipo",
+        "estado",
         "fecha_ingreso",
     )
 
     list_filter = (
         "equipo",
+        "rol_en_equipo",
+        "estado",
     )
 
     search_fields = (

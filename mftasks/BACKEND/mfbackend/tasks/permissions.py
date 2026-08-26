@@ -12,7 +12,20 @@ def es_miembro_del_equipo(user, equipo):
     if equipo.lider_id == user.id:
         return True
 
-    return equipo.miembros.filter(usuario=user).exists()
+    # solo miembros no inactivos cuentan como miembros activos
+    from usuarios.models import EquipoMiembro
+    return equipo.miembros.filter(usuario=user).exclude(estado=EquipoMiembro.EstadoMiembro.INACTIVO).exists()
+
+
+def es_sub_lider(user, equipo):
+    if not user or not user.is_authenticated:
+        return False
+    from usuarios.models import EquipoMiembro
+    return equipo.miembros.filter(
+        usuario=user,
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+    ).exists()
 
 
 def es_asignador_del_equipo(user, equipo):
@@ -29,7 +42,21 @@ def es_asignador_del_equipo(user, equipo):
     if equipo.lider_id == user.id:
         return True
 
+    if es_sub_lider(user, equipo):
+        return True
+
     return user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists()
+
+
+def puede_gestionar_roles_equipo(user, equipo):
+    """Solo líder y admin pueden administrar roles/estados (sub-líder no)."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        return True
+    if equipo.lider_id == user.id:
+        return True
+    return False
 
 
 def es_asistente_puro(user):

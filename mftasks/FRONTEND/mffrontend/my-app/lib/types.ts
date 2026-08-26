@@ -68,6 +68,24 @@ export interface EquipoMiembro {
     email: string;
     nombres: string;
     apellidos: string;
+    cargo?: string;
+}
+
+// Detalle enriquecido que devuelve el backend para cada miembro
+export interface EquipoMiembroDetallado {
+    id: number;
+    usuario: EquipoMiembro;
+    id_usuario: number;
+    email: string;
+    nombres: string;
+    apellidos: string;
+    cargo?: string;
+    rol_en_equipo: "MIEMBRO" | "SUB_LIDER";
+    estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE";
+    fecha_inicio_indisponibilidad?: string | null;
+    fecha_fin_indisponibilidad?: string | null;
+    motivo_indisponibilidad?: string;
+    fecha_ingreso: string;
 }
 
 export interface EquipoInfo {
@@ -75,5 +93,9 @@ export interface EquipoInfo {
     nombre: string;
     lider: EquipoMiembro | null;
     activo: boolean;
-    miembros: EquipoMiembro[];
+    fecha_creacion?: string;
+    miembros: EquipoMiembroDetallado[];
+    puedo_gestionar?: boolean;
+    mi_rol_en_equipo?: string | null;
+    mi_estado?: string | null;
 }

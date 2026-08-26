@@ -97,6 +97,15 @@ class Equipo(models.Model):
 
 class EquipoMiembro(models.Model):
 
+    class RolEnEquipo(models.TextChoices):
+        MIEMBRO = "MIEMBRO", "Miembro"
+        SUB_LIDER = "SUB_LIDER", "Sub-líder"
+
+    class EstadoMiembro(models.TextChoices):
+        ACTIVO = "ACTIVO", "Activo"
+        INACTIVO = "INACTIVO", "Inactivo"
+        INDISPONIBLE = "INDISPONIBLE", "Indisponible"
+
     equipo = models.ForeignKey(
         Equipo,
         on_delete=models.CASCADE,
@@ -109,6 +118,30 @@ class EquipoMiembro(models.Model):
         related_name="equipos"
     )
 
+    rol_en_equipo = models.CharField(
+        max_length=20,
+        choices=RolEnEquipo.choices,
+        default=RolEnEquipo.MIEMBRO,
+    )
+
+    estado = models.CharField(
+        max_length=20,
+        choices=EstadoMiembro.choices,
+        default=EstadoMiembro.ACTIVO,
+    )
+
+    fecha_inicio_indisponibilidad = models.DateField(
+        null=True, blank=True
+    )
+
+    fecha_fin_indisponibilidad = models.DateField(
+        null=True, blank=True
+    )
+
+    motivo_indisponibilidad = models.CharField(
+        max_length=255, blank=True
+    )
+
     fecha_ingreso = models.DateTimeField(
         auto_now_add=True
     )
@@ -117,4 +150,4 @@ class EquipoMiembro(models.Model):
         unique_together = ("equipo", "usuario")
 
     def __str__(self):
-        return f"{self.usuario} - {self.equipo}"
+        return f"{self.usuario} - {self.equipo} ({self.rol_en_equipo}/{self.estado})"
