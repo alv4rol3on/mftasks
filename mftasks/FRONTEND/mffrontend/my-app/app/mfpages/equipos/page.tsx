@@ -142,7 +142,7 @@ export default function EquiposPage() {
           <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0 }}>Equipos</h2>
           <p style={{ fontSize: 13, color: "#6b7280", margin: "4px 0 0" }}>
             {esClientePuro
-              ? "Ves los equipos a los que puedes solicitar servicios. No eres miembro, pero puedes ver su información básica."
+              ? "Ves los equipos a los que puedes solicitar servicios."
               : esAdmin
                 ? "Vista administrador: ves todos los equipos del sistema."
                 : `Hola ${nombreUsuario || ""} — ves los equipos donde eres líder o integrante.`}
@@ -161,7 +161,7 @@ export default function EquiposPage() {
 
       {esClientePuro && (
         <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: 12, borderRadius: 8, fontSize: 13, color: "#1e40af" }}>
-          Como cliente, no cuentas como miembro del equipo. Para crear una solicitud, elige uno de estos equipos en <Link href="/mfpages/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "#1d4ed8" }}>Mis Solicitudes</Link>.
+          Para crear una solicitud, elige uno de estos equipos en <Link href="/mfpages/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "#1d4ed8" }}>Mis Solicitudes</Link>.
         </div>
       )}
 
