@@ -513,13 +513,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-
-
-
-
-
-
-
     @action(
         detail=True,
         methods=["post"],

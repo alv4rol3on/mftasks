@@ -61,6 +61,9 @@ class Tarea(models.Model):
         default=0
     )
 
+    def __str__(self):
+        return self.asunto
+
 class ArchivoTarea(models.Model):
 
     tarea = models.ForeignKey(
@@ -110,3 +113,6 @@ class Subtarea(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_inicio = models.DateTimeField(null=True, blank=True)
     fecha_fin = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"#{self.tarea} - {self.descripcion}"

@@ -145,7 +145,7 @@ export default function EquiposPage() {
               ? "Ves los equipos a los que puedes solicitar servicios."
               : esAdmin
                 ? "Vista administrador: ves todos los equipos del sistema."
-                : `Hola ${nombreUsuario || ""} — ves los equipos donde eres líder o integrante.`}
+                : "Pueder ver los equipos donde eres líder o integrante."}
           </p>
         </div>
         <button onClick={recargar} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
@@ -337,14 +337,14 @@ export default function EquiposPage() {
                         {equipo.mi_rol_en_equipo === "SUB_LIDER"
                           ? "Eres sub-líder: puedes aprobar, iniciar y gestionar tareas del equipo, pero no administrar roles/estados."
                           : esClientePuro
-                            ? "Vista cliente: información básica de los integrantes. No puedes gestionar el equipo."
+                            ? ""
                             : "Vista integrante: ves la información básica de tus compañeros. Solo el líder puede administrar roles y estados."}
                       </div>
                     )}
 
                     {puedoGestionar && (
                       <div style={{ marginTop: 12, padding: 10, background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 8, fontSize: 12, color: "#5b21b6" }}>
-                        <strong>Como líder puedes:</strong> otorgar/revocar <em>SUB-LÍDER</em> (este rol puede hacer todo lo tuyo excepto gestionar miembros), <em>Inactivar</em> (equivale a eliminar, se oculta de asignaciones) y marcar <em>Indisponible</em> (vacaciones, con fechas y motivo — se revoca sub-líder automáticamente).
+                        <strong>Como líder puedes:</strong> otorgar/revocar <em>SUB-LÍDER, o cambiar disponibilidad de los miembros del equipo</em>
                       </div>
                     )}
                   </div>

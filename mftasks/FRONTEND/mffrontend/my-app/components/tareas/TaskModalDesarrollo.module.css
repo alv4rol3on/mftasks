@@ -126,25 +126,6 @@
     font-style: italic;
 }
 
-.subtareasTable {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    
-}
-
-.subtareasTable th,
-.subtareasTable td {
-    border: 1px solid #050505;
-    padding: 8px;
-    text-align: left;
-    word-break: break-word;
-}
-
-.subtareasTable th {
-    background: #ffffff;
-}
-
 @keyframes aparecer {
     from {
         opacity: 0;
@@ -174,11 +155,60 @@
     grid-column: 1 / -1;
 }
 
-.subtareasContainer {
+/*.subtareasContainer {
     max-height: 220px;
     overflow-y: auto;
     border-radius: 8px;
     -webkit-overflow-scrolling: touch;
+}
+    
+.subtareasTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    
+}
+
+.subtareasTable th,
+.subtareasTable td {
+    border: 1px solid #050505;
+    padding: 8px;
+    text-align: left;
+    word-break: break-word;
+}
+
+.subtareasTable th {
+    background: #ffffff;
+}
+
+*/
+
+.subtareasContainer {
+  max-height: 220px;  
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.subtareasTable {
+  font-size: 13px;
+  min-width: 700px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.subtareasTable th,
+.subtareasTable td {
+    border: 1px solid #050505;
+    padding: 8px;
+    text-align: left;
+    word-break: break-word;
+}
+
+.subtareasTable th {
+    background: #ffffff;
 }
 
 /* --- Clases para TaskIniciarModal (reemplazan inline styles no responsive) --- */

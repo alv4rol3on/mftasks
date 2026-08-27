@@ -49,16 +49,37 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                 <tr><td><strong>Cliente</strong></td><td>{tarea.cliente_nombre}</td></tr>
                 <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
                 <tr><td><strong>Estado</strong></td><td>{tarea.estado}</td></tr>
-                {tarea.motivo_rechazo && <tr><td><strong>Motivo rechazo</strong></td><td>{tarea.motivo_rechazo}</td></tr>}
+                {/*{tarea.motivo_rechazo && <tr><td><strong>Motivo rechazo</strong></td><td>{tarea.motivo_rechazo}</td></tr>}*/}
+
                 <tr><td><strong>Fecha solicitud</strong></td><td>{fmt(tarea.fecha_creacion)}</td></tr>
-                <tr><td><strong>Fecha inicio</strong></td><td>{fmt(tarea.fecha_inicio)}</td></tr>
-                <tr><td><strong>Entrega aprox.</strong></td><td>{fmt(tarea.fecha_entrega_aproximada)}</td></tr>
+
+                {tarea.estado !== "RECHAZADO" && (
+                  <>
+                    <tr>
+                      <td><strong>Fecha inicio</strong></td>
+                      <td>{fmt(tarea.fecha_inicio)}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Entrega aprox.</strong></td>
+                      <td>{fmt(tarea.fecha_entrega_aproximada)}</td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
           <div className={styles.modalColumn}>
             <h3>Descripción</h3>
             <div className={styles.descriptionBox}>{tarea.descripcion}</div>
+
+            {tarea.estado == "RECHAZADO" && (
+              <>
+                <h3>Motivo de rechazo</h3>
+                <div className={styles.descriptionBox}>{tarea.motivo_rechazo}</div>
+              </>
+            )}
+
+            
           </div>
           <div className={styles.progresoSection}>
             <h3>Progreso — {progresoNum.toFixed(2)}%</h3>
@@ -67,21 +88,44 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
             </div>
             {tarea.subtareas.length === 0 ? (
               <p className={styles.sinSubtareas}>
-                {tarea.estado === "EN_ESPERA" ? "Tu solicitud está en espera de una respuesta por parte del equipo asignado" : tarea.estado === "RECHAZADO" ? "Solicitud rechazada." : tarea.estado === "SOLUCIONADO" ? "Solicitud completada.": "Aprobada, en asignación de tareas."}
+                {tarea.estado === "EN_ESPERA" ? "Tu solicitud está en espera de una respuesta por parte del equipo asignado" : tarea.estado === "RECHAZADO" ? "Solicitud rechazada." : tarea.estado === "SOLUCIONADO" ? "Solicitud completada." : "Aprobada, en proceso de asignación de tareas."}
               </p>
             ) : (
-              <div className={styles.subtareasContainer}>
-                <table className={styles.subtareasTable}>
-                  <thead><tr><th>Subtarea</th><th>Estado</th><th>Peso</th><th>Asignado</th></tr></thead>
-                  <tbody>
-                    {tarea.subtareas.map((s) => (
-                      <tr key={s.id} className={s.estado === "SOLUCIONADO" ? styles.estadoSolucionado : s.estado === "EN_DESARROLLO" ? styles.estadoEnDesarrollo : styles.estadoEnEspera}>
-                        <td>{s.descripcion}</td><td>{s.estado}</td><td>{s.peso}</td><td>{s.asignado_nombre}</td>
+              <>
+                {/*TABLA DE SUBTAREAS*/}
+                <div className={styles.subtareasContainer}>
+                  <table className={styles.subtareasTable}>
+                    <thead>
+                      <tr>
+                        <th>Subtarea</th>
+                        <th>Estado</th>
+                        <th>Peso</th>
+                        <th>Asignado</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+
+                    <tbody>
+                      {tarea.subtareas.map((s) => (
+                        <tr
+                          key={s.id}
+                          className={
+                            s.estado === "SOLUCIONADO"
+                              ? styles.estadoSolucionado
+                              : s.estado === "EN_DESARROLLO"
+                                ? styles.estadoEnDesarrollo
+                                : styles.estadoEnEspera
+                          }
+                        >
+                          <td>{s.descripcion}</td>
+                          <td>{s.estado}</td>
+                          <td>{s.peso}</td>
+                          <td>{s.asignado_nombre}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -89,6 +133,6 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
           <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={onClose}>Cerrar</button>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

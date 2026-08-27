@@ -1,21 +1,17 @@
 cosas por hacer:
-- Hay pestañas a las que no todos los usuarios deberían tener acceso
-	CLIENTE: INICIO(diferente info), CENTRO DE SOLICITUDES(estado de sus solicitudes) y Equipos(ver pero no administrar)
-	ASISTENTE: INICIO(diferente info), TAREAS EN DESARROLLO(cambiar estados de sus subtareas) y Equipos(ver pero no administrar)
-	SUB-LIDER: INICIO(misma info que ASISTENTE), TAREAS EN DESARROLLO(cambiar estados de sus subtareas, iniciar tareas, asignar subtareas, editar asignaciones) 
-			centro de solicitudes(aprobar/desaprobar solicitudes) y EQUIPOS(ver pero no administrar)
-	LIDER: INICIO(info diferente), TAREAS EN DESARROLLO(cambiar estados de sus subtareas, iniciar tareas, asignar subtareas, editar asignaciones),
-			centro de solicitudes(aprobar/desaprobar solicitudes) y EQUIPOS(administrar a sus integrantes de grupos)
 
-
-- La pestaña EQUIPOS PUEDE ENTRAR CUALQUIER ROL pero con diferentes opciones:
-	- El lider del grupo puede administrar el rol de sus demás integrantes de equipo, como el inactivar(forma de eliminar), indisponibilidad(vacaciones por ejemplo) o otorgar un NUEVO ROL llamado SUB-LIDER--------------CUMPLIDO
-	- Este rol sublider puede hacer todas las funciones del LIDER(APROBAR/RECHAZAR solicitudes, iniciar tareas y asignar subtareas) excepto el administrar roles
-	- En esta pestaña, los de rol asistentes pueden verificar los equipos en los que pertenecen y la información básica de los integrantes----------CUMPLIDO
-	- Los clientes pueden ver los equipos de los que puede solicitar servicios(mas no cuenta como miembro) y la información básica de los integrantes----------CUMPLIDO
-- Si un integrante del grupo tiene subtareas asignadas y entrará en estado de indisponibilidad(licencia, vacaciones, etc) primero deberia poder cambiar la asignacion de sus subtareas en caso este integrante tenga algunas
-en desarrollo o en espera
 
 
 - Con respecto al Modal de tareas en desarrollo, si no tengo tareas por resolver entonces que no aparezca la columna ACCION
 - Cuando una solicitud esta resuelta en un 100%, aparecerá un botón llamado FINALIZAR que cambiara el estado de EN DESARROLLO a SOLUCIONADO
+
+
+
+IDEA:
+- Los lideres pueden invitar a usuarios para que sean miembros de su grupo mediante un "codigo de invitacion"(se genera aleatoriamente a la hora de crear el usuario y debe ser unico)
+- Hacer un cambio de estado para el lider en caso de indisponibilidad(condicion: debe haber un sub-lider)
+- Indicar en que tareas estoy teniendo subtareas pendientes por completar
+
+- El sub-lider tambien deberia poder cambiar el estado y disponibilidad de los demas miembros excepto del lider, debe tener totalmente bloqueado desactivar al lider
+- Si un integrante del grupo tiene subtareas asignadas y entrará en estado de indisponibilidad(licencia, vacaciones, etc) primero deberia poder cambiar la asignacion de sus subtareas en caso este integrante tenga algunas
+en desarrollo o en espera; de haber pendientes que muestre un mensaje que diga "el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse"
