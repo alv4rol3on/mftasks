@@ -1,17 +1,61 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import TaskTableSolicitudes from "@/components/solicitudes/TaskTableSolicitudes";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { useToast } from "@/components/ui/Toast";
+import { getUsuarioActual } from "@/lib/auth";
+import type { EquipoInfo } from "@/lib/types";
 
 export default function SolicitudesPage() {
+  const router = useRouter();
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionando, setAccionando] = useState<number | null>(null);
   const { showToast } = useToast();
+  const [sinPermiso, setSinPermiso] = useState(false);
+  const [esSoloLectura, setEsSoloLectura] = useState(false);
+
+  // Guard: CLIENTE puro no debe entrar a Centro de solicitudes (aprobar). ASISTENTE sí pero solo lectura
+  useEffect(() => {
+    const user = getUsuarioActual();
+    if (!user) { router.replace("/"); return; }
+    const roles = (user.roles ?? []).map((r) => r.toLowerCase());
+    const isAdmin = roles.includes("administrador");
+    const isCliente = roles.includes("cliente");
+    const isAsistente = roles.includes("asistente");
+    const isAsignador = roles.includes("asignador");
+    if (isAdmin || isAsignador) return; // puede aprobar
+    if (isAsistente) { setEsSoloLectura(true); return; }
+    // Cliente puro -> bloquear, pero verificar si es lider/sub-lider/miembro (multi-rol)
+    if (isCliente && !isAsistente && !isAsignador) {
+      apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
+        .then((data) => {
+          const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
+          const uid = user.id;
+          const esSubLider = arr.some((eq) => eq.miembros?.some((m) => m.id_usuario === uid && m.rol_en_equipo === "SUB_LIDER" && m.estado === "ACTIVO"));
+          const esLider = arr.some((eq) => eq.lider?.id === uid);
+          const esMiembro = arr.some((eq) => eq.miembros?.some((m) => m.id_usuario === uid));
+          if (esLider || esSubLider) return; // tiene permiso aprobar
+          if (esMiembro) { setEsSoloLectura(true); return; } // miembro asistente-like solo lectura
+          setSinPermiso(true);
+        })
+        .catch(() => setSinPermiso(true));
+    } else if (!isCliente) {
+      // Sin rol cliente pero tampoco asistente/asignador: verificar si es miembro interno (debe ver solo lectura)
+      apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
+        .then((data) => {
+          const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
+          const uid = user.id;
+          const esMiembro = arr.some((eq) => eq.lider?.id === uid || eq.miembros?.some((m) => m.id_usuario === uid));
+          if (esMiembro && !isAsignador && !isAdmin) setEsSoloLectura(true);
+        })
+        .catch(() => {});
+    }
+  }, [router]);
 
   const cargar = useCallback(() => {
     apiFetch<Task[]>("/api/tasks/tasks/")
@@ -41,6 +85,7 @@ export default function SolicitudesPage() {
       const msg = (e as Error).message;
       setError(msg);
       showToast(msg, "error");
+      throw e;
     } finally {
       setAccionando(null);
     }
@@ -61,10 +106,20 @@ export default function SolicitudesPage() {
       const msg = (e as Error).message;
       setError(msg);
       showToast(msg, "error");
+      throw e;
     } finally {
       setAccionando(null);
     }
   };
+
+  if (sinPermiso) {
+    return (
+      <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
+        <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
+        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. El Centro de solicitudes de aprobación es solo para LIDER / SUB-LIDER / ASISTENTE (solo lectura).</p>
+      </div>
+    );
+  }
 
   if (cargando) {
     return <div>Cargando solicitudes…</div>;
@@ -79,6 +134,11 @@ export default function SolicitudesPage() {
       <h2 className="mb-4 text-lg font-medium">
         Solicitudes recibidas
       </h2>
+      {esSoloLectura && (
+        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af", padding: "10px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+          Estás en modo solo lectura (rol ASISTENTE): puedes ver las solicitudes de tu equipo pero no aprobar ni rechazar. Solo LIDER, SUB-LIDER, ASIGNADOR o ADMIN pueden aprobar.
+        </div>
+      )}
 
       <TaskTableSolicitudes
         tareas={tareas}

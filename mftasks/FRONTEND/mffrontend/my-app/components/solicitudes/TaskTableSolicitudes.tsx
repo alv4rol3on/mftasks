@@ -27,8 +27,8 @@ const formatearFecha = (fecha: string | null | undefined) => {
 interface TaskTableSolicitudesProps {
   tareas: Task[];
   accionando?: number | null;
-  onAprobar: (tarea: Task) => void;
-  onRechazar: (tarea: Task, motivo: string) => void;
+  onAprobar: (tarea: Task) => Promise<void>;
+  onRechazar: (tarea: Task, motivo: string) => Promise<void>;
 }
 
 export default function TaskTableSolicitudes({
@@ -38,6 +38,16 @@ export default function TaskTableSolicitudes({
   onRechazar,
 }: TaskTableSolicitudesProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  const handleAprobar = async (tarea: Task) => {
+    await onAprobar(tarea);
+    setSelectedTask(null);
+  };
+
+  const handleRechazar = async (tarea: Task, motivo: string) => {
+    await onRechazar(tarea, motivo);
+    setSelectedTask(null);
+  };
 
   return (
     <>
@@ -89,8 +99,8 @@ export default function TaskTableSolicitudes({
         tarea={selectedTask}
         onClose={() => setSelectedTask(null)}
         accionando={accionando}
-        onAprobar={onAprobar}
-        onRechazar={onRechazar}
+        onAprobar={handleAprobar}
+        onRechazar={handleRechazar}
       />
     </>
   );

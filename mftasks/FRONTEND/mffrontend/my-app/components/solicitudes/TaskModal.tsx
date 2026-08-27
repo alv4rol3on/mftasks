@@ -8,8 +8,8 @@ type Props = {
     tarea: Task | null;
     onClose: () => void;
     accionando?: number | null;
-    onAprobar: (tarea: Task) => void;
-    onRechazar: (tarea: Task, motivo: string) => void;
+    onAprobar: (tarea: Task) => Promise<void>;
+    onRechazar: (tarea: Task, motivo: string) => Promise<void>;
 };
 
 export default function TaskModal({
@@ -26,20 +26,25 @@ export default function TaskModal({
 
     const puedeOperar = tarea.puedo_operar && tarea.estado === "EN_ESPERA";
 
+    const ocupado = accionando === tarea.id;
+
     const cerrar = () => {
+        if (ocupado) return;
         setRechazando(false);
         setMotivo("");
         onClose();
     };
 
-    const confirmarRechazo = () => {
-        if (!motivo.trim()) return;
-        onRechazar(tarea, motivo.trim());
+    const confirmarRechazo = async () => {
+        if (!motivo.trim() || ocupado) return;
+        try {
+            await onRechazar(tarea, motivo.trim());
+        } catch {
+            return;
+        }
         setRechazando(false);
         setMotivo("");
     };
-
-    const ocupado = accionando === tarea.id;
 
     return (
         <div className={styles.modalOverlay} onClick={cerrar}>
@@ -54,7 +59,7 @@ export default function TaskModal({
                         <p>{tarea.asunto}</p>
                     </div>
 
-                    <button className={styles.close} onClick={cerrar}>
+                    <button className={styles.close} onClick={cerrar} disabled={ocupado} style={ocupado ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
                         ✕
                     </button>
                 </div>
@@ -116,11 +121,13 @@ export default function TaskModal({
                                     value={motivo}
                                     onChange={(e) => setMotivo(e.target.value)}
                                     rows={3}
+                                    disabled={ocupado}
                                     style={{
                                         flex: 1,
                                         padding: "8px",
                                         borderRadius: "6px",
                                         border: "1px solid #ccc",
+                                        opacity: ocupado ? 0.6 : 1,
                                     }}
                                 />
 
@@ -128,13 +135,17 @@ export default function TaskModal({
                                     className={`${styles.btn} ${styles.btnNo}`}
                                     onClick={confirmarRechazo}
                                     disabled={ocupado || !motivo.trim()}
+                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                                 >
-                                    Confirmar rechazo
+                                    {ocupado ? "Procesando…" : "Confirmar rechazo"}
                                 </button>
 
                                 <button
                                     className={`${styles.btn} ${styles.btnSecondary}`}
+                                    disabled={ocupado}
+                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                                     onClick={() => {
+                                        if (ocupado) return;
                                         setRechazando(false);
                                         setMotivo("");
                                     }}
@@ -146,8 +157,11 @@ export default function TaskModal({
                             <>
                                 <button
                                     className={`${styles.btn} ${styles.btnYes}`}
-                                    onClick={() => onAprobar(tarea)}
+                                    onClick={async () => {
+                                        try { await onAprobar(tarea); } catch {}
+                                    }}
                                     disabled={ocupado}
+                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                                 >
                                     {ocupado ? "Procesando…" : "Aprobar"}
                                 </button>
@@ -155,6 +169,8 @@ export default function TaskModal({
                                 <button
                                     className={`${styles.btn} ${styles.btnNo}`}
                                     onClick={() => setRechazando(true)}
+                                    disabled={ocupado}
+                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                                 >
                                     Rechazar solicitud
                                 </button>

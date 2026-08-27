@@ -34,44 +34,54 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
 
         user = self.request.user
+        from usuarios.models import Equipo, EquipoMiembro
 
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante")
 
-        # CLIENTE ve solo sus solicitudes
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            # Si tiene también rol ASIGNADOR, prima asignador? cliente puro
-            if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists() or user.roles.filter(rol__nombre__iexact="ASISTENTE").exists():
-                # si tiene múltiples roles, priorizar asignador/asistente (no cliente)
-                pass
-            else:
+        # Detectar lider / sub-lider para distinguir cliente puro y asignador amplio
+        es_lider = Equipo.objects.filter(lider=user).exists()
+        es_sub_lider = EquipoMiembro.objects.filter(
+            usuario=user,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        ).exists()
+        es_asignador_global = user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists()
+        es_asignador_amplio = es_asignador_global or es_lider or es_sub_lider
+        es_asistente_explicito = user.roles.filter(rol__nombre__iexact="ASISTENTE").exists()
+        es_cliente = user.roles.filter(rol__nombre__iexact="CLIENTE").exists()
+
+        # CLIENTE puro: solo CLIENTE sin otros roles ni liderazgo
+        if es_cliente and not es_asignador_global and not es_asistente_explicito and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not es_lider and not es_sub_lider:
+            # verificar que no sea miembro de equipo (si es miembro, no es cliente puro)
+            if not EquipoMiembro.objects.filter(usuario=user).exists():
                 return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
+            # si es cliente pero también miembro, cae a lógica de equipo (ver todas para solicitar + pertenencia)
+            # Para cliente-miembro, mostrar sus solicitudes + tareas de equipo donde es miembro
+            # Priorizar vista equipo para centro/tareas
+            pass
 
-        # Si es asignador (lider o rol ASIGNADOR) ve todas las tareas de su equipo
-        es_asignador = False
-        if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists():
-            es_asignador = True
-        from usuarios.models import Equipo
-        if Equipo.objects.filter(lider=user).exists():
-            es_asignador = True
-
-        if es_asignador:
+        # LIDER / SUB-LIDER / ASIGNADOR: ven todas las tareas de su equipo (pueden aprobar/iniciar/asignar)
+        if es_asignador_amplio:
             return Tarea.objects.filter(
                 Q(equipo__lider=user)
                 | Q(equipo__miembros__usuario=user)
             ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
 
-        # Asistente explícito: solo tareas donde participa vía subtarea asignada
-        if user.roles.filter(rol__nombre__iexact="ASISTENTE").exists():
+        # ASISTENTE: ve tareas de su equipo (Centro en solo lectura + Tareas donde puede operar sus subtareas)
+        # Antes solo veía subtareas asignadas, ahora ve todo el equipo para Centro en lectura
+        if es_asistente_explicito:
             return Tarea.objects.filter(
-                subtareas__asignado=user
+                Q(equipo__lider=user)
+                | Q(equipo__miembros__usuario=user)
+                | Q(subtareas__asignado=user)
             ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
 
-        # CLIENTE fallback (si no se capturo arriba por multi-rol)
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        # CLIENTE fallback
+        if es_cliente:
             return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
 
-        # Miembro sin rol específico: ve todas las tareas de su equipo (compatibilidad con tests viejos)
+        # Miembro sin rol específico (compatibilidad): ve todas las tareas de su equipo
         return Tarea.objects.filter(
             Q(equipo__lider=user)
             | Q(equipo__miembros__usuario=user)
@@ -348,8 +358,11 @@ class TaskViewSet(viewsets.ModelViewSet):
     def resumen(self, request):
         user = request.user
 
-        # CLIENTE resumen de sus solicitudes
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists() and not user.roles.filter(rol__nombre__iexact="ASISTENTE").exists():
+        # CLIENTE puro resumen (solo CLIENTE sin liderazgo)
+        from usuarios.models import Equipo, EquipoMiembro
+        _es_lider_res = Equipo.objects.filter(lider=user).exists()
+        _es_sub = EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
+        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists() and not user.roles.filter(rol__nombre__iexact="ASISTENTE").exists() and not _es_lider_res and not _es_sub:
             qs = Tarea.objects.filter(solicitante=user)
             return Response({
                 "tipo": "cliente",
@@ -382,8 +395,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         es_asignador = False
         if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists():
             es_asignador = True
-        from usuarios.models import Equipo
         if Equipo.objects.filter(lider=user).exists():
+            es_asignador = True
+        if EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists():
             es_asignador = True
 
         if es_asignador:

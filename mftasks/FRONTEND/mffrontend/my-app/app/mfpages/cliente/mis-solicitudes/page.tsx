@@ -1,10 +1,12 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { useToast } from "@/components/ui/Toast";
 import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
 import TaskDetailClienteModal from "@/components/cliente/TaskDetailClienteModal";
+import { getUsuarioActual } from "@/lib/auth";
 
 const formatter = new Intl.DateTimeFormat("es-PE", { timeZone: "America/Lima", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const fmt = (f: string | null | undefined) => (!f ? "-" : isNaN(new Date(f).getTime()) ? "-" : formatter.format(new Date(f)));
@@ -14,6 +16,7 @@ const estadoColor: Record<string, string> = {
 };
 
 export default function MisSolicitudesPage() {
+  const router = useRouter();
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +24,16 @@ export default function MisSolicitudesPage() {
   const [openCrear, setOpenCrear] = useState(false);
   const [selected, setSelected] = useState<Task | null>(null);
   const { showToast } = useToast();
+  const [sinPermiso, setSinPermiso] = useState(false);
+
+  useEffect(() => {
+    const user = getUsuarioActual();
+    if (!user) { router.replace("/"); return; }
+    const roles = (user.roles ?? []).map((r) => r.toLowerCase());
+    const isAdmin = roles.includes("administrador");
+    const isCliente = roles.includes("cliente");
+    if (!isCliente && !isAdmin) setSinPermiso(true);
+  }, [router]);
 
   const cargar = useCallback(async () => {
     try {
@@ -39,6 +52,14 @@ export default function MisSolicitudesPage() {
 
   const filtradas = filtro === "TODAS" ? tareas : tareas.filter((t) => t.estado === filtro);
 
+  if (sinPermiso) {
+    return (
+      <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
+        <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
+        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Esta sección es solo para CLIENTE. Si eres ASISTENTE / SUB-LIDER / LIDER usa &quot;Centro de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.</p>
+      </div>
+    );
+  }
   if (cargando) return <div>Cargando solicitudes…</div>;
   if (error) return <div style={{ color: "#dc2626" }}>Error: {error}</div>;
 

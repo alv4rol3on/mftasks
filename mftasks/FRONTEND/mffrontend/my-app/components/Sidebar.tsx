@@ -2,16 +2,38 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "../components/Sidebar.css";
 import { getUsuarioActual } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
+import type { EquipoInfo } from "@/lib/types";
 
-const menuAll = [
-  { nombre: "Inicio", ruta: "/mfpages/home", roles: ["all"] },
-  { nombre: "Mis Solicitudes", ruta: "/mfpages/cliente/mis-solicitudes", roles: ["cliente"] },
-  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", roles: ["asignador", "asistente", "administrador"] },
-  { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", roles: ["asignador", "administrador"] },
-  { nombre: "Equipos", ruta: "/mfpages/equipos", roles: ["all"] },
+type MenuItem = {
+  nombre: string;
+  ruta: string;
+  show: (caps: Caps) => boolean;
+};
+
+type Caps = {
+  isAdmin: boolean;
+  isCliente: boolean;
+  isClientePuro: boolean;
+  isAsistente: boolean;
+  isAsignador: boolean;
+  isLider: boolean;
+  isSubLider: boolean;
+  isMiembro: boolean;
+};
+
+const menuAll: MenuItem[] = [
+  { nombre: "Inicio", ruta: "/mfpages/home", show: () => true },
+  // CLIENTE: ve estado de sus solicitudes
+  { nombre: "Mis Solicitudes", ruta: "/mfpages/cliente/mis-solicitudes", show: (c) => c.isCliente },
+  // ASISTENTE: ver pero no aprobar | SUB-LIDER/LIDER: aprobar | ADMIN/ASIGNADOR: aprobar
+  // Visible para todo el personal interno (asistente, asignador, lider, sub-lider, admin) pero NO para cliente puro
+  { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isAdmin || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isAdmin || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
 ];
 
 interface SidebarProps {
@@ -24,19 +46,70 @@ export default function Sidebar({
   setMenuOpen,
 }: SidebarProps) {
   const pathname = usePathname();
+  const [equipos, setEquipos] = useState<EquipoInfo[] | null>(null);
+
+  useEffect(() => {
+    // Cargar equipos para detectar LIDER / SUB-LIDER / Miembro (necesario cuando el usuario no tiene rol global ASIGNADOR)
+    let cancel = false;
+    const user = getUsuarioActual();
+    if (!user) return;
+    apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
+      .then((data) => {
+        if (cancel) return;
+        const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
+        setEquipos(arr);
+      })
+      .catch(() => {
+        if (!cancel) setEquipos([]);
+      });
+    return () => { cancel = true; };
+  }, [pathname]);
+
   const menu = useMemo(() => {
     const user = getUsuarioActual();
     const roles = (user?.roles ?? []).map((r) => r.toLowerCase());
     const isAdmin = roles.includes("administrador");
-    if (isAdmin) return menuAll;
-    if (roles.includes("cliente") && !roles.includes("asignador") && !roles.includes("asistente")) {
-      return menuAll.filter((m) => m.roles.includes("cliente") || m.roles.includes("all"));
+    const isCliente = roles.includes("cliente");
+    // Asistente incluye rol explícito o usuario sin roles (miembro por defecto) - ver lib/auth.ts esAsistente()
+    const isAsistenteExplicit = roles.includes("asistente");
+    const isAsistente = isAsistenteExplicit || (!isAdmin && !roles.includes("asignador") && !isCliente && roles.length === 0);
+    const isAsignador = roles.includes("asignador") || isAdmin;
+
+    // Cliente puro = solo CLIENTE sin otros roles y sin liderazgo/membresía
+    // Detectar liderazgo/membresía via equipos si ya cargó, sino fallback a roles
+    let isLider = false;
+    let isSubLider = false;
+    let isMiembro = false;
+    if (equipos && user) {
+      const uid = user.id;
+      for (const eq of equipos) {
+        if (eq.lider?.id === uid) { isLider = true; isMiembro = true; }
+        if (eq.puedo_gestionar && eq.lider?.id === uid) isLider = true;
+        if (eq.mi_rol_en_equipo === "SUB_LIDER") isSubLider = true;
+        if (eq.mi_rol_en_equipo === "MIEMBRO" || eq.mi_rol_en_equipo === "SUB_LIDER" || eq.lider?.id === uid) isMiembro = true;
+        if (eq.miembros?.some((m) => m.id_usuario === uid)) isMiembro = true;
+      }
+      if (!isSubLider && equipos.some((eq) => eq.miembros?.some((m) => m.id_usuario === user.id && m.rol_en_equipo === "SUB_LIDER" && m.estado === "ACTIVO"))) {
+        isSubLider = true; isMiembro = true;
+      }
+    } else if (!equipos) {
+      // Mientras carga, asumir membresía si no tiene rol cliente y tiene pinta de interno
+      // Evita flicker donde LIDER sin rol global queda oculto 300ms
+      if (!isCliente && (isAsistenteExplicit || roles.length === 0)) isMiembro = true;
     }
-    return menuAll.filter((m) => {
-      if (m.roles.includes("all")) return true;
-      return m.roles.some((r) => roles.includes(r));
-    });
-  }, [pathname]);
+
+    const isClientePuro = isCliente && !isAsignador && !isAsistenteExplicit && !isAdmin && !isLider && !isSubLider && !isMiembro;
+    // Nota: para cliente puro usamos isAsistenteExplicit para no considerar vacío como asistente
+    // Si aún no cargó equipos, asumir no líder para no bloquear; luego se recalcula
+    const caps: Caps = { isAdmin, isCliente, isClientePuro, isAsistente, isAsignador, isLider, isSubLider, isMiembro };
+
+    // Deduplicar por nombre/ruta: hay dos entradas "Centro de solicitudes" con rutas distintas
+    // Filtramos por show y luego por unicidad de ruta
+    const filtrado = menuAll.filter((m) => m.show(caps));
+    // Si es admin, mostrar ambas variantes de centro (mis solicitudes no tiene sentido para admin sin cliente, pero lo mostramos si es cliente también)
+    // Para evitar duplicado visual, si hay dos con mismo nombre pero distinta ruta, mantener ambas
+    return filtrado;
+  }, [pathname, equipos]);
 
   // Bloquear scroll del body cuando el menú fullscreen está abierto (solo móvil)
   useEffect(() => {
