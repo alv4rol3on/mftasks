@@ -29,15 +29,19 @@ export default function EquiposPage() {
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
 
-  // modal reasignar por indisponibilidad bloqueada (409)
+  // modal reasignar por indisponibilidad bloqueada (409) — también para baja INACTIVO
   const [modalReasignar, setModalReasignar] = useState<{
     equipo: EquipoInfo;
     miembro: EquipoMiembroDetallado;
     pendientes: Pendiente[];
     usuarioNombre: string;
-    extra: { fechaInicio: string; fechaFin: string; motivo: string };
+    extra: { fechaInicio: string; fechaFin: string; motivo: string; esBaja: boolean };
   } | null>(null);
   const [reassignments, setReassignments] = useState<Record<number, number>>({});
+  // modal agregar miembro (INACTIVO hard-delete -> re-agregar como MIEMBRO)
+  const [modalAgregar, setModalAgregar] = useState<EquipoInfo | null>(null);
+  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; email: string; nombres: string; apellidos: string }[]>([]);
+  const [agregarUsuarioId, setAgregarUsuarioId] = useState<string>("");
 
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
@@ -85,7 +89,7 @@ export default function EquiposPage() {
 
   const handleCambiarEstado = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string; reassignments?: { subtarea_id: number; nuevo_asignado: number }[] }) => {
     const key = `${equipo.id}-estado-${miembro.id_usuario}-${estado}`;
-    if (estado === "INACTIVO" && !confirm(`¿Inactivar a ${miembro.nombres} ${miembro.apellidos}? Esta es la forma de eliminar del equipo. Podrá reactivarse luego.`)) return;
+    if (estado === "INACTIVO" && !confirm(`¿Dar de baja a ${miembro.nombres} ${miembro.apellidos}? Ya no pertenecerá al equipo hasta que lo vuelvas a agregar (forzosamente como MIEMBRO). Si tiene subtareas en desarrollo/en espera, deberás reasignarlas.`)) return;
     setAccionando(key);
     setMensaje(null);
     try {
@@ -132,7 +136,7 @@ export default function EquiposPage() {
               miembro,
               pendientes,
               usuarioNombre: `${miembro.nombres} ${miembro.apellidos}`,
-              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "" },
+              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "", esBaja: estado === "INACTIVO" },
             });
             setReassignments({});
             setMensaje(msg);
@@ -147,7 +151,7 @@ export default function EquiposPage() {
           miembro,
           pendientes: data.pendientes,
           usuarioNombre: data.usuario?.nombre ?? `${miembro.nombres} ${miembro.apellidos}`,
-          extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "" },
+          extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "", esBaja: estado === "INACTIVO" },
         });
         setReassignments({});
       }
@@ -158,11 +162,10 @@ export default function EquiposPage() {
     }
   };
 
-  // Wrapper que intercepta 409 para abrir modal reasignar
+  // Wrapper que intercepta 409 para abrir modal reasignar (también para INACTIVO hard-delete)
   const handleCambiarEstadoConReasignacion = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string }) => {
-    // Hacemos fetch manual para poder leer JSON de error 409
     const key = `${equipo.id}-estado-${miembro.id_usuario}-${estado}`;
-    if (estado === "INACTIVO" && !confirm(`¿Inactivar a ${miembro.nombres} ${miembro.apellidos}?`)) return;
+    if (estado === "INACTIVO" && !confirm(`¿Dar de baja a ${miembro.nombres} ${miembro.apellidos}? Ya no pertenecerá hasta que lo vuelvas a agregar.`)) return;
     setAccionando(key);
     setMensaje(null);
     try {
@@ -200,7 +203,7 @@ export default function EquiposPage() {
               miembro,
               pendientes,
               usuarioNombre: `${miembro.nombres} ${miembro.apellidos}`,
-              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "" },
+              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "", esBaja: estado === "INACTIVO" },
             });
             setReassignments({});
             setMensaje(`Error: ${raw} — el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse`);
@@ -237,23 +240,62 @@ export default function EquiposPage() {
   const confirmarReasignarYMarcar = async () => {
     if (!modalReasignar) return;
     const { equipo, miembro, pendientes, extra } = modalReasignar;
-    // Validar que todas tengan destino
     const reassignList = pendientes.map((p) => ({
       subtarea_id: p.subtarea_id,
       nuevo_asignado: reassignments[p.subtarea_id],
     }));
     const sinAsignar = reassignList.filter((r) => !r.nuevo_asignado);
     if (sinAsignar.length > 0) {
-      setMensaje("Error: debes reasignar todas las subtareas pendientes antes de marcar indisponible.");
+      setMensaje(extra.esBaja ? "Error: debes reasignar todas las subtareas antes de dar de baja." : "Error: debes reasignar todas las subtareas pendientes antes de marcar indisponible.");
       return;
     }
-    const ok = await handleCambiarEstado(equipo, miembro, "INDISPONIBLE", {
+    const estadoFinal = extra.esBaja ? "INACTIVO" : "INDISPONIBLE";
+    const ok = await handleCambiarEstado(equipo, miembro, estadoFinal as any, {
       fecha_inicio: extra.fechaInicio,
       fecha_fin: extra.fechaFin,
       motivo: extra.motivo,
       reassignments: reassignList as any,
     });
     if (ok) setModalReasignar(null);
+  };
+
+  const abrirModalAgregar = async (equipo: EquipoInfo) => {
+    setMensaje(null);
+    setAgregarUsuarioId("");
+    setModalAgregar(equipo);
+    try {
+      const data = await apiFetch<any>("/api/usuarios/usuarios/");
+      const lista = Array.isArray(data) ? data : (data.results ?? data);
+      // filtrar los que ya son miembros o líder
+      const miembrosIds = new Set(equipo.miembros.map((m) => m.id_usuario));
+      miembrosIds.add(equipo.lider?.id as number);
+      const disponibles = (lista as any[]).filter((u) => !miembrosIds.has(u.id) && u.activo !== false);
+      setUsuariosDisponibles(disponibles);
+    } catch (e) {
+      setMensaje(`Error cargando usuarios: ${(e as Error).message}`);
+      setUsuariosDisponibles([]);
+    }
+  };
+
+  const confirmarAgregar = async () => {
+    if (!modalAgregar || !agregarUsuarioId) {
+      setMensaje("Error: selecciona un usuario para agregar.");
+      return;
+    }
+    setAccionando(`agregar-${modalAgregar.id}`);
+    try {
+      await apiFetch(`/api/usuarios/equipos/${modalAgregar.id}/miembros/`, {
+        method: "POST",
+        body: JSON.stringify({ usuario_id: Number(agregarUsuarioId) }),
+      });
+      setMensaje("Miembro agregado como MIEMBRO.");
+      setModalAgregar(null);
+      await recargar();
+    } catch (e) {
+      setMensaje(`Error: ${(e as Error).message}`);
+    } finally {
+      setAccionando(null);
+    }
   };
 
   if (cargando) return <div style={{ padding: 16 }}>Cargando equipos…</div>;
@@ -458,23 +500,14 @@ export default function EquiposPage() {
                                           {accionando === `${equipo.id}-rol-${m.id_usuario}` ? "…" : m.rol_en_equipo === "SUB_LIDER" ? "Revocar sub-líder" : "Hacer sub-líder"}
                                         </button>
 
-                                        {m.estado !== "INACTIVO" ? (
-                                          <button
-                                            onClick={() => handleCambiarEstadoConReasignacion(equipo, m, "INACTIVO")}
-                                            disabled={!!accionando}
-                                            style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
-                                          >
-                                            Inactivar
-                                          </button>
-                                        ) : (
-                                          <button
-                                            onClick={() => handleCambiarEstado(equipo, m, "ACTIVO")}
-                                            disabled={!!accionando}
-                                            style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
-                                          >
-                                            Reactivar
-                                          </button>
-                                        )}
+                                        <button
+                                          onClick={() => handleCambiarEstadoConReasignacion(equipo, m, "INACTIVO")}
+                                          disabled={!!accionando}
+                                          title="Dar de baja: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
+                                          style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
+                                        >
+                                          Dar de baja
+                                        </button>
 
                                         {m.estado !== "INDISPONIBLE" ? (
                                           <button
@@ -505,8 +538,20 @@ export default function EquiposPage() {
                     </div>
 
                     {puedoGestionar && (
-                      <div style={{ marginTop: 12, padding: 10, background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 8, fontSize: 12, color: "#5b21b6" }}>
-                        <strong>Como líder puedes:</strong> otorgar/revocar SUB-LÍDER, cambiar disponibilidad (incluida la tuya si hay sub-líder), e indisponibilizar integrantes reasignando sus subtareas en desarrollo/en espera.
+                      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <button
+                          onClick={() => abrirModalAgregar(equipo)}
+                          disabled={!!accionando}
+                          style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                        >
+                          + Agregar integrante
+                        </button>
+                        <span style={{ fontSize: 11, color: "#6b7280" }}>Al dar de baja, el integrante ya no pertenece hasta re-agregarse como MIEMBRO. Dar de baja con pendientes exige reasignación.</span>
+                      </div>
+                    )}
+                    {puedoGestionar && (
+                      <div style={{ marginTop: 8, padding: 10, background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 8, fontSize: 12, color: "#5b21b6" }}>
+                        <strong>Como líder puedes:</strong> otorgar/revocar SUB-LÍDER, dar de baja (hard-delete), y cambiar disponibilidad (incluida la tuya si hay sub-líder) reasignando subtareas en desarrollo/en espera.
                       </div>
                     )}
                   </div>
@@ -590,10 +635,54 @@ export default function EquiposPage() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
               <button onClick={() => setModalReasignar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
               <button onClick={confirmarReasignarYMarcar} style={{ background: "#7c3aed", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-                Reasignar y marcar indisponible
+                {modalReasignar.extra.esBaja ? "Reasignar y dar de baja" : "Reasignar y marcar indisponible"}
               </button>
             </div>
             <div style={{ marginTop: 8, fontSize: 11, color: "#6b7280" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal agregar integrante (re-agregar tras baja hard-delete) */}
+      {modalAgregar && (
+        <div
+          onClick={() => setModalAgregar(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Agregar integrante</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
+              Equipo: <strong>{modalAgregar.nombre}</strong> — el nuevo integrante ingresará forzosamente como <strong>MIEMBRO</strong> (luego podrás promover a SUB-LÍDER). Solo líder/admin.
+            </p>
+            {usuariosDisponibles.length === 0 ? (
+              <div style={{ background: "#fef3c7", padding: 10, borderRadius: 8, fontSize: 13, color: "#92400e" }}>No hay usuarios disponibles para agregar (todos ya son miembros o no hay usuarios activos).</div>
+            ) : (
+              <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                Selecciona usuario
+                <select
+                  value={agregarUsuarioId}
+                  onChange={(e) => setAgregarUsuarioId(e.target.value)}
+                  style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                >
+                  <option value="">— seleccionar —</option>
+                  {usuariosDisponibles.map((u) => (
+                    <option key={u.id} value={String(u.id)}>
+                      {u.nombres} {u.apellidos} — {u.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button onClick={() => setModalAgregar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button
+                onClick={confirmarAgregar}
+                disabled={!agregarUsuarioId || !!accionando}
+                style={{ background: agregarUsuarioId ? "#111827" : "#9ca3af", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
+              >
+                Agregar como MIEMBRO
+              </button>
+            </div>
           </div>
         </div>
       )}

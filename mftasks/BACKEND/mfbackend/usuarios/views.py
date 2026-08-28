@@ -359,7 +359,77 @@ class EquipoViewSet(ModelViewSet):
                         status=status.HTTP_409_CONFLICT,
                     )
 
-        # Aplicar cambio de estado
+        # Manejo INACTIVO = hard-delete (baja del grupo) — exige reasignación
+        if estado == EquipoMiembro.EstadoMiembro.INACTIVO:
+            if es_lider_objetivo:
+                return Response({"detail": "No se puede inactivar al líder del equipo. Transfiera el liderazgo primero."}, status=status.HTTP_400_BAD_REQUEST)
+            # Verificar pendientes igual que INDISPONIBLE — hard-delete exige reasignar todo
+            from tasks.models import Subtarea as _SubTarea, Tarea as _Tarea
+            pendientes_qs = _SubTarea.objects.filter(
+                asignado_id=miembro.usuario_id,
+                estado__in=[_SubTarea.Estado.EN_ESPERA, _SubTarea.Estado.EN_DESARROLLO],
+                tarea__equipo=equipo,
+                tarea__estado=_Tarea.Estado.EN_DESARROLLO,
+            ).select_related("tarea")
+            pendientes = list(pendientes_qs)
+            if pendientes:
+                reassignments = request.data.get("reassignments") or request.data.get("reasignaciones") or None
+                reassign_all_to = request.data.get("reassign_all_to") or request.data.get("reassignAllTo") or None
+                if reassign_all_to:
+                    try:
+                        reassign_all_to = int(reassign_all_to)
+                    except (TypeError, ValueError):
+                        return Response({"detail": "reassign_all_to debe ser un id válido."}, status=status.HTTP_400_BAD_REQUEST)
+                    reassignments = [{"subtarea_id": p.id, "nuevo_asignado": reassign_all_to} for p in pendientes]
+                if reassignments:
+                    miembros_activos_ids = set(
+                        EquipoMiembro.objects.filter(equipo=equipo, estado=EquipoMiembro.EstadoMiembro.ACTIVO).values_list("usuario_id", flat=True)
+                    )
+                    miembros_activos_ids.add(equipo.lider_id)
+                    pendientes_ids = {p.id for p in pendientes}
+                    reassign_map = {}
+                    for item in reassignments:
+                        sid = item.get("subtarea_id") or item.get("subtarea") or item.get("id")
+                        nid = item.get("nuevo_asignado") or item.get("nuevo_asignado_id") or item.get("destino")
+                        try:
+                            sid = int(sid); nid = int(nid)
+                        except (TypeError, ValueError):
+                            return Response({"detail": f"Reasignación inválida: {item}"}, status=status.HTTP_400_BAD_REQUEST)
+                        if sid not in pendientes_ids:
+                            return Response({"detail": f"La subtarea {sid} no está entre las pendientes del usuario."}, status=status.HTTP_400_BAD_REQUEST)
+                        if nid == int(miembro.usuario_id):
+                            return Response({"detail": "No puedes reasignar al mismo usuario que será dado de baja."}, status=status.HTTP_400_BAD_REQUEST)
+                        if nid not in miembros_activos_ids:
+                            return Response({"detail": f"El usuario {nid} no es miembro activo del equipo."}, status=status.HTTP_400_BAD_REQUEST)
+                        try:
+                            dest = EquipoMiembro.objects.get(equipo=equipo, usuario_id=nid)
+                            if dest.estado != EquipoMiembro.EstadoMiembro.ACTIVO:
+                                return Response({"detail": f"El usuario {nid} no está activo (estado {dest.estado})."}, status=status.HTTP_400_BAD_REQUEST)
+                        except EquipoMiembro.DoesNotExist:
+                            if nid != equipo.lider_id:
+                                return Response({"detail": f"El usuario {nid} no es miembro del equipo."}, status=status.HTTP_400_BAD_REQUEST)
+                        reassign_map[sid] = nid
+                    with transaction.atomic():
+                        for sid, nid in reassign_map.items():
+                            _SubTarea.objects.filter(id=sid).update(asignado_id=nid)
+                    restantes = _SubTarea.objects.filter(
+                        asignado_id=miembro.usuario_id,
+                        estado__in=[_SubTarea.Estado.EN_ESPERA, _SubTarea.Estado.EN_DESARROLLO],
+                        tarea__equipo=equipo,
+                        tarea__estado=_Tarea.Estado.EN_DESARROLLO,
+                    ).select_related("tarea")
+                    if restantes.exists():
+                        detalle = [{"subtarea_id": p.id, "descripcion": p.descripcion, "tarea_id": p.tarea_id, "tarea_asunto": p.tarea.asunto, "estado": p.estado} for p in restantes]
+                        return Response({"detail": "el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse", "usuario": {"id": miembro.usuario_id, "nombre": f"{miembro.usuario.nombres} {miembro.usuario.apellidos}"}, "pendientes": detalle, "restantes": len(detalle)}, status=status.HTTP_409_CONFLICT)
+                else:
+                    detalle = [{"subtarea_id": p.id, "descripcion": p.descripcion, "tarea_id": p.tarea_id, "tarea_asunto": p.tarea.asunto, "estado": p.estado} for p in pendientes]
+                    return Response({"detail": "el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse", "usuario": {"id": miembro.usuario_id, "nombre": f"{miembro.usuario.nombres} {miembro.usuario.apellidos}"}, "pendientes": detalle}, status=status.HTTP_409_CONFLICT)
+            # Hard-delete: eliminar del equipo
+            with transaction.atomic():
+                miembro.delete()
+            return Response({"detail": f"Miembro {miembro.usuario.nombres} dado de baja del equipo (ya no pertenece hasta re-agregarse).", "deleted": True}, status=status.HTTP_200_OK)
+
+        # Aplicar cambio de estado para ACTIVO / INDISPONIBLE
         miembro.estado = estado
         if estado == EquipoMiembro.EstadoMiembro.INDISPONIBLE:
             miembro.fecha_inicio_indisponibilidad = request.data.get("fecha_inicio_indisponibilidad") or request.data.get("fecha_inicio") or None
@@ -372,17 +442,40 @@ class EquipoViewSet(ModelViewSet):
             miembro.fecha_inicio_indisponibilidad = None
             miembro.fecha_fin_indisponibilidad = None
             miembro.motivo_indisponibilidad = ""
-        elif estado == EquipoMiembro.EstadoMiembro.INACTIVO:
-            if miembro.rol_en_equipo == EquipoMiembro.RolEnEquipo.SUB_LIDER:
-                miembro.rol_en_equipo = EquipoMiembro.RolEnEquipo.MIEMBRO
-            # Si es LIDER no se permite INACTIVO (debería transferirse liderazgo) -> bloquear
-            if es_lider_objetivo:
-                return Response({"detail": "No se puede inactivar al líder del equipo. Transfiera el liderazgo primero."}, status=status.HTTP_400_BAD_REQUEST)
-            miembro.fecha_inicio_indisponibilidad = None
-            miembro.fecha_fin_indisponibilidad = None
-            miembro.motivo_indisponibilidad = ""
         miembro.save(update_fields=["estado", "rol_en_equipo", "fecha_inicio_indisponibilidad", "fecha_fin_indisponibilidad", "motivo_indisponibilidad"])
         return Response({"detail": f"Estado actualizado a {estado}.", "estado": miembro.estado}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="miembros")
+    def agregar_miembro(self, request, pk=None):
+        equipo = self.get_object()
+        if not puede_gestionar_miembros(request.user, equipo):
+            return Response({"detail": "Solo el líder (o administrador) puede agregar miembros."}, status=status.HTTP_403_FORBIDDEN)
+        usuario_id = request.data.get("usuario_id") or request.data.get("usuario") or request.data.get("id_usuario") or request.data.get("id")
+        if not usuario_id:
+            return Response({"detail": "Debe indicar usuario_id."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            usuario_id = int(usuario_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "usuario_id inválido."}, status=status.HTTP_400_BAD_REQUEST)
+        if str(usuario_id) == str(equipo.lider_id):
+            return Response({"detail": "El líder ya pertenece al equipo."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_obj = User.objects.get(id=usuario_id)
+        except User.DoesNotExist:
+            return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        if not user_obj.activo:
+            return Response({"detail": "No se puede agregar un usuario inactivo del sistema."}, status=status.HTTP_400_BAD_REQUEST)
+        if EquipoMiembro.objects.filter(equipo=equipo, usuario_id=usuario_id).exists():
+            return Response({"detail": "El usuario ya es miembro del equipo."}, status=status.HTTP_400_BAD_REQUEST)
+        # Forzar MIEMBRO (requisito 4)
+        miembro = EquipoMiembro.objects.create(
+            equipo=equipo,
+            usuario_id=usuario_id,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO,
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        )
+        from .serializers import EquipoMiembroDetailSerializer
+        return Response(EquipoMiembroDetailSerializer(miembro).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["get"], url_path="miembros/(?P<usuario_id>[^/.]+)/subtareas-pendientes")
     def subtareas_pendientes(self, request, pk=None, usuario_id=None):

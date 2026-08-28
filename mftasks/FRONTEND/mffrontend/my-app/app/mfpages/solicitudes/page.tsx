@@ -134,11 +134,6 @@ export default function SolicitudesPage() {
       <h2 className="mb-4 text-lg font-medium">
         Solicitudes recibidas
       </h2>
-      {esSoloLectura && (
-        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af", padding: "10px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
-          Estás en modo solo lectura (rol ASISTENTE): puedes ver las solicitudes de tu equipo pero no aprobar ni rechazar. Solo LIDER, SUB-LIDER, ASIGNADOR o ADMIN pueden aprobar.
-        </div>
-      )}
 
       <TaskTableSolicitudes
         tareas={tareas}
