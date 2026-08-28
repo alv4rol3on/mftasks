@@ -13,6 +13,8 @@ function extraerEquipos(data: EquipoApiResponse): EquipoInfo[] {
   return [];
 }
 
+type Pendiente = { subtarea_id: number; descripcion: string; tarea_id: number; tarea_asunto: string; estado: string };
+
 export default function EquiposPage() {
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -27,11 +29,20 @@ export default function EquiposPage() {
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
 
+  // modal reasignar por indisponibilidad bloqueada (409)
+  const [modalReasignar, setModalReasignar] = useState<{
+    equipo: EquipoInfo;
+    miembro: EquipoMiembroDetallado;
+    pendientes: Pendiente[];
+    usuarioNombre: string;
+    extra: { fechaInicio: string; fechaFin: string; motivo: string };
+  } | null>(null);
+  const [reassignments, setReassignments] = useState<Record<number, number>>({});
+
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
   const esAdmin = roles.includes("administrador");
   const esClientePuro = roles.includes("cliente") && !roles.includes("asignador") && !roles.includes("asistente") && !esAdmin;
-  const nombreUsuario = usuario ? `${usuario.nombres} ${usuario.apellidos}`.trim() : "";
 
   const cargar = async () => {
     setCargando(true);
@@ -53,6 +64,7 @@ export default function EquiposPage() {
   const recargar = () => cargar();
 
   const handleToggleSubLider = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado) => {
+    if (miembro.rol_en_equipo === "LIDER") return;
     const nuevoRol = miembro.rol_en_equipo === "SUB_LIDER" ? "MIEMBRO" : "SUB_LIDER";
     const key = `${equipo.id}-rol-${miembro.id_usuario}`;
     setAccionando(key);
@@ -71,7 +83,7 @@ export default function EquiposPage() {
     }
   };
 
-  const handleCambiarEstado = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string }) => {
+  const handleCambiarEstado = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string; reassignments?: { subtarea_id: number; nuevo_asignado: number }[] }) => {
     const key = `${equipo.id}-estado-${miembro.id_usuario}-${estado}`;
     if (estado === "INACTIVO" && !confirm(`¿Inactivar a ${miembro.nombres} ${miembro.apellidos}? Esta es la forma de eliminar del equipo. Podrá reactivarse luego.`)) return;
     setAccionando(key);
@@ -84,12 +96,120 @@ export default function EquiposPage() {
           fecha_inicio_indisponibilidad: extra?.fecha_inicio || undefined,
           fecha_fin_indisponibilidad: extra?.fecha_fin || undefined,
           motivo_indisponibilidad: extra?.motivo || undefined,
+          reassignments: extra?.reassignments || undefined,
         }),
       });
       setMensaje(`Estado de ${miembro.nombres} cambiado a ${estado}`);
       await recargar();
+      return true;
     } catch (e) {
-      setMensaje(`Error: ${(e as Error).message}`);
+      const msg = (e as Error).message;
+      // Intentar parsear respuesta 409 con pendientes
+      // apiFetch lanza Error con message JSON; intentar extraer pendientes si viene en formato 409
+      // Si el mensaje contiene "pendientes" intentamos mostrar modal
+      let data: any = null;
+      try {
+        // si el error viene de apiFetch que incluye body json en message, intentar parsear
+        // fallback: hacer fetch crudo para obtener detalle
+        data = JSON.parse(msg);
+      } catch {}
+      // Si no se parseó, el mensaje puede ser el detail simple
+      // Forzamos segundo intento: intentar extraer del mensaje de error por si contiene "subtareas pendientes"
+      if (msg.includes("subtareas pendientes") || msg.includes("pendientes")) {
+        // Tratar de obtener detalle vía endpoint subtareas-pendientes para mostrar modal genérico
+        try {
+          const detalle = await apiFetch<any>(`/api/usuarios/equipos/${equipo.id}/miembros/${miembro.id_usuario}/subtareas-pendientes/`);
+          if (detalle && detalle.pendientes && detalle.pendientes.length > 0) {
+            const pendientes: Pendiente[] = detalle.pendientes.map((p: any) => ({
+              subtarea_id: p.subtarea_id,
+              descripcion: p.descripcion,
+              tarea_id: p.tarea_id,
+              tarea_asunto: p.tarea_asunto,
+              estado: p.estado,
+            }));
+            setModalReasignar({
+              equipo,
+              miembro,
+              pendientes,
+              usuarioNombre: `${miembro.nombres} ${miembro.apellidos}`,
+              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "" },
+            });
+            setReassignments({});
+            setMensaje(msg);
+            return false;
+          }
+        } catch {}
+      }
+      // Si el error fue 409 con data.pendientes, usar directamente si pudimos parsear
+      if (data && data.pendientes) {
+        setModalReasignar({
+          equipo,
+          miembro,
+          pendientes: data.pendientes,
+          usuarioNombre: data.usuario?.nombre ?? `${miembro.nombres} ${miembro.apellidos}`,
+          extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "" },
+        });
+        setReassignments({});
+      }
+      setMensaje(`Error: ${msg}`);
+      return false;
+    } finally {
+      setAccionando(null);
+    }
+  };
+
+  // Wrapper que intercepta 409 para abrir modal reasignar
+  const handleCambiarEstadoConReasignacion = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string }) => {
+    // Hacemos fetch manual para poder leer JSON de error 409
+    const key = `${equipo.id}-estado-${miembro.id_usuario}-${estado}`;
+    if (estado === "INACTIVO" && !confirm(`¿Inactivar a ${miembro.nombres} ${miembro.apellidos}?`)) return;
+    setAccionando(key);
+    setMensaje(null);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") : null;
+      // usar apiFetch pero capturar error 409 con detalle
+      await apiFetch(`/api/usuarios/equipos/${equipo.id}/miembros/${miembro.id_usuario}/estado/`, {
+        method: "POST",
+        body: JSON.stringify({
+          estado,
+          fecha_inicio_indisponibilidad: extra?.fecha_inicio || undefined,
+          fecha_fin_indisponibilidad: extra?.fecha_fin || undefined,
+          motivo_indisponibilidad: extra?.motivo || undefined,
+        }),
+      });
+      setMensaje(`Estado de ${miembro.nombres} cambiado a ${estado}`);
+      await recargar();
+    } catch (e: any) {
+      const raw = (e as Error).message;
+      // apiFetch lanza con message = detail o JSON stringify; intentar detectar 409
+      // Hacer intento directo con fetch para obtener JSON completo si apiFetch ocultó detalle
+      let shouldOpenModal = raw.includes("pendientes") || raw.includes("reasign");
+      if (shouldOpenModal) {
+        try {
+          const detalle = await apiFetch<any>(`/api/usuarios/equipos/${equipo.id}/miembros/${miembro.id_usuario}/subtareas-pendientes/`);
+          const pendientes: Pendiente[] = (detalle.pendientes ?? []).map((p: any) => ({
+            subtarea_id: p.subtarea_id,
+            descripcion: p.descripcion,
+            tarea_id: p.tarea_id,
+            tarea_asunto: p.tarea_asunto,
+            estado: p.estado,
+          }));
+          if (pendientes.length > 0) {
+            setModalReasignar({
+              equipo,
+              miembro,
+              pendientes,
+              usuarioNombre: `${miembro.nombres} ${miembro.apellidos}`,
+              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "" },
+            });
+            setReassignments({});
+            setMensaje(`Error: ${raw} — el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse`);
+            setAccionando(null);
+            return;
+          }
+        } catch {}
+      }
+      setMensaje(`Error: ${raw}`);
     } finally {
       setAccionando(null);
     }
@@ -106,12 +226,34 @@ export default function EquiposPage() {
     if (!modalIndisponible) return;
     const equipo = equipos.find((e) => e.id === modalIndisponible.equipoId);
     if (!equipo) return;
-    await handleCambiarEstado(equipo, modalIndisponible.miembro, "INDISPONIBLE", {
+    setModalIndisponible(null);
+    await handleCambiarEstadoConReasignacion(equipo, modalIndisponible.miembro, "INDISPONIBLE", {
       fecha_inicio: fechaInicio,
       fecha_fin: fechaFin,
       motivo,
     });
-    setModalIndisponible(null);
+  };
+
+  const confirmarReasignarYMarcar = async () => {
+    if (!modalReasignar) return;
+    const { equipo, miembro, pendientes, extra } = modalReasignar;
+    // Validar que todas tengan destino
+    const reassignList = pendientes.map((p) => ({
+      subtarea_id: p.subtarea_id,
+      nuevo_asignado: reassignments[p.subtarea_id],
+    }));
+    const sinAsignar = reassignList.filter((r) => !r.nuevo_asignado);
+    if (sinAsignar.length > 0) {
+      setMensaje("Error: debes reasignar todas las subtareas pendientes antes de marcar indisponible.");
+      return;
+    }
+    const ok = await handleCambiarEstado(equipo, miembro, "INDISPONIBLE", {
+      fecha_inicio: extra.fechaInicio,
+      fecha_fin: extra.fechaFin,
+      motivo: extra.motivo,
+      reassignments: reassignList as any,
+    });
+    if (ok) setModalReasignar(null);
   };
 
   if (cargando) return <div style={{ padding: 16 }}>Cargando equipos…</div>;
@@ -132,8 +274,6 @@ export default function EquiposPage() {
   };
 
   const esLiderDeEquipo = (equipo: EquipoInfo) => equipo.lider?.id === usuario?.id || esAdmin;
-  // para mensaje de rol del usuario en cada equipo
-  const esMiembroDeEquipo = (equipo: EquipoInfo) => equipo.miembros.some((m) => m.id_usuario === usuario?.id) || esLiderDeEquipo(equipo);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -145,7 +285,7 @@ export default function EquiposPage() {
               ? "Ves los equipos a los que puedes solicitar servicios."
               : esAdmin
                 ? "Vista administrador: ves todos los equipos del sistema."
-                : "Pueder ver los equipos donde eres líder o integrante."}
+                : "Puedes ver los equipos donde eres líder o integrante."}
           </p>
         </div>
         <button onClick={recargar} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
@@ -154,7 +294,7 @@ export default function EquiposPage() {
       </div>
 
       {mensaje && (
-        <div style={{ background: mensaje.startsWith("Error") ? "#fee2e2" : "#dcfce7", color: mensaje.startsWith("Error") ? "#991b1b" : "#166534", padding: "10px 12px", borderRadius: 8, fontSize: 13 }}>
+        <div style={{ background: mensaje.startsWith("Error") ? "#fee2e2" : "#dcfce7", color: mensaje.startsWith("Error") ? "#991b1b" : "#166534", padding: "10px 12px", borderRadius: 8, fontSize: 13, whiteSpace: "pre-wrap" }}>
           {mensaje}
         </div>
       )}
@@ -178,10 +318,12 @@ export default function EquiposPage() {
             const expandido = equipoExpandido === equipo.id;
             const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
             const puedoGestionar = Boolean(equipo.puedo_gestionar);
-            const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "Cliente (no miembro)" : esMiembroDeEquipo(equipo) ? "Integrante" : "—";
+            const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "Cliente (no miembro)" : "—";
             const liderNombre = equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "—";
             const totalActivos = equipo.miembros.filter((m) => m.estado === "ACTIVO").length;
             const totalIndisponibles = equipo.miembros.filter((m) => m.estado === "INDISPONIBLE").length;
+            const tieneSubLiderActivo = equipo.miembros.some((m) => m.rol_en_equipo === "SUB_LIDER" && m.estado === "ACTIVO");
+            const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
 
             return (
               <div key={equipo.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
@@ -200,9 +342,10 @@ export default function EquiposPage() {
                       ) : null}
                     </div>
                     <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      <span>Líder: <strong style={{ color: "#111827" }}>{liderNombre}</strong></span>
+                      <span>Líder: <strong style={{ color: "#111827" }}>{liderNombre}</strong> {liderMiembro && badgeEstado(liderMiembro.estado)}</span>
                       <span>Miembros: {equipo.miembros.length} (activos {totalActivos}{totalIndisponibles ? `, indisponibles ${totalIndisponibles}` : ""})</span>
                       <span>Tu rol: <strong>{miRolLabel}</strong></span>
+                      {!tieneSubLiderActivo && <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: 6, fontSize: 11 }}>Sin sub-líder activo — el líder no puede marcarse indisponible</span>}
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -213,15 +356,45 @@ export default function EquiposPage() {
 
                 {expandido && (
                   <div style={{ borderTop: "1px solid #f3f4f6", padding: 16, background: "#fafafa" }}>
-                    {/* Fila líder */}
-                    <div style={{ marginBottom: 12, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                    {/* Fila líder con disponibilidad */}
+                    <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.estado === "INDISPONIBLE" ? "#f59e0b" : "#e5e7eb"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", display: "flex", gap: 8, alignItems: "center" }}>
-                          {liderNombre} {badgeRol("LIDER")}
+                          {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeEstado(liderMiembro.estado)}
                         </div>
                         <div style={{ fontSize: 12, color: "#6b7280" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `• ${equipo.lider.cargo}` : ""}</div>
+                        {liderMiembro?.estado === "INDISPONIBLE" && (liderMiembro.fecha_inicio_indisponibilidad || liderMiembro.motivo_indisponibilidad) && (
+                          <div style={{ fontSize: 11, color: "#92400e", marginTop: 4 }}>
+                            {liderMiembro.motivo_indisponibilidad ? `Motivo: ${liderMiembro.motivo_indisponibilidad}` : ""}
+                            {liderMiembro.fecha_inicio_indisponibilidad ? ` • ${liderMiembro.fecha_inicio_indisponibilidad}` : ""}
+                            {liderMiembro.fecha_fin_indisponibilidad ? ` → ${liderMiembro.fecha_fin_indisponibilidad}` : ""}
+                          </div>
+                        )}
                       </div>
-                      <span style={{ fontSize: 11, color: "#6b7280" }}>Líder del equipo</span>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                        {liderMiembro && liderMiembro.estado !== "INDISPONIBLE" ? (
+                          <button
+                            onClick={() => {
+                              if (!tieneSubLiderActivo) { setMensaje("Error: No puedes marcar al líder como indisponible si no hay un sub-líder activo."); return; }
+                              abrirModalIndisponible(equipo.id, liderMiembro);
+                            }}
+                            disabled={!!accionando || !tieneSubLiderActivo}
+                            title={!tieneSubLiderActivo ? "Debe haber un sub-líder activo para que el líder pueda marcarse indisponible (condición)" : "Marcar líder indisponible"}
+                            style={{ background: tieneSubLiderActivo ? "white" : "#f3f4f6", color: tieneSubLiderActivo ? "#92400e" : "#9ca3af", border: "1px solid #fde68a", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
+                          >
+                            Marcar líder indisponible
+                          </button>
+                        ) : liderMiembro ? (
+                          <button
+                            onClick={() => handleCambiarEstado(equipo, liderMiembro, "ACTIVO")}
+                            disabled={!!accionando}
+                            style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                          >
+                            Volver líder a activo
+                          </button>
+                        ) : null}
+                        <span style={{ fontSize: 11, color: "#6b7280" }}>Condición: debe haber sub-líder</span>
+                      </div>
                     </div>
 
                     <div style={{ overflowX: "auto" }}>
@@ -232,18 +405,18 @@ export default function EquiposPage() {
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Email</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Estado</th>
-                            {puedoGestionar && <th style={{ padding: "10px 12px", fontWeight: 600, minWidth: 220 }}>Acciones (solo líder)</th>}
+                            {puedoGestionar && <th style={{ padding: "10px 12px", fontWeight: 600, minWidth: 260 }}>Acciones (solo líder)</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {equipo.miembros.length === 0 ? (
+                          {equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").length === 0 ? (
                             <tr>
                               <td colSpan={puedoGestionar ? 5 : 4} style={{ padding: 16, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
                                 Sin integrantes adicionales (solo líder)
                               </td>
                             </tr>
                           ) : (
-                            equipo.miembros.map((m) => {
+                            equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").map((m) => {
                               const esYo = m.id_usuario === usuario?.id;
                               return (
                                 <tr key={m.id} style={{ borderTop: "1px solid #f3f4f6", fontSize: 13, background: m.estado === "INACTIVO" ? "#fef2f2" : m.estado === "INDISPONIBLE" ? "#fffbeb" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1 }}>
@@ -287,7 +460,7 @@ export default function EquiposPage() {
 
                                         {m.estado !== "INACTIVO" ? (
                                           <button
-                                            onClick={() => handleCambiarEstado(equipo, m, "INACTIVO")}
+                                            onClick={() => handleCambiarEstadoConReasignacion(equipo, m, "INACTIVO")}
                                             disabled={!!accionando}
                                             style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
                                           >
@@ -321,7 +494,6 @@ export default function EquiposPage() {
                                           </button>
                                         )}
                                       </div>
-                                      {!soyLider && <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>Gestionar miembros requiere ser líder</div>}
                                     </td>
                                   )}
                                 </tr>
@@ -332,19 +504,9 @@ export default function EquiposPage() {
                       </table>
                     </div>
 
-                    {!puedoGestionar && equipo.miembros.length > 0 && (
-                      <div style={{ marginTop: 12, padding: 10, background: "#f3f4f6", borderRadius: 8, fontSize: 12, color: "#6b7280" }}>
-                        {equipo.mi_rol_en_equipo === "SUB_LIDER"
-                          ? "Eres sub-líder: puedes aprobar, iniciar y gestionar tareas del equipo, pero no administrar roles/estados."
-                          : esClientePuro
-                            ? ""
-                            : "Vista integrante: ves la información básica de tus compañeros. Solo el líder puede administrar roles y estados."}
-                      </div>
-                    )}
-
                     {puedoGestionar && (
                       <div style={{ marginTop: 12, padding: 10, background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 8, fontSize: 12, color: "#5b21b6" }}>
-                        <strong>Como líder puedes:</strong> otorgar/revocar <em>SUB-LÍDER, o cambiar disponibilidad de los miembros del equipo</em>
+                        <strong>Como líder puedes:</strong> otorgar/revocar SUB-LÍDER, cambiar disponibilidad (incluida la tuya si hay sub-líder), e indisponibilizar integrantes reasignando sus subtareas en desarrollo/en espera.
                       </div>
                     )}
                   </div>
@@ -362,9 +524,9 @@ export default function EquiposPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Marcar indisponible</h3>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Marcar indisponible {modalIndisponible.miembro.rol_en_equipo === "LIDER" ? "(Líder - requiere sub-líder)" : ""}</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
-              {modalIndisponible.miembro.nombres} {modalIndisponible.miembro.apellidos} — se usará como vacaciones/indisponibilidad temporal.
+              {modalIndisponible.miembro.nombres} {modalIndisponible.miembro.apellidos} — se usará como vacaciones/indisponibilidad temporal. Si tiene subtareas en desarrollo/en espera, deberás reasignarlas.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
@@ -384,6 +546,54 @@ export default function EquiposPage() {
               <button onClick={() => setModalIndisponible(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
               <button onClick={confirmarIndisponible} style={{ background: "#f59e0b", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Confirmar indisponible</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal reasignar pendientes bloqueado */}
+      {modalReasignar && (
+        <div
+          onClick={() => setModalReasignar(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#991b1b" }}>Subtareas pendientes — reasignación requerida</h3>
+            <p style={{ margin: "6px 0 12px", fontSize: 13, color: "#374151", background: "#fee2e2", padding: 10, borderRadius: 8 }}>
+              el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse: <strong>{modalReasignar.usuarioNombre}</strong>
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {modalReasignar.pendientes.map((p) => {
+                const opciones = modalReasignar.equipo.miembros.filter((m) => m.estado === "ACTIVO" && m.id_usuario !== modalReasignar.miembro.id_usuario);
+                return (
+                  <div key={p.subtarea_id} style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10, background: "#fafafa" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{p.descripcion}</div>
+                    <div style={{ fontSize: 11, color: "#6b7280" }}>Tarea #{p.tarea_id} — {p.tarea_asunto} • Estado: {p.estado}</div>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, fontSize: 12, fontWeight: 600 }}>
+                      Reasignar a:
+                      <select
+                        value={reassignments[p.subtarea_id] ?? ""}
+                        onChange={(e) => setReassignments((prev) => ({ ...prev, [p.subtarea_id]: Number(e.target.value) }))}
+                        style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
+                      >
+                        <option value="">— seleccionar —</option>
+                        {opciones.map((o) => (
+                          <option key={o.id_usuario} value={o.id_usuario}>
+                            {o.nombres} {o.apellidos} ({o.rol_en_equipo}) — {o.estado}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+              <button onClick={() => setModalReasignar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+              <button onClick={confirmarReasignarYMarcar} style={{ background: "#7c3aed", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                Reasignar y marcar indisponible
+              </button>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: "#6b7280" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>
           </div>
         </div>
       )}

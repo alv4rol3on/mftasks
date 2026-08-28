@@ -349,6 +349,47 @@ class TaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    def _tareas_con_pendientes(self, user):
+        """Retorna detalle agrupado de tareas donde user tiene subtareas pendientes."""
+        pendientes = Subtarea.objects.filter(
+            asignado=user,
+            estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
+            tarea__estado=Tarea.Estado.EN_DESARROLLO,
+        ).select_related("tarea", "tarea__equipo")
+        agrupado = {}
+        for s in pendientes:
+            tid = s.tarea_id
+            if tid not in agrupado:
+                agrupado[tid] = {
+                    "tarea_id": tid,
+                    "asunto": s.tarea.asunto,
+                    "equipo_nombre": s.tarea.equipo.nombre if s.tarea.equipo else "",
+                    "estado_tarea": s.tarea.estado,
+                    "subtareas": [],
+                }
+            agrupado[tid]["subtareas"].append({
+                "subtarea_id": s.id,
+                "descripcion": s.descripcion,
+                "estado": s.estado,
+                "peso": s.peso,
+            })
+        return list(agrupado.values())
+
+    @action(
+        detail=False,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="mis-pendientes",
+    )
+    def mis_pendientes(self, request):
+        detalle = self._tareas_con_pendientes(request.user)
+        total_sub = sum(len(t["subtareas"]) for t in detalle)
+        return Response({
+            "total_tareas": len(detalle),
+            "total_subtareas": total_sub,
+            "tareas": detalle,
+        })
+
     @action(
         detail=False,
         methods=["get"],
@@ -378,7 +419,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             # no retornar solo cliente, seguir a lógica asignador/asistente si corresponde
             pass
 
-        # Administrador ve todo por aprobar
+        # Administrador ve todo por aprobar + detalle pendientes propios
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             por_aprobar = Tarea.objects.filter(estado=Tarea.Estado.EN_ESPERA).count()
             pendientes = Subtarea.objects.filter(
@@ -386,10 +427,18 @@ class TaskViewSet(viewsets.ModelViewSet):
                 estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
                 tarea__estado=Tarea.Estado.EN_DESARROLLO,
             ).count()
+            tareas_pendientes = Tarea.objects.filter(
+                subtareas__asignado=user,
+                subtareas__estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
+                estado=Tarea.Estado.EN_DESARROLLO,
+            ).distinct().count()
+            detalle = self._tareas_con_pendientes(user)
             return Response({
                 "tipo": "admin",
                 "por_aprobar": por_aprobar,
                 "pendientes": pendientes,
+                "tareas_pendientes": tareas_pendientes,
+                "tareas_con_pendientes": detalle,
             })
 
         es_asignador = False
@@ -406,9 +455,24 @@ class TaskViewSet(viewsets.ModelViewSet):
                 Q(equipo__lider=user) | Q(equipo__miembros__usuario=user),
                 estado=Tarea.Estado.EN_ESPERA,
             ).distinct().count()
+            # Además informar pendientes propios con detalle
+            pendientes = Subtarea.objects.filter(
+                asignado=user,
+                estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
+                tarea__estado=Tarea.Estado.EN_DESARROLLO,
+            ).count()
+            tareas_pendientes = Tarea.objects.filter(
+                subtareas__asignado=user,
+                subtareas__estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
+                estado=Tarea.Estado.EN_DESARROLLO,
+            ).distinct().count()
+            detalle = self._tareas_con_pendientes(user)
             return Response({
                 "tipo": "asignador",
                 "por_aprobar": por_aprobar,
+                "pendientes": pendientes,
+                "tareas_pendientes": tareas_pendientes,
+                "tareas_con_pendientes": detalle,
             })
 
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
@@ -434,12 +498,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             subtareas__estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
             estado=Tarea.Estado.EN_DESARROLLO,
         ).distinct().count()
+        detalle = self._tareas_con_pendientes(user)
         # Si tiene rol ASISTENTE, tipo asistente, sino si tiene pendientes lo tratamos como asistente
         tipo = "asistente" if user.roles.filter(rol__nombre__iexact="ASISTENTE").exists() or pendientes > 0 else "asistente"
         return Response({
             "tipo": tipo,
             "pendientes": pendientes,
             "tareas_pendientes": tareas_pendientes,
+            "tareas_con_pendientes": detalle,
         })
 
 
@@ -575,3 +641,45 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.save()
 
         return Response(SubtareaSerializer(subtarea).data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/reasignar",
+    )
+    def reasignar_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        if subtarea.estado == Subtarea.Estado.SOLUCIONADO:
+            return Response({"detail": "No se puede reasignar una subtarea solucionada."}, status=status.HTTP_400_BAD_REQUEST)
+        if tarea.estado != Tarea.Estado.EN_DESARROLLO:
+            return Response({"detail": "Solo se pueden reasignar subtareas de tareas en desarrollo."}, status=status.HTTP_400_BAD_REQUEST)
+        nuevo_id = request.data.get("nuevo_asignado") or request.data.get("nuevo_asignado_id") or request.data.get("asignado") or request.data.get("destino")
+        if not nuevo_id:
+            return Response({"detail": "Debe indicar nuevo_asignado."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            nuevo_id = int(nuevo_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "nuevo_asignado inválido."}, status=status.HTTP_400_BAD_REQUEST)
+        if nuevo_id == subtarea.asignado_id:
+            return Response({"detail": "El nuevo asignado es el mismo que el actual."}, status=status.HTTP_400_BAD_REQUEST)
+        # Validar que nuevo asignado sea miembro activo del equipo (o líder)
+        from usuarios.models import EquipoMiembro
+        equipo = tarea.equipo
+        miembros_activos = set(
+            equipo.miembros.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO).values_list("usuario_id", flat=True)
+        )
+        miembros_activos.add(equipo.lider_id)
+        if nuevo_id not in miembros_activos:
+            return Response({"detail": f"El usuario {nuevo_id} no es miembro activo del equipo."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            dest = EquipoMiembro.objects.get(equipo=equipo, usuario_id=nuevo_id)
+            if dest.estado != EquipoMiembro.EstadoMiembro.ACTIVO:
+                return Response({"detail": f"El usuario destino está {dest.estado}."}, status=status.HTTP_400_BAD_REQUEST)
+        except EquipoMiembro.DoesNotExist:
+            if nuevo_id != equipo.lider_id:
+                return Response({"detail": f"El usuario {nuevo_id} no es miembro del equipo."}, status=status.HTTP_400_BAD_REQUEST)
+        subtarea.asignado_id = nuevo_id
+        subtarea.save(update_fields=["asignado"])
+        return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)

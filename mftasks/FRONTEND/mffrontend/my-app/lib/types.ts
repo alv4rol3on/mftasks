@@ -44,15 +44,35 @@ export interface ResumenCliente {
     total: number;
 }
 
+export interface TareaConPendientes {
+    tarea_id: number;
+    asunto: string;
+    equipo_nombre: string;
+    estado_tarea: string;
+    subtareas: { subtarea_id: number; descripcion: string; estado: string; peso: number }[];
+}
+
 export interface ResumenAsignador {
     tipo: "asignador";
     por_aprobar: number;
+    pendientes?: number;
+    tareas_pendientes?: number;
+    tareas_con_pendientes?: TareaConPendientes[];
 }
 
 export interface ResumenAsistente {
     tipo: "asistente";
     pendientes: number;
     tareas_pendientes: number;
+    tareas_con_pendientes?: TareaConPendientes[];
+}
+
+export interface ResumenAdmin {
+    tipo: "admin";
+    por_aprobar: number;
+    pendientes?: number;
+    tareas_pendientes?: number;
+    tareas_con_pendientes?: TareaConPendientes[];
 }
 
 export interface ClienteInfo {
@@ -80,7 +100,7 @@ export interface EquipoMiembroDetallado {
     nombres: string;
     apellidos: string;
     cargo?: string;
-    rol_en_equipo: "MIEMBRO" | "SUB_LIDER";
+    rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER";
     estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE";
     fecha_inicio_indisponibilidad?: string | null;
     fecha_fin_indisponibilidad?: string | null;

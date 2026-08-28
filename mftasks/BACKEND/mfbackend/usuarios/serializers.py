@@ -149,10 +149,10 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user or not request.user.is_authenticated:
             return None
-        if obj.lider_id == request.user.id:
-            return EquipoMiembro.EstadoMiembro.ACTIVO
         try:
             m = obj.miembros.get(usuario=request.user)
             return m.estado
         except EquipoMiembro.DoesNotExist:
+            if obj.lider_id == request.user.id:
+                return EquipoMiembro.EstadoMiembro.ACTIVO
             return None

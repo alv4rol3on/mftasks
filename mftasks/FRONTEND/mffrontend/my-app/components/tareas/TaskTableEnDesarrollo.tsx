@@ -5,6 +5,7 @@ import TaskModal from "./TaskModal";
 import TaskIniciarModal from "./TaskIniciarModal";
 import styles from "./TaskTableEnDesarrollo.module.css";
 import { Task } from "@/lib/types";
+import { getUsuarioActual } from "@/lib/auth";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -55,6 +56,11 @@ export default function TaskTableEnDesarrollo({
   const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
   const selectedTask =
     tareas.find((tarea) => tarea.id === selectedTaskId) ?? null;
+  const usuario = getUsuarioActual();
+  const tienePendienteEnTarea = (tarea: Task) =>
+    tarea.subtareas.some(
+      (s) => s.asignado === usuario?.id && (s.estado === "EN_ESPERA" || s.estado === "EN_DESARROLLO")
+    );
 
   return (
     <>
@@ -70,41 +76,50 @@ export default function TaskTableEnDesarrollo({
             <div>Acciones</div>
           </div>
 
-          {tareas.map((tarea) => (
-            <div className={styles.taskRow} key={tarea.id}>
-              <div>{tarea.id}</div>
+          {tareas.map((tarea) => {
+            const conPendiente = tienePendienteEnTarea(tarea);
+            return (
+              <div
+                className={styles.taskRow}
+                key={tarea.id}
+                style={conPendiente ? { background: "#fffbeb", borderLeft: "4px solid #f59e0b" } : undefined}
+                title={conPendiente ? "Tienes subtareas pendientes en esta tarea" : undefined}
+              >
+                <div>{tarea.id} {conPendiente && <span style={{ background: "#f59e0b", color: "white", fontSize: 9, padding: "2px 6px", borderRadius: 999, marginLeft: 4 }}>PENDIENTE TUYO</span>}</div>
 
-              <div className={styles.taskSubject}>
-                {tarea.asunto}
-              </div>
+                <div className={styles.taskSubject}>
+                  {tarea.asunto}
+                  {conPendiente && <div style={{ fontSize: 11, color: "#92400e", marginTop: 2 }}>Estás teniendo subtareas pendientes por completar</div>}
+                </div>
 
-              <div>{tarea.cliente_nombre}</div>
+                <div>{tarea.cliente_nombre}</div>
 
-              <div>{tarea.equipo_nombre}</div>
+                <div>{tarea.equipo_nombre}</div>
 
-              <div>{tarea.estado}</div>
+                <div>{tarea.estado}</div>
 
-              <div>{formatearFecha(tarea.fecha_inicio)}</div>
+                <div>{formatearFecha(tarea.fecha_inicio)}</div>
 
-              <div>
-                <button
-                  className={styles.btnDetalles}
-                  onClick={() => setSelectedTaskId(tarea.id)}
-                >
-                  info
-                </button>
-                {tarea.puedo_operar && tarea.estado === "APROBADO" && (
+                <div>
                   <button
-                    className={styles.btnIniciar}
-                    onClick={() => setTaskParaIniciar(tarea)}
-                    disabled={accionando === tarea.id}
+                    className={styles.btnDetalles}
+                    onClick={() => setSelectedTaskId(tarea.id)}
                   >
-                    Iniciar
+                    info
                   </button>
-                )}
+                  {tarea.puedo_operar && tarea.estado === "APROBADO" && (
+                    <button
+                      className={styles.btnIniciar}
+                      onClick={() => setTaskParaIniciar(tarea)}
+                      disabled={accionando === tarea.id}
+                    >
+                      Iniciar
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       <TaskModal

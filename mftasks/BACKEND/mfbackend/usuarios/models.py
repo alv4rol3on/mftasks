@@ -94,10 +94,44 @@ class Equipo(models.Model):
     def __str__(self):
         return self.nombre
 
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        old_lider_id = None
+        if not is_new:
+            try:
+                old = Equipo.objects.get(pk=self.pk)
+                old_lider_id = old.lider_id
+            except Equipo.DoesNotExist:
+                old_lider_id = None
+        super().save(*args, **kwargs)
+        # Sincronizar EquipoMiembro LIDER
+        try:
+            if is_new:
+                EquipoMiembro.objects.get_or_create(
+                    equipo=self,
+                    usuario_id=self.lider_id,
+                    defaults={"rol_en_equipo": EquipoMiembro.RolEnEquipo.LIDER, "estado": EquipoMiembro.EstadoMiembro.ACTIVO},
+                )
+                # Asegurar rol LIDER si ya existia
+                EquipoMiembro.objects.filter(equipo=self, usuario_id=self.lider_id).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER)
+            else:
+                if old_lider_id and old_lider_id != self.lider_id:
+                    # Degradar anterior lider a MIEMBRO si tenia rol LIDER
+                    EquipoMiembro.objects.filter(equipo=self, usuario_id=old_lider_id, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO)
+                    EquipoMiembro.objects.get_or_create(
+                        equipo=self,
+                        usuario_id=self.lider_id,
+                        defaults={"rol_en_equipo": EquipoMiembro.RolEnEquipo.LIDER, "estado": EquipoMiembro.EstadoMiembro.ACTIVO},
+                    )
+                    EquipoMiembro.objects.filter(equipo=self, usuario_id=self.lider_id).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER)
+        except Exception:
+            pass
+
 
 class EquipoMiembro(models.Model):
 
     class RolEnEquipo(models.TextChoices):
+        LIDER = "LIDER", "Líder"
         MIEMBRO = "MIEMBRO", "Miembro"
         SUB_LIDER = "SUB_LIDER", "Sub-líder"
 
