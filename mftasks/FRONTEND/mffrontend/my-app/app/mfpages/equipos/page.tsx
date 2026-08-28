@@ -116,7 +116,7 @@ export default function EquiposPage() {
         // si el error viene de apiFetch que incluye body json en message, intentar parsear
         // fallback: hacer fetch crudo para obtener detalle
         data = JSON.parse(msg);
-      } catch {}
+      } catch { }
       // Si no se parseó, el mensaje puede ser el detail simple
       // Forzamos segundo intento: intentar extraer del mensaje de error por si contiene "subtareas pendientes"
       if (msg.includes("subtareas pendientes") || msg.includes("pendientes")) {
@@ -142,7 +142,7 @@ export default function EquiposPage() {
             setMensaje(msg);
             return false;
           }
-        } catch {}
+        } catch { }
       }
       // Si el error fue 409 con data.pendientes, usar directamente si pudimos parsear
       if (data && data.pendientes) {
@@ -210,7 +210,7 @@ export default function EquiposPage() {
             setAccionando(null);
             return;
           }
-        } catch {}
+        } catch { }
       }
       setMensaje(`Error: ${raw}`);
     } finally {
@@ -360,7 +360,7 @@ export default function EquiposPage() {
             const expandido = equipoExpandido === equipo.id;
             const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
             const puedoGestionar = Boolean(equipo.puedo_gestionar);
-            const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "Cliente (no miembro)" : "—";
+            const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";
             const liderNombre = equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "—";
             const totalActivos = equipo.miembros.filter((m) => m.estado === "ACTIVO").length;
             const totalIndisponibles = equipo.miembros.filter((m) => m.estado === "INDISPONIBLE").length;
@@ -384,10 +384,13 @@ export default function EquiposPage() {
                       ) : null}
                     </div>
                     <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      <span>Líder: <strong style={{ color: "#111827" }}>{liderNombre}</strong> {liderMiembro && badgeEstado(liderMiembro.estado)}</span>
+                      <span>Líder: <strong style={{ color: "#111827" }}>{liderNombre}</strong></span>
                       <span>Miembros: {equipo.miembros.length} (activos {totalActivos}{totalIndisponibles ? `, indisponibles ${totalIndisponibles}` : ""})</span>
-                      <span>Tu rol: <strong>{miRolLabel}</strong></span>
-                      {!tieneSubLiderActivo && <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: 6, fontSize: 11 }}>Sin sub-líder activo — el líder no puede marcarse indisponible</span>}
+                      {!esClientePuro && (
+
+                        <span>Tu rol: <strong>{miRolLabel}</strong></span>
+
+                      )}
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -413,30 +416,34 @@ export default function EquiposPage() {
                           </div>
                         )}
                       </div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                        {liderMiembro && liderMiembro.estado !== "INDISPONIBLE" ? (
-                          <button
-                            onClick={() => {
-                              if (!tieneSubLiderActivo) { setMensaje("Error: No puedes marcar al líder como indisponible si no hay un sub-líder activo."); return; }
-                              abrirModalIndisponible(equipo.id, liderMiembro);
-                            }}
-                            disabled={!!accionando || !tieneSubLiderActivo}
-                            title={!tieneSubLiderActivo ? "Debe haber un sub-líder activo para que el líder pueda marcarse indisponible (condición)" : "Marcar líder indisponible"}
-                            style={{ background: tieneSubLiderActivo ? "white" : "#f3f4f6", color: tieneSubLiderActivo ? "#92400e" : "#9ca3af", border: "1px solid #fde68a", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
-                          >
-                            Marcar líder indisponible
-                          </button>
-                        ) : liderMiembro ? (
-                          <button
-                            onClick={() => handleCambiarEstado(equipo, liderMiembro, "ACTIVO")}
-                            disabled={!!accionando}
-                            style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
-                          >
-                            Volver líder a activo
-                          </button>
-                        ) : null}
-                        <span style={{ fontSize: 11, color: "#6b7280" }}>Condición: debe haber sub-líder</span>
-                      </div>
+                      {soyLider &&
+                        <>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                            {liderMiembro && liderMiembro.estado !== "INDISPONIBLE" ? (
+                              <button
+                                onClick={() => {
+                                  if (!tieneSubLiderActivo) { setMensaje("Error: No puedes marcar al líder como indisponible si no hay un sub-líder activo."); return; }
+                                  abrirModalIndisponible(equipo.id, liderMiembro);
+                                }}
+                                disabled={!!accionando || !tieneSubLiderActivo}
+                                title={!tieneSubLiderActivo ? "Debe haber un sub-líder activo para que el líder pueda marcarse indisponible (condición)" : "Inactivar cuenta"}
+                                style={{ background: tieneSubLiderActivo ? "white" : "#f3f4f6", color: tieneSubLiderActivo ? "#92400e" : "#9ca3af", border: "1px solid #fde68a", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
+                              >
+                                Inactivar cuenta
+                              </button>
+                            ) : liderMiembro ? (
+                              <button
+                                onClick={() => handleCambiarEstado(equipo, liderMiembro, "ACTIVO")}
+                                disabled={!!accionando}
+                                style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                              >
+                                Volver líder a activo
+                              </button>
+                            ) : null}
+                            <span style={{ fontSize: 11, color: "#6b7280" }}>Condición: debe haber sub-líder</span>
+                          </div>
+                        </>
+                      }
                     </div>
 
                     <div style={{ overflowX: "auto" }}>
@@ -503,10 +510,10 @@ export default function EquiposPage() {
                                         <button
                                           onClick={() => handleCambiarEstadoConReasignacion(equipo, m, "INACTIVO")}
                                           disabled={!!accionando}
-                                          title="Dar de baja: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
+                                          title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
                                           style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
                                         >
-                                          Dar de baja
+                                          Eliminar del grupo
                                         </button>
 
                                         {m.estado !== "INDISPONIBLE" ? (
@@ -515,7 +522,7 @@ export default function EquiposPage() {
                                             disabled={!!accionando || m.estado === "INACTIVO"}
                                             style={{ background: "white", color: "#92400e", border: "1px solid #fde68a", padding: "4px 8px", borderRadius: 6, cursor: m.estado === "INACTIVO" ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 600, opacity: m.estado === "INACTIVO" ? 0.5 : 1 }}
                                           >
-                                            Indisponible
+                                            Inactivar
                                           </button>
                                         ) : (
                                           <button
@@ -546,7 +553,6 @@ export default function EquiposPage() {
                         >
                           + Agregar integrante
                         </button>
-                        <span style={{ fontSize: 11, color: "#6b7280" }}>Al dar de baja, el integrante ya no pertenece hasta re-agregarse como MIEMBRO. Dar de baja con pendientes exige reasignación.</span>
                       </div>
                     )}
                     {puedoGestionar && (
@@ -569,9 +575,9 @@ export default function EquiposPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Marcar indisponible {modalIndisponible.miembro.rol_en_equipo === "LIDER" ? "(Líder - requiere sub-líder)" : ""}</h3>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Inactivar cuenta {modalIndisponible.miembro.rol_en_equipo === "LIDER" ? "(Líder - requiere sub-líder)" : ""}</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
-              {modalIndisponible.miembro.nombres} {modalIndisponible.miembro.apellidos} — se usará como vacaciones/indisponibilidad temporal. Si tiene subtareas en desarrollo/en espera, deberás reasignarlas.
+              {modalIndisponible.miembro.nombres} {modalIndisponible.miembro.apellidos} — se inactivará temporalmente. Si tiene subtareas en desarrollo/en espera, deberás reasignarlas.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
@@ -589,7 +595,7 @@ export default function EquiposPage() {
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
               <button onClick={() => setModalIndisponible(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
-              <button onClick={confirmarIndisponible} style={{ background: "#f59e0b", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Confirmar indisponible</button>
+              <button onClick={confirmarIndisponible} style={{ background: "#f59e0b", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Inactivar cuenta</button>
             </div>
           </div>
         </div>
@@ -635,7 +641,7 @@ export default function EquiposPage() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
               <button onClick={() => setModalReasignar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
               <button onClick={confirmarReasignarYMarcar} style={{ background: "#7c3aed", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-                {modalReasignar.extra.esBaja ? "Reasignar y dar de baja" : "Reasignar y marcar indisponible"}
+                {modalReasignar.extra.esBaja ? "Reasignar y dar de baja" : "Reasignar e inactivar esta cuenta"}
               </button>
             </div>
             <div style={{ marginTop: 8, fontSize: 11, color: "#6b7280" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>
@@ -652,7 +658,7 @@ export default function EquiposPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Agregar integrante</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
-              Equipo: <strong>{modalAgregar.nombre}</strong> — el nuevo integrante ingresará forzosamente como <strong>MIEMBRO</strong> (luego podrás promover a SUB-LÍDER). Solo líder/admin.
+              Selecciona el nuevo miembro para que forme parte del equipo
             </p>
             {usuariosDisponibles.length === 0 ? (
               <div style={{ background: "#fef3c7", padding: 10, borderRadius: 8, fontSize: 13, color: "#92400e" }}>No hay usuarios disponibles para agregar (todos ya son miembros o no hay usuarios activos).</div>

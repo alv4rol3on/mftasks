@@ -1,0 +1,25 @@
+ARREGLAR:
+- Si un lider esta inactivo, no deberia ser capaz de quitar el cargo de sublider
+- Otro metodo de agregar integrante
+
+AÑADIR:
+- Deberia ver alguna forma de buscar tareas pasadas sin recurrir a todas(por ejemplo por nombre, ID unico de solicitud)
+- Alerta para tareas APROBADAS que faltan por asignar(entrar a estado de EN DESARROLLO)
+- TAREAS RECURRENTES(REUNIONES)
+- Contador de dias faltantes para la solucion de una tarea
+- Entidades -> Campañas -> subcampañas
+- Estado standby con motivo del porque es este estado
+
+ENTIDADES Y SUS CAMPAÑAS
+BBVA
+Tarjetas Out
+Tarjetas Híbrido
+Portafolio Out
+Operaciones Out
+Operaciones Híbrido
+Prestamos Out
+Prestamos Híbrido
+Tarjetas Start
+
+
+

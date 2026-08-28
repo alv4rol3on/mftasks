@@ -72,7 +72,11 @@ export default function TaskModal({
                         <table className={styles.infoTable}>
                             <tbody>
                                 <tr>
-                                    <td><strong>Cliente</strong></td>
+                                    <td><strong>Solicitante</strong></td>
+                                    <td>{tarea.solicitante_nombre}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Campaña</strong></td>
                                     <td>{tarea.cliente_nombre}</td>
                                 </tr>
 

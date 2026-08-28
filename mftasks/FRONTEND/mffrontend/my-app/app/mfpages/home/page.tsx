@@ -80,8 +80,8 @@ export default function Home() {
   const renderPendientesDetalle = () => {
     if (tareasConPendientes.length === 0) return null;
     return (
-      <div style={{ marginTop: 12, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "10px 14px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb", fontSize: 12, fontWeight: 700, color: "#374151" }}>
+      <div style={{ marginTop: 12, background: "#dbeafe", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: "10px 14px", background: "##dbeafe", borderBottom: "1px solid #e5e7eb", fontSize: 12, fontWeight: 700, color: "#374151" }}>
           Estás teniendo subtareas pendientes por completar en:
         </div>
         {tareasConPendientes.map((t) => (
@@ -121,31 +121,30 @@ export default function Home() {
           ) : (
             <div className="rounded p-4 text-sm" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>No hay tareas por aprobar.</div>
           )}
-          {pendientes > 0 && (
-            <div style={{ background: "#dbeafe", border: "1px solid #3b82f6", borderRadius: 8, padding: 16 }}>
-              <p style={{ color: "#1e40af", fontWeight: 600 }}>
-                Tienes {pendientes} {pendientes === 1 ? "subtarea pendiente" : "subtareas pendientes"}
-                {resumen?.tareas_pendientes ? ` en ${resumen.tareas_pendientes} tarea(s)` : ""}
-              </p>
-              <Link href="/mfpages/tareas" style={{ color: "#1d4ed8", textDecoration: "underline", fontSize: 14 }}>
-                Ver mis tareas →
-              </Link>
-            </div>
-          )}
+          {/*  {pendientes > 0 && (
+              <div style={{ background: "#dbeafe", border: "1px solid #3b82f6", borderRadius: 8, padding: 16 }}>
+                <p style={{ color: "#1e40af", fontWeight: 600 }}>
+                  Tienes {pendientes} {pendientes === 1 ? "subtarea pendiente" : "subtareas pendientes"}
+                  {resumen?.tareas_pendientes ? ` en ${resumen.tareas_pendientes} tarea(s)` : ""}
+                </p>
+                <Link href="/mfpages/tareas" style={{ color: "#1d4ed8", textDecoration: "underline", fontSize: 14 }}>
+                  Ver mis tareas →
+                </Link>
+              </div>
+            )}*/}
           {pendientes > 0 && renderPendientesDetalle()}
           {pendientes === 0 && porAprobar === 0 && <div className="rounded p-4 text-sm text-white-600">No hay alertas pendientes.</div>}
         </div>
       ) : pendientes > 0 ? (
         <div>
-          <div style={{ background: "#dbeafe", border: "1px solid #3b82f6", borderRadius: 8, padding: 16 }}>
+          {/*<div style={{ background: "#dbeafe", border: "1px solid #3b82f6", borderRadius: 8, padding: 16 }}>
             <p style={{ color: "#1e40af", fontWeight: 600 }}>
               Tienes {pendientes} {pendientes === 1 ? "subtarea pendiente" : "subtareas pendientes"}
-              {resumen?.tareas_pendientes ? ` en ${resumen.tareas_pendientes} tarea(s)` : ""}
             </p>
             <Link href="/mfpages/tareas" style={{ color: "#1d4ed8", textDecoration: "underline", fontSize: 14 }}>
               Ver mis tareas →
             </Link>
-          </div>
+          </div>*/}
           {renderPendientesDetalle()}
         </div>
       ) : (
