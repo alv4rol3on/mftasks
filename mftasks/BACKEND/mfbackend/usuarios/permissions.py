@@ -8,7 +8,7 @@ class IsAuthenticatedActivo(IsAuthenticated):
         if not super().has_permission(request, view):
             return False
 
-        return request.user.activo
+        return request.user.is_active
 
 
 class EsAdministrador(BasePermission):
@@ -98,7 +98,7 @@ def puede_gestionar_miembros(user, equipo):
 class EsLiderDeEquipo(BasePermission):
 
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.activo
+        return request.user and request.user.is_authenticated and request.user.is_active
 
     def has_object_permission(self, request, view, obj):
         from .models import Equipo

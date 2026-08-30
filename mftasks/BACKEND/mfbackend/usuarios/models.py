@@ -26,22 +26,12 @@ class User(AbstractUser):
         blank=True
     )
 
-    activo = models.BooleanField(default=True)
-
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 
     objects = UserManager()
-
-    def save(self, *args, **kwargs):
-        # Sincronizar is_active <-> activo para no romper permisos
-        # Fase 0: mantener compatibilidad hasta migrar a solo is_active
-        if self.activo != self.is_active:
-            # prioridad a activo (campo de negocio)
-            self.is_active = self.activo
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.nombres} {self.apellidos}"

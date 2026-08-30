@@ -8,6 +8,8 @@ class RolSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class UserSerializer(serializers.ModelSerializer):
+    # compat: frontend aún usa activo, exponer alias
+    activo = serializers.BooleanField(source="is_active", read_only=True)
 
     class Meta:
 
@@ -19,8 +21,8 @@ class UserSerializer(serializers.ModelSerializer):
             "nombres",
             "apellidos",
             "cargo",
-            "activo",
             "is_active",
+            "activo",
         ]
 
 
@@ -29,10 +31,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     equipo_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     permisos_campana = serializers.ListField(child=serializers.DictField(), write_only=True, required=False)
+    # alias compat para frontend que envía activo
+    activo = serializers.BooleanField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ["id", "email", "nombres", "apellidos", "cargo", "activo", "password", "roles", "equipo_id", "permisos_campana"]
+        fields = ["id", "email", "nombres", "apellidos", "cargo", "is_active", "activo", "password", "roles", "equipo_id", "permisos_campana"]
         read_only_fields = ["id"]
 
     def validate_roles(self, value):
@@ -49,8 +53,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password", None)
         equipo_id = validated_data.pop("equipo_id", None)
         permisos = validated_data.pop("permisos_campana", [])
-        activo = validated_data.get("activo", True)
-        validated_data["is_active"] = activo
+        # compat activo -> is_active
+        if "activo" in validated_data:
+            activo_val = validated_data.pop("activo")
+            if "is_active" not in validated_data:
+                validated_data["is_active"] = activo_val
+        # is_active ya viene en validated_data si se envía, default True
+        if "is_active" not in validated_data:
+            validated_data["is_active"] = True
         user = User(**validated_data)
         if password:
             user.set_password(password)

@@ -147,8 +147,8 @@ class UsuarioSSOTestCase(APITestCase):
     )
     def test_login_usuario_inactivo_rechazado(self, mock_validar):
 
-        self.usuario.activo = False
-        self.usuario.save()
+        self.usuario.is_active = False
+        self.usuario.save(update_fields=["is_active"])
 
         respuesta = self.client.post(
             self.url_login,

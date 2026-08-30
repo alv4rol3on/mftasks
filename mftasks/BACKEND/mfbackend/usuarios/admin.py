@@ -28,12 +28,12 @@ class UserAdmin(BaseUserAdmin):
         "nombres",
         "apellidos",
         "cargo",
-        "activo",
+        "is_active",
         "is_staff",
     )
 
     list_filter = (
-        "activo",
+        "is_active",
         "is_staff",
         "is_superuser",
     )
@@ -66,7 +66,6 @@ class UserAdmin(BaseUserAdmin):
             "Permisos",
             {
                 "fields": (
-                    "activo",
                     "is_active",
                     "is_staff",
                     "is_superuser",

@@ -86,7 +86,7 @@ class MicrosoftLoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        if not usuario.activo:
+        if not usuario.is_active:
             logger.warning(
                 "Login SSO: usuario inactivo (%s)", usuario.email
             )
@@ -473,7 +473,7 @@ class EquipoViewSet(ModelViewSet):
             user_obj = User.objects.get(id=usuario_id)
         except User.DoesNotExist:
             return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-        if not user_obj.activo:
+        if not user_obj.is_active:
             return Response({"detail": "No se puede agregar un usuario inactivo del sistema."}, status=status.HTTP_400_BAD_REQUEST)
         if EquipoMiembro.objects.filter(equipo=equipo, usuario_id=usuario_id).exists():
             return Response({"detail": "El usuario ya es miembro del equipo."}, status=status.HTTP_400_BAD_REQUEST)

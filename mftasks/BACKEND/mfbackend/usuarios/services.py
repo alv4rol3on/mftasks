@@ -32,7 +32,7 @@ class UserService:
     @staticmethod
     def deactivate(user):
 
-        user.activo = False
-        user.save()
+        user.is_active = False
+        user.save(update_fields=["is_active"])
 
         return user
