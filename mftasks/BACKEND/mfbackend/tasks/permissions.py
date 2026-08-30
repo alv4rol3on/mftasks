@@ -18,18 +18,28 @@ def es_miembro_del_equipo(user, equipo):
 
 
 def es_sub_lider(user, equipo):
+    # Compat: SUB_LIDER deprecado, ahora LIDER
     if not user or not user.is_authenticated:
         return False
     from usuarios.models import EquipoMiembro
     return equipo.miembros.filter(
         usuario=user,
-        rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+        rol_en_equipo__in=[EquipoMiembro.RolEnEquipo.SUB_LIDER, EquipoMiembro.RolEnEquipo.LIDER],
         estado=EquipoMiembro.EstadoMiembro.ACTIVO,
     ).exists()
 
 
-def es_asignador_del_equipo(user, equipo):
+def es_lider_por_miembro(user, equipo):
+    if not user or not user.is_authenticated:
+        return False
+    from usuarios.models import EquipoMiembro
+    if equipo.lider_id == user.id:
+        return True
+    return equipo.miembros.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
 
+
+def es_asignador_del_equipo(user, equipo):
+    # Fase 1: lider por-equipo = asignador. Mantiene compat ASIGNADOR global.
     if not user or not user.is_authenticated:
         return False
 
@@ -39,12 +49,13 @@ def es_asignador_del_equipo(user, equipo):
     if not es_miembro_del_equipo(user, equipo):
         return False
 
-    if equipo.lider_id == user.id:
+    if es_lider_por_miembro(user, equipo):
         return True
 
     if es_sub_lider(user, equipo):
         return True
 
+    # compat: viejo rol ASIGNADOR
     return user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists()
 
 
@@ -88,6 +99,23 @@ def es_cliente(user):
     if not user or not user.is_authenticated:
         return False
     return user.roles.filter(rol__nombre__iexact="CLIENTE").exists()
+
+
+def tiene_permiso_subcampana(user, subcampana):
+    """Verifica permiso mixto campaña/subcampaña para cliente. Admin siempre True."""
+    if not user or not user.is_authenticated or subcampana is None:
+        return False
+    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        return True
+    # cliente con permiso explícito
+    from campanas.models import PermisoCampana
+    # permiso directo a subcampana
+    if PermisoCampana.objects.filter(usuario=user, subcampana=subcampana).exists():
+        return True
+    # permiso a campana padre
+    if PermisoCampana.objects.filter(usuario=user, campana=subcampana.campana).exists():
+        return True
+    return False
 
 
 def puede_ver_tarea_completa(user, equipo):

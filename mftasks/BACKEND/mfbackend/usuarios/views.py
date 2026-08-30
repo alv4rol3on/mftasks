@@ -19,6 +19,7 @@ from .permissions import EsAdministrador, IsAuthenticatedActivo, puede_gestionar
 from .serializers import (
     EquipoDetailSerializer,
     RolSerializer,
+    UserCreateSerializer,
     UserDetailSerializer,
     UserSerializer,
 )
@@ -140,6 +141,11 @@ class UserViewSet(ModelViewSet):
             permisos += [EsAdministrador()]
 
         return permisos
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
+        return UserSerializer
 
 
 class RolViewSet(ModelViewSet):
@@ -359,11 +365,10 @@ class EquipoViewSet(ModelViewSet):
                         status=status.HTTP_409_CONFLICT,
                     )
 
-        # Manejo INACTIVO = hard-delete (baja del grupo) — exige reasignación
+        # Manejo INACTIVO = soft (Fase 0 corrección) — ya no hard-delete
         if estado == EquipoMiembro.EstadoMiembro.INACTIVO:
             if es_lider_objetivo:
                 return Response({"detail": "No se puede inactivar al líder del equipo. Transfiera el liderazgo primero."}, status=status.HTTP_400_BAD_REQUEST)
-            # Verificar pendientes igual que INDISPONIBLE — hard-delete exige reasignar todo
             from tasks.models import Subtarea as _SubTarea, Tarea as _Tarea
             pendientes_qs = _SubTarea.objects.filter(
                 asignado_id=miembro.usuario_id,
@@ -424,10 +429,15 @@ class EquipoViewSet(ModelViewSet):
                 else:
                     detalle = [{"subtarea_id": p.id, "descripcion": p.descripcion, "tarea_id": p.tarea_id, "tarea_asunto": p.tarea.asunto, "estado": p.estado} for p in pendientes]
                     return Response({"detail": "el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse", "usuario": {"id": miembro.usuario_id, "nombre": f"{miembro.usuario.nombres} {miembro.usuario.apellidos}"}, "pendientes": detalle}, status=status.HTTP_409_CONFLICT)
-            # Hard-delete: eliminar del equipo
-            with transaction.atomic():
-                miembro.delete()
-            return Response({"detail": f"Miembro {miembro.usuario.nombres} dado de baja del equipo (ya no pertenece hasta re-agregarse).", "deleted": True}, status=status.HTTP_200_OK)
+            # Soft: marcar INACTIVO en vez de delete
+            from django.utils import timezone as _tz
+            miembro.estado = EquipoMiembro.EstadoMiembro.INACTIVO
+            miembro.fecha_baja = _tz.now()
+            # degradar rol si era SUB_LIDER
+            if miembro.rol_en_equipo == EquipoMiembro.RolEnEquipo.SUB_LIDER:
+                miembro.rol_en_equipo = EquipoMiembro.RolEnEquipo.MIEMBRO
+            miembro.save(update_fields=["estado", "rol_en_equipo", "fecha_baja"])
+            return Response({"detail": f"Miembro {miembro.usuario.nombres} marcado INACTIVO (soft).", "deleted": False, "estado": miembro.estado}, status=status.HTTP_200_OK)
 
         # Aplicar cambio de estado para ACTIVO / INDISPONIBLE
         miembro.estado = estado

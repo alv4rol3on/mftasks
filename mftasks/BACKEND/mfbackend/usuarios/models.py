@@ -1,5 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q, UniqueConstraint, CheckConstraint
+from django.db.models.functions import Lower
+
 from .managers import UserManager
 
 
@@ -32,6 +35,14 @@ class User(AbstractUser):
 
     objects = UserManager()
 
+    def save(self, *args, **kwargs):
+        # Sincronizar is_active <-> activo para no romper permisos
+        # Fase 0: mantener compatibilidad hasta migrar a solo is_active
+        if self.activo != self.is_active:
+            # prioridad a activo (campo de negocio)
+            self.is_active = self.activo
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.nombres} {self.apellidos}"
 
@@ -46,6 +57,11 @@ class Rol(models.Model):
     descripcion = models.TextField(blank=True)
 
     activo = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(Lower("nombre"), name="rol_nombre_unique_lower"),
+        ]
 
     def __str__(self):
         return self.nombre
@@ -67,6 +83,10 @@ class UserRol(models.Model):
 
     class Meta:
         unique_together = ("usuario", "rol")
+        indexes = [
+            models.Index(fields=["usuario"]),
+            models.Index(fields=["rol"]),
+        ]
 
     def __str__(self):
         return f"{self.usuario} - {self.rol}"
@@ -94,38 +114,44 @@ class Equipo(models.Model):
     def __str__(self):
         return self.nombre
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["lider"]),
+            models.Index(fields=["activo"]),
+        ]
+
     def save(self, *args, **kwargs):
+        from django.db import transaction
+
         is_new = self._state.adding
         old_lider_id = None
         if not is_new:
             try:
-                old = Equipo.objects.get(pk=self.pk)
+                old = Equipo.objects.only("lider_id").get(pk=self.pk)
                 old_lider_id = old.lider_id
             except Equipo.DoesNotExist:
                 old_lider_id = None
-        super().save(*args, **kwargs)
-        # Sincronizar EquipoMiembro LIDER
-        try:
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            # Sincronizar EquipoMiembro LIDER de forma atómica
             if is_new:
-                EquipoMiembro.objects.get_or_create(
+                obj, created = EquipoMiembro.objects.get_or_create(
                     equipo=self,
                     usuario_id=self.lider_id,
                     defaults={"rol_en_equipo": EquipoMiembro.RolEnEquipo.LIDER, "estado": EquipoMiembro.EstadoMiembro.ACTIVO},
                 )
-                # Asegurar rol LIDER si ya existia
-                EquipoMiembro.objects.filter(equipo=self, usuario_id=self.lider_id).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER)
+                if not created and obj.rol_en_equipo != EquipoMiembro.RolEnEquipo.LIDER:
+                    EquipoMiembro.objects.filter(pk=obj.pk).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER)
             else:
                 if old_lider_id and old_lider_id != self.lider_id:
-                    # Degradar anterior lider a MIEMBRO si tenia rol LIDER
                     EquipoMiembro.objects.filter(equipo=self, usuario_id=old_lider_id, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO)
-                    EquipoMiembro.objects.get_or_create(
+                    obj, created = EquipoMiembro.objects.get_or_create(
                         equipo=self,
                         usuario_id=self.lider_id,
                         defaults={"rol_en_equipo": EquipoMiembro.RolEnEquipo.LIDER, "estado": EquipoMiembro.EstadoMiembro.ACTIVO},
                     )
-                    EquipoMiembro.objects.filter(equipo=self, usuario_id=self.lider_id).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER)
-        except Exception:
-            pass
+                    if not created and obj.rol_en_equipo != EquipoMiembro.RolEnEquipo.LIDER:
+                        EquipoMiembro.objects.filter(pk=obj.pk).update(rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER)
 
 
 class EquipoMiembro(models.Model):
@@ -180,8 +206,27 @@ class EquipoMiembro(models.Model):
         auto_now_add=True
     )
 
+    # Fase 0: se mantiene SUB_LIDER por compatibilidad, se deprecara en Fase 1
+    fecha_baja = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         unique_together = ("equipo", "usuario")
+        constraints = [
+            UniqueConstraint(
+                fields=["equipo"],
+                condition=Q(rol_en_equipo="LIDER"),
+                name="unico_lider_por_equipo",
+            ),
+            CheckConstraint(
+                check=Q(fecha_inicio_indisponibilidad__lte=models.F("fecha_fin_indisponibilidad")) | Q(fecha_inicio_indisponibilidad__isnull=True) | Q(fecha_fin_indisponibilidad__isnull=True),
+                name="chk_fechas_indisponibilidad",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["equipo", "estado"]),
+            models.Index(fields=["usuario", "estado"]),
+            models.Index(fields=["rol_en_equipo"]),
+        ]
 
     def __str__(self):
         return f"{self.usuario} - {self.equipo} ({self.rol_en_equipo}/{self.estado})"

@@ -53,7 +53,8 @@ INSTALLED_APPS = [
     #apps
     "tasks",
     "usuarios",
-    "clientes"
+    "clientes",
+    "campanas"
 ]
 
 AUTH_USER_MODEL = "usuarios.User"

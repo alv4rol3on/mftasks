@@ -26,6 +26,38 @@ def _parsear_fecha(valor):
     return parse_datetime(valor)
 
 
+def _tiene_dependencias_pendientes_subtarea(subtarea):
+    # retorna lista bloqueadoras no solucionadas
+    from .models import DependenciaSubtarea
+    deps = DependenciaSubtarea.objects.filter(bloqueada=subtarea).select_related("bloqueadora")
+    pendientes = [d.bloqueadora for d in deps if d.bloqueadora.estado != Subtarea.Estado.SOLUCIONADO]
+    return pendientes
+
+
+def _tiene_dependencias_pendientes_tarea(tarea):
+    from .models import DependenciaTarea
+    deps = DependenciaTarea.objects.filter(bloqueada=tarea).select_related("bloqueadora")
+    pendientes = [d.bloqueadora for d in deps if d.bloqueadora.estado != Tarea.Estado.SOLUCIONADO]
+    return pendientes
+
+
+def _detecta_ciclo_subtarea(bloqueada_id, bloqueadora_id):
+    # DFS para evitar ciclo
+    from .models import DependenciaSubtarea
+    visitados = set()
+    stack = [bloqueadora_id]
+    while stack:
+        cur = stack.pop()
+        if cur == bloqueada_id:
+            return True
+        if cur in visitados:
+            continue
+        visitados.add(cur)
+        for nxt in DependenciaSubtarea.objects.filter(bloqueada_id=cur).values_list("bloqueadora_id", flat=True):
+            stack.append(nxt)
+    return False
+
+
 class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
 
@@ -39,20 +71,16 @@ class TaskViewSet(viewsets.ModelViewSet):
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante")
 
-        # Detectar lider / sub-lider para distinguir cliente puro y asignador amplio
-        es_lider = Equipo.objects.filter(lider=user).exists()
-        es_sub_lider = EquipoMiembro.objects.filter(
-            usuario=user,
-            rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
-            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
-        ).exists()
+        # Detectar lider por-equipo (Fase 1: 4 roles) -> lider = Equipo.lider o miembro LIDER activo
+        es_lider = Equipo.objects.filter(lider=user).exists() or EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
+        es_lider_member = es_lider  # compat alias
+        # compat ASIGNADOR todavía considerado lider hasta migración completa
         es_asignador_global = user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists()
-        es_asignador_amplio = es_asignador_global or es_lider or es_sub_lider
-        es_asistente_explicito = user.roles.filter(rol__nombre__iexact="ASISTENTE").exists()
+        es_asignador_amplio = es_asignador_global or es_lider
         es_cliente = user.roles.filter(rol__nombre__iexact="CLIENTE").exists()
 
         # CLIENTE puro: solo CLIENTE sin otros roles ni liderazgo
-        if es_cliente and not es_asignador_global and not es_asistente_explicito and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not es_lider and not es_sub_lider:
+        if es_cliente and not es_asignador_global and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not es_lider:
             # verificar que no sea miembro de equipo (si es miembro, no es cliente puro)
             if not EquipoMiembro.objects.filter(usuario=user).exists():
                 return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
@@ -68,20 +96,11 @@ class TaskViewSet(viewsets.ModelViewSet):
                 | Q(equipo__miembros__usuario=user)
             ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
 
-        # ASISTENTE: ve tareas de su equipo (Centro en solo lectura + Tareas donde puede operar sus subtareas)
-        # Antes solo veía subtareas asignadas, ahora ve todo el equipo para Centro en lectura
-        if es_asistente_explicito:
-            return Tarea.objects.filter(
-                Q(equipo__lider=user)
-                | Q(equipo__miembros__usuario=user)
-                | Q(subtareas__asignado=user)
-            ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
-
         # CLIENTE fallback
         if es_cliente:
             return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
 
-        # Miembro sin rol específico (compatibilidad): ve todas las tareas de su equipo
+        # Miembro (rol miembro o lider): ve todas las tareas de su equipo (compat)
         return Tarea.objects.filter(
             Q(equipo__lider=user)
             | Q(equipo__miembros__usuario=user)
@@ -199,6 +218,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response(
                 {"detail": "La tarea debe estar aprobada para iniciarse."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validar dependencias de tarea
+        pendientes_t = _tiene_dependencias_pendientes_tarea(tarea)
+        if pendientes_t:
+            return Response(
+                {"detail": "La tarea tiene dependencias no solucionadas.", "bloqueadoras": [{"id": t.id, "asunto": t.asunto, "estado": t.estado} for t in pendientes_t]},
+                status=status.HTTP_409_CONFLICT,
             )
 
         fecha_inicio = _parsear_fecha(request.data.get("fecha_inicio"))
@@ -569,6 +596,17 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Validar dependencias
+        pendientes = _tiene_dependencias_pendientes_subtarea(subtarea)
+        if pendientes:
+            return Response(
+                {"detail": "La subtarea tiene dependencias no solucionadas.", "bloqueadoras": [{"id": s.id, "descripcion": s.descripcion, "estado": s.estado} for s in pendientes]},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if subtarea.estado == Subtarea.Estado.STAND_BY:
+            return Response({"detail": "La subtarea está en pausa (STAND_BY). Debe reanudarla primero."}, status=status.HTTP_400_BAD_REQUEST)
+
         # Cambiar estado
         subtarea.estado = Subtarea.Estado.EN_DESARROLLO
         subtarea.fecha_inicio = timezone.now()
@@ -683,3 +721,112 @@ class TaskViewSet(viewsets.ModelViewSet):
         subtarea.asignado_id = nuevo_id
         subtarea.save(update_fields=["asignado"])
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/standby",
+    )
+    def standby_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        # solo miembro/lider del equipo puede poner standby (tu r3)
+        is_member = tarea.equipo.lider_id == request.user.id or tarea.equipo.miembros.filter(usuario=request.user).exclude(estado="INACTIVO").exists()
+        if not is_member:
+            return Response({"detail": "No perteneces al equipo."}, status=status.HTTP_403_FORBIDDEN)
+        if subtarea.asignado_id != request.user.id and tarea.equipo.lider_id != request.user.id:
+            # lider puede pausar cualquier subtarea, miembro solo la suya
+            from usuarios.models import EquipoMiembro
+            is_lider = EquipoMiembro.objects.filter(equipo=tarea.equipo, usuario=request.user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists() or tarea.equipo.lider_id == request.user.id
+            if not is_lider:
+                return Response({"detail": "Solo el asignado o el líder puede pausar."}, status=status.HTTP_403_FORBIDDEN)
+        if subtarea.estado not in [Subtarea.Estado.EN_DESARROLLO, Subtarea.Estado.EN_ESPERA]:
+            return Response({"detail": "Solo se puede pausar desde EN_ESPERA o EN_DESARROLLO."}, status=status.HTTP_400_BAD_REQUEST)
+        motivo = (request.data.get("motivo") or request.data.get("motivo_standby") or "").strip()
+        if not motivo:
+            return Response({"detail": "El motivo de pausa es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
+        subtarea.estado = Subtarea.Estado.STAND_BY
+        subtarea.motivo_standby = motivo
+        subtarea.fecha_standby = timezone.now()
+        subtarea.standby_por = request.user
+        subtarea.save(update_fields=["estado", "motivo_standby", "fecha_standby", "standby_por"])
+        return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/reanudar",
+    )
+    def reanudar_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        is_member = tarea.equipo.lider_id == request.user.id or tarea.equipo.miembros.filter(usuario=request.user).exclude(estado="INACTIVO").exists()
+        if not is_member:
+            return Response({"detail": "No perteneces al equipo."}, status=status.HTTP_403_FORBIDDEN)
+        if subtarea.estado != Subtarea.Estado.STAND_BY:
+            return Response({"detail": "La subtarea no está en STAND_BY."}, status=status.HTTP_400_BAD_REQUEST)
+        # solo asignado o lider puede reanudar
+        if subtarea.asignado_id != request.user.id and tarea.equipo.lider_id != request.user.id:
+            from usuarios.models import EquipoMiembro
+            is_lider = EquipoMiembro.objects.filter(equipo=tarea.equipo, usuario=request.user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER).exists()
+            if not is_lider:
+                return Response({"detail": "Solo el asignado o el líder puede reanudar."}, status=status.HTTP_403_FORBIDDEN)
+        # validar dependencias antes de reanudar
+        pendientes = _tiene_dependencias_pendientes_subtarea(subtarea)
+        if pendientes:
+            return Response({"detail": "Dependencias pendientes.", "bloqueadoras": [{"id": s.id, "descripcion": s.descripcion} for s in pendientes]}, status=status.HTTP_409_CONFLICT)
+        subtarea.estado = Subtarea.Estado.EN_DESARROLLO
+        subtarea.save(update_fields=["estado"])
+        return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea], url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/dependencias")
+    def agregar_dependencia_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        bloqueadora_id = request.data.get("bloqueadora_id") or request.data.get("depende_de")
+        if not bloqueadora_id:
+            return Response({"detail": "Debe indicar bloqueadora_id."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            bloqueadora_id = int(bloqueadora_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "bloqueadora_id inválido."}, status=status.HTTP_400_BAD_REQUEST)
+        if bloqueadora_id == subtarea.id:
+            return Response({"detail": "No puede depender de sí misma."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            bloqueadora = Subtarea.objects.get(id=bloqueadora_id)
+        except Subtarea.DoesNotExist:
+            return Response({"detail": "Subtarea bloqueadora no existe."}, status=status.HTTP_404_NOT_FOUND)
+        if _detecta_ciclo_subtarea(subtarea.id, bloqueadora_id):
+            return Response({"detail": "Ciclo detectado."}, status=status.HTTP_400_BAD_REQUEST)
+        from .models import DependenciaSubtarea
+        obj, created = DependenciaSubtarea.objects.get_or_create(bloqueada=subtarea, bloqueadora_id=bloqueadora_id)
+        if not created:
+            return Response({"detail": "Dependencia ya existe."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Dependencia creada.", "bloqueada": subtarea.id, "bloqueadora": bloqueadora_id}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea], url_path="dependencias-tarea")
+    def agregar_dependencia_tarea(self, request, pk=None):
+        tarea = self.get_object()
+        bloqueadora_id = request.data.get("bloqueadora_id") or request.data.get("depende_de")
+        if not bloqueadora_id:
+            return Response({"detail": "Debe indicar bloqueadora_id."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            bloqueadora_id = int(bloqueadora_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "bloqueadora_id inválido."}, status=status.HTTP_400_BAD_REQUEST)
+        if bloqueadora_id == tarea.id:
+            return Response({"detail": "No puede depender de sí misma."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            bloqueadora = Tarea.objects.get(id=bloqueadora_id)
+        except Tarea.DoesNotExist:
+            return Response({"detail": "Tarea bloqueadora no existe."}, status=status.HTTP_404_NOT_FOUND)
+        from .models import DependenciaTarea
+        # ciclo simple
+        if DependenciaTarea.objects.filter(bloqueada_id=bloqueadora_id, bloqueadora_id=tarea.id).exists():
+            return Response({"detail": "Ciclo detectado."}, status=status.HTTP_400_BAD_REQUEST)
+        obj, created = DependenciaTarea.objects.get_or_create(bloqueada=tarea, bloqueadora_id=bloqueadora_id)
+        if not created:
+            return Response({"detail": "Dependencia ya existe."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Dependencia creada."}, status=status.HTTP_201_CREATED)
