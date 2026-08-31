@@ -61,7 +61,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
             >
                 <div className={styles.modalHeader}>
                     <div>
-                        <h2>Tarea #{tarea.id}</h2>
+                        <h2>{tarea.ticket ? `${tarea.ticket} · ` : ""}Tarea #{tarea.id}</h2>
                         <p>{tarea.asunto}</p>
                     </div>
 

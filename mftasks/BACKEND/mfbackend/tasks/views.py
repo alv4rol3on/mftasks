@@ -68,8 +68,16 @@ class TaskViewSet(viewsets.ModelViewSet):
         user = self.request.user
         from usuarios.models import Equipo, EquipoMiembro
 
+        # base queryset con search
+        search = self.request.query_params.get("search") or self.request.query_params.get("q")
+        def apply_search(qs):
+            if search:
+                qs = qs.filter(Q(ticket__icontains=search) | Q(asunto__icontains=search) | Q(descripcion__icontains=search))
+            return qs
+
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-            return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante")
+            qs = Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante")
+            return apply_search(qs)
 
         # Detectar lider por-equipo (Fase 1: 4 roles) -> lider = Equipo.lider o miembro LIDER activo
         es_lider = Equipo.objects.filter(lider=user).exists() or EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
@@ -83,7 +91,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         if es_cliente and not es_asignador_global and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not es_lider:
             # verificar que no sea miembro de equipo (si es miembro, no es cliente puro)
             if not EquipoMiembro.objects.filter(usuario=user).exists():
-                return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
+                qs = Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
+                return apply_search(qs)
             # si es cliente pero también miembro, cae a lógica de equipo (ver todas para solicitar + pertenencia)
             # Para cliente-miembro, mostrar sus solicitudes + tareas de equipo donde es miembro
             # Priorizar vista equipo para centro/tareas
@@ -91,20 +100,23 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         # LIDER / SUB-LIDER / ASIGNADOR: ven todas las tareas de su equipo (pueden aprobar/iniciar/asignar)
         if es_asignador_amplio:
-            return Tarea.objects.filter(
+            qs = Tarea.objects.filter(
                 Q(equipo__lider=user)
                 | Q(equipo__miembros__usuario=user)
             ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
+            return apply_search(qs)
 
         # CLIENTE fallback
         if es_cliente:
-            return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
+            qs = Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
+            return apply_search(qs)
 
         # Miembro (rol miembro o lider): ve todas las tareas de su equipo (compat)
-        return Tarea.objects.filter(
+        qs = Tarea.objects.filter(
             Q(equipo__lider=user)
             | Q(equipo__miembros__usuario=user)
         ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
+        return apply_search(qs)
 
     def get_permissions(self):
 
@@ -675,6 +687,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Si todas solucionadas, marcar tarea solucionada
         if all(s.estado == Subtarea.Estado.SOLUCIONADO for s in subtareas):
             tarea.estado = Tarea.Estado.SOLUCIONADO
+            tarea.fecha_solucion = timezone.now()
+        # Si tarea estaba en STAND_BY y ya no quedan subtareas en STAND_BY, volver a EN_DESARROLLO (si no está solucionada)
+        elif tarea.estado == Tarea.Estado.STAND_BY and not any(s.estado == Subtarea.Estado.STAND_BY for s in subtareas):
+            tarea.estado = Tarea.Estado.EN_DESARROLLO
+            tarea.motivo_standby = ""
+            tarea.fecha_standby = None
+            tarea.standby_por = None
 
         tarea.save()
 
@@ -691,8 +710,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
         if subtarea.estado == Subtarea.Estado.SOLUCIONADO:
             return Response({"detail": "No se puede reasignar una subtarea solucionada."}, status=status.HTTP_400_BAD_REQUEST)
-        if tarea.estado != Tarea.Estado.EN_DESARROLLO:
-            return Response({"detail": "Solo se pueden reasignar subtareas de tareas en desarrollo."}, status=status.HTTP_400_BAD_REQUEST)
+        if tarea.estado not in [Tarea.Estado.EN_DESARROLLO, Tarea.Estado.STAND_BY]:
+            return Response({"detail": "Solo se pueden reasignar subtareas de tareas en desarrollo o en pausa."}, status=status.HTTP_400_BAD_REQUEST)
         nuevo_id = request.data.get("nuevo_asignado") or request.data.get("nuevo_asignado_id") or request.data.get("asignado") or request.data.get("destino")
         if not nuevo_id:
             return Response({"detail": "Debe indicar nuevo_asignado."}, status=status.HTTP_400_BAD_REQUEST)

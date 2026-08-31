@@ -68,8 +68,8 @@ export default function TaskTableEnDesarrollo({
     <>
       <div className={styles.taskTableContainer}>
         <div className={styles.taskTable}>
-          <div className={styles.taskHeader}>
-            <div>ID</div>
+          <div className={styles.taskHeader} style={{ gridTemplateColumns: "80px 1.5fr 1fr 1fr 120px 140px 140px" } as any}>
+            <div>Ticket</div>
             <div>Asunto</div>
             <div>Cliente</div>
             <div>Equipo</div>
@@ -87,10 +87,11 @@ export default function TaskTableEnDesarrollo({
                 style={conPendiente ? { background: "#fffbeb", borderLeft: "4px solid #f59e0b" } : undefined}
                 title={conPendiente ? "Tienes subtareas pendientes en esta tarea" : undefined}
               >
-                <div>{tarea.id}</div>
+                <div style={{ fontFamily:"monospace", fontSize:12, fontWeight:700}}>{tarea.ticket ?? `#${tarea.id}`}</div>
 
                 <div className={styles.taskSubject}>
                   {tarea.asunto}
+                  <div style={{ fontSize:10, color:"#6b7280"}}>{tarea.ticket}</div>
                   {conPendiente && <div style={{ fontSize: 11, color: "#92400e", marginTop: 2 }}>Tienes subtareas pendientes por completar</div>}
                 </div>
 

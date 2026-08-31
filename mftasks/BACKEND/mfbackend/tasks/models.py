@@ -15,6 +15,8 @@ class Tarea(models.Model):
         SOLUCIONADO = "SOLUCIONADO", "Solucionado"
         STAND_BY = "STAND_BY", "En pausa"
 
+    ticket = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
+
     asunto = models.CharField(max_length=200)
     descripcion = models.TextField()
 
@@ -68,6 +70,7 @@ class Tarea(models.Model):
         blank=True,
         related_name="tareas_standby",
     )
+    fecha_solucion = models.DateTimeField(null=True, blank=True)
 
     progreso = models.DecimalField(
         max_digits=5,
@@ -100,13 +103,42 @@ class Tarea(models.Model):
             models.Index(fields=["solicitante", "estado"]),
             models.Index(fields=["cliente", "estado"]),
             models.Index(fields=["fecha_creacion"]),
+            models.Index(fields=["ticket"]),
         ]
         constraints = [
             CheckConstraint(check=Q(progreso__gte=0, progreso__lte=100), name="chk_tarea_progreso_0_100"),
         ]
 
+    def save(self, *args, **kwargs):
+        if not self.ticket:
+            # Generar ticket único: TCK-YYYYMMDD-XXXX (incremental por día)
+            import random
+            from django.utils import timezone
+            if not self.fecha_creacion:
+                # auto_now_add aún no seteado, usar now
+                base_date = timezone.now()
+            else:
+                base_date = self.fecha_creacion if hasattr(self.fecha_creacion, "strftime") else timezone.now()
+            # fallback si fecha_creacion es None
+            try:
+                prefix = f"TCK-{base_date.strftime('%Y%m%d')}"
+            except Exception:
+                prefix = f"TCK-{timezone.now().strftime('%Y%m%d')}"
+            # intentar hasta encontrar único
+            for _ in range(5):
+                suffix = f"{random.randint(1000, 9999)}"
+                candidate = f"{prefix}-{suffix}"
+                if not Tarea.objects.filter(ticket=candidate).exists():
+                    self.ticket = candidate
+                    break
+            if not self.ticket:
+                # fallback uuid corto
+                import uuid
+                self.ticket = f"TCK-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.asunto
+        return f"[{self.ticket}] {self.asunto}" if self.ticket else self.asunto
 
 class ArchivoTarea(models.Model):
 

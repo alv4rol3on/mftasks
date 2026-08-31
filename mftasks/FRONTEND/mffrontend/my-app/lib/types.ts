@@ -18,6 +18,7 @@ export interface Subtarea {
 
 export interface Task {
     id: number;
+    ticket?: string | null;
     asunto: string;
     descripcion: string;
     cliente: number;
@@ -35,6 +36,7 @@ export interface Task {
     motivo_rechazo: string;
     motivo_standby?: string | null;
     fecha_standby?: string | null;
+    fecha_solucion?: string | null;
     fecha_creacion: string;
     fecha_respuesta: string | null;
     fecha_inicio: string | null;
