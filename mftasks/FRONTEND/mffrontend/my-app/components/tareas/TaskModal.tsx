@@ -180,6 +180,9 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                     <td>{subtarea.peso}</td>
                                                     <td>
                                                         {esMiSubtarea && onCambiarEstadoSubtarea ? (
+                                                            subtarea.estado === "SOLUCIONADO" ? (
+                                                                <span style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#dcfce7", color:"#166534", padding:"6px 10px", borderRadius:6, fontSize:12, fontWeight:700, border:"1px solid #86efac"}}>✓ Solucionado</span>
+                                                            ) : (
                                                             <select
                                                                 value={subtarea.estado}
                                                                 onChange={(e)=>{
@@ -189,6 +192,13 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                                         alert(`Bloqueada por: ${bloqueadorasPendientes.map(b=>b.descripcion).join(", ")} - debe solucionarse primero`);
                                                                         return;
                                                                     }
+                                                                    if(nuevo==="SOLUCIONADO"){
+                                                                        const ok = confirm("¿Terminar subtarea? Se bloqueará en Solucionado.");
+                                                                        if(!ok){
+                                                                            // mantener en EN_DESARROLLO sin llamar API, el select volverá a su valor controlado
+                                                                            return;
+                                                                        }
+                                                                    }
                                                                     if(nuevo==="STAND_BY"){
                                                                         const motivo = prompt("Motivo de pausa (STAND_BY) obligatorio:");
                                                                         if(!motivo || !motivo.trim()) { return; }
@@ -197,8 +207,9 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                                         onCambiarEstadoSubtarea(tarea.id, subtarea.id, nuevo);
                                                                     }
                                                                 }}
+                                                                className={styles.inputField}
                                                                 disabled={bloqueada && subtarea.estado==="EN_ESPERA"}
-                                                                style={{ border:"1px solid #d1d5db", borderRadius:6, padding:"4px 6px", fontSize:12, background: bloqueada ? "#f3f4f6":"white", cursor: bloqueada ? "not-allowed":"pointer"}}
+                                                                style={{ minWidth:140, background: bloqueada ? "#f3f4f6":"white", cursor: bloqueada ? "not-allowed":"pointer"}}
                                                                 title={bloqueadaTooltip || "Cambiar estado (solo tu subtarea)"}
                                                             >
                                                                 <option value="EN_ESPERA">En espera</option>
@@ -206,6 +217,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                                 <option value="STAND_BY">Stand-by</option>
                                                                 <option value="SOLUCIONADO">Solucionado</option>
                                                             </select>
+                                                            )
                                                         ) : puedeEmpezar ? (
                                                             <button
                                                                 onClick={() =>
@@ -267,19 +279,19 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                 <h4 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700}}>Dependencias (subtarea bloquea otra)</h4>
                                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"end"}}>
                                     <label style={{ display:"flex", flexDirection:"column", gap:4, fontSize:12}}>Bloqueada (espera)
-                                        <select value={depBloqueada} onChange={e=>setDepBloqueada(e.target.value ? Number(e.target.value) : "")} style={{ border:"1px solid #d1d5db", borderRadius:6, padding:"6px 8px"}}>
+                                        <select value={depBloqueada} onChange={e=>setDepBloqueada(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth:160}}>
                                             <option value="">-- subtarea --</option>
                                             {tarea.subtareas.map(s=><option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0,30)}</option>)}
                                         </select>
                                     </label>
                                     <span style={{ paddingBottom:8}}>depende de</span>
                                     <label style={{ display:"flex", flexDirection:"column", gap:4, fontSize:12}}>Bloqueadora (prerequisito)
-                                        <select value={depBloqueadora} onChange={e=>setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} style={{ border:"1px solid #d1d5db", borderRadius:6, padding:"6px 8px"}}>
+                                        <select value={depBloqueadora} onChange={e=>setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth:160}}>
                                             <option value="">-- subtarea --</option>
                                             {tarea.subtareas.map(s=><option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0,30)}</option>)}
                                         </select>
                                     </label>
-                                    <button onClick={agregarDependencia} style={{ background:"#7c3aed", color:"white", border:"none", padding:"8px 12px", borderRadius:6, cursor:"pointer", fontSize:12}}>Agregar dependencia</button>
+                                    <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize:12}}>Agregar dependencia</button>
                                 </div>
                                 {depMsg && <p style={{ fontSize:12, color: depMsg.includes("creada") ? "#166534" : "#991b1b", margin:"8px 0 0"}}>{depMsg}</p>}
                                 <p style={{ fontSize:11, color:"#6b7280", margin:"6px 0 0"}}>No puede iniciarse la bloqueada hasta que la bloqueadora esté SOLUCIONADO. Se detecta ciclo.</p>
