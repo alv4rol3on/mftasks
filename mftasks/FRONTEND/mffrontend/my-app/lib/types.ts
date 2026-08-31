@@ -4,11 +4,16 @@ export interface Subtarea {
     descripcion: string;
     asignado: number;
     asignado_nombre: string;
-    estado: string;
+    estado: "EN_ESPERA" | "EN_DESARROLLO" | "SOLUCIONADO" | "STAND_BY" | string;
     peso: number;
     fecha_creacion: string;
     fecha_inicio: string | null;
     fecha_fin: string | null;
+    motivo_standby?: string | null;
+    fecha_standby?: string | null;
+    standby_por?: number | null;
+    bloqueada_por?: { id: number; estado: string; descripcion: string }[];
+    dependencias?: number[];
 }
 
 export interface Task {
@@ -19,6 +24,9 @@ export interface Task {
     cliente_nombre: string;
     equipo: number;
     equipo_nombre: string;
+    subcampana?: number | null;
+    subcampana_nombre?: string | null;
+    campana_nombre?: string | null;
     aprobador: number | null;
     aprobador_nombre: string | null;
     solicitante: number | null;
@@ -32,6 +40,25 @@ export interface Task {
     progreso: string;
     subtareas: Subtarea[];
     puedo_operar: boolean;
+}
+
+export interface CampanaInfo {
+    id: number;
+    cliente: number;
+    cliente_nombre?: string;
+    nombre: string;
+    codigo: string;
+    activo: boolean;
+    subcampanas?: SubCampanaInfo[];
+}
+
+export interface SubCampanaInfo {
+    id: number;
+    campana: number;
+    campana_nombre?: string;
+    nombre: string;
+    codigo: string;
+    activo: boolean;
 }
 
 export interface ResumenCliente {
@@ -100,12 +127,22 @@ export interface EquipoMiembroDetallado {
     nombres: string;
     apellidos: string;
     cargo?: string;
-    rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER";
+    rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER"; // SUB_LIDER deprecado, mapea a MIEMBRO
     estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE";
     fecha_inicio_indisponibilidad?: string | null;
     fecha_fin_indisponibilidad?: string | null;
     motivo_indisponibilidad?: string;
     fecha_ingreso: string;
+}
+
+export interface UsuarioListItem {
+    id: number;
+    email: string;
+    nombres: string;
+    apellidos: string;
+    cargo?: string;
+    is_active: boolean;
+    activo?: boolean; // alias compat
 }
 
 export interface EquipoInfo {

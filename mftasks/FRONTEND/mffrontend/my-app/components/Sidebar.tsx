@@ -70,37 +70,35 @@ export default function Sidebar({
     const roles = (user?.roles ?? []).map((r) => r.toLowerCase());
     const isAdmin = roles.includes("administrador");
     const isCliente = roles.includes("cliente");
-    // Asistente incluye rol explícito o usuario sin roles (miembro por defecto) - ver lib/auth.ts esAsistente()
+    const isMiembroGlobal = roles.includes("miembro");
+    // compat: viejo asignador/asistente mapean a miembro
     const isAsistenteExplicit = roles.includes("asistente");
-    const isAsistente = isAsistenteExplicit || (!isAdmin && !roles.includes("asignador") && !isCliente && roles.length === 0);
-    const isAsignador = roles.includes("asignador") || isAdmin;
+    const isAsignadorLegacy = roles.includes("asignador");
+    const isAsistente = false; // deprecado
+    const isAsignador = isAdmin || isAsignadorLegacy;
 
-    // Cliente puro = solo CLIENTE sin otros roles y sin liderazgo/membresía
-    // Detectar liderazgo/membresía via equipos si ya cargó, sino fallback a roles
     let isLider = false;
     let isSubLider = false;
-    let isMiembro = false;
+    let isMiembro = isMiembroGlobal;
     if (equipos && user) {
       const uid = user.id;
       for (const eq of equipos) {
         if (eq.lider?.id === uid) { isLider = true; isMiembro = true; }
-        if (eq.puedo_gestionar && eq.lider?.id === uid) isLider = true;
-        if (eq.mi_rol_en_equipo === "SUB_LIDER") isSubLider = true;
-        if (eq.mi_rol_en_equipo === "MIEMBRO" || eq.mi_rol_en_equipo === "SUB_LIDER" || eq.lider?.id === uid) isMiembro = true;
+        if (eq.puedo_gestionar && (eq.lider?.id === uid || eq.mi_rol_en_equipo === "LIDER")) isLider = true;
+        if (eq.mi_rol_en_equipo === "LIDER") { isLider = true; isMiembro = true; }
+        if (eq.mi_rol_en_equipo === "SUB_LIDER") { isSubLider = true; isMiembro = true; } // compat
+        if (eq.mi_rol_en_equipo === "MIEMBRO" || eq.mi_rol_en_equipo === "SUB_LIDER" || eq.mi_rol_en_equipo === "LIDER" || eq.lider?.id === uid) isMiembro = true;
         if (eq.miembros?.some((m) => m.id_usuario === uid)) isMiembro = true;
       }
-      if (!isSubLider && equipos.some((eq) => eq.miembros?.some((m) => m.id_usuario === user.id && m.rol_en_equipo === "SUB_LIDER" && m.estado === "ACTIVO"))) {
-        isSubLider = true; isMiembro = true;
+      if (!isSubLider && equipos.some((eq) => eq.miembros?.some((m) => m.id_usuario === user.id && m.rol_en_equipo === "LIDER" && m.estado === "ACTIVO"))) {
+        isLider = true; isMiembro = true;
       }
     } else if (!equipos) {
-      // Mientras carga, asumir membresía si no tiene rol cliente y tiene pinta de interno
-      // Evita flicker donde LIDER sin rol global queda oculto 300ms
-      if (!isCliente && (isAsistenteExplicit || roles.length === 0)) isMiembro = true;
+      if (!isCliente && isMiembroGlobal) isMiembro = true;
+      if (!isCliente && isAsignadorLegacy) isMiembro = true;
     }
 
-    const isClientePuro = isCliente && !isAsignador && !isAsistenteExplicit && !isAdmin && !isLider && !isSubLider && !isMiembro;
-    // Nota: para cliente puro usamos isAsistenteExplicit para no considerar vacío como asistente
-    // Si aún no cargó equipos, asumir no líder para no bloquear; luego se recalcula
+    const isClientePuro = isCliente && !isAdmin && !isLider && !isSubLider && !isMiembro;
     const caps: Caps = { isAdmin, isCliente, isClientePuro, isAsistente, isAsignador, isLider, isSubLider, isMiembro };
 
     // Deduplicar por nombre/ruta: hay dos entradas "Centro de solicitudes" con rutas distintas

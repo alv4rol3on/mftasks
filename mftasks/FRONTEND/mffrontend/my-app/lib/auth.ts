@@ -49,19 +49,26 @@ export function esAdmin(): boolean {
 }
 
 export function esAsignador(): boolean {
+    // Fase 1: asignador ahora es lider por equipo, no rol global ASIGNADOR (compat)
     const usuario = getUsuarioActual();
     if (!usuario) return false;
     const roles = rolesLower(usuario.roles);
     if (roles.includes("administrador")) return true;
-    return roles.includes("asignador");
+    // compat: viejo ASIGNADOR todavía considerado asignador
+    if (roles.includes("asignador")) return true;
+    // miembro con lider se detecta vía equipos en Sidebar, aquí solo fallback
+    return roles.includes("miembro");
 }
 
 export function esAsistente(): boolean {
+    // Fase 1: asistente deprecado, todo miembro no lider/cliente/admin era asistente
+    return false;
+}
+
+export function esMiembro(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
-    const roles = rolesLower(usuario.roles);
-    if (roles.includes("administrador") || roles.includes("asignador") || roles.includes("cliente")) return false;
-    return roles.includes("asistente") || roles.length === 0;
+    return rolesLower(usuario.roles).includes("miembro");
 }
 
 export function esCliente(): boolean {

@@ -41,6 +41,7 @@ interface TaskTableEnDesarrolloProps {
   ) => void;
   onEmpezarSubtarea?: (tareaId: number, subtareaId: number) => void;
   onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
+  onCambiarEstadoSubtarea?: (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => void;
 }
 
 export default function TaskTableEnDesarrollo({
@@ -51,6 +52,7 @@ export default function TaskTableEnDesarrollo({
   onIniciar,
   onEmpezarSubtarea,
   onCompletarSubtarea,
+  onCambiarEstadoSubtarea,
 }: TaskTableEnDesarrolloProps) {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
@@ -127,6 +129,7 @@ export default function TaskTableEnDesarrollo({
         onClose={() => setSelectedTaskId(null)}
         onEmpezarTarea={onEmpezarSubtarea}
         onCompletarSubtarea={onCompletarSubtarea}
+        onCambiarEstadoSubtarea={onCambiarEstadoSubtarea}
         empezandoId={empezandoId}
         completandoId={completandoId}
       />

@@ -46,7 +46,7 @@ export default function EquiposPage() {
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
   const esAdmin = roles.includes("administrador");
-  const esClientePuro = roles.includes("cliente") && !roles.includes("asignador") && !roles.includes("asistente") && !esAdmin;
+  const esClientePuro = roles.includes("cliente") && !esAdmin && !roles.includes("miembro") && !roles.includes("asignador") && !roles.includes("asistente");
 
   const cargar = async () => {
     setCargando(true);
@@ -269,7 +269,7 @@ export default function EquiposPage() {
       // filtrar los que ya son miembros o líder
       const miembrosIds = new Set(equipo.miembros.map((m) => m.id_usuario));
       miembrosIds.add(equipo.lider?.id as number);
-      const disponibles = (lista as any[]).filter((u) => !miembrosIds.has(u.id) && u.activo !== false);
+      const disponibles = (lista as any[]).filter((u) => !miembrosIds.has(u.id) && (u.is_active ?? u.activo) !== false);
       setUsuariosDisponibles(disponibles);
     } catch (e) {
       setMensaje(`Error cargando usuarios: ${(e as Error).message}`);

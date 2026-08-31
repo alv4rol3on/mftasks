@@ -28,12 +28,11 @@ export default function TareasPage() {
     const roles = (user.roles ?? []).map((r) => r.toLowerCase());
     const isAdmin = roles.includes("administrador");
     const isCliente = roles.includes("cliente");
-    const isAsistente = roles.includes("asistente");
-    const isAsignador = roles.includes("asignador");
+    const isMiembro = roles.includes("miembro");
     if (isAdmin) return;
-    // Si es cliente sin rol interno -> bloquear hasta verificar equipos (lider/sub-lider)
-    if (isCliente && !isAsistente && !isAsignador) {
-      // verificar si es lider/sub-lider/miembro -> si lo es, permitir
+    // Si es cliente sin rol miembro -> verificar si es lider/miembro de equipo
+    if (isCliente && !isMiembro) {
+      // verificar si es lider/miembro -> si lo es, permitir (cliente-miembro)
       apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
         .then((data) => {
           const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
@@ -140,6 +139,38 @@ export default function TareasPage() {
     }
   };
 
+  const cambiarEstadoSubtarea = async (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => {
+    try {
+      if (nuevoEstado === "STAND_BY") {
+        if (!motivo) { showToast("Motivo obligatorio para STAND_BY", "error"); return; }
+        await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/standby/`, { method: "POST", body: JSON.stringify({ motivo }) });
+        showToast("Subtarea en pausa", "success");
+      } else if (nuevoEstado === "EN_DESARROLLO" || nuevoEstado === "EN_ESPERA") {
+        // reanudar si estaba en STAND_BY se usa reanudar, sino intentar empezar
+        // intentar reanudar primero
+        try {
+          await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reanudar/`, { method: "POST" });
+          showToast("Subtarea reanudada", "success");
+        } catch {
+          // fallback: si no estaba en STAND_BY, no hacer nada (estado ya seteado via select es solo UI, backend standby maneja)
+          // Forzar reload para reflejar
+        }
+      } else if (nuevoEstado === "SOLUCIONADO") {
+        await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, { method: "POST" });
+        showToast("Subtarea solucionada", "success");
+      }
+      await cargar();
+      // actualizar modal si abierto
+      setTareaSeleccionada((prev) => {
+        if (!prev || prev.id !== tareaId) return prev;
+        // recargar desde tareas frescas será async, pero mantener
+        return prev;
+      });
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    }
+  };
+
   if (sinPermiso) {
     return (
       <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
@@ -171,6 +202,7 @@ export default function TareasPage() {
         onIniciar={iniciar}
         onEmpezarSubtarea={empezarSubtarea}
         onCompletarSubtarea={completarSubtarea}
+        onCambiarEstadoSubtarea={cambiarEstadoSubtarea}
       />
     </div>
   );
