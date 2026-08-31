@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     #apps
     "tasks",
     "usuarios",
-    "clientes",
     "campanas"
 ]
 
