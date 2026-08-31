@@ -140,32 +140,45 @@ export default function TareasPage() {
   };
 
   const cambiarEstadoSubtarea = async (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => {
+    // obtener estado actual para decidir endpoint correcto
+    const tareaActual = tareas.find((t) => t.id === tareaId);
+    const subActual = tareaActual?.subtareas.find((s) => s.id === subtareaId);
+    const estadoActual = subActual?.estado;
+
     try {
       if (nuevoEstado === "STAND_BY") {
         if (!motivo) { showToast("Motivo obligatorio para STAND_BY", "error"); return; }
+        // solo desde EN_ESPERA o EN_DESARROLLO
+        if (estadoActual !== "EN_ESPERA" && estadoActual !== "EN_DESARROLLO") {
+          showToast(`No se puede pausar desde ${estadoActual}`, "error");
+          return;
+        }
         await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/standby/`, { method: "POST", body: JSON.stringify({ motivo }) });
         showToast("Subtarea en pausa", "success");
-      } else if (nuevoEstado === "EN_DESARROLLO" || nuevoEstado === "EN_ESPERA") {
-        // reanudar si estaba en STAND_BY se usa reanudar, sino intentar empezar
-        // intentar reanudar primero
-        try {
+      } else if (nuevoEstado === "EN_DESARROLLO") {
+        if (estadoActual === "EN_ESPERA") {
+          // iniciar
+          await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/empezar/`, { method: "POST" });
+          showToast("Subtarea iniciada", "success");
+        } else if (estadoActual === "STAND_BY") {
           await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reanudar/`, { method: "POST" });
           showToast("Subtarea reanudada", "success");
-        } catch {
-          // fallback: si no estaba en STAND_BY, no hacer nada (estado ya seteado via select es solo UI, backend standby maneja)
-          // Forzar reload para reflejar
+        } else {
+          showToast(`Transición no válida ${estadoActual} -> ${nuevoEstado}`, "error");
+          return;
         }
+      } else if (nuevoEstado === "EN_ESPERA") {
+        showToast("No se puede volver a En espera", "error");
+        return;
       } else if (nuevoEstado === "SOLUCIONADO") {
+        if (estadoActual === "SOLUCIONADO") {
+          showToast("Ya está solucionada", "error");
+          return;
+        }
         await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, { method: "POST" });
         showToast("Subtarea solucionada", "success");
       }
       await cargar();
-      // actualizar modal si abierto
-      setTareaSeleccionada((prev) => {
-        if (!prev || prev.id !== tareaId) return prev;
-        // recargar desde tareas frescas será async, pero mantener
-        return prev;
-      });
     } catch (e) {
       showToast((e as Error).message, "error");
     }

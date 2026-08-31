@@ -152,8 +152,9 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                     <tbody>
                                         {tarea.subtareas.map((subtarea) => {
                                             const esMiSubtarea = usuario?.id === subtarea.asignado;
-                                            const bloqueada = subtarea.bloqueada_por && subtarea.bloqueada_por.length > 0;
-                                            const bloqueadaTooltip = bloqueada ? `Bloqueada por: ${subtarea.bloqueada_por!.map(b=>b.descripcion).join(", ")}` : "";
+                                            const bloqueadorasPendientes = subtarea.bloqueada_por?.filter(b => b.estado !== "SOLUCIONADO") ?? [];
+                                            const bloqueada = bloqueadorasPendientes.length > 0;
+                                            const bloqueadaTooltip = bloqueada ? `Bloqueada por: ${bloqueadorasPendientes.map(b=>`${b.descripcion} (${b.estado})`).join(", ")}` : "";
                                             const puedeEmpezar = esMiSubtarea && subtarea.estado === "EN_ESPERA" && !!onEmpezarTarea && !bloqueada;
                                             const puedeCompletar = esMiSubtarea && subtarea.estado === "EN_DESARROLLO" && !!onCompletarSubtarea;
                                             const estadoColor = subtarea.estado === "STAND_BY" ? "#f59e0b" : subtarea.estado === "SOLUCIONADO" ? "#16a34a" : subtarea.estado === "EN_DESARROLLO" ? "#7c3aed" : "#6b7280";
@@ -183,16 +184,22 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                                 value={subtarea.estado}
                                                                 onChange={(e)=>{
                                                                     const nuevo = e.target.value;
+                                                                    // si está bloqueada no permitir pasar a EN_DESARROLLO
+                                                                    if(bloqueada && nuevo==="EN_DESARROLLO"){
+                                                                        alert(`Bloqueada por: ${bloqueadorasPendientes.map(b=>b.descripcion).join(", ")} - debe solucionarse primero`);
+                                                                        return;
+                                                                    }
                                                                     if(nuevo==="STAND_BY"){
                                                                         const motivo = prompt("Motivo de pausa (STAND_BY) obligatorio:");
-                                                                        if(!motivo || !motivo.trim()) { e.target.value = subtarea.estado; return; }
+                                                                        if(!motivo || !motivo.trim()) { return; }
                                                                         onCambiarEstadoSubtarea(tarea.id, subtarea.id, nuevo, motivo.trim());
                                                                     } else {
                                                                         onCambiarEstadoSubtarea(tarea.id, subtarea.id, nuevo);
                                                                     }
                                                                 }}
-                                                                style={{ border:"1px solid #d1d5db", borderRadius:6, padding:"4px 6px", fontSize:12, background: bloqueada ? "#f3f4f6":"white"}}
-                                                                title={bloqueadaTooltip || "Cambiar estado"}
+                                                                disabled={bloqueada && subtarea.estado==="EN_ESPERA"}
+                                                                style={{ border:"1px solid #d1d5db", borderRadius:6, padding:"4px 6px", fontSize:12, background: bloqueada ? "#f3f4f6":"white", cursor: bloqueada ? "not-allowed":"pointer"}}
+                                                                title={bloqueadaTooltip || "Cambiar estado (solo tu subtarea)"}
                                                             >
                                                                 <option value="EN_ESPERA">En espera</option>
                                                                 <option value="EN_DESARROLLO">En desarrollo</option>
