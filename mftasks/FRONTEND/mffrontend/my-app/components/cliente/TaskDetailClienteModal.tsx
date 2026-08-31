@@ -47,7 +47,8 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
             <h3>Información</h3>
             <table className={styles.infoTable}>
               <tbody>
-                <tr><td><strong>Cliente</strong></td><td>{tarea.cliente_nombre}</td></tr>
+                <tr><td><strong>Campaña</strong></td><td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td></tr>
+                <tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre ?? "-"}</td></tr>
                 <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
                 <tr><td><strong>Estado</strong></td><td><span style={{ background: estadoColor[tarea.estado] ?? "#6b7280", padding:"2px 8px", borderRadius:6, color:"white", fontSize:11}}>{tarea.estado}</span></td></tr>
                 {tarea.estado === "STAND_BY" && (tarea as any).motivo_standby && <tr><td><strong>Motivo pausa</strong></td><td style={{ color:"#92400e", fontSize:13}}>{(tarea as any).motivo_standby}</td></tr>}

@@ -2,7 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from clientes.models import Cliente
+from campanas.models import Campana, SubCampana
 from usuarios.models import Equipo, EquipoMiembro, Rol, User, UserRol
 
 from .models import Subtarea, Tarea
@@ -36,7 +36,8 @@ class TareaFlujoTestCase(APITestCase):
 
         self.lider2 = _crear_usuario("lider2@empresa.com")
 
-        self.cliente = Cliente.objects.create(nombre="Cliente A")
+        self.campana = Campana.objects.create(nombre="Campana Test", codigo="CAMP_TEST")
+        self.subcampana = SubCampana.objects.create(campana=self.campana, nombre="Sub Test", codigo="SUB_TEST")
 
         self.equipo1 = Equipo.objects.create(
             nombre="Equipo 1",
@@ -61,7 +62,7 @@ class TareaFlujoTestCase(APITestCase):
         self.tarea1 = Tarea.objects.create(
             asunto="Solicitud 1",
             descripcion="d1",
-            cliente=self.cliente,
+            subcampana=self.subcampana,
             estado=Tarea.Estado.EN_ESPERA,
             aprobador=self.admin,
             equipo=self.equipo1,
@@ -70,7 +71,7 @@ class TareaFlujoTestCase(APITestCase):
         self.tarea2 = Tarea.objects.create(
             asunto="Solicitud 2",
             descripcion="d2",
-            cliente=self.cliente,
+            subcampana=self.subcampana,
             estado=Tarea.Estado.EN_ESPERA,
             aprobador=self.admin,
             equipo=self.equipo2,
@@ -284,7 +285,7 @@ class TareaFlujoTestCase(APITestCase):
             {
                 "asunto": "X",
                 "descripcion": "x",
-                "cliente": self.cliente.id,
+                "subcampana": self.subcampana.id,
                 "equipo": self.equipo1.id,
                 "aprobador": self.admin.id,
             },

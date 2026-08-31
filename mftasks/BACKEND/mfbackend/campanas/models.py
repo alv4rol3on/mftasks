@@ -4,29 +4,27 @@ from django.db.models import Q, CheckConstraint, UniqueConstraint
 
 
 class Campana(models.Model):
-    cliente = models.ForeignKey(
-        "clientes.Cliente",
-        on_delete=models.PROTECT,
-        related_name="campanas",
-    )
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100, unique=True)
     codigo = models.CharField(max_length=30, unique=True, blank=True)
+    ruc = models.CharField(max_length=20, blank=True, null=True, unique=True)
+    razon_social = models.CharField(max_length=200, blank=True)
+    correo = models.EmailField(blank=True)
+    telefono = models.CharField(max_length=20, blank=True)
+    direccion = models.CharField(max_length=255, blank=True)
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("cliente", "nombre")
         indexes = [
-            models.Index(fields=["cliente", "activo"]),
+            models.Index(fields=["activo"]),
         ]
 
     def __str__(self):
-        return f"{self.cliente.nombre} - {self.nombre}"
+        return self.nombre
 
     def save(self, *args, **kwargs):
         if not self.codigo:
-            # generar codigo slug-like
-            base = f"{self.cliente.nombre[:10]}_{self.nombre[:10]}".upper().replace(" ", "_")
+            base = f"{self.nombre[:15]}".upper().replace(" ", "_")
             self.codigo = base[:30]
         super().save(*args, **kwargs)
 

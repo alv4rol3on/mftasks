@@ -3,7 +3,6 @@ from django.db import models
 from django.db.models import Q, CheckConstraint, UniqueConstraint
 
 from usuarios.models import User, Equipo
-from clientes.models import Cliente
 
 class Tarea(models.Model):
 
@@ -19,12 +18,6 @@ class Tarea(models.Model):
 
     asunto = models.CharField(max_length=200)
     descripcion = models.TextField()
-
-    cliente = models.ForeignKey(
-        Cliente,
-        on_delete=models.PROTECT,
-        related_name="tareas"
-    )
 
     estado = models.CharField(
         max_length=20,
@@ -80,7 +73,6 @@ class Tarea(models.Model):
         db_index=True,
     )
 
-    # Fase 2: subcampana se añade luego, campo nullable para migración incremental
     subcampana = models.ForeignKey(
         "campanas.SubCampana",
         on_delete=models.PROTECT,
@@ -101,7 +93,7 @@ class Tarea(models.Model):
         indexes = [
             models.Index(fields=["estado", "equipo"]),
             models.Index(fields=["solicitante", "estado"]),
-            models.Index(fields=["cliente", "estado"]),
+            models.Index(fields=["subcampana", "estado"]),
             models.Index(fields=["fecha_creacion"]),
             models.Index(fields=["ticket"]),
         ]

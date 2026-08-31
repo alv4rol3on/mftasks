@@ -62,10 +62,11 @@ class SubtareaSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
 
-    cliente_nombre = serializers.CharField(
-        source="cliente.nombre",
-        read_only=True,
-    )
+    cliente_nombre = serializers.SerializerMethodField()
+    campana_nombre = serializers.SerializerMethodField()
+    subcampana_nombre = serializers.CharField(source="subcampana.nombre", read_only=True, default=None)
+    # alias cliente para compat frontend que aún envía cliente
+    cliente = serializers.IntegerField(write_only=True, required=False)
 
     equipo_nombre = serializers.CharField(
         source="equipo.nombre",
@@ -82,8 +83,18 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = "__all__"
-        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante"]
+        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "progreso", "subtareas", "puedo_operar"]
+        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "standby_por", "fecha_solucion"]
+
+    def get_cliente_nombre(self, obj):
+        if obj.subcampana and obj.subcampana.campana:
+            return obj.subcampana.campana.nombre
+        return None
+
+    def get_campana_nombre(self, obj):
+        if obj.subcampana and obj.subcampana.campana:
+            return obj.subcampana.campana.nombre
+        return None
 
     def get_aprobador_nombre(self, obj):
         if not obj.aprobador:
@@ -114,30 +125,26 @@ class TaskSerializer(serializers.ModelSerializer):
             # CLIENTE no puede setear estado/progreso/aprobador manualmente
             if "estado" in self.initial_data and self.initial_data.get("estado") != "EN_ESPERA":
                 raise serializers.ValidationError({"estado": "No puede definir el estado al crear."})
-            # Validar permiso subcampana para cliente (mixto campaña/subcampana)
+            # subcampana es obligatoria ahora (cliente derivado)
             subcampana = attrs.get("subcampana") or self.initial_data.get("subcampana")
-            if subcampana:
-                # resolver id -> objeto
-                from campanas.models import SubCampana
-                try:
-                    if isinstance(subcampana, int):
-                        subcampana_obj = SubCampana.objects.select_related("campana").get(id=subcampana)
-                    elif hasattr(subcampana, "campana"):
-                        subcampana_obj = subcampana
-                    else:
-                        subcampana_obj = SubCampana.objects.select_related("campana").get(id=int(subcampana))
-                except Exception:
-                    subcampana_obj = None
-                if subcampana_obj and request and request.user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
-                    from .permissions import tiene_permiso_subcampana
-                    if not tiene_permiso_subcampana(request.user, subcampana_obj):
-                        raise serializers.ValidationError({"subcampana": f"No tienes permiso para {subcampana_obj.codigo}."})
-            # Validar cliente pertenece a campana elegida
-            cliente = attrs.get("cliente")
-            if cliente and subcampana:
-                try:
-                    if subcampana_obj and subcampana_obj.campana.cliente_id != cliente.id if hasattr(cliente, "id") else int(cliente) != subcampana_obj.campana.cliente_id:
-                        raise serializers.ValidationError({"subcampana": "La subcampaña no pertenece al cliente seleccionado."})
-                except Exception:
-                    pass
+            if not subcampana:
+                raise serializers.ValidationError({"subcampana": "La subcampaña es obligatoria."})
+            # resolver id -> objeto
+            from campanas.models import SubCampana
+            subcampana_obj = None
+            try:
+                if isinstance(subcampana, int):
+                    subcampana_obj = SubCampana.objects.select_related("campana").get(id=subcampana)
+                elif hasattr(subcampana, "campana"):
+                    subcampana_obj = subcampana
+                else:
+                    subcampana_obj = SubCampana.objects.select_related("campana").get(id=int(subcampana))
+            except Exception:
+                subcampana_obj = None
+            if subcampana_obj and request and request.user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
+                from .permissions import tiene_permiso_subcampana
+                if not tiene_permiso_subcampana(request.user, subcampana_obj):
+                    raise serializers.ValidationError({"subcampana": f"No tienes permiso para {subcampana_obj.codigo}."})
+            # compat: si viene cliente, ignorar (derivado de subcampana)
+            attrs.pop("cliente", None)
         return attrs

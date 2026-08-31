@@ -83,13 +83,13 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                 </tr>
 
                                 <tr>
-                                    <td><strong>Cliente</strong></td>
-                                    <td>{tarea.cliente_nombre}</td>
+                                    <td><strong>Campaña</strong></td>
+                                    <td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td>
                                 </tr>
                                 {tarea.subcampana_nombre && (
                                 <tr>
                                     <td><strong>Subcampaña</strong></td>
-                                    <td>{tarea.subcampana_nombre} {tarea.campana_nombre ? `(${tarea.campana_nombre})` : ""}</td>
+                                    <td>{tarea.subcampana_nombre}</td>
                                 </tr>
                                 )}
 

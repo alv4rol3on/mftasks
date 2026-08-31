@@ -11,7 +11,7 @@ from .serializers import CampanaSerializer, SubCampanaSerializer, PermisoCampana
 
 
 class CampanaViewSet(ModelViewSet):
-    queryset = Campana.objects.all().select_related("cliente").prefetch_related("subcampanas")
+    queryset = Campana.objects.all().prefetch_related("subcampanas")
     serializer_class = CampanaSerializer
     permission_classes = [IsAuthenticatedActivo]
 
@@ -23,7 +23,7 @@ class CampanaViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Campana.objects.all().select_related("cliente").prefetch_related("subcampanas")
+        qs = Campana.objects.all().prefetch_related("subcampanas")
         if not user or not user.is_authenticated:
             return Campana.objects.none()
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
@@ -41,7 +41,7 @@ class CampanaViewSet(ModelViewSet):
 
 
 class SubCampanaViewSet(ModelViewSet):
-    queryset = SubCampana.objects.all().select_related("campana", "campana__cliente")
+    queryset = SubCampana.objects.all().select_related("campana")
     serializer_class = SubCampanaSerializer
     permission_classes = [IsAuthenticatedActivo]
 
@@ -53,7 +53,7 @@ class SubCampanaViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = SubCampana.objects.all().select_related("campana", "campana__cliente")
+        qs = SubCampana.objects.all().select_related("campana")
         campana_id = self.request.query_params.get("campana_id") or self.request.query_params.get("campana")
         if campana_id:
             qs = qs.filter(campana_id=campana_id)

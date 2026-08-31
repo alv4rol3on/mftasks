@@ -71,7 +71,7 @@ export default function TaskTableEnDesarrollo({
           <div className={styles.taskHeader} style={{ gridTemplateColumns: "80px 1.5fr 1fr 1fr 120px 140px 140px" } as any}>
             <div>Ticket</div>
             <div>Asunto</div>
-            <div>Cliente</div>
+            <div>Campaña</div>
             <div>Equipo</div>
             <div>Estado</div>
             <div>Fecha de inicio</div>
@@ -95,7 +95,7 @@ export default function TaskTableEnDesarrollo({
                   {conPendiente && <div style={{ fontSize: 11, color: "#92400e", marginTop: 2 }}>Tienes subtareas pendientes por completar</div>}
                 </div>
 
-                <div>{tarea.cliente_nombre}</div>
+                <div>{tarea.campana_nombre ?? tarea.cliente_nombre}</div>
 
                 <div>{tarea.equipo_nombre}</div>
 

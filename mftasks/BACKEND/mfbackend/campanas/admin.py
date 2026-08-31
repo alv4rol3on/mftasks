@@ -4,10 +4,9 @@ from .models import Campana, SubCampana, PermisoCampana
 
 @admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
-    list_display = ("codigo", "nombre", "cliente", "activo")
-    list_filter = ("activo", "cliente")
-    search_fields = ("nombre", "codigo", "cliente__nombre")
-    autocomplete_fields = ("cliente",)
+    list_display = ("codigo", "nombre", "ruc", "activo")
+    list_filter = ("activo",)
+    search_fields = ("nombre", "codigo", "ruc", "razon_social")
 
 
 @admin.register(SubCampana)
