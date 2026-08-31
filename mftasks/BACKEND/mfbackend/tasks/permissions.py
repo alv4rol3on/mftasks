@@ -32,6 +32,8 @@ def es_sub_lider(user, equipo):
 def es_lider_por_miembro(user, equipo):
     if not user or not user.is_authenticated:
         return False
+    if user.roles.filter(rol__nombre__iexact="lider").exists():
+        return True
     from usuarios.models import EquipoMiembro
     if equipo.lider_id == user.id:
         return True

@@ -41,11 +41,31 @@ export default function AdminPage(){
   };
 
   const toggleActivo = async(u:Usuario)=>{
+    if((u.roles??[]).map(r=>r.toLowerCase()).includes("administrador")){
+      setMsg("Error: No se puede modificar usuarios administradores");
+      return;
+    }
     try{
       await apiFetch(`/api/usuarios/usuarios/${u.id}/`, {method:"PATCH", body: JSON.stringify({is_active: !u.is_active})});
       setMsg(`${u.email} ${!u.is_active ? "activado":"desactivado"}`);
       await cargarUsuarios();
     }catch(e){ setMsg((e as Error).message); }
+  };
+
+  const cambiarRol = async(u:Usuario, nuevoRol:string)=>{
+    if((u.roles??[]).map(r=>r.toLowerCase()).includes("administrador")){
+      setMsg("Error: No se puede modificar rol de administradores");
+      return;
+    }
+    if(!["miembro","lider","cliente"].includes(nuevoRol.toLowerCase())){
+      setMsg("Rol no permitido");
+      return;
+    }
+    try{
+      await apiFetch(`/api/usuarios/usuarios/${u.id}/`, {method:"PATCH", body: JSON.stringify({roles: [nuevoRol]})});
+      setMsg(`Rol de ${u.email} cambiado a ${nuevoRol}`);
+      await cargarUsuarios();
+    }catch(e){ setMsg(`Error: ${(e as Error).message}`); }
   };
 
   const usuariosFiltrados = usuarios.filter(u=>{
@@ -78,6 +98,7 @@ export default function AdminPage(){
               <input placeholder="Password (opcional)" type="password" value={nuevo.password} onChange={e=> setNuevo({...nuevo, password:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}/>
               <select value={nuevo.rol} onChange={e=> setNuevo({...nuevo, rol:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}>
                 <option value="miembro">miembro</option>
+                <option value="lider">lider</option>
                 <option value="cliente">cliente</option>
                 <option value="administrador">administrador</option>
               </select>
@@ -94,18 +115,31 @@ export default function AdminPage(){
             {cargando ? <div>Cargando...</div> : (
               <div style={{ overflowX:"auto", maxHeight:"60vh", overflowY:"auto"}}>
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13}}>
-                  <thead><tr style={{ background:"#f9fafb", textAlign:"left"}}><th style={{ padding:"8px"}}>Codigo</th><th style={{ padding:"8px"}}>Email</th><th style={{ padding:"8px"}}>Nombre</th><th style={{ padding:"8px"}}>Cargo</th><th style={{ padding:"8px"}}>Activo</th><th style={{ padding:"8px"}}>Accion</th></tr></thead>
+                  <thead><tr style={{ background:"#f9fafb", textAlign:"left"}}><th style={{ padding:"8px"}}>Codigo</th><th style={{ padding:"8px"}}>Email</th><th style={{ padding:"8px"}}>Nombre</th><th style={{ padding:"8px"}}>Rol</th><th style={{ padding:"8px"}}>Activo</th><th style={{ padding:"8px"}}>Accion</th></tr></thead>
                   <tbody>
-                    {usuariosFiltrados.map(u=>(
-                      <tr key={u.id} style={{ borderTop:"1px solid #f3f4f6"}}>
+                    {usuariosFiltrados.map(u=>{
+                      const esAdmin = (u.roles??[]).map(r=>r.toLowerCase()).includes("administrador");
+                      const rolActual = (u.roles??[])[0] ?? "sin rol";
+                      return (
+                      <tr key={u.id} style={{ borderTop:"1px solid #f3f4f6", opacity: esAdmin ? 0.6 : 1}}>
                         <td style={{ padding:"8px", fontFamily:"monospace", fontSize:12, fontWeight:700}}>{(u as any).codigo ?? "-"}</td>
                         <td style={{ padding:"8px"}}>{u.email}</td>
                         <td style={{ padding:"8px"}}>{u.nombres} {u.apellidos}</td>
-                        <td style={{ padding:"8px"}}>{u.cargo ?? "-"}</td>
+                        <td style={{ padding:"8px"}}>
+                          {esAdmin ? <span style={{ background:"#fee2e2", color:"#991b1b", padding:"2px 6px", borderRadius:6, fontSize:11}}>Administrador (bloqueado)</span> : (
+                            <select value={rolActual.toLowerCase()} onChange={e=> cambiarRol(u, e.target.value)} style={{ border:"1px solid #d1d5db", borderRadius:6, padding:"4px 6px", fontSize:12}}>
+                              <option value="miembro">miembro</option>
+                              <option value="lider">lider</option>
+                              <option value="cliente">cliente</option>
+                            </select>
+                          )}
+                        </td>
                         <td style={{ padding:"8px"}}>{u.is_active ? "Si" : "No"}</td>
-                        <td style={{ padding:"8px"}}><button onClick={()=> toggleActivo(u)} style={{ background: u.is_active ? "#fee2e2":"#dcfce7", color: u.is_active ? "#991b1b":"#166534", border:"1px solid #d1d5db", padding:"4px 8px", borderRadius:6, cursor:"pointer", fontSize:12}}>{u.is_active ? "Desactivar":"Activar"}</button></td>
+                        <td style={{ padding:"8px", display:"flex", gap:6}}>
+                          <button disabled={esAdmin} onClick={()=> toggleActivo(u)} style={{ background: esAdmin ? "#f3f4f6" : u.is_active ? "#fee2e2":"#dcfce7", color: esAdmin ? "#9ca3af" : u.is_active ? "#991b1b":"#166534", border:"1px solid #d1d5db", padding:"4px 8px", borderRadius:6, cursor: esAdmin ? "not-allowed":"pointer", fontSize:12}}>{u.is_active ? "Desactivar":"Activar"}</button>
+                        </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>

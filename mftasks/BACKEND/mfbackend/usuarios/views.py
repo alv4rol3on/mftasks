@@ -143,9 +143,39 @@ class UserViewSet(ModelViewSet):
         return permisos
 
     def get_serializer_class(self):
-        if self.action == "create":
+        if self.action in ("create", "update", "partial_update"):
             return UserCreateSerializer
         return UserSerializer
+
+    def get_object(self):
+        obj = super().get_object()
+        # Bloquear modificación de administradores
+        if self.action in ("update", "partial_update", "destroy"):
+            if obj.roles.filter(rol__nombre__iexact="Administrador").exists():
+                # permitir ver pero no modificar administradores
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("No se puede modificar usuarios administradores.")
+        return obj
+
+    def perform_update(self, serializer):
+        # Manejar cambio de roles si viene en request
+        roles = serializer.validated_data.pop("roles", None)
+        # compat activo -> is_active ya manejado en serializer
+        serializer.save()
+        if roles is not None:
+            from .models import Rol, UserRol
+            user = serializer.instance
+            # Normalizar y validar ya hecho en serializer
+            # Eliminar roles anteriores no admin y asignar nuevos (solo miembro/lider/cliente)
+            # No tocar Administrador si ya lo tenía (bloqueado arriba)
+            UserRol.objects.filter(usuario=user).exclude(rol__nombre__iexact="Administrador").delete()
+            for rname in roles:
+                # buscar rol exacto ya validado
+                try:
+                    rol_obj = Rol.objects.get(nombre__iexact=rname)
+                except Rol.DoesNotExist:
+                    rol_obj, _ = Rol.objects.get_or_create(nombre=rname, defaults={"descripcion": rname})
+                UserRol.objects.get_or_create(usuario=user, rol=rol_obj)
 
 
 class RolViewSet(ModelViewSet):

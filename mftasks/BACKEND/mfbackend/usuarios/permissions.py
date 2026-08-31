@@ -48,10 +48,18 @@ def es_sub_lider_de_equipo(user, equipo):
     ).exists()
 
 
-def es_lider_miembro(user, equipo):
-    """Lider por EquipoMiembro LIDER activo (no solo FK lider_id)"""
+def es_lider_global(user):
     if not user or not user.is_authenticated:
         return False
+    return user.roles.filter(rol__nombre__iexact="lider").exists()
+
+
+def es_lider_miembro(user, equipo):
+    """Lider por EquipoMiembro LIDER activo (no solo FK lider_id) o rol global lider"""
+    if not user or not user.is_authenticated:
+        return False
+    if user.roles.filter(rol__nombre__iexact="lider").exists():
+        return True
     from .models import EquipoMiembro
     if equipo.lider_id == user.id:
         return True

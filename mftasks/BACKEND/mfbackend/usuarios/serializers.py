@@ -10,6 +10,7 @@ class RolSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
+    roles = serializers.SerializerMethodField()
 
     class Meta:
 
@@ -24,7 +25,11 @@ class UserSerializer(serializers.ModelSerializer):
             "cargo",
             "is_active",
             "activo",
+            "roles",
         ]
+
+    def get_roles(self, obj):
+        return [r.rol.nombre for r in obj.roles.all()]
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -41,8 +46,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def validate_roles(self, value):
-        allowed = {"administrador", "miembro", "cliente"}
-        # lider no es global, se asigna por equipo
+        allowed = {"administrador", "miembro", "cliente", "lider"}
         normalized = [v.lower().strip() for v in value]
         for r in normalized:
             if r not in allowed:
