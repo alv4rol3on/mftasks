@@ -751,6 +751,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         subtarea.fecha_standby = timezone.now()
         subtarea.standby_por = request.user
         subtarea.save(update_fields=["estado", "motivo_standby", "fecha_standby", "standby_por"])
+        # Propagar a Tarea: si alguna subtarea en STAND_BY, Tarea pasa a STAND_BY
+        if tarea.estado != Tarea.Estado.STAND_BY:
+            tarea.estado = Tarea.Estado.STAND_BY
+            tarea.motivo_standby = f"Pausa por subtarea #{subtarea.id}: {motivo}"
+            tarea.fecha_standby = timezone.now()
+            tarea.standby_por = request.user
+            tarea.save(update_fields=["estado", "motivo_standby", "fecha_standby", "standby_por"])
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
 
     @action(
@@ -767,7 +774,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({"detail": "No perteneces al equipo."}, status=status.HTTP_403_FORBIDDEN)
         if subtarea.estado != Subtarea.Estado.STAND_BY:
             return Response({"detail": "La subtarea no está en STAND_BY."}, status=status.HTTP_400_BAD_REQUEST)
-        # solo asignado o lider puede reanudar
+        # solo asignado o lider puede reanudar (requisito: cualquier miembro asignado)
         if subtarea.asignado_id != request.user.id and tarea.equipo.lider_id != request.user.id:
             from usuarios.models import EquipoMiembro
             is_lider = EquipoMiembro.objects.filter(equipo=tarea.equipo, usuario=request.user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER).exists()
@@ -777,8 +784,20 @@ class TaskViewSet(viewsets.ModelViewSet):
         pendientes = _tiene_dependencias_pendientes_subtarea(subtarea)
         if pendientes:
             return Response({"detail": "Dependencias pendientes.", "bloqueadoras": [{"id": s.id, "descripcion": s.descripcion} for s in pendientes]}, status=status.HTTP_409_CONFLICT)
-        subtarea.estado = Subtarea.Estado.EN_DESARROLLO
-        subtarea.save(update_fields=["estado"])
+        # Reanudar a EN_ESPERA (requisito: trae de vuelta select en EN_ESPERA)
+        subtarea.estado = Subtarea.Estado.EN_ESPERA
+        subtarea.motivo_standby = ""
+        subtarea.fecha_standby = None
+        subtarea.standby_por = None
+        subtarea.save(update_fields=["estado", "motivo_standby", "fecha_standby", "standby_por"])
+        # Si ya no quedan subtareas en STAND_BY, Tarea vuelve a EN_DESARROLLO
+        if not Subtarea.objects.filter(tarea=tarea, estado=Subtarea.Estado.STAND_BY).exists():
+            if tarea.estado == Tarea.Estado.STAND_BY:
+                tarea.estado = Tarea.Estado.EN_DESARROLLO
+                tarea.motivo_standby = ""
+                tarea.fecha_standby = None
+                tarea.standby_por = None
+                tarea.save(update_fields=["estado", "motivo_standby", "fecha_standby", "standby_por"])
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea], url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/dependencias")

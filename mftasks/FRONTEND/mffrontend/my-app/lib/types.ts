@@ -33,6 +33,8 @@ export interface Task {
     solicitante_nombre: string | null;
     estado: string;
     motivo_rechazo: string;
+    motivo_standby?: string | null;
+    fecha_standby?: string | null;
     fecha_creacion: string;
     fecha_respuesta: string | null;
     fecha_inicio: string | null;

@@ -182,6 +182,14 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                         {esMiSubtarea && onCambiarEstadoSubtarea ? (
                                                             subtarea.estado === "SOLUCIONADO" ? (
                                                                 <span style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#dcfce7", color:"#166534", padding:"6px 10px", borderRadius:6, fontSize:12, fontWeight:700, border:"1px solid #86efac"}}>✓ Solucionado</span>
+                                                            ) : subtarea.estado === "STAND_BY" ? (
+                                                                <button
+                                                                    onClick={()=> onCambiarEstadoSubtarea(tarea.id, subtarea.id, "EN_ESPERA")}
+                                                                    style={{ background:"#f59e0b", color:"white", border:"none", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700}}
+                                                                    title="Reanudar - volverá a En espera"
+                                                                >
+                                                                    REANUDAR
+                                                                </button>
                                                             ) : (
                                                             <select
                                                                 value={subtarea.estado}

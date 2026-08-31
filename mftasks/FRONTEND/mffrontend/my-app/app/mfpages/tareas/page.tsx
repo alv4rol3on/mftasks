@@ -168,8 +168,13 @@ export default function TareasPage() {
           return;
         }
       } else if (nuevoEstado === "EN_ESPERA") {
-        showToast("No se puede volver a En espera", "error");
-        return;
+        if (estadoActual === "STAND_BY") {
+          await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reanudar/`, { method: "POST" });
+          showToast("Subtarea reanudada a En espera", "success");
+        } else {
+          showToast("No se puede volver a En espera", "error");
+          return;
+        }
       } else if (nuevoEstado === "SOLUCIONADO") {
         if (estadoActual === "SOLUCIONADO") {
           showToast("Ya está solucionada", "error");

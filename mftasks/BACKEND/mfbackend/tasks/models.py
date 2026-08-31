@@ -13,6 +13,7 @@ class Tarea(models.Model):
         EN_DESARROLLO = "EN_DESARROLLO", "En desarrollo"
         RECHAZADO = "RECHAZADO", "Rechazado"
         SOLUCIONADO = "SOLUCIONADO", "Solucionado"
+        STAND_BY = "STAND_BY", "En pausa"
 
     asunto = models.CharField(max_length=200)
     descripcion = models.TextField()
@@ -57,6 +58,16 @@ class Tarea(models.Model):
     )
 
     motivo_rechazo = models.TextField(blank=True)
+
+    motivo_standby = models.TextField(blank=True)
+    fecha_standby = models.DateTimeField(null=True, blank=True)
+    standby_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tareas_standby",
+    )
 
     progreso = models.DecimalField(
         max_digits=5,
