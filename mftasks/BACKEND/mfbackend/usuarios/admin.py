@@ -24,6 +24,7 @@ class UserAdmin(BaseUserAdmin):
     ordering = ("email",)
 
     list_display = (
+        "codigo",
         "email",
         "nombres",
         "apellidos",
@@ -39,12 +40,14 @@ class UserAdmin(BaseUserAdmin):
     )
 
     search_fields = (
+        "codigo",
         "email",
         "nombres",
         "apellidos",
     )
 
     readonly_fields = (
+        "codigo",
         "fecha_creacion",
         "last_login",
     )

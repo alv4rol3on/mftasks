@@ -17,6 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         fields = [
             "id",
+            "codigo",
             "email",
             "nombres",
             "apellidos",
@@ -106,6 +107,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
         fields = [
             "id",
+            "codigo",
             "email",
             "nombres",
             "apellidos",
@@ -126,6 +128,7 @@ class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
 
     # campos planos para facilitar consumo en frontend
     id_usuario = serializers.IntegerField(source="usuario.id", read_only=True)
+    codigo = serializers.CharField(source="usuario.codigo", read_only=True)
     email = serializers.CharField(source="usuario.email", read_only=True)
     nombres = serializers.CharField(source="usuario.nombres", read_only=True)
     apellidos = serializers.CharField(source="usuario.apellidos", read_only=True)
@@ -137,6 +140,7 @@ class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
             "id",
             "usuario",
             "id_usuario",
+            "codigo",
             "email",
             "nombres",
             "apellidos",

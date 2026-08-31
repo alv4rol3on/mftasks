@@ -38,9 +38,9 @@ export default function EquiposPage() {
     extra: { fechaInicio: string; fechaFin: string; motivo: string; esBaja: boolean };
   } | null>(null);
   const [reassignments, setReassignments] = useState<Record<number, number>>({});
-  // modal agregar miembro (INACTIVO hard-delete -> re-agregar como MIEMBRO)
+  // modal agregar miembro por codigo MFS- (solo MIEMBRO activo pre-asignado)
   const [modalAgregar, setModalAgregar] = useState<EquipoInfo | null>(null);
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; email: string; nombres: string; apellidos: string }[]>([]);
+  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; codigo?: string; email: string; nombres: string; apellidos: string; is_active?: boolean; activo?: boolean }[]>([]);
   const [agregarUsuarioId, setAgregarUsuarioId] = useState<string>("");
 
   const usuario = getUsuarioActual();
@@ -278,21 +278,23 @@ export default function EquiposPage() {
   };
 
   const confirmarAgregar = async () => {
-    if (!modalAgregar || !agregarUsuarioId) {
-      setMensaje("Error: selecciona un usuario para agregar.");
+    if (!modalAgregar || !agregarUsuarioId.trim()) {
+      setMensaje("Error: ingresa el código MFS- del usuario (ej. MFS-20250101-12345).");
       return;
     }
+    const esCodigo = agregarUsuarioId.trim().toUpperCase().startsWith("MFS-");
     setAccionando(`agregar-${modalAgregar.id}`);
     try {
+      const payload = esCodigo ? { codigo: agregarUsuarioId.trim().toUpperCase() } : { usuario_id: Number(agregarUsuarioId) };
       await apiFetch(`/api/usuarios/equipos/${modalAgregar.id}/miembros/`, {
         method: "POST",
-        body: JSON.stringify({ usuario_id: Number(agregarUsuarioId) }),
+        body: JSON.stringify(payload),
       });
       setMensaje("Miembro agregado como MIEMBRO.");
       setModalAgregar(null);
       await recargar();
     } catch (e) {
-      setMensaje(`Error: ${(e as Error).message}`);
+      setMensaje(`Error: ${(e as Error).message} (solo MIEMBRO activo pre-asignado por admin)`);
     } finally {
       setAccionando(null);
     }
@@ -660,24 +662,27 @@ export default function EquiposPage() {
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
               Selecciona el nuevo miembro para que forme parte del equipo
             </p>
-            {usuariosDisponibles.length === 0 ? (
-              <div style={{ background: "#fef3c7", padding: 10, borderRadius: 8, fontSize: 13, color: "#92400e" }}>No hay usuarios disponibles para agregar (todos ya son miembros o no hay usuarios activos).</div>
-            ) : (
-              <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151" }}>
-                Selecciona usuario
-                <select
-                  value={agregarUsuarioId}
-                  onChange={(e) => setAgregarUsuarioId(e.target.value)}
-                  style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
-                >
-                  <option value="">— seleccionar —</option>
-                  {usuariosDisponibles.map((u) => (
-                    <option key={u.id} value={String(u.id)}>
-                      {u.nombres} {u.apellidos} — {u.email}
-                    </option>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              ID usuario (MFS-YYYYMMDD-XXXXX) - solo MIEMBRO activo pre-asignado por admin
+              <input
+                value={agregarUsuarioId}
+                onChange={(e) => setAgregarUsuarioId(e.target.value.toUpperCase())}
+                placeholder="Ej. MFS-20250830-12345"
+                style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily:"monospace" }}
+              />
+              <span style={{ fontSize:11, color:"#6b7280", fontWeight:400}}>Ingresa el código único del usuario (visible bajo su nombre). Debe ser MIEMBRO activo.</span>
+            </label>
+            {usuariosDisponibles.length > 0 && (
+              <div style={{ background:"#f9fafb", border:"1px solid #e5e7eb", borderRadius:8, padding:10, marginTop:12}}>
+                <div style={{ fontSize:12, fontWeight:700, color:"#374151", marginBottom:6}}>Sugerencias (MIEMBRO activos no en equipo):</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6}}>
+                  {usuariosDisponibles.slice(0,6).map((u) => (
+                    <button key={u.id} onClick={()=> setAgregarUsuarioId((u as any).codigo ?? String(u.id))} style={{ background:"white", border:"1px solid #d1d5db", borderRadius:6, padding:"4px 8px", fontSize:11, cursor:"pointer"}}>
+                      {(u as any).codigo ?? u.id} — {u.nombres} {u.apellidos}
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+              </div>
             )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
               <button onClick={() => setModalAgregar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>

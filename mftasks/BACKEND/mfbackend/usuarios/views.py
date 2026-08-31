@@ -460,21 +460,43 @@ class EquipoViewSet(ModelViewSet):
         equipo = self.get_object()
         if not puede_gestionar_miembros(request.user, equipo):
             return Response({"detail": "Solo el líder (o administrador) puede agregar miembros."}, status=status.HTTP_403_FORBIDDEN)
+        # Acepta codigo (MFS-YYYYMMDD-XXXXX) o usuario_id numérico
+        codigo = (request.data.get("codigo") or "").strip()
         usuario_id = request.data.get("usuario_id") or request.data.get("usuario") or request.data.get("id_usuario") or request.data.get("id")
-        if not usuario_id:
-            return Response({"detail": "Debe indicar usuario_id."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            usuario_id = int(usuario_id)
-        except (TypeError, ValueError):
-            return Response({"detail": "usuario_id inválido."}, status=status.HTTP_400_BAD_REQUEST)
+        user_obj = None
+        if codigo:
+            # formato MFS-YYYYMMDD-XXXXX
+            try:
+                user_obj = User.objects.get(codigo__iexact=codigo)
+                usuario_id = user_obj.id
+            except User.DoesNotExist:
+                return Response({"detail": f"Usuario con código {codigo} no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            if not usuario_id:
+                return Response({"detail": "Debe indicar codigo o usuario_id."}, status=status.HTTP_400_BAD_REQUEST)
+            # permitir codigo si viene como string MFS-
+            if isinstance(usuario_id, str) and usuario_id.upper().startswith("MFS-"):
+                try:
+                    user_obj = User.objects.get(codigo__iexact=usuario_id.strip())
+                    usuario_id = user_obj.id
+                except User.DoesNotExist:
+                    return Response({"detail": f"Usuario con código {usuario_id} no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                try:
+                    usuario_id = int(usuario_id)
+                except (TypeError, ValueError):
+                    return Response({"detail": "usuario_id/codigo inválido."}, status=status.HTTP_400_BAD_REQUEST)
+                try:
+                    user_obj = User.objects.get(id=usuario_id)
+                except User.DoesNotExist:
+                    return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         if str(usuario_id) == str(equipo.lider_id):
             return Response({"detail": "El líder ya pertenece al equipo."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            user_obj = User.objects.get(id=usuario_id)
-        except User.DoesNotExist:
-            return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         if not user_obj.is_active:
             return Response({"detail": "No se puede agregar un usuario inactivo del sistema."}, status=status.HTTP_400_BAD_REQUEST)
+        # Debe ser solo MIEMBRO pre-asignado por admin
+        if not user_obj.roles.filter(rol__nombre__iexact="miembro").exists():
+            return Response({"detail": "Solo usuarios con rol MIEMBRO (asignado por administrador) y activos pueden agregarse."}, status=status.HTTP_400_BAD_REQUEST)
         if EquipoMiembro.objects.filter(equipo=equipo, usuario_id=usuario_id).exists():
             return Response({"detail": "El usuario ya es miembro del equipo."}, status=status.HTTP_400_BAD_REQUEST)
         # Forzar MIEMBRO (requisito 4)

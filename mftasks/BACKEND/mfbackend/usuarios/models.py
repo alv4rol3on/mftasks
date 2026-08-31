@@ -26,6 +26,8 @@ class User(AbstractUser):
         blank=True
     )
 
+    codigo = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = "email"
@@ -33,8 +35,27 @@ class User(AbstractUser):
 
     objects = UserManager()
 
+    def save(self, *args, **kwargs):
+        if not self.codigo:
+            import random
+            from django.utils import timezone
+            base_date = self.fecha_creacion if self.fecha_creacion and hasattr(self.fecha_creacion, "strftime") else timezone.now()
+            try:
+                prefix = f"MFS-{base_date.strftime('%Y%m%d')}"
+            except Exception:
+                prefix = f"MFS-{timezone.now().strftime('%Y%m%d')}"
+            for _ in range(5):
+                candidate = f"{prefix}-{random.randint(10000, 99999)}"
+                if not User.objects.filter(codigo=candidate).exists():
+                    self.codigo = candidate
+                    break
+            if not self.codigo:
+                import uuid
+                self.codigo = f"MFS-{uuid.uuid4().hex[:5].upper()}"
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.nombres} {self.apellidos}"
+        return f"{self.nombres} {self.apellidos} [{self.codigo}]" if self.codigo else f"{self.nombres} {self.apellidos}"
 
 
 class Rol(models.Model):

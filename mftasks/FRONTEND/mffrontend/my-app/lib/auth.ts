@@ -5,6 +5,7 @@ import { apiBaseUrl, loginRequest } from "./authConfig";
 
 export interface DatosUsuario {
     id: number;
+    codigo?: string | null;
     email: string;
     nombres: string;
     apellidos: string;

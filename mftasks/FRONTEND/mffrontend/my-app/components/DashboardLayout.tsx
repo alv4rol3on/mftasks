@@ -24,6 +24,7 @@ export default function DashboardLayout({
   // Estado para el menú hamburguesa
   const [menuOpen, setMenuOpen] = useState(false);
   const [nombre, setNombre] = useState("");
+  const [codigo, setCodigo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAutenticado()) {
@@ -34,6 +35,7 @@ export default function DashboardLayout({
     obtenerDatosMe()
       .then((usuario) => {
         setNombre(`${usuario.nombres} ${usuario.apellidos}`);
+        setCodigo(usuario.codigo ?? null);
       })
       .catch(() => {
         router.replace("/");
@@ -66,7 +68,10 @@ export default function DashboardLayout({
             ☰
           </button>
 
-          <h1>Hola, {nombre || "..."}</h1>
+          <div style={{ display:"flex", flexDirection:"column", lineHeight:1.1}}>
+            <h1 style={{ margin:0}}>Hola, {nombre || "..."}</h1>
+            {codigo && <span style={{ fontSize:11, opacity:0.9, fontWeight:400}}>{codigo}</span>}
+          </div>
 
           <button
             type="button"
