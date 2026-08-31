@@ -238,3 +238,54 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             if obj.lider_id == request.user.id:
                 return EquipoMiembro.EstadoMiembro.ACTIVO
             return None
+
+
+class EquipoCreateSerializer(serializers.ModelSerializer):
+    lider = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = Equipo
+        fields = ["id", "nombre", "lider", "activo", "fecha_creacion"]
+        read_only_fields = ["id", "activo", "fecha_creacion"]
+
+    def validate_nombre(self, value):
+        nombre = value.strip()
+
+        if not nombre:
+            raise serializers.ValidationError(
+                "El nombre del equipo es obligatorio."
+            )
+
+        if Equipo.objects.filter(nombre__iexact=nombre).exists():
+            raise serializers.ValidationError(
+                f"Ya existe un equipo con el nombre '{nombre}'."
+            )
+
+        return nombre
+
+    def validate_lider(self, value):
+        codigo = value.strip().upper()
+
+        try:
+            usuario = User.objects.get(codigo__iexact=codigo)
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                f"Usuario con código '{codigo}' no encontrado."
+            )
+
+        if not usuario.is_active:
+            raise serializers.ValidationError(
+                "No se puede asignar como líder a un usuario inactivo."
+            )
+
+        return usuario
+
+    def create(self, validated_data):
+        usuario_lider = validated_data.pop("lider")
+
+        equipo = Equipo.objects.create(
+            nombre=validated_data["nombre"],
+            lider=usuario_lider,
+        )
+
+        return equipo

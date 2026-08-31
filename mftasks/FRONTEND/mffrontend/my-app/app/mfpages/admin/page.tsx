@@ -8,7 +8,7 @@ type Usuario = { id:number; codigo?:string; email:string; nombres:string; apelli
 
 export default function AdminPage(){
   const router = useRouter();
-  const [tab, setTab] = useState<"usuarios"|"equipos"|"permisos">("usuarios");
+  const [tab, setTab] = useState<"usuarios"|"permisos">("usuarios");
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(false);
   const [msg, setMsg] = useState<string|null>(null);
@@ -78,9 +78,9 @@ export default function AdminPage(){
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16}}>
-      <h2 style={{ fontSize:18, fontWeight:700}}>Administracion</h2>
+      <h2 style={{ fontSize:18, fontWeight:700}}>Administración de usuarios</h2>
       <div style={{ display:"flex", gap:8, borderBottom:"1px solid #e5e7eb", paddingBottom:8}}>
-        {(["usuarios","equipos","permisos"] as const).map(t=>(
+        {(["usuarios","permisos"] as const).map(t=>(
           <button key={t} onClick={()=> setTab(t)} style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #d1d5db", background: tab===t ? "#111827":"white", color: tab===t ? "white":"#374151", cursor:"pointer", textTransform:"capitalize"}}>{t}</button>
         ))}
       </div>
@@ -95,7 +95,7 @@ export default function AdminPage(){
               <input placeholder="Cargo" value={nuevo.cargo} onChange={e=> setNuevo({...nuevo, cargo:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}/>
               <input placeholder="Nombres" value={nuevo.nombres} onChange={e=> setNuevo({...nuevo, nombres:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}/>
               <input placeholder="Apellidos" value={nuevo.apellidos} onChange={e=> setNuevo({...nuevo, apellidos:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}/>
-              <input placeholder="Password (opcional)" type="password" value={nuevo.password} onChange={e=> setNuevo({...nuevo, password:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}/>
+              <input placeholder="Password" type="password" value={nuevo.password} onChange={e=> setNuevo({...nuevo, password:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}/>
               <select value={nuevo.rol} onChange={e=> setNuevo({...nuevo, rol:e.target.value})} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px"}}>
                 <option value="miembro">miembro</option>
                 <option value="lider">lider</option>
@@ -103,7 +103,6 @@ export default function AdminPage(){
                 <option value="administrador">administrador</option>
               </select>
             </div>
-            <p style={{ fontSize:11, color:"#6b7280", marginTop:6}}>El codigo MFS- se genera automaticamente. El rol define si puede ser agregado a equipos (miembro) o crear solicitudes (cliente).</p>
             <button onClick={crearUsuario} style={{ marginTop:12, background:"#111827", color:"white", border:"none", padding:"8px 14px", borderRadius:8, cursor:"pointer"}}>Crear usuario</button>
           </div>
 
@@ -145,13 +144,6 @@ export default function AdminPage(){
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {tab==="equipos" && (
-        <div style={{ background:"white", border:"1px solid #e5e7eb", borderRadius:12, padding:16}}>
-          <h3 style={{ marginTop:0}}>Grupos (Equipos)</h3>
-          <p style={{ fontSize:13, color:"#6b7280"}}>Los equipos se gestionan en <a href="/mfpages/equipos" style={{ color:"#2563eb", textDecoration:"underline"}}>Equipos</a>. Solo administrador puede crear equipos (nombre + lider). Los lideres agregan miembros por codigo MFS-.</p>
         </div>
       )}
 

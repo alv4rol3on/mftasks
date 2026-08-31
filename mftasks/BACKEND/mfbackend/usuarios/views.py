@@ -22,6 +22,7 @@ from .serializers import (
     UserCreateSerializer,
     UserDetailSerializer,
     UserSerializer,
+    EquipoCreateSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -237,6 +238,12 @@ class EquipoViewSet(ModelViewSet):
         return Equipo.objects.filter(
             Q(lider=user) | Q(miembros__usuario=user)
         ).distinct().select_related("lider").prefetch_related("miembros__usuario")
+
+    def get_serializer_class(self):
+    if self.action == "create":
+        return EquipoCreateSerializer
+
+    return EquipoDetailSerializer
 
     @staticmethod
     def _validar_estado(payload):
@@ -611,3 +618,5 @@ class EquipoViewSet(ModelViewSet):
             for sid, nid in reassign_map.items():
                 Subtarea.objects.filter(id=sid).update(asignado_id=nid)
         return Response({"detail": f"Se reasignaron {len(reassign_map)} subtareas.", "reasignadas": len(reassign_map)}, status=status.HTTP_200_OK)
+
+    

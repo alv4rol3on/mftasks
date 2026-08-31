@@ -47,6 +47,12 @@ export default function EquiposPage() {
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
   const esAdmin = roles.includes("administrador");
   const esClientePuro = roles.includes("cliente") && !esAdmin && !roles.includes("miembro") && !roles.includes("asignador") && !roles.includes("asistente");
+  const [nuevo, setNuevo] = useState({
+    nombre: "",
+    lider: "",
+  });
+  const [msg, setMsg] = useState<string | null>(null);
+
 
   const cargar = async () => {
     setCargando(true);
@@ -319,6 +325,41 @@ export default function EquiposPage() {
 
   const esLiderDeEquipo = (equipo: EquipoInfo) => equipo.lider?.id === usuario?.id || esAdmin;
 
+  {/* SOLO PARA ADMINISTRADOR*/ }
+  const crearEquipo = async () => {
+    const nombre = nuevo.nombre.trim();
+    const codigoLider = nuevo.lider.trim().toUpperCase();
+
+    if (!nombre || !codigoLider) {
+      setMsg("Nombre de equipo y código del líder son obligatorios.");
+      return;
+    }
+
+    try {
+      setMsg(null);
+
+      await apiFetch("/api/usuarios/equipos/", {
+        method: "POST",
+        body: JSON.stringify({
+          nombre,
+          lider: codigoLider,
+        }),
+      });
+
+      setMsg(`Equipo "${nombre}" creado correctamente.`);
+
+      setNuevo({
+        nombre: "",
+        lider: "",
+      });
+
+      await recargar();
+
+    } catch (e) {
+      setMsg(`Error al crear el equipo: ${(e as Error).message}`);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
@@ -342,6 +383,118 @@ export default function EquiposPage() {
           {mensaje}
         </div>
       )}
+
+      {/* SOLO PARA ADMINISTRADOR*/}
+      {esAdmin && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 12px",
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              Crear nuevo equipo
+            </h3>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
+              {/* Nombre del equipo */}
+              <input
+                value={nuevo.nombre}
+                onChange={(e) =>
+                  setNuevo((prev) => ({
+                    ...prev,
+                    nombre: e.target.value,
+                  }))
+                }
+                placeholder="Nombre del equipo"
+                style={{
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontSize: 13,
+                }}
+              />
+
+              {/* Código del líder */}
+              <input
+                value={nuevo.lider}
+                onChange={(e) =>
+                  setNuevo((prev) => ({
+                    ...prev,
+                    lider: e.target.value.toUpperCase(),
+                  }))
+                }
+                placeholder="Código del líder (Ej. MFS-20260831-88981)"
+                style={{
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  fontFamily: "monospace",
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 11,
+                color: "#6b7280",
+              }}
+            >
+              Ingresa el código MFS del usuario que será el líder del equipo.
+            </div>
+
+            <button
+              onClick={crearEquipo}
+              disabled={!nuevo.nombre.trim() || !nuevo.lider.trim()}
+              style={{
+                marginTop: 12,
+                background:
+                  !nuevo.nombre.trim() || !nuevo.lider.trim()
+                    ? "#9ca3af"
+                    : "#111827",
+                color: "white",
+                border: "none",
+                padding: "8px 14px",
+                borderRadius: 8,
+                cursor:
+                  !nuevo.nombre.trim() || !nuevo.lider.trim()
+                    ? "not-allowed"
+                    : "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              Crear equipo
+            </button>
+          </div>
+        </div>
+      )}
+
+
+
 
       {esClientePuro && (
         <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: 12, borderRadius: 8, fontSize: 13, color: "#1e40af" }}>
@@ -668,22 +821,10 @@ export default function EquiposPage() {
                 value={agregarUsuarioId}
                 onChange={(e) => setAgregarUsuarioId(e.target.value.toUpperCase())}
                 placeholder="Ej. MFS-20250830-12345"
-                style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily:"monospace" }}
+                style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace" }}
               />
-              <span style={{ fontSize:11, color:"#6b7280", fontWeight:400}}>Ingresa el código único del usuario (visible bajo su nombre). Debe ser MIEMBRO activo.</span>
+              <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 400 }}>Ingresa el código único del usuario (visible bajo su nombre). Debe ser MIEMBRO activo.</span>
             </label>
-            {usuariosDisponibles.length > 0 && (
-              <div style={{ background:"#f9fafb", border:"1px solid #e5e7eb", borderRadius:8, padding:10, marginTop:12}}>
-                <div style={{ fontSize:12, fontWeight:700, color:"#374151", marginBottom:6}}>Sugerencias (MIEMBRO activos no en equipo):</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6}}>
-                  {usuariosDisponibles.slice(0,6).map((u) => (
-                    <button key={u.id} onClick={()=> setAgregarUsuarioId((u as any).codigo ?? String(u.id))} style={{ background:"white", border:"1px solid #d1d5db", borderRadius:6, padding:"4px 8px", fontSize:11, cursor:"pointer"}}>
-                      {(u as any).codigo ?? u.id} — {u.nombres} {u.apellidos}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
               <button onClick={() => setModalAgregar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
               <button
