@@ -41,14 +41,14 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
     const [depMsg, setDepMsg] = useState<string | null>(null);
 
     const agregarDependencia = async () => {
-        if(!tarea || depBloqueada==="" || depBloqueadora==="") { setDepMsg("Selecciona ambas subtareas"); return; }
-        if(depBloqueada===depBloqueadora) { setDepMsg("No puede depender de sí misma"); return; }
+        if (!tarea || depBloqueada === "" || depBloqueadora === "") { setDepMsg("Selecciona ambas subtareas"); return; }
+        if (depBloqueada === depBloqueadora) { setDepMsg("No puede depender de sí misma"); return; }
         try {
-            await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${depBloqueada}/dependencias/`, { method:"POST", body: JSON.stringify({ bloqueadora_id: depBloqueadora }) });
+            await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${depBloqueada}/dependencias/`, { method: "POST", body: JSON.stringify({ bloqueadora_id: depBloqueadora }) });
             setDepMsg("Dependencia creada. Recarga la tarea.");
             setDepBloqueada(""); setDepBloqueadora("");
             // trigger parent reload via close/reopen or just message
-        } catch(e){ setDepMsg((e as Error).message); }
+        } catch (e) { setDepMsg((e as Error).message); }
     };
     if (!tarea) return null;
     const usuario = getUsuarioActual();
@@ -87,10 +87,10 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                     <td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td>
                                 </tr>
                                 {tarea.subcampana_nombre && (
-                                <tr>
-                                    <td><strong>Subcampaña</strong></td>
-                                    <td>{tarea.subcampana_nombre}</td>
-                                </tr>
+                                    <tr>
+                                        <td><strong>Subcampaña</strong></td>
+                                        <td>{tarea.subcampana_nombre}</td>
+                                    </tr>
                                 )}
 
                                 <tr>
@@ -154,7 +154,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                             const esMiSubtarea = usuario?.id === subtarea.asignado;
                                             const bloqueadorasPendientes = subtarea.bloqueada_por?.filter(b => b.estado !== "SOLUCIONADO") ?? [];
                                             const bloqueada = bloqueadorasPendientes.length > 0;
-                                            const bloqueadaTooltip = bloqueada ? `Bloqueada por: ${bloqueadorasPendientes.map(b=>`${b.descripcion} (${b.estado})`).join(", ")}` : "";
+                                            const bloqueadaTooltip = bloqueada ? `Bloqueada por: ${bloqueadorasPendientes.map(b => `${b.descripcion} (${b.estado})`).join(", ")}` : "";
                                             const puedeEmpezar = esMiSubtarea && subtarea.estado === "EN_ESPERA" && !!onEmpezarTarea && !bloqueada;
                                             const puedeCompletar = esMiSubtarea && subtarea.estado === "EN_DESARROLLO" && !!onCompletarSubtarea;
                                             const estadoColor = subtarea.estado === "STAND_BY" ? "#f59e0b" : subtarea.estado === "SOLUCIONADO" ? "#16a34a" : subtarea.estado === "EN_DESARROLLO" ? "#7c3aed" : "#6b7280";
@@ -174,57 +174,80 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                                         : ""
                                                     }
                                                 >
-                                                    <td>{subtarea.descripcion} {bloqueada && <span style={{ background:"#fee2e2", color:"#991b1b", fontSize:10, padding:"2px 6px", borderRadius:6}}>Bloqueada</span>} {subtarea.motivo_standby && <span style={{ color:"#92400e", fontSize:11}}>({subtarea.motivo_standby})</span>}</td>
+                                                    <td>{subtarea.descripcion} {bloqueada && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>} {subtarea.motivo_standby && <span style={{ color: "#92400e", fontSize: 11 }}>({subtarea.motivo_standby})</span>}</td>
                                                     <td>{subtarea.asignado_nombre}</td>
-                                                    <td style={{ color: estadoColor, fontWeight:600}}>{subtarea.estado}{bloqueada ? " ⏳" : ""}</td>
+                                                    <td style={{ color: estadoColor, fontWeight: 600 }}>{subtarea.estado}{bloqueada ? " ⏳" : ""}</td>
                                                     <td>{subtarea.peso}</td>
                                                     <td>
                                                         {esMiSubtarea && onCambiarEstadoSubtarea ? (
                                                             subtarea.estado === "SOLUCIONADO" ? (
-                                                                <span style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#dcfce7", color:"#166534", padding:"6px 10px", borderRadius:6, fontSize:12, fontWeight:700, border:"1px solid #86efac"}}>✓ Solucionado</span>
+                                                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#dcfce7", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid #86efac" }}>✓ Solucionado</span>
                                                             ) : subtarea.estado === "STAND_BY" ? (
                                                                 <button
-                                                                    onClick={()=> onCambiarEstadoSubtarea(tarea.id, subtarea.id, "EN_ESPERA")}
-                                                                    style={{ background:"#f59e0b", color:"white", border:"none", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:12, fontWeight:700}}
+                                                                    onClick={() => onCambiarEstadoSubtarea(tarea.id, subtarea.id, "EN_ESPERA")}
+                                                                    style={{ background: "#f59e0b", color: "black", border: "none", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700 }}
                                                                     title="Reanudar - volverá a En espera"
                                                                 >
                                                                     REANUDAR
                                                                 </button>
                                                             ) : (
-                                                            <select
-                                                                value={subtarea.estado}
-                                                                onChange={(e)=>{
-                                                                    const nuevo = e.target.value;
-                                                                    // si está bloqueada no permitir pasar a EN_DESARROLLO
-                                                                    if(bloqueada && nuevo==="EN_DESARROLLO"){
-                                                                        alert(`Bloqueada por: ${bloqueadorasPendientes.map(b=>b.descripcion).join(", ")} - debe solucionarse primero`);
-                                                                        return;
-                                                                    }
-                                                                    if(nuevo==="SOLUCIONADO"){
-                                                                        const ok = confirm("¿Terminar subtarea? Se bloqueará en Solucionado.");
-                                                                        if(!ok){
-                                                                            // mantener en EN_DESARROLLO sin llamar API, el select volverá a su valor controlado
+                                                                <select
+                                                                    value={subtarea.estado}
+                                                                    onChange={(e) => {
+                                                                        const nuevo = e.target.value;
+
+                                                                        // Si está bloqueada no permitir pasar a EN_DESARROLLO
+                                                                        if (bloqueada && nuevo === "EN_DESARROLLO") {
+                                                                            alert(
+                                                                                `Bloqueada por: ${bloqueadorasPendientes
+                                                                                    .map(b => b.descripcion)
+                                                                                    .join(", ")} - debe solucionarse primero`
+                                                                            );
                                                                             return;
                                                                         }
-                                                                    }
-                                                                    if(nuevo==="STAND_BY"){
-                                                                        const motivo = prompt("Motivo de pausa (STAND_BY) obligatorio:");
-                                                                        if(!motivo || !motivo.trim()) { return; }
-                                                                        onCambiarEstadoSubtarea(tarea.id, subtarea.id, nuevo, motivo.trim());
-                                                                    } else {
-                                                                        onCambiarEstadoSubtarea(tarea.id, subtarea.id, nuevo);
-                                                                    }
-                                                                }}
-                                                                className={styles.inputField}
-                                                                disabled={bloqueada && subtarea.estado==="EN_ESPERA"}
-                                                                style={{ minWidth:140, background: bloqueada ? "#f3f4f6":"white", cursor: bloqueada ? "not-allowed":"pointer"}}
-                                                                title={bloqueadaTooltip || "Cambiar estado (solo tu subtarea)"}
-                                                            >
-                                                                <option value="EN_ESPERA">En espera</option>
-                                                                <option value="EN_DESARROLLO">En desarrollo</option>
-                                                                <option value="STAND_BY">Stand-by</option>
-                                                                <option value="SOLUCIONADO">Solucionado</option>
-                                                            </select>
+
+                                                                        if (nuevo === "SOLUCIONADO") {
+                                                                            const ok = confirm(
+                                                                                "¿Terminar subtarea? Se bloqueará en Solucionado."
+                                                                            );
+
+                                                                            if (!ok) {
+                                                                                return;
+                                                                            }
+                                                                        }
+
+                                                                        if (nuevo === "STAND_BY") {
+                                                                            const motivo = prompt(
+                                                                                "Motivo de pausa (STAND_BY) obligatorio:"
+                                                                            );
+
+                                                                            if (!motivo || !motivo.trim()) {
+                                                                                return;
+                                                                            }
+
+                                                                            onCambiarEstadoSubtarea(
+                                                                                tarea.id,
+                                                                                subtarea.id,
+                                                                                nuevo,
+                                                                                motivo.trim()
+                                                                            );
+                                                                        } else {
+                                                                            onCambiarEstadoSubtarea(
+                                                                                tarea.id,
+                                                                                subtarea.id,
+                                                                                nuevo
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className={styles.estadoSelect}
+                                                                    disabled={bloqueada && subtarea.estado === "EN_ESPERA"}
+                                                                    title={bloqueadaTooltip || "Cambiar estado (solo tu subtarea)"}
+                                                                >
+                                                                    <option value="EN_ESPERA">En espera</option>
+                                                                    <option value="EN_DESARROLLO">En desarrollo</option>
+                                                                    <option value="STAND_BY">Stand-by</option>
+                                                                    <option value="SOLUCIONADO">Solucionado</option>
+                                                                </select>
                                                             )
                                                         ) : puedeEmpezar ? (
                                                             <button
@@ -270,7 +293,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                                 ✓ Terminada
                                                             </span>
                                                         ) : subtarea.estado === "STAND_BY" ? (
-                                                            <span style={{ color:"#f59e0b", fontSize:11, fontWeight:600}}>Pausada</span>
+                                                            <span style={{ color: "#f59e0b", fontSize: 11, fontWeight: 600 }}>Pausada</span>
                                                         ) : (
                                                             <span style={{ color: "#9ca3af", fontSize: 12 }}>-</span>
                                                         )}
@@ -283,26 +306,26 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                             </div>
                         )}
                         {tarea.subtareas.length > 1 && tarea.puedo_operar && (
-                            <div style={{ marginTop:12, border:"1px solid #e5e7eb", borderRadius:8, padding:12, background:"#fafafa"}}>
-                                <h4 style={{ margin:"0 0 8px", fontSize:13, fontWeight:700}}>Dependencias (subtarea bloquea otra)</h4>
-                                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"end"}}>
-                                    <label style={{ display:"flex", flexDirection:"column", gap:4, fontSize:12}}>Bloqueada (espera)
-                                        <select value={depBloqueada} onChange={e=>setDepBloqueada(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth:160}}>
+                            <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
+                                <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Dependencias (subtarea bloquea otra)</h4>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
+                                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>Bloqueada (espera)
+                                        <select value={depBloqueada} onChange={e => setDepBloqueada(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
                                             <option value="">-- subtarea --</option>
-                                            {tarea.subtareas.map(s=><option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0,30)}</option>)}
+                                            {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
                                         </select>
                                     </label>
-                                    <span style={{ paddingBottom:8}}>depende de</span>
-                                    <label style={{ display:"flex", flexDirection:"column", gap:4, fontSize:12}}>Bloqueadora (prerequisito)
-                                        <select value={depBloqueadora} onChange={e=>setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth:160}}>
+                                    <span style={{ paddingBottom: 8 }}>depende de</span>
+                                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>Bloqueadora (prerequisito)
+                                        <select value={depBloqueadora} onChange={e => setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
                                             <option value="">-- subtarea --</option>
-                                            {tarea.subtareas.map(s=><option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0,30)}</option>)}
+                                            {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
                                         </select>
                                     </label>
-                                    <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize:12}}>Agregar dependencia</button>
+                                    <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize: 12 }}>Agregar dependencia</button>
                                 </div>
-                                {depMsg && <p style={{ fontSize:12, color: depMsg.includes("creada") ? "#166534" : "#991b1b", margin:"8px 0 0"}}>{depMsg}</p>}
-                                <p style={{ fontSize:11, color:"#6b7280", margin:"6px 0 0"}}>No puede iniciarse la bloqueada hasta que la bloqueadora esté SOLUCIONADO. Se detecta ciclo.</p>
+                                {depMsg && <p style={{ fontSize: 12, color: depMsg.includes("creada") ? "#166534" : "#991b1b", margin: "8px 0 0" }}>{depMsg}</p>}
+                                <p style={{ fontSize: 11, color: "#6b7280", margin: "6px 0 0" }}>No puede iniciarse la bloqueada hasta que la bloqueadora esté SOLUCIONADO. Se detecta ciclo.</p>
                             </div>
                         )}
                     </div>

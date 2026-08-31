@@ -326,3 +326,51 @@
         grid-column: auto;
     }
 }
+
+.estadoSelect {
+    min-width: 150px;
+    height: 38px;
+    padding: 0 36px 0 12px;
+
+    color: #111827;
+    background-color: #ffffff;
+
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+
+    font-size: 14px;
+    font-weight: 500;
+
+    cursor: pointer;
+    outline: none;
+
+    transition: all 0.2s ease;
+
+    appearance: auto;
+}
+
+.estadoSelect:hover {
+    border-color: #9ca3af;
+    background-color: #f9fafb;
+}
+
+.estadoSelect:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.estadoSelect:disabled {
+    color: #6b7280;
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+/* Opciones del desplegable */
+.estadoSelect option {
+    color: #111827;
+    background-color: #ffffff;
+    font-size: 14px;
+    padding: 8px;
+}
