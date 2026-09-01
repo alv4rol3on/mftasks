@@ -9,6 +9,10 @@ def es_miembro_del_equipo(user, equipo):
     if user.roles.filter(rol__nombre__iexact="Administrador").exists():
         return True
 
+    # CLIENTE nunca es miembro de equipo
+    if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        return False
+
     if equipo.lider_id == user.id:
         return True
 
@@ -104,18 +108,16 @@ def es_cliente(user):
 
 
 def tiene_permiso_subcampana(user, subcampana):
-    """Verifica permiso mixto campaña/subcampaña para cliente. Admin siempre True."""
+    """Verifica permiso puntual a subcampaña para cliente. Admin siempre True. No hereda de campana."""
     if not user or not user.is_authenticated or subcampana is None:
         return False
     if user.roles.filter(rol__nombre__iexact="Administrador").exists():
         return True
-    # cliente con permiso explícito
+    if not subcampana.activo or not subcampana.campana.activo:
+        return False
     from campanas.models import PermisoCampana
-    # permiso directo a subcampana
+    # solo permiso directo a subcampana puntual
     if PermisoCampana.objects.filter(usuario=user, subcampana=subcampana).exists():
-        return True
-    # permiso a campana padre
-    if PermisoCampana.objects.filter(usuario=user, campana=subcampana.campana).exists():
         return True
     return False
 

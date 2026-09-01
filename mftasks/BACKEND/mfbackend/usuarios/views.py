@@ -221,20 +221,10 @@ class EquipoViewSet(ModelViewSet):
         # Administrador ve todos
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return Equipo.objects.all().select_related("lider").prefetch_related("miembros__usuario")
-        # Cliente puro (solo CLIENTE, sin otros roles ni liderazgo) ve equipos activos disponibles para solicitar
-        es_cliente_puro = user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists() and not user.roles.filter(rol__nombre__iexact="ASISTENTE").exists() and not Equipo.objects.filter(lider=user).exists()
-        # Si tiene también EquipoMiembro, no es cliente puro; usará filtro de miembro
-        if es_cliente_puro and not EquipoMiembro.objects.filter(usuario=user).exists():
-            return Equipo.objects.filter(activo=True).select_related("lider").prefetch_related("miembros__usuario")
-        # Si es cliente pero también miembro/líder, mostrar también lo disponible + pertenencia
-        # Para evitar duplicar, si es cliente y además miembro, combinar
+        # CLIENTE nunca es miembro de equipo: solo ve equipos activos para elegir destino al solicitar (no ve miembros)
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            # Mostrar equipos donde es miembro/líder + todos activos (para solicitar)
-            # Para no exponer todos si no debe, mostramos todos activos (según req: clientes ven equipos de los que puede solicitar)
-            return Equipo.objects.filter(
-                Q(activo=True)
-            ).distinct().select_related("lider").prefetch_related("miembros__usuario")
-        # Asignador / Asistente / miembro general: solo equipos donde es líder o miembro activo/no inactivo
+            return Equipo.objects.filter(activo=True).select_related("lider").prefetch_related("miembros__usuario")
+        # Miembro/lider: solo equipos donde es líder o miembro
         return Equipo.objects.filter(
             Q(lider=user) | Q(miembros__usuario=user)
         ).distinct().select_related("lider").prefetch_related("miembros__usuario")

@@ -1,7 +1,3 @@
-from django.db.models import Q
-from rest_framework import status
-from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from usuarios.permissions import EsAdministrador, IsAuthenticatedActivo
@@ -28,11 +24,10 @@ class CampanaViewSet(ModelViewSet):
             return Campana.objects.none()
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return qs
-        # cliente ve solo campañas donde tiene permiso (campana o subcampana)
+        # cliente ve solo campañas donde tiene permiso puntual a subcampana
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            campana_ids = set(PermisoCampana.objects.filter(usuario=user, campana__isnull=False).values_list("campana_id", flat=True))
-            sub_campana_ids = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False).values_list("subcampana__campana_id", flat=True)
-            campana_ids.update(sub_campana_ids)
+            campana_ids = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False).values_list("subcampana__campana_id", flat=True)
+            campana_ids = set(campana_ids)
             if campana_ids:
                 return qs.filter(id__in=campana_ids)
             return qs.none()
@@ -62,12 +57,8 @@ class SubCampanaViewSet(ModelViewSet):
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return qs
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            # permisos mixtos
-            permisos_campana = PermisoCampana.objects.filter(usuario=user, campana__isnull=False).values_list("campana_id", flat=True)
+            # permiso puntual solo a subcampana
             permisos_sub = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False).values_list("subcampana_id", flat=True)
-            # si tiene permiso a campana padre, ve todas sus subcampanas
-            if permisos_campana:
-                return qs.filter(Q(campana_id__in=permisos_campana) | Q(id__in=permisos_sub)).distinct()
             return qs.filter(id__in=permisos_sub)
         return qs.filter(activo=True)
 
@@ -76,4 +67,26 @@ class PermisoCampanaViewSet(ModelViewSet):
     queryset = PermisoCampana.objects.all().select_related("usuario", "campana", "subcampana")
     serializer_class = PermisoCampanaSerializer
     permission_classes = [IsAuthenticatedActivo, EsAdministrador]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        usuario_id = self.request.query_params.get("usuario") or self.request.query_params.get("usuario_id")
+        subcampana_id = self.request.query_params.get("subcampana") or self.request.query_params.get("subcampana_id")
+        campana_id = self.request.query_params.get("campana") or self.request.query_params.get("campana_id")
+        if usuario_id:
+            try:
+                qs = qs.filter(usuario_id=int(usuario_id))
+            except (TypeError, ValueError):
+                pass
+        if subcampana_id:
+            try:
+                qs = qs.filter(subcampana_id=int(subcampana_id))
+            except (TypeError, ValueError):
+                pass
+        if campana_id:
+            try:
+                qs = qs.filter(campana_id=int(campana_id))
+            except (TypeError, ValueError):
+                pass
+        return qs
 

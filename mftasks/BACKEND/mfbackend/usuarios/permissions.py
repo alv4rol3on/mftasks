@@ -88,6 +88,9 @@ def puede_operar_como_lider(user, equipo):
 def es_miembro_activo(user, equipo):
     if not user or not user.is_authenticated:
         return False
+    # CLIENTE nunca cuenta como miembro de equipo (incluso si es admin+cliente, admin ya gestiona aparte)
+    if user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        return False
     from .models import EquipoMiembro
     if equipo.lider_id == user.id:
         return True

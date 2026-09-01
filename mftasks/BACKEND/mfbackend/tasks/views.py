@@ -79,24 +79,16 @@ class TaskViewSet(viewsets.ModelViewSet):
             qs = Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante")
             return apply_search(qs)
 
+        # CLIENTE nunca es miembro de equipo: solo ve sus propias solicitudes (no espía)
+        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+            qs = Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
+            return apply_search(qs)
+
         # Detectar lider por-equipo (Fase 1: 4 roles) -> lider = Equipo.lider o miembro LIDER activo
         es_lider = Equipo.objects.filter(lider=user).exists() or EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
-        es_lider_member = es_lider  # compat alias
         # compat ASIGNADOR todavía considerado lider hasta migración completa
         es_asignador_global = user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists()
         es_asignador_amplio = es_asignador_global or es_lider
-        es_cliente = user.roles.filter(rol__nombre__iexact="CLIENTE").exists()
-
-        # CLIENTE puro: solo CLIENTE sin otros roles ni liderazgo
-        if es_cliente and not es_asignador_global and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not es_lider:
-            # verificar que no sea miembro de equipo (si es miembro, no es cliente puro)
-            if not EquipoMiembro.objects.filter(usuario=user).exists():
-                qs = Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
-                return apply_search(qs)
-            # si es cliente pero también miembro, cae a lógica de equipo (ver todas para solicitar + pertenencia)
-            # Para cliente-miembro, mostrar sus solicitudes + tareas de equipo donde es miembro
-            # Priorizar vista equipo para centro/tareas
-            pass
 
         # LIDER / SUB-LIDER / ASIGNADOR: ven todas las tareas de su equipo (pueden aprobar/iniciar/asignar)
         if es_asignador_amplio:
@@ -106,12 +98,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
             return apply_search(qs)
 
-        # CLIENTE fallback
-        if es_cliente:
-            qs = Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
-            return apply_search(qs)
-
-        # Miembro (rol miembro o lider): ve todas las tareas de su equipo (compat)
+        # Miembro (rol miembro o lider): ve todas las tareas de su equipo
         qs = Tarea.objects.filter(
             Q(equipo__lider=user)
             | Q(equipo__miembros__usuario=user)
@@ -438,11 +425,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     def resumen(self, request):
         user = request.user
 
-        # CLIENTE puro resumen (solo CLIENTE sin liderazgo)
-        from usuarios.models import Equipo, EquipoMiembro
-        _es_lider_res = Equipo.objects.filter(lider=user).exists()
-        _es_sub = EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="Administrador").exists() and not user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists() and not user.roles.filter(rol__nombre__iexact="ASISTENTE").exists() and not _es_lider_res and not _es_sub:
+        # CLIENTE siempre ve solo sus solicitudes, sin importar otros roles/miembro
+        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
             qs = Tarea.objects.filter(solicitante=user)
             return Response({
                 "tipo": "cliente",
@@ -453,10 +437,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "solucionadas": qs.filter(estado=Tarea.Estado.SOLUCIONADO).count(),
                 "total": qs.count(),
             })
-        # Si tiene CLIENTE + otros roles, priorizar otros roles, pero también dar datos cliente
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            # no retornar solo cliente, seguir a lógica asignador/asistente si corresponde
-            pass
 
         # Administrador ve todo por aprobar + detalle pendientes propios
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
@@ -512,18 +492,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "pendientes": pendientes,
                 "tareas_pendientes": tareas_pendientes,
                 "tareas_con_pendientes": detalle,
-            })
-
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            qs = Tarea.objects.filter(solicitante=user)
-            return Response({
-                "tipo": "cliente",
-                "en_espera": qs.filter(estado=Tarea.Estado.EN_ESPERA).count(),
-                "aprobadas": qs.filter(estado=Tarea.Estado.APROBADO).count(),
-                "en_desarrollo": qs.filter(estado=Tarea.Estado.EN_DESARROLLO).count(),
-                "rechazadas": qs.filter(estado=Tarea.Estado.RECHAZADO).count(),
-                "solucionadas": qs.filter(estado=Tarea.Estado.SOLUCIONADO).count(),
-                "total": qs.count(),
             })
 
         # asistente explícito o miembro sin rol (mostrar pendientes si tiene subtareas)

@@ -83,20 +83,20 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 except Rol.DoesNotExist:
                     rol_obj = Rol.objects.create(nombre=rname.capitalize())
             UserRol.objects.get_or_create(usuario=user, rol=rol_obj)
-        if equipo_id:
+        # CLIENTE nunca pertenece a equipo aunque venga equipo_id
+        es_cliente = any(r.lower() == "cliente" for r in roles)
+        if equipo_id and not es_cliente:
             try:
                 equipo = Equipo.objects.get(id=equipo_id)
                 EquipoMiembro.objects.get_or_create(equipo=equipo, usuario=user, defaults={"rol_en_equipo": EquipoMiembro.RolEnEquipo.MIEMBRO, "estado": EquipoMiembro.EstadoMiembro.ACTIVO})
             except Equipo.DoesNotExist:
                 pass
         for perm in permisos:
-            campana_id = perm.get("campana_id") or perm.get("campana")
             subcampana_id = perm.get("subcampana_id") or perm.get("subcampana")
+            # permiso puntual solo a subcampana; campana_id se ignora para CLIENTE (requisito)
             try:
                 if subcampana_id:
                     PermisoCampana.objects.get_or_create(usuario=user, subcampana_id=int(subcampana_id))
-                elif campana_id:
-                    PermisoCampana.objects.get_or_create(usuario=user, campana_id=int(campana_id))
             except Exception:
                 continue
         return user

@@ -74,6 +74,12 @@ export async function apiFetch<T>(
 
             if (data?.detail) {
                 mensaje = data.detail;
+            } else if (data && typeof data === "object") {
+                // DRF validation errors como {subcampana: [...]}
+                const firstKey = Object.keys(data)[0];
+                if (firstKey && Array.isArray((data as any)[firstKey])) {
+                    mensaje = `${firstKey}: ${(data as any)[firstKey][0]}`;
+                }
             }
         } catch {
             // respuesta sin JSON
@@ -82,5 +88,15 @@ export async function apiFetch<T>(
         throw new Error(mensaje);
     }
 
-    return res.json();
+    if (res.status === 204) {
+        return {} as T;
+    }
+
+    const text = await res.text();
+    if (!text) return {} as T;
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        return {} as T;
+    }
 }
