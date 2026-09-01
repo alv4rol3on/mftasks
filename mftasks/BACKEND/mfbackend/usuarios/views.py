@@ -240,10 +240,10 @@ class EquipoViewSet(ModelViewSet):
         ).distinct().select_related("lider").prefetch_related("miembros__usuario")
 
     def get_serializer_class(self):
-    if self.action == "create":
-        return EquipoCreateSerializer
+        if self.action == "create":
+            return EquipoCreateSerializer
 
-    return EquipoDetailSerializer
+        return EquipoDetailSerializer
 
     @staticmethod
     def _validar_estado(payload):
