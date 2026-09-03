@@ -220,12 +220,12 @@ export default function AdminPage(){
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12}}>
               <label style={{ display:"flex", flexDirection:"column", gap:6, fontSize:13, fontWeight:600}}>
                 Cliente ({clientes.length} totales)
-                <div style={{ display:"flex", gap:8}}>
+                {/*<div style={{ display:"flex", gap:8}}>
                   <select value={selectedClienteId} onChange={e=> setSelectedClienteId(e.target.value ? Number(e.target.value) : "")} style={{ flex:1, border:"1px solid #d1d5db", borderRadius:8, padding:"8px 10px", fontSize:13}}>
                     <option value="">— Seleccionar cliente —</option>
                     {clientes.map(c=> <option key={c.id} value={c.id}>{c.email} — {c.nombres} {c.apellidos} [{c.codigo ?? c.id}]</option>)}
                   </select>
-                </div>
+                </div>*/}
                 <input placeholder="Filtrar cliente por email/nombre/codigo" value={filtroClientePerm} onChange={e=> setFiltroClientePerm(e.target.value)} style={{ border:"1px solid #d1d5db", borderRadius:8, padding:"6px 10px", fontSize:12, marginTop:6}}/>
                 {filtroClientePerm && clientesFiltrados.length>0 && (
                   <div style={{ border:"1px solid #e5e7eb", borderRadius:8, maxHeight:120, overflowY:"auto", background:"#fafafa"}}>
@@ -282,7 +282,6 @@ export default function AdminPage(){
                 )}
               </div>
             )}
-            <div style={{ marginTop:10, fontSize:11, color:"#6b7280"}}>Tip: el cambio es inmediato (POST /api/campanas/permisos/ o DELETE). El cliente verá solo esas subcampañas en “Nueva solicitud”.</div>
           </div>
 
           {selectedClienteId !== "" && permisos.length>0 && (

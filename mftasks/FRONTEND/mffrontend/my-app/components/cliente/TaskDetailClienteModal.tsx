@@ -18,7 +18,7 @@ const fmt = (f: string | null | undefined) => {
 };
 
 const estadoColor: Record<string, string> = {
-  EN_ESPERA: "#f59e0b",
+  EN_ESPERA: "#fbff00",
   APROBADO: "#2563eb",
   EN_DESARROLLO: "#7c3aed",
   RECHAZADO: "#dc2626",
@@ -51,8 +51,6 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                 <tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre ?? "-"}</td></tr>
                 <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
                 <tr><td><strong>Estado</strong></td><td><span style={{ background: estadoColor[tarea.estado] ?? "#6b7280", padding:"2px 8px", borderRadius:6, color:"white", fontSize:11}}>{tarea.estado}</span></td></tr>
-                {tarea.estado === "STAND_BY" && (tarea as any).motivo_standby && <tr><td><strong>Motivo pausa</strong></td><td style={{ color:"#92400e", fontSize:13}}>{(tarea as any).motivo_standby}</td></tr>}
-                {/*{tarea.motivo_rechazo && <tr><td><strong>Motivo rechazo</strong></td><td>{tarea.motivo_rechazo}</td></tr>}*/}
 
                 <tr><td><strong>Fecha solicitud</strong></td><td>{fmt(tarea.fecha_creacion)}</td></tr>
 
@@ -81,6 +79,14 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                 <div className={styles.descriptionBox}>{tarea.motivo_rechazo}</div>
               </>
             )}
+
+            {tarea.estado === "STAND_BY" && (tarea as any).motivo_standby && (
+              <>
+                <h3>Motivo pausa</h3>
+                <div  className={styles.descriptionBox}>{(tarea as any).motivo_standby}</div>
+              </>
+            )}
+
 
             
           </div>
@@ -117,13 +123,13 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                               : s.estado === "EN_DESARROLLO"
                                 ? styles.estadoEnDesarrollo
                                 : s.estado === "STAND_BY"
-                                  ? styles.estadoEnEspera
+                                  ? styles.estadoEnStandBy
                                   : styles.estadoEnEspera
                           }
                           title={(s as any).motivo_standby || ""}
                         >
-                          <td>{s.descripcion} {(s as any).motivo_standby && s.estado==="STAND_BY" ? <span style={{ color:"#92400e", fontSize:11}}>({(s as any).motivo_standby})</span> : ""}</td>
-                          <td><span style={{ background: estadoColor[s.estado] ?? "#6b7280", color:"white", padding:"2px 6px", borderRadius:6, fontSize:11}}>{s.estado}</span></td>
+                          <td>{s.descripcion}</td>
+                          <td><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding:"2px 6px", borderRadius:6, fontSize:11}}>{s.estado}</span></td>
                           <td>{s.peso}</td>
                           <td>{s.asignado_nombre}</td>
                         </tr>

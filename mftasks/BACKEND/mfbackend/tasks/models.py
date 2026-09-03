@@ -56,6 +56,7 @@ class Tarea(models.Model):
 
     motivo_standby = models.TextField(blank=True)
     fecha_standby = models.DateTimeField(null=True, blank=True)
+    fecha_fin_standby = models.DateTimeField(null=True, blank=True)
     standby_por = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -193,6 +194,7 @@ class Subtarea(models.Model):
     # Fase 3: STAND_BY justificación
     motivo_standby = models.TextField(blank=True)
     fecha_standby = models.DateTimeField(null=True, blank=True)
+    fecha_fin_standby = models.DateTimeField(null=True, blank=True)
     standby_por = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -225,6 +227,87 @@ class Subtarea(models.Model):
 
     def __str__(self):
         return f"#{self.tarea} - {self.descripcion}"
+
+
+#LOGS
+class TareaLog(models.Model):
+
+    class TipoEvento(models.TextChoices):
+        CREACION = "CREACION", "Creación"
+        INICIO = "INICIO", "Inicio"
+        CAMBIO_ESTADO = "CAMBIO_ESTADO", "Cambio de estado"
+        STANDBY_INICIO = "STANDBY_INICIO", "Inicio de standby"
+        STANDBY_FIN = "STANDBY_FIN", "Fin de standby"
+        FIN = "FIN", "Fin"
+        CAMBIO_ASIGNADO = "CAMBIO_ASIGNADO", "Cambio de asignado"
+        CAMBIO_PROGRESO = "CAMBIO_PROGRESO", "Cambio de progreso"
+
+    tarea = models.ForeignKey(
+        Tarea,
+        on_delete=models.CASCADE,
+        related_name="logs",
+    )
+
+    subtarea = models.ForeignKey(
+        Subtarea,
+        on_delete=models.CASCADE,
+        related_name="logs",
+        null=True,
+        blank=True,
+    )
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tarea_logs",
+    )
+
+    tipo_evento = models.CharField(
+        max_length=30,
+        choices=TipoEvento.choices,
+    )
+
+    estado_anterior = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+
+    estado_nuevo = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+
+    fecha = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    detalle = models.TextField(
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["fecha"]
+
+        indexes = [
+            models.Index(fields=["tarea", "fecha"]),
+            models.Index(fields=["subtarea", "fecha"]),
+            models.Index(fields=["tipo_evento", "fecha"]),
+        ]
+
+    def __str__(self):
+        objeto = (
+            f"Subtarea #{self.subtarea_id}"
+            if self.subtarea_id
+            else f"Tarea #{self.tarea_id}"
+        )
+
+        return f"{objeto} - {self.tipo_evento} - {self.fecha}"
+
 
 
 class DependenciaSubtarea(models.Model):

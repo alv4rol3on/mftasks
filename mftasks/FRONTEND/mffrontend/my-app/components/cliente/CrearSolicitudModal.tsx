@@ -82,51 +82,41 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
         <div className={styles.modalHeader}>
           <div>
             <h2>Nueva solicitud</h2>
-            <p>Será revisada por el asignador</p>
           </div>
           <button className={styles.close} onClick={onClose}>✕</button>
         </div>
         <div className={styles.iniciarBody}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Asunto
-            <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Ej. Reporte mensual" />
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Descripción
-            <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={styles.inputField} rows={4} placeholder="Detalla la solicitud" />
-          </label>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              Campaña (solo tus permitidas)
               <select value={campanaId} onChange={(e) => setCampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
-                <option value="">Seleccionar…</option>
+                <option value="">Seleccionar Campaña</option>
                 {campanas.map((c) => (
                   <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
                 ))}
               </select>
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              Equipo
-              <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
-                <option value="">Seleccionar…</option>
-                {equipos.map((e) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginTop: 8 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              Subcampaña (solo permitidas)
+              
               <select value={subcampanaId} onChange={(e) => setSubcampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!campanaId}>
-                <option value="">{campanaId ? "Seleccionar…" : "Elige campaña primero"}</option>
+                <option value="">{campanaId ? "Seleccionar Subcampaña" : "Elige campaña primero"}</option>
                 {subcampanas.map((s) => (
                   <option key={s.id} value={s.id}>{s.nombre} ({s.codigo})</option>
                 ))}
               </select>
-            </label>
+
+
+              <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
+                <option value="">Selecciona Equipo</option>
+                {equipos.map((e) => (
+                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                ))}
+              </select>
+
+              <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />
+
+              <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={styles.inputField} rows={4} placeholder="Detalla la solicitud" />
           </div>
-          {campanaId && subcampanas.length===0 && <p style={{ fontSize:12, color:"#92400e", marginTop:6 }}>No tienes subcampañas permitidas en esta campaña. Contacta al administrador.</p>}
+
+
+          {campanaId && subcampanas.length === 0 && <p style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>No tienes subcampañas permitidas en esta campaña. Contacta al administrador.</p>}
           {error && <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p>}
         </div>
         <div className={styles.modalFooter}>

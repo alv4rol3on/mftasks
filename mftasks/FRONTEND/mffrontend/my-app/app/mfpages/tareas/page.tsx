@@ -172,7 +172,7 @@ export default function TareasPage() {
           await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reanudar/`, { method: "POST" });
           showToast("Subtarea reanudada a En espera", "success");
         } else {
-          showToast("No se puede volver a En espera", "error");
+          showToast("Esta subtarea fue iniciada, no se puede volver a En espera", "error");
           return;
         }
       } else if (nuevoEstado === "SOLUCIONADO") {

@@ -130,7 +130,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                     </div>
 
                     <div className={styles.progresoSection}>
-                        <h3>Progreso {tarea.subcampana_nombre ? `• ${tarea.subcampana_nombre}` : ""}</h3>
+                        <h3>Progreso</h3>
 
                         {tarea.subtareas.length === 0 ? (
                             <p className={styles.sinSubtareas}>
@@ -143,9 +143,9 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                         <tr>
                                             <th>Descripción</th>
                                             <th>Asignado</th>
-                                            <th>Estado</th>
+                                            {/*<th>Estado</th> */}
                                             <th>Peso</th>
-                                            <th>Acción</th>
+                                            <th>Cambiar Estado</th>
                                         </tr>
                                     </thead>
 
@@ -176,7 +176,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                 >
                                                     <td>{subtarea.descripcion} {bloqueada && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>} {subtarea.motivo_standby && <span style={{ color: "#92400e", fontSize: 11 }}>({subtarea.motivo_standby})</span>}</td>
                                                     <td>{subtarea.asignado_nombre}</td>
-                                                    <td style={{ color: estadoColor, fontWeight: 600 }}>{subtarea.estado}{bloqueada ? " ⏳" : ""}</td>
+                                                    {/*<td style={{ color: estadoColor, fontWeight: 600 }}>{subtarea.estado}{bloqueada ? " ⏳" : ""}</td>*/}
                                                     <td>{subtarea.peso}</td>
                                                     <td>
                                                         {esMiSubtarea && onCambiarEstadoSubtarea ? (
@@ -241,7 +241,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                                                     }}
                                                                     className={styles.estadoSelect}
                                                                     disabled={bloqueada && subtarea.estado === "EN_ESPERA"}
-                                                                    title={bloqueadaTooltip || "Cambiar estado (solo tu subtarea)"}
+                                                                    title={bloqueadaTooltip || "Cambiar estado"}
                                                                 >
                                                                     <option value="EN_ESPERA">En espera</option>
                                                                     <option value="EN_DESARROLLO">En desarrollo</option>
@@ -305,29 +305,33 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                                 </table>
                             </div>
                         )}
-                        {tarea.subtareas.length > 1 && tarea.puedo_operar && (
-                            <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
-                                <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Dependencias (subtarea bloquea otra)</h4>
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
-                                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>Bloqueada (espera)
-                                        <select value={depBloqueada} onChange={e => setDepBloqueada(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
-                                            <option value="">-- subtarea --</option>
-                                            {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
-                                        </select>
-                                    </label>
-                                    <span style={{ paddingBottom: 8 }}>depende de</span>
-                                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>Bloqueadora (prerequisito)
-                                        <select value={depBloqueadora} onChange={e => setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
-                                            <option value="">-- subtarea --</option>
-                                            {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
-                                        </select>
-                                    </label>
-                                    <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize: 12 }}>Agregar dependencia</button>
-                                </div>
-                                {depMsg && <p style={{ fontSize: 12, color: depMsg.includes("creada") ? "#166534" : "#991b1b", margin: "8px 0 0" }}>{depMsg}</p>}
-                                <p style={{ fontSize: 11, color: "#6b7280", margin: "6px 0 0" }}>No puede iniciarse la bloqueada hasta que la bloqueadora esté SOLUCIONADO. Se detecta ciclo.</p>
-                            </div>
+
+                        {!tarea.estado === "SOLUCIONADO" ? (
+                            <>
+                                {tarea.subtareas.length > 1 && tarea.puedo_operar && (
+                                    <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
+                                        <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Crear dependencia</h4>
+                                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
+                                            <select value={depBloqueada} onChange={e => setDepBloqueada(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
+                                                <option value="">-- subtarea --</option>
+                                                {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                            </select>
+                                            <span style={{ paddingBottom: 8 }}>depende de</span>
+                                            <select value={depBloqueadora} onChange={e => setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
+                                                <option value="">-- subtarea --</option>
+                                                {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                            </select>
+                                            <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize: 12 }}>Agregar</button>
+                                        </div>
+                                        {depMsg && <p style={{ fontSize: 12, color: depMsg.includes("creada") ? "#166534" : "#991b1b", margin: "8px 0 0" }}>{depMsg}</p>}
+                                    </div>
+                                )}
+                            </>
+
+                        ) : (
+                            <div></div>
                         )}
+
                     </div>
 
                 </div>
