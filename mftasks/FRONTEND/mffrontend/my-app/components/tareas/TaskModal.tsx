@@ -306,7 +306,7 @@ export default function TaskModal({ tarea, onClose, onEmpezarTarea, onCompletarS
                             </div>
                         )}
 
-                        {!tarea.estado === "SOLUCIONADO" ? (
+                        {tarea.estado !== "SOLUCIONADO" ? (
                             <>
                                 {tarea.subtareas.length > 1 && tarea.puedo_operar && (
                                     <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>

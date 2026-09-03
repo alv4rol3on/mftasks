@@ -179,7 +179,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         tarea.estado = Tarea.Estado.APROBADO
         tarea.aprobador = request.user
-        tarea.fecha_respuesta = timezone.now()
+        tarea.fecha_respuesta = timezone.localtime(timezone.now())
         tarea.save()
 
         registrar_log(
@@ -221,7 +221,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.estado = Tarea.Estado.RECHAZADO
         tarea.aprobador = request.user
         tarea.motivo_rechazo = motivo
-        tarea.fecha_respuesta = timezone.now()
+        tarea.fecha_respuesta = timezone.localtime(timezone.now())
         tarea.save()
 
         registrar_log(
@@ -635,7 +635,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         # Cambiar estado
         estado_anterior = subtarea.estado
-        ahora = timezone.now()
+        ahora = timezone.localtime(timezone.now())
 
         subtarea.estado = Subtarea.Estado.EN_DESARROLLO
         subtarea.fecha_inicio = ahora
@@ -699,7 +699,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
 
         estado_anterior = subtarea.estado
-        ahora = timezone.now()
+        ahora = timezone.localtime(timezone.now())
 
         subtarea.estado = Subtarea.Estado.SOLUCIONADO
         subtarea.fecha_fin = ahora
@@ -737,7 +737,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             s.estado == Subtarea.Estado.SOLUCIONADO
             for s in subtareas
         ):
-            ahora = timezone.now()
+            ahora = timezone.localtime(timezone.now())
 
             tarea.estado = Tarea.Estado.SOLUCIONADO
             tarea.fecha_solucion = ahora
@@ -844,7 +844,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if not motivo:
             return Response({"detail": "El motivo de pausa es obligatorio."}, status=status.HTTP_400_BAD_REQUEST)
         estado_anterior = subtarea.estado
-        ahora = timezone.now()
+        ahora = timezone.localtime(timezone.now())
 
         subtarea.estado = Subtarea.Estado.STAND_BY
         subtarea.motivo_standby = motivo
@@ -873,7 +873,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if tarea.estado != Tarea.Estado.STAND_BY:
 
             estado_tarea_anterior = tarea.estado
-            ahora = timezone.now()
+            ahora = timezone.localtime(timezone.now())
 
             tarea.estado = Tarea.Estado.STAND_BY
             tarea.motivo_standby = (
