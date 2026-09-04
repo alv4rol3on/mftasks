@@ -470,6 +470,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def resumen(self, request):
         user = request.user
+        from usuarios.models import Equipo, EquipoMiembro
 
         # CLIENTE siempre ve solo sus solicitudes, sin importar otros roles/miembro
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
@@ -560,6 +561,21 @@ class TaskViewSet(viewsets.ModelViewSet):
             "tareas_pendientes": tareas_pendientes,
             "tareas_con_pendientes": detalle,
         })
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="contador",
+    )
+    def contador(self, request, pk=None):
+        tarea = self.get_object()
+
+        from .services.tiempo_laboral import obtener_contador_tarea
+
+        return Response(
+            obtener_contador_tarea(tarea)
+        )
 
 
     @action(
@@ -1105,3 +1121,4 @@ class TaskViewSet(viewsets.ModelViewSet):
         if not created:
             return Response({"detail": "Dependencia ya existe."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Dependencia creada."}, status=status.HTTP_201_CREATED)
+

@@ -6,6 +6,7 @@ import TaskIniciarModal from "./TaskIniciarModal";
 import styles from "./TaskTableEnDesarrollo.module.css";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
+import TaskCountdown from "./TaskCountdown";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -72,75 +73,86 @@ export default function TaskTableEnDesarrollo({
             <div>Ticket</div>
             <div>Asunto</div>
             <div>Campaña</div>
-            <div>Equipo</div>
-            <div>Estado</div>
-            <div>Fecha de inicio</div>
+            <div>Tiempo</div>
             <div>Acciones</div>
           </div>
 
-          {tareas.map((tarea) => {
-            const conPendiente = tienePendienteEnTarea(tarea);
-            return (
-              <div
-                className={styles.taskRow}
-                key={tarea.id}
-                style={
-                  tarea.estado === "SOLUCIONADO"
-                    ? {
-                      background: "#dcfce7",
-                      borderLeft: "4px solid #22c55e",
-                    }
-                    : conPendiente
+
+          {tareas
+            .filter((tarea) => tarea.estado !== "EN_ESPERA")
+            .map((tarea) => {
+              const conPendiente = tienePendienteEnTarea(tarea);
+              return (
+                
+                <div 
+                  className={styles.taskRow}
+                  key={tarea.id}
+                  style={
+                    tarea.estado === "SOLUCIONADO"
                       ? {
-                        background: "#fffbeb",
-                        borderLeft: "4px solid #f59e0b",
+                        background: "#dcfce7",
+                        borderLeft: "4px solid #22c55e",
                       }
-                      : undefined
-                }
-                title={
-                  conPendiente
-                    ? "Tienes subtareas pendientes en esta tarea"
-                    : tarea.estado === "SOLUCIONADO"
-                      ? "Tarea solucionada"
-                      : undefined
-                }
-              >
-                <div style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>{tarea.ticket ?? `#${tarea.id}`}</div>
+                      :
+                      tarea.estado === "STAND_BY"
+                        ? {
+                          background: "#fff7e9",
+                          borderLeft: "4px solid #f59e0b",
+                        }
+                        :
+                        conPendiente
+                          ? {
+                            background: "#ffffff",
+                            borderLeft: "4px solid #050505",
+                          }
+                          : undefined
+                  }
+                  title={
+                    conPendiente
+                      ? "Tienes subtareas pendientes en esta tarea"
+                      : tarea.estado === "SOLUCIONADO"
+                        ? "Tarea solucionada"
+                        : undefined
+                  }
+                >
+                  <div style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>{tarea.ticket ?? `#${tarea.id}`}</div>
 
-                <div className={styles.taskSubject}>
-                  {tarea.asunto}
-                  <div style={{ fontSize: 10, color: "#6b7280" }}>{tarea.ticket}</div>
-                  {conPendiente && <div style={{ fontSize: 11, color: "#92400e", marginTop: 2 }}>Tienes subtareas pendientes por completar</div>}
-                </div>
+                  <div className={styles.taskSubject}>
+                    {tarea.asunto}
+                    <div style={{ fontSize: 10, color: "#6b7280" }}>{tarea.ticket}</div>
+                    {conPendiente && <div style={{ fontSize: 11, color: "#92400e", marginTop: 2 }}>Tienes subtareas pendientes por completar</div>}
+                  </div>
 
-                <div>{tarea.campana_nombre ?? tarea.cliente_nombre}</div>
+                  <div>{tarea.subcampana_nombre ? (`${tarea.campana_nombre + "-" + tarea.subcampana_nombre}`):(tarea.campana_nombre) }</div>
 
-                <div>{tarea.equipo_nombre}</div>
+                  <div>
+                    <TaskCountdown
+                      tareaId={tarea.id}
+                    />
+                  </div>
 
-                <div>{tarea.estado}</div>
-
-                <div>{formatearFecha(tarea.fecha_inicio)}</div>
-
-                <div>
-                  <button
-                    className={styles.btnDetalles}
-                    onClick={() => setSelectedTaskId(tarea.id)}
-                  >
-                    info
-                  </button>
-                  {tarea.puedo_operar && tarea.estado === "APROBADO" && (
+                  <div>
                     <button
-                      className={styles.btnIniciar}
-                      onClick={() => setTaskParaIniciar(tarea)}
-                      disabled={accionando === tarea.id}
+                      className={styles.btnDetalles}
+                      onClick={() => setSelectedTaskId(tarea.id)}
                     >
-                      Iniciar
+                      info
                     </button>
-                  )}
+                    {tarea.puedo_operar && tarea.estado === "APROBADO" && (
+                      <button
+                        className={styles.btnIniciar}
+                        onClick={() => setTaskParaIniciar(tarea)}
+                        disabled={accionando === tarea.id}
+                      >
+                        Iniciar
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+
+
         </div>
       </div>
       <TaskModal
