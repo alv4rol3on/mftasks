@@ -11,9 +11,13 @@ export interface Subtarea {
     fecha_fin: string | null;
     motivo_standby?: string | null;
     fecha_standby?: string | null;
+    fecha_fin_standby?: string | null;
     standby_por?: number | null;
     bloqueada_por?: { id: number; estado: string; descripcion: string }[];
     dependencias?: number[];
+    tiempo_tomado_segundos?: number | null;
+    tiempo_tomado_horas?: number | null;
+    tiempo_tomado_formateado?: string | null;
 }
 
 export interface Task {
@@ -36,14 +40,21 @@ export interface Task {
     motivo_rechazo: string;
     motivo_standby?: string | null;
     fecha_standby?: string | null;
+    fecha_fin_standby?: string | null;
+    standby_por?: number | null;
     fecha_solucion?: string | null;
     fecha_creacion: string;
     fecha_respuesta: string | null;
     fecha_inicio: string | null;
     fecha_entrega_aproximada: string | null;
+    incluye_sabado?: boolean;
     progreso: string;
     subtareas: Subtarea[];
     puedo_operar: boolean;
+    tiempo_tomado_segundos?: number | null;
+    tiempo_tomado_horas?: number | null;
+    tiempo_tomado_formateado?: string | null;
+    tiempo_planificado_segundos?: number | null;
 }
 
 export interface CampanaInfo {

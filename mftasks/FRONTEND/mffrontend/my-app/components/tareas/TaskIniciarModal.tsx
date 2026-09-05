@@ -20,6 +20,7 @@ interface TaskIniciarModalProps {
         payload: {
             fecha_inicio: string;
             fecha_entrega_aproximada: string;
+            incluye_sabado: boolean;
             subtareas: { descripcion: string; asignado: number; peso: number }[];
         }
     ) => void;
@@ -34,6 +35,7 @@ export default function TaskIniciarModal({
     const [miembros, setMiembros] = useState<EquipoMiembro[]>([]);
     const [fechaInicio, setFechaInicio] = useState("");
     const [fechaEntrega, setFechaEntrega] = useState("");
+    const [incluyeSabado, setIncluyeSabado] = useState(false);
     const [subtareas, setSubtareas] = useState<SubtareaForm[]>([
         { descripcion: "", asignado: "", peso: 1 },
     ]);
@@ -105,6 +107,7 @@ export default function TaskIniciarModal({
         onSubmit(tarea, {
             fecha_inicio: fechaInicio,
             fecha_entrega_aproximada: fechaEntrega,
+            incluye_sabado: incluyeSabado,
             subtareas: validas.map((s) => ({
                 descripcion: s.descripcion.trim(),
                 asignado: Number(s.asignado),
@@ -152,6 +155,10 @@ export default function TaskIniciarModal({
                             />
                         </label>
                     </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                        <input type="checkbox" checked={incluyeSabado} onChange={(e) => setIncluyeSabado(e.target.checked)} />
+                        Incluir sábados laborables (9:00-13:00) — solo líderes/sublíderes deben activar esta opción
+                    </label>
 
                     <div>
                         <h3 style={{ marginBottom: "8px" }}>Subtareas</h3>

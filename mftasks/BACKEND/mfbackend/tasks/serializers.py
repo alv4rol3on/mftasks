@@ -29,6 +29,9 @@ class SubtareaSerializer(serializers.ModelSerializer):
 
     asignado_nombre = serializers.SerializerMethodField()
     bloqueada_por = serializers.SerializerMethodField()
+    tiempo_tomado_segundos = serializers.SerializerMethodField()
+    tiempo_tomado_horas = serializers.SerializerMethodField()
+    tiempo_tomado_formateado = serializers.SerializerMethodField()
 
     class Meta:
         model = Subtarea
@@ -45,11 +48,15 @@ class SubtareaSerializer(serializers.ModelSerializer):
             "fecha_fin",
             "motivo_standby",
             "fecha_standby",
+            "fecha_fin_standby",
             "standby_por",
             "bloqueada_por",
             "dependencias",
+            "tiempo_tomado_segundos",
+            "tiempo_tomado_horas",
+            "tiempo_tomado_formateado",
         ]
-        read_only_fields = ["motivo_standby", "fecha_standby", "standby_por"]
+        read_only_fields = ["motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado"]
 
     def get_bloqueada_por(self, obj):
         # lista de ids bloqueadoras no solucionadas
@@ -58,6 +65,39 @@ class SubtareaSerializer(serializers.ModelSerializer):
 
     def get_asignado_nombre(self, obj):
         return f"{obj.asignado.nombres} {obj.asignado.apellidos}"
+
+    def _tiempo_tomado(self, obj):
+        try:
+            from .services.tiempo_laboral import calcular_tiempo_tomado_subtarea
+            return calcular_tiempo_tomado_subtarea(obj)
+        except Exception:
+            return None
+
+    def get_tiempo_tomado_segundos(self, obj):
+        td = self._tiempo_tomado(obj)
+        if td is None:
+            return None
+        # solo si está solucionada o tiene ambas fechas, si no 0
+        if not obj.fecha_inicio or not obj.fecha_fin:
+            return 0 if obj.estado == "SOLUCIONADO" else None
+        return int(td.total_seconds())
+
+    def get_tiempo_tomado_horas(self, obj):
+        seg = self.get_tiempo_tomado_segundos(obj)
+        if seg is None:
+            return None
+        return round(seg / 3600, 2)
+
+    def get_tiempo_tomado_formateado(self, obj):
+        seg = self.get_tiempo_tomado_segundos(obj)
+        if seg is None:
+            return None
+        # reutiliza formateo d h m s
+        dias = seg // 86400
+        horas = (seg % 86400) // 3600
+        minutos = (seg % 3600) // 60
+        segundos = seg % 60
+        return f"{dias}d {horas:02d}h {minutos:02d}m {segundos:02d}s"
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -80,11 +120,15 @@ class TaskSerializer(serializers.ModelSerializer):
     subtareas = serializers.SerializerMethodField()
 
     puedo_operar = serializers.SerializerMethodField()
+    tiempo_tomado_segundos = serializers.SerializerMethodField()
+    tiempo_tomado_horas = serializers.SerializerMethodField()
+    tiempo_tomado_formateado = serializers.SerializerMethodField()
+    tiempo_planificado_segundos = serializers.SerializerMethodField()
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "progreso", "subtareas", "puedo_operar"]
-        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "standby_por", "fecha_solucion"]
+        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos"]
+        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos"]
 
     def get_cliente_nombre(self, obj):
         if obj.subcampana and obj.subcampana.campana:
@@ -118,6 +162,45 @@ class TaskSerializer(serializers.ModelSerializer):
         if request is None:
             return False
         return es_asignador_del_equipo(request.user, obj.equipo)
+
+    def _tiempo_tomado_tarea(self, obj):
+        try:
+            from .services.tiempo_laboral import calcular_tiempo_tomado_tarea, calcular_tiempo_planificado_tarea
+            return calcular_tiempo_tomado_tarea(obj), calcular_tiempo_planificado_tarea(obj)
+        except Exception:
+            return None, None
+
+    def get_tiempo_tomado_segundos(self, obj):
+        tomado, _ = self._tiempo_tomado_tarea(obj)
+        if tomado is None:
+            return None
+        if not obj.fecha_inicio or not obj.fecha_solucion:
+            return 0 if obj.estado == "SOLUCIONADO" else None
+        return int(tomado.total_seconds())
+
+    def get_tiempo_tomado_horas(self, obj):
+        seg = self.get_tiempo_tomado_segundos(obj)
+        if seg is None:
+            return None
+        return round(seg / 3600, 2)
+
+    def get_tiempo_tomado_formateado(self, obj):
+        seg = self.get_tiempo_tomado_segundos(obj)
+        if seg is None:
+            return None
+        dias = seg // 86400
+        horas = (seg % 86400) // 3600
+        minutos = (seg % 3600) // 60
+        segundos = seg % 60
+        return f"{dias}d {horas:02d}h {minutos:02d}m {segundos:02d}s"
+
+    def get_tiempo_planificado_segundos(self, obj):
+        _, plan = self._tiempo_tomado_tarea(obj)
+        if plan is None:
+            return None
+        if not obj.fecha_inicio or not obj.fecha_entrega_aproximada:
+            return None
+        return int(plan.total_seconds())
 
     def validate(self, attrs):
         request = self.context.get("request")

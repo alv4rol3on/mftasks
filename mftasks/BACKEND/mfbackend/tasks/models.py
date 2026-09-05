@@ -66,6 +66,8 @@ class Tarea(models.Model):
     )
     fecha_solucion = models.DateTimeField(null=True, blank=True)
 
+    incluye_sabado = models.BooleanField(default=False, help_text="Si está activo, el contador incluye sábados de 9am a 1pm; si no, solo L-V 9-18.")
+
     progreso = models.DecimalField(
         max_digits=5,
         decimal_places=2,

@@ -1,0 +1,216 @@
+/* =========================================================
+   Base — desktop (tabla semántica)
+   ========================================================= */
+.taskTableContainer {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-top: 15px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.taskTable {
+    width: 100%;
+    min-width: 1100px;
+    background: #fff;
+    border: 1px solid #d8d8d8;
+    border-radius: 10px;
+    font-size: 14px;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+
+.taskTable thead th {
+    background: #f3f4f6;
+    color: #444;
+    font-weight: 600;
+    text-align: left;
+    padding: 14px 18px;
+    white-space: nowrap;
+    border-bottom: 2px solid #ddd;
+    position: sticky;
+    top: 0;
+}
+
+.taskTable tbody td {
+    padding: 14px 18px;
+    border-bottom: 1px solid #ececec;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+}
+
+.taskTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.taskTable tbody tr:hover {
+    background: #f8fbff;
+}
+
+.taskSubject {
+    font-weight: 600;
+    color: #1d3557;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Botones */
+.btnDetalles,
+.btnIniciar {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: background .2s;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.btnDetalles {
+    background: #2563eb;
+}
+.btnDetalles:hover {
+    background: #1d4ed8;
+}
+.btnIniciar {
+    background: #16a34a;
+    margin-left: 8px;
+}
+.btnIniciar:hover:not(:disabled) {
+    background: #15803d;
+}
+.btnIniciar:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+/* Estado row */
+.rowSolucionado { background: #dcfce7 !important; }
+.rowStandBy { background: #fff7e9 !important; }
+.rowPendiente { background: #ffffff !important; }
+
+.noTasks {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 150px;
+    font-size: 16px;
+    color: #666;
+    background: #fff;
+    border: 1px solid #d8d8d8;
+    border-radius: 10px;
+    margin-top: 15px;
+}
+
+/* Scrollbar */
+.taskTableContainer::-webkit-scrollbar { height: 8px; }
+.taskTableContainer::-webkit-scrollbar-thumb { background: #b5b5b5; border-radius: 4px; }
+.taskTableContainer::-webkit-scrollbar-thumb:hover { background: #8d8d8d; }
+
+/* =========================================================
+   TABLET ≤1100px
+   ========================================================= */
+@media (max-width: 1100px) {
+    .taskTable { min-width: 760px; }
+    .taskTable thead th,
+    .taskTable tbody td { padding: 12px 12px; font-size: 13px; }
+}
+
+/* =========================================================
+   MÓVIL / TABLET PEQUEÑA ≤768px — tarjetas
+   Mejor para todo tipo de dispositivo
+   ========================================================= */
+@media (max-width: 768px) {
+    .taskTableContainer { overflow-x: visible; }
+
+    .taskTable {
+        min-width: 0;
+        width: 100%;
+        border: none;
+        background: transparent;
+        border-collapse: collapse;
+    }
+
+    .taskTable thead { display: none; }
+
+    .taskTable tbody,
+    .taskTable tbody tr,
+    .taskTable tbody td {
+        display: block;
+        width: 100%;
+    }
+
+    .taskTable tbody tr {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        padding: 6px 0;
+        box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    .taskTable tbody tr:hover { background: #fff; }
+
+    .taskTable tbody td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        text-align: right;
+        white-space: normal;
+    }
+
+    .taskTable tbody td:last-child { border-bottom: none; }
+
+    /* etiqueta izquierda tomada de data-label */
+    .taskTable tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: #555;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+        flex-shrink: 0;
+        text-align: left;
+    }
+
+    /* Asunto ocupa fila completa, sin etiqueta */
+    .taskTable tbody td[data-label="Asunto"] {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+        font-size: 15px;
+        border-bottom: 1px solid #eee;
+    }
+    .taskTable tbody td[data-label="Asunto"]::before { display: none; }
+
+    /* Acciones ocupa fila completa, botones a ancho completo */
+    .taskTable tbody td[data-label="Acciones"] {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        border-top: 1px solid #eee;
+        margin-top: 4px;
+        padding-top: 12px;
+    }
+    .taskTable tbody td[data-label="Acciones"]::before { display: none; }
+
+    .btnDetalles, .btnIniciar {
+        flex: 1;
+        min-width: 120px;
+        margin-left: 0;
+        text-align: center;
+    }
+}
+
+/* =========================================================
+   MÓVILES PEQUEÑOS ≤480px
+   ========================================================= */
+@media (max-width: 480px) {
+    .taskTable tbody td { padding: 10px 12px; font-size: 13px; }
+    .taskTable tbody td::before { font-size: 11px; }
+    .btnDetalles, .btnIniciar { width: 100%; flex: none; }
+}

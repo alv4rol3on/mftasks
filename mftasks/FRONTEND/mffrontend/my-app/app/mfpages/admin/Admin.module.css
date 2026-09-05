@@ -1,0 +1,529 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.tabBtn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  text-transform: capitalize;
+  font-size: 13px;
+}
+
+.tabBtnActive {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: white;
+  cursor: pointer;
+  text-transform: capitalize;
+  font-size: 13px;
+}
+
+.msg {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.msgError {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.msgSuccess {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.cardTitle {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.input {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  width: 100%;
+  min-width: 0;
+}
+
+.select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  width: 100%;
+  min-width: 0;
+  background: white;
+}
+
+.btnPrimary {
+  background: #111827;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.usersHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  min-width: 240px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table thead tr {
+  background: #f9fafb;
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 8px;
+  white-space: nowrap;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+/* PERMISOS */
+.permisosDesc {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0 0 12px;
+}
+
+.permisosHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 12px;
+  align-items: start;
+}
+
+.permisosField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.permisosFieldSmall {
+  font-size: 12px;
+  margin-top: 6px;
+  position: relative;
+}
+
+.clienteDropdown {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #fafafa;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+
+.clienteOption {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 400;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.clienteOptionActive {
+  background: #ede9fe;
+}
+
+.permisosStatus {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-top: 6px;
+}
+
+.permisosStatusLoading {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.permisosStatusOk {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.resumenCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.resumenTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  background: #ede9fe;
+  border: 1px solid #ddd6fe;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chipRemove {
+  background: white;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.emptyPermisos {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1e40af;
+}
+
+.campanasList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.campanaCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: clip;
+  background: white;
+}
+
+.campanaHead {
+  background: #f9fafb;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background .15s;
+}
+
+.campanaHead:hover {
+  background: #f3f4f6;
+}
+
+.campanaBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .22s ease;
+}
+
+.campanaBodyOpen {
+  grid-template-rows: 1fr;
+}
+
+.campanaBodyInner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform .18s ease;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.accordionActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: #7c3aed;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 2px 4px;
+}
+
+.campanaTitle {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.campanaCode {
+  font-family: monospace;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.badgeActive {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-left: 8px;
+}
+
+.badgeActiveOn {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.badgeActiveOff {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.campanaCount {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.subcampanasGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.subLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
+  transition: border-color .15s, background .15s;
+}
+
+.subLabelChecked {
+  border-color: #7c3aed;
+  background: #ede9fe;
+}
+
+.subLabelDisabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.subInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.subName {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.subCode {
+  font-size: 11px;
+  font-family: monospace;
+  color: #6b7280;
+}
+
+.subBadge {
+  font-size: 10px;
+  background: #7c3aed;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .subcampanasGrid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .permisosHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .subcampanasGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .campanasList {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .campanaCard {
+    overflow: visible;
+  }
+
+  .searchInput {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .table {
+    min-width: 600px;
+  }
+
+  .tableWrap {
+    max-height: 50vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 12px;
+  }
+
+  .subcampanasGrid {
+    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campanaHead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tabs {
+    gap: 6px;
+  }
+
+  .tabBtn, .tabBtnActive {
+    flex: 1;
+    text-align: center;
+    min-width: 90px;
+  }
+
+  .table {
+    min-width: 520px;
+  }
+}

@@ -340,9 +340,23 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         estado_anterior = tarea.estado
 
+        # Flag sábado opcional: solo lider/sublider puede habilitarlo
+        incluye_sabado_raw = request.data.get("incluye_sabado")
+        if incluye_sabado_raw is None:
+            incluye_sabado_raw = request.data.get("trabaja_sabado")
+        incluye_sabado = False
+        if incluye_sabado_raw is not None:
+            if isinstance(incluye_sabado_raw, bool):
+                incluye_sabado = incluye_sabado_raw
+            elif isinstance(incluye_sabado_raw, str):
+                incluye_sabado = incluye_sabado_raw.lower() in ("true", "1", "on", "yes", "si")
+            else:
+                incluye_sabado = bool(incluye_sabado_raw)
+
         tarea.estado = Tarea.Estado.EN_DESARROLLO
         tarea.fecha_inicio = fecha_inicio
         tarea.fecha_entrega_aproximada = fecha_entrega
+        tarea.incluye_sabado = incluye_sabado
         tarea.save()
 
         registrar_log(
@@ -354,11 +368,12 @@ class TaskViewSet(viewsets.ModelViewSet):
             detalle=(
                 f"Tarea iniciada. "
                 f"Inicio: {fecha_inicio.isoformat()}. "
-                f"Entrega aproximada: {fecha_entrega.isoformat()}."
+                f"Entrega aproximada: {fecha_entrega.isoformat()}. "
+                f"Incluye sábado: {'Sí' if incluye_sabado else 'No'}."
             ),
         )
 
-        return Response(TaskSerializer(tarea).data)
+        return Response(TaskSerializer(tarea, context={"request": request}).data)
 
     @action(
         detail=True,
@@ -576,6 +591,74 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Response(
             obtener_contador_tarea(tarea)
         )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/contador",
+    )
+    def contador_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        from .services.tiempo_laboral import obtener_contador_subtarea
+        return Response(obtener_contador_subtarea(subtarea))
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="contadores",
+    )
+    def contadores(self, request, pk=None):
+        tarea = self.get_object()
+        from .services.tiempo_laboral import obtener_contador_tarea, obtener_contador_subtarea
+        data_tarea = obtener_contador_tarea(tarea)
+        subtareas = tarea.subtareas.all()
+        lista = []
+        for s in subtareas:
+            c = obtener_contador_subtarea(s)
+            lista.append({"subtarea_id": s.id, "contador": c, "estado": s.estado})
+        return Response({"tarea": data_tarea, "subtareas": lista})
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="logs",
+    )
+    def logs(self, request, pk=None):
+        tarea = self.get_object()
+        # Solo miembros del equipo, líderes, sublíderes (y admin) pueden ver logs
+        from .permissions import es_miembro_del_equipo
+        if not es_miembro_del_equipo(request.user, tarea.equipo):
+            return Response({"detail": "No tienes permiso para ver los logs de esta tarea."}, status=status.HTTP_403_FORBIDDEN)
+        qs = TareaLog.objects.filter(tarea=tarea).select_related("usuario", "subtarea").order_by("fecha", "id")
+        # filtro opcional por subtarea
+        subtarea_id = request.query_params.get("subtarea")
+        if subtarea_id:
+            try:
+                qs = qs.filter(subtarea_id=int(subtarea_id))
+            except ValueError:
+                pass
+        # paginación simple: últimos 200
+        logs = qs[:200]
+        data = [
+            {
+                "id": l.id,
+                "tipo_evento": l.tipo_evento,
+                "estado_anterior": l.estado_anterior,
+                "estado_nuevo": l.estado_nuevo,
+                "fecha": l.fecha.isoformat() if l.fecha else None,
+                "detalle": l.detalle,
+                "usuario": f"{l.usuario.nombres} {l.usuario.apellidos}" if l.usuario else None,
+                "usuario_id": l.usuario_id,
+                "subtarea_id": l.subtarea_id,
+                "subtarea_descripcion": l.subtarea.descripcion if l.subtarea else None,
+            }
+            for l in logs
+        ]
+        return Response(data)
 
 
     @action(
