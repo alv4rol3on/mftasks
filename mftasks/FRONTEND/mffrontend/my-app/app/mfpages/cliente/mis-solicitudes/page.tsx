@@ -51,7 +51,10 @@ export default function MisSolicitudesPage() {
   useEffect(() => { cargar(); }, [cargar]);
 
   const filtradas = filtro === "TODAS" ? tareas : tareas.filter((t) => t.estado === filtro);
-
+  {/*const handleBuscar = (e: React.FormEvent) => {
+    e.preventDefault();
+    cargar(busqueda);
+  };*/}
   if (sinPermiso) {
     return (
       <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
@@ -63,10 +66,17 @@ export default function MisSolicitudesPage() {
   if (cargando) return <div>Cargando solicitudes…</div>;
   if (error) return <div style={{ color: "#dc2626" }}>Error: {error}</div>;
 
+
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <h2 className="text-lg font-medium">Mis solicitudes</h2>
+        {/*<form onSubmit={handleBuscar} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240 }} />
+          <button type="submit" style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
+          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}
+        </form>*/}
         <button onClick={() => setOpenCrear(true)} style={{ background: "#2563eb", color: "white", padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer" }}>+ Nueva solicitud</button>
       </div>
 

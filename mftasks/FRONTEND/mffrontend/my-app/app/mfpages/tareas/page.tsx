@@ -108,8 +108,8 @@ export default function TareasPage() {
         <h2 className="text-lg font-medium" style={{ margin: 0 }}>Tareas en desarrollo</h2>
         <form onSubmit={handleBuscar} style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240 }} />
-          <button type="submit" style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
-          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}
+          {/*<button type="submit" style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
+          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}*/}
         </form>
       </div>
       <p style={{ fontSize: 12, color: "#6b7280", marginTop: -8, marginBottom: 12 }}>Por defecto se muestran tareas en proceso o con solución reciente (≤3 días). Usa el buscador para ver anteriores por ticket o nombre.</p>

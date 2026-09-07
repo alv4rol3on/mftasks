@@ -86,6 +86,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
+          
           <div>
             <h2>Nueva solicitud</h2>
           </div>
@@ -122,7 +123,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
           </div>
 
 
-          {campanaId && subcampanas.length === 0 && <p style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>No tienes subcampañas permitidas en esta campaña. Contacta al administrador.</p>}
+          {campanaId && subcampanas.length === 0 && <p style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>La campaña/subcampañas que intenta elegir esta temporalmente deshabilitada o no cuenta con los permisos para crear una solicitud. Contacta al administrador.</p>}
           {error && <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p>}
         </div>
         <div className={styles.modalFooter}>

@@ -34,6 +34,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "backend",
+    "192.168.202.12"
 ]
 
 
@@ -168,6 +169,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://frontend:3000",
+    "http://192.168.202.12:3000"
 ]
 
 AZURE_TENANT_ID = os.environ.get("AZURE_TENANT_ID", "")

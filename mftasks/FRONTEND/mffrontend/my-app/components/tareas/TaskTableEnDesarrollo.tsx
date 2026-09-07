@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import TaskModal from "./TaskModal";
-import TaskIniciarModal from "./TaskIniciarModal";
+//import TaskIniciarModal from "./TaskIniciarModal";
 import styles from "../shared/SharedTable.module.css";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
@@ -36,7 +36,7 @@ export default function TaskTableEnDesarrollo({
   onCambiarEstadoSubtarea?: (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => void;
 }) {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
-  const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
+  //const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
   const selectedTask = tareas.find((tarea) => tarea.id === selectedTaskId) ?? null;
   const usuario = getUsuarioActual();
   const tienePendienteEnTarea = (tarea: Task) =>
@@ -85,6 +85,7 @@ export default function TaskTableEnDesarrollo({
                     key={tarea.id}
                     className={rowClass}
                     style={borderLeft ? { borderLeft } : undefined}
+                    onClick={() => setSelectedTaskId(tarea.id)}
                     title={
                       conPendiente
                         ? "Tienes subtareas pendientes en esta tarea"
@@ -94,10 +95,30 @@ export default function TaskTableEnDesarrollo({
                     }
                   >
                     <td data-label="Asunto" className={styles.taskSubject}>
-                      <span>{tarea.asunto}</span>
-                      <span style={{ display: "block", fontSize: 10, color: "#6b7280", fontWeight: 400 }}>{tarea.ticket}</span>
+                      <a>{tarea.asunto}</a>
+
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: 10,
+                          color: "#6b7280",
+                          fontWeight: 400
+                        }}
+                      >
+                        {tarea.ticket}
+                      </span>
+
                       {conPendiente && (
-                        <span style={{ display: "block", fontSize: 11, color: "#92400e", marginTop: 2 }}>Tienes subtareas pendientes por completar</span>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 11,
+                            color: "#92400e",
+                            marginTop: 2
+                          }}
+                        >
+                          Tienes subtareas pendientes por completar
+                        </span>
                       )}
                     </td>
                     <td data-label="Campaña">
@@ -107,18 +128,21 @@ export default function TaskTableEnDesarrollo({
                       <TaskCountdown tareaId={tarea.id} incluyeSabado={tarea.incluye_sabado} />
                     </td>
                     <td data-label="Acciones">
-                      <button className={styles.btnDetalles} onClick={() => setSelectedTaskId(tarea.id)}>
+                      {/*<button className={styles.btnDetalles} onClick={() => setSelectedTaskId(tarea.id)}>
                         info
-                      </button>
-                      {tarea.puedo_operar && tarea.estado === "APROBADO" && (
+                      </button>*/}
+                      {/*{tarea.puedo_operar && tarea.estado === "APROBADO" && (
                         <button
                           className={styles.btnIniciar}
-                          onClick={() => setTaskParaIniciar(tarea)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTaskParaIniciar(tarea);
+                          }}
                           disabled={accionando === tarea.id}
                         >
                           Iniciar
                         </button>
-                      )}
+                      )}*/}
                     </td>
                   </tr>
                 );
@@ -136,16 +160,18 @@ export default function TaskTableEnDesarrollo({
         onCambiarEstadoSubtarea={onCambiarEstadoSubtarea}
         empezandoId={empezandoId}
         completandoId={completandoId}
+        accionando={accionando}
+        onIniciar={onIniciar}
       />
 
-      {taskParaIniciar && (
+      {/*{taskParaIniciar && (
         <TaskIniciarModal
           tarea={taskParaIniciar}
           accionando={accionando === taskParaIniciar.id}
           onClose={() => setTaskParaIniciar(null)}
           onSubmit={onIniciar}
         />
-      )}
+      )}*/}
     </>
   );
 }
