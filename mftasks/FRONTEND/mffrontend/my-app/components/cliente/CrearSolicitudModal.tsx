@@ -25,7 +25,10 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   useEffect(() => {
     if (!open) return;
     apiFetch<CampanaInfo[]>("/api/campanas/campanas/")
-      .then((data) => setCampanas(Array.isArray(data) ? data : (data as any).results ?? []))
+      .then((data) => {
+        const arr: CampanaInfo[] = Array.isArray(data) ? data : (data as any).results ?? [];
+        setCampanas(arr.filter((c) => c.activo));
+      })
       .catch(() => setCampanas([]));
     apiFetch<EquipoInfo[]>("/api/usuarios/equipos/")
       .then((data) => setEquipos(Array.isArray(data) ? data : (data as any).results ?? []))
@@ -39,7 +42,10 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       return;
     }
     apiFetch<SubCampanaInfo[]>(`/api/campanas/subcampanas/?campana_id=${campanaId}`)
-      .then((data) => setSubcampanas(Array.isArray(data) ? data : (data as any).results ?? []))
+      .then((data) => {
+        const arr: SubCampanaInfo[] = Array.isArray(data) ? data : (data as any).results ?? [];
+        setSubcampanas(arr.filter((s) => s.activo));
+      })
       .catch(() => setSubcampanas([]));
   }, [campanaId]);
 

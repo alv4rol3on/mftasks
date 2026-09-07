@@ -24,12 +24,12 @@ class CampanaViewSet(ModelViewSet):
             return Campana.objects.none()
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return qs
-        # cliente ve solo campañas donde tiene permiso puntual a subcampana
+        # cliente ve solo campañas activas donde tiene permiso puntual a subcampana activa
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            campana_ids = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False).values_list("subcampana__campana_id", flat=True)
+            campana_ids = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False, subcampana__activo=True, subcampana__campana__activo=True).values_list("subcampana__campana_id", flat=True)
             campana_ids = set(campana_ids)
             if campana_ids:
-                return qs.filter(id__in=campana_ids)
+                return qs.filter(id__in=campana_ids, activo=True)
             return qs.none()
         # miembro/lider/otro: ve todas activas
         return qs.filter(activo=True)
@@ -57,10 +57,10 @@ class SubCampanaViewSet(ModelViewSet):
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return qs
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            # permiso puntual solo a subcampana
-            permisos_sub = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False).values_list("subcampana_id", flat=True)
-            return qs.filter(id__in=permisos_sub)
-        return qs.filter(activo=True)
+            # permiso puntual solo a subcampana activa y campaña activa
+            permisos_sub = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False, subcampana__activo=True, subcampana__campana__activo=True).values_list("subcampana_id", flat=True)
+            return qs.filter(id__in=permisos_sub, activo=True, campana__activo=True)
+        return qs.filter(activo=True, campana__activo=True)
 
 
 class PermisoCampanaViewSet(ModelViewSet):

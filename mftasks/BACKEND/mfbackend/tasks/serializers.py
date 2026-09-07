@@ -224,6 +224,10 @@ class TaskSerializer(serializers.ModelSerializer):
                     subcampana_obj = SubCampana.objects.select_related("campana").get(id=int(subcampana))
             except Exception:
                 subcampana_obj = None
+            # Bloqueo universal: si campaña/subcampaña inhabilitada, nadie puede crear (incluye Admin)
+            if subcampana_obj:
+                if not subcampana_obj.activo or not subcampana_obj.campana.activo:
+                    raise serializers.ValidationError({"subcampana": "La campaña/subcampaña está inhabilitada por Administración y no está disponible para crear tareas."})
             if subcampana_obj and request and request.user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
                 from .permissions import tiene_permiso_subcampana
                 if not tiene_permiso_subcampana(request.user, subcampana_obj):

@@ -17,6 +17,7 @@ services:
 
     volumes:
       - ./BACKEND/mfbackend:/app
+      # db.sqlite3 persiste vía bind mount del host; no usar volumen nombrado sobre archivo
 
     ports:
       - "8000:8000"

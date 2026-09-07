@@ -18,20 +18,6 @@ export function formatearTiempo(totalSegundos: number): string {
  * Usa zona America/Lima explícita.
  */
 export function estaEnJornada(fecha: Date, incluyeSabado: boolean): boolean {
-    // Convertir a America/Lima: usamos Intl para extraer partes
-    const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Lima",
-        weekday: "short",
-        hour: "numeric",
-        minute: "numeric",
-        hour12: false,
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-    }).formatToParts(fecha);
-
-    // weekday mapping: Sun=0 ... Sat=6 via getUTCDay fallback usando Intl día
-    // Más simple: crear fecha en Lima via locale string
     const limaStr = fecha.toLocaleString("en-US", { timeZone: "America/Lima" });
     const limaDate = new Date(limaStr);
     const wd = limaDate.getDay(); // 0 Dom, 6 Sab

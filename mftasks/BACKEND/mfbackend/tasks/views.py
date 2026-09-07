@@ -353,6 +353,35 @@ class TaskViewSet(viewsets.ModelViewSet):
             else:
                 incluye_sabado = bool(incluye_sabado_raw)
 
+        # Inicio programado: si fecha_inicio futura, queda en APROBADO hasta worker APScheduler
+        ahora = timezone.localtime(timezone.now())
+        if timezone.is_naive(fecha_inicio):
+            fecha_inicio = timezone.make_aware(fecha_inicio, timezone.get_current_timezone())
+        if timezone.is_naive(fecha_entrega):
+            fecha_entrega = timezone.make_aware(fecha_entrega, timezone.get_current_timezone())
+        if fecha_inicio > ahora:
+            # validar que respete horario laboral para el disparo
+            from .services.tiempo_laboral import esta_en_jornada
+            # guarda programada y no activa todavía
+            tarea.fecha_inicio = fecha_inicio
+            tarea.fecha_entrega_aproximada = fecha_entrega
+            tarea.incluye_sabado = incluye_sabado
+            # permanece APROBADO, worker la pasará a EN_DESARROLLO cuando llegue la hora y esté en jornada
+            tarea.save(update_fields=["fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado"])
+            registrar_log(
+                tarea=tarea,
+                usuario=request.user,
+                tipo_evento=TareaLog.TipoEvento.INICIO,
+                estado_anterior=estado_anterior,
+                estado_nuevo=tarea.estado,
+                detalle=(
+                    f"Tarea programada. Inicio programado: {fecha_inicio.isoformat()}. "
+                    f"Entrega aproximada: {fecha_entrega.isoformat()}. Incluye sábado: {'Sí' if incluye_sabado else 'No'}. "
+                    f"Quedará en APROBADO hasta las {fecha_inicio.isoformat()} (solo en horario laboral)."
+                ),
+            )
+            return Response(TaskSerializer(tarea, context={"request": request}).data)
+
         tarea.estado = Tarea.Estado.EN_DESARROLLO
         tarea.fecha_inicio = fecha_inicio
         tarea.fecha_entrega_aproximada = fecha_entrega
@@ -623,6 +652,35 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=True,
+        methods=["patch"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path="incluye-sabado",
+    )
+    def incluye_sabado(self, request, pk=None):
+        tarea = self.get_object()
+        raw = request.data.get("incluye_sabado")
+        if raw is None:
+            raw = request.data.get("trabaja_sabado")
+        if raw is None:
+            return Response({"detail": "Debe enviar incluye_sabado (bool)."}, status=status.HTTP_400_BAD_REQUEST)
+        if isinstance(raw, bool):
+            val = raw
+        elif isinstance(raw, str):
+            val = raw.lower() in ("true", "1", "on", "yes", "si")
+        else:
+            val = bool(raw)
+        tarea.incluye_sabado = val
+        tarea.save(update_fields=["incluye_sabado"])
+        registrar_log(
+            tarea=tarea,
+            usuario=request.user,
+            tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
+            detalle=f"Incluye sábado cambiado a {'Sí' if val else 'No'}. Contador recalibrado.",
+        )
+        return Response({"incluye_sabado": val, "detail": "Actualizado."})
+
+    @action(
+        detail=True,
         methods=["get"],
         permission_classes=[IsAuthenticatedActivo],
         url_path="logs",
@@ -633,7 +691,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         from .permissions import es_miembro_del_equipo
         if not es_miembro_del_equipo(request.user, tarea.equipo):
             return Response({"detail": "No tienes permiso para ver los logs de esta tarea."}, status=status.HTTP_403_FORBIDDEN)
-        qs = TareaLog.objects.filter(tarea=tarea).select_related("usuario", "subtarea").order_by("fecha", "id")
+        qs = TareaLog.objects.filter(tarea=tarea).select_related("usuario", "subtarea").order_by("-fecha", "-id")
         # filtro opcional por subtarea
         subtarea_id = request.query_params.get("subtarea")
         if subtarea_id:
@@ -797,17 +855,26 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if subtarea.estado != Subtarea.Estado.EN_DESARROLLO:
+            return Response(
+                {"detail": "Solo se puede completar una subtarea en desarrollo. Debe iniciarla primero (EN_DESARROLLO)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not subtarea.fecha_inicio:
+            return Response(
+                {"detail": "La subtarea no tiene fecha de inicio. Debe iniciarla primero."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         estado_anterior = subtarea.estado
         ahora = timezone.localtime(timezone.now())
 
         subtarea.estado = Subtarea.Estado.SOLUCIONADO
         subtarea.fecha_fin = ahora
 
-        if not subtarea.fecha_inicio:
-            subtarea.fecha_inicio = ahora
-
         subtarea.save(
-            update_fields=["estado", "fecha_fin", "fecha_inicio"]
+            update_fields=["estado", "fecha_fin"]
         )
 
         registrar_log(

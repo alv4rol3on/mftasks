@@ -11,7 +11,8 @@ type Permiso = { id: number; usuario: number; usuario_email: string; subcampana:
 
 export default function AdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"usuarios" | "permisos">("usuarios");
+  const [tab, setTab] = useState<"usuarios" | "permisos" | "campanas">("usuarios");
+  const [togglingId, setTogglingId] = useState<number | null>(null);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -108,7 +109,7 @@ export default function AdminPage() {
     } catch (e) { setMsg(`Error cargando permisos: ${(e as Error).message}`); setPermisos([]); }
     finally { setBuscandoPermisos(false); }
   };
-  useEffect(() => { if (tab === "permisos") { cargarCampanas(); } }, [tab]);
+  useEffect(() => { if (tab === "permisos" || tab === "campanas") { cargarCampanas(); } }, [tab]);
   useEffect(() => { if (selectedClienteId !== "") cargarPermisos(Number(selectedClienteId)); else setPermisos([]); }, [selectedClienteId]);
 
   // Acordeón: colapsadas por defecto con animación simple
@@ -145,6 +146,28 @@ export default function AdminPage() {
     finally { setCargandoPermisos(false); }
   };
 
+  const toggleActivoCampana = async (campana: CampanaPerm) => {
+    if (!confirm(`${campana.activo ? "Inhabilitar" : "Habilitar"} campaña ${campana.nombre} (${campana.codigo})? ${campana.activo ? "Ningún usuario podrá crear tareas con sus subcampañas." : ""}`)) return;
+    setTogglingId(campana.id);
+    try {
+      await apiFetch(`/api/campanas/campanas/${campana.id}/`, { method: "PATCH", body: JSON.stringify({ activo: !campana.activo }) });
+      setMsg(`Campaña ${campana.codigo} ${!campana.activo ? "habilitada" : "inhabilitada"}`);
+      await cargarCampanas();
+    } catch (e) { setMsg(`Error: ${(e as Error).message}`); }
+    finally { setTogglingId(null); }
+  };
+  const toggleActivoSubcampana = async (sub: { id: number; nombre: string; codigo: string; activo: boolean; campana: number }, campActiva: boolean) => {
+    if (!campActiva && !sub.activo) { setMsg("Error: la campaña está inhabilitada; habilítala primero"); return; }
+    if (!confirm(`${sub.activo ? "Inhabilitar" : "Habilitar"} subcampaña ${sub.nombre} (${sub.codigo})? ${sub.activo ? "Ningún usuario podrá crear tareas con ella." : ""}`)) return;
+    setTogglingId(sub.id);
+    try {
+      await apiFetch(`/api/campanas/subcampanas/${sub.id}/`, { method: "PATCH", body: JSON.stringify({ activo: !sub.activo }) });
+      setMsg(`Subcampaña ${sub.codigo} ${!sub.activo ? "habilitada" : "inhabilitada"}`);
+      await cargarCampanas();
+    } catch (e) { setMsg(`Error: ${(e as Error).message}`); }
+    finally { setTogglingId(null); }
+  };
+
   const permisosSubcampanaIds = new Set(permisos.filter(p => p.subcampana != null).map(p => p.subcampana as number));
   const campanasFiltradas = campanas.filter(c => {
     if (!filtroCampana) return true;
@@ -158,8 +181,8 @@ export default function AdminPage() {
     <div className={styles.container}>
       <h2 className={styles.title}>Administración de usuarios</h2>
       <div className={styles.tabs}>
-        {(["usuarios", "permisos"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={tab === t ? styles.tabBtnActive : styles.tabBtn}>{t}</button>
+        {(["usuarios", "permisos", "campanas"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={tab === t ? styles.tabBtnActive : styles.tabBtn}>{t === "campanas" ? "campañas / subcampañas" : t}</button>
         ))}
       </div>
       {msg && <div className={`${styles.msg} ${msg.startsWith("Error") ? styles.msgError : styles.msgSuccess}`}>{msg}</div>}
@@ -222,6 +245,65 @@ export default function AdminPage() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {tab === "campanas" && (
+        <div className={styles.container}>
+          <div className={styles.card}>
+            <h3 className={styles.cardTitle}>Campañas / Subcampañas — habilitar para creación de tareas</h3>
+            <p className={styles.permisosDesc}>Inhabilitar una campaña o subcampaña impide que <strong>ningún usuario</strong> (aunque tenga permiso) pueda seleccionarla al crear tareas. Las tareas ya creadas mantienen su vínculo.</p>
+            <div className={styles.permisosField} style={{ maxWidth: 400 }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>Buscar campaña/subcampaña</label>
+              <input placeholder="Filtrar por campaña o subcampaña" value={filtroCampana} onChange={e => setFiltroCampana(e.target.value)} className={styles.input} />
+            </div>
+            {campanasFiltradas.length > 1 && (
+              <div className={styles.accordionActions}>
+                <button type="button" onClick={expandirTodas} className={styles.linkBtn}>Expandir todo</button>
+                <button type="button" onClick={colapsarTodas} className={styles.linkBtn}>Colapsar todo</button>
+              </div>
+            )}
+            <div className={styles.campanasList}>
+              {campanasFiltradas.length === 0 ? <div style={{ fontSize: 13, color: "#6b7280" }}>No hay campañas que coincidan.</div> : (
+                campanasFiltradas.map(camp => {
+                  const abierta = expandidas.has(camp.id);
+                  return (
+                    <div key={camp.id} className={styles.campanaCard}>
+                      <div role="button" tabIndex={0} className={styles.campanaHead} onClick={() => toggleCampana(camp.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCampana(camp.id); } }} aria-expanded={abierta} style={{ cursor: "pointer" }}>
+                        <div>
+                          <span className={styles.campanaTitle}>{camp.nombre}</span> <span className={styles.campanaCode}>({camp.codigo})</span>
+                          <span className={`${styles.badgeActive} ${camp.activo ? styles.badgeActiveOn : styles.badgeActiveOff}`}>{camp.activo ? "activa" : "inactiva"}</span>
+                        </div>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <button type="button" disabled={togglingId === camp.id} onClick={(e) => { e.stopPropagation(); toggleActivoCampana(camp); }} style={{ background: camp.activo ? "#fee2e2" : "#dcfce7", color: camp.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: togglingId === camp.id ? "wait" : "pointer", fontSize: 11, fontWeight: 700 }}>{camp.activo ? "Inhabilitar" : "Habilitar"}</button>
+                          <span className={styles.campanaCount}>{camp.subcampanas.length} sub</span>
+                          <span className={`${styles.chevron} ${abierta ? styles.chevronOpen : ""}`}>▸</span>
+                        </span>
+                      </div>
+                      <div className={`${styles.campanaBody} ${abierta ? styles.campanaBodyOpen : ""}`}>
+                        <div className={styles.campanaBodyInner}>
+                          <div className={styles.subcampanasGrid}>
+                          {camp.subcampanas.length === 0 ? <span style={{ fontSize: 12, color: "#9ca3af" }}>Sin subcampañas</span> : camp.subcampanas.map(sub => (
+                            <div key={sub.id} className={styles.subLabel} style={{ opacity: !camp.activo || !sub.activo ? 0.6 : 1, display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+                              <div className={styles.subInfo}>
+                                <div className={styles.subName}>{sub.nombre}</div>
+                                <div className={styles.subCode}>{sub.codigo} {!sub.activo && "(inactiva)"} {!camp.activo && "(campaña inactiva)"}</div>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span className={`${styles.badgeActive} ${sub.activo && camp.activo ? styles.badgeActiveOn : styles.badgeActiveOff}`} style={{ fontSize: 10 }}>{sub.activo && camp.activo ? "habilitada" : "inhabilitada"}</span>
+                                <button type="button" disabled={togglingId === sub.id} onClick={() => toggleActivoSubcampana(sub, camp.activo)} style={{ background: sub.activo ? "#fee2e2" : "#dcfce7", color: sub.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>{sub.activo ? "Inhabilitar" : "Habilitar"}</button>
+                              </div>
+                            </div>
+                          ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       )}

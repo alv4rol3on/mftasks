@@ -61,8 +61,8 @@ export default function TaskCountdown({
         };
 
         cargar();
-        // polling servidor cada 60s para corregir drift laboral y standby
-        poll = setInterval(cargar, 60000);
+        // polling servidor cada 30s para corregir drift laboral y standby
+        poll = setInterval(cargar, 30000);
         // tick local cada 1s solo si está en jornada laboral
         tick = setInterval(() => {
             if (!activoRef.current || pausadoRef.current) return;

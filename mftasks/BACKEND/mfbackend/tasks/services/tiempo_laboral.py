@@ -337,6 +337,23 @@ def calcular_tiempo_planificado_tarea(
 # CALCULAR TIEMPO ÚTIL RESTANTE
 # ============================================================
 
+def esta_en_jornada(fecha: datetime, incluye_sabado: bool = False) -> bool:
+    """True si fecha está dentro de jornada laboral (America/Lima ya en tzinfo)."""
+    if fecha.tzinfo is None:
+        fecha = timezone.make_aware(fecha, timezone.get_current_timezone())
+    # convertir a zona Lima para evaluar wd/hora
+    lima = timezone.localtime(fecha)
+    wd = lima.weekday()  # 0 Lun
+    total_min = lima.hour * 60 + lima.minute
+    if wd < 5:
+        return 9 * 60 <= total_min < 18 * 60
+    if wd == 5:
+        if not incluye_sabado:
+            return False
+        return 9 * 60 <= total_min < 13 * 60
+    return False
+
+
 def calcular_tiempo_restante_tarea(
     tarea: Tarea,
     ahora: Optional[datetime] = None
@@ -350,8 +367,6 @@ def calcular_tiempo_restante_tarea(
     entrega = tarea.fecha_entrega_aproximada
     if ahora <= inicio:
         return calcular_tiempo_planificado_tarea(tarea)
-    if ahora >= entrega:
-        return timedelta(0)
     incluye = _get_incluye_sabado(tarea)
     tiempo_planificado = calcular_tiempo_laboral(inicio, entrega, incluye_sabado=incluye)
     tiempo_transcurrido = calcular_tiempo_util_tarea(tarea, fecha_fin=ahora)
@@ -460,6 +475,40 @@ def obtener_contador_tarea(
             "tiempo_tomado_segundos": None,
             "incluye_sabado": incluye,
             "fecha_entrega_aproximada": None,
+        }
+
+    # Programada pero aún no en desarrollo: no activa hasta APScheduler
+    if tarea.estado in (Tarea.Estado.EN_ESPERA, Tarea.Estado.APROBADO):
+        # si fecha_inicio futura, mostrar planificado sin descontar
+        if tarea.fecha_inicio and ahora < tarea.fecha_inicio:
+            plan = calcular_tiempo_planificado_tarea(tarea)
+            return {
+                "activo": False,
+                "pausado": False,
+                "finalizado": False,
+                "segundos_restantes": int(plan.total_seconds()),
+                "tiempo_tomado_segundos": None,
+                "tiempo_planificado_segundos": int(plan.total_seconds()),
+                "incluye_sabado": incluye,
+                "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat(),
+                "fecha_inicio": tarea.fecha_inicio.isoformat(),
+                "servidor_ahora": ahora.isoformat(),
+                "programada": True,
+            }
+        # ya pasó la hora pero aún APROBADO por estar fuera de jornada -> sigue no activo
+        plan = calcular_tiempo_planificado_tarea(tarea)
+        return {
+            "activo": False,
+            "pausado": False,
+            "finalizado": False,
+            "segundos_restantes": int(plan.total_seconds()),
+            "tiempo_tomado_segundos": None,
+            "tiempo_planificado_segundos": int(plan.total_seconds()),
+            "incluye_sabado": incluye,
+            "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat(),
+            "fecha_inicio": tarea.fecha_inicio.isoformat(),
+            "servidor_ahora": ahora.isoformat(),
+            "programada": True,
         }
 
     tiempo_restante = calcular_tiempo_restante_tarea(tarea, ahora=ahora)

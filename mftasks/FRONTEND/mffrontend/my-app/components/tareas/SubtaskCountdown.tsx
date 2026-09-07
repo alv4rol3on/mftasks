@@ -65,7 +65,7 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeS
         };
 
         cargar();
-        poll = setInterval(cargar, 60000);
+        poll = setInterval(cargar, 30000);
         tick = setInterval(() => {
             if (!activoRef.current || pausadoRef.current) return;
             if (!estaEnJornada(new Date(), incluyeRef.current)) return;

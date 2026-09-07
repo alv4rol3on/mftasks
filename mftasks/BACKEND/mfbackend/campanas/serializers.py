@@ -34,6 +34,12 @@ class PermisoCampanaSerializer(serializers.ModelSerializer):
         subcampana = attrs.get("subcampana")
         from usuarios.models import User
         usuario = attrs.get("usuario")
+        # Bloquear permisos a entidades inhabilitadas
+        if campana is not None and not campana.activo:
+            raise serializers.ValidationError({"campana": "La campaña está inhabilitada por Administración."})
+        if subcampana is not None:
+            if not subcampana.activo or not subcampana.campana.activo:
+                raise serializers.ValidationError({"subcampana": "La campaña/subcampaña está inhabilitada por Administración."})
         # Si usuario es CLIENTE, solo permitir permiso puntual a subcampana
         if usuario:
             try:

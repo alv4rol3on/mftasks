@@ -108,13 +108,13 @@ def es_cliente(user):
 
 
 def tiene_permiso_subcampana(user, subcampana):
-    """Verifica permiso puntual a subcampaña para cliente. Admin siempre True. No hereda de campana."""
+    """Verifica permiso puntual a subcampaña para cliente. Admin respeta activo."""
     if not user or not user.is_authenticated or subcampana is None:
+        return False
+    if not subcampana.activo or not subcampana.campana.activo:
         return False
     if user.roles.filter(rol__nombre__iexact="Administrador").exists():
         return True
-    if not subcampana.activo or not subcampana.campana.activo:
-        return False
     from campanas.models import PermisoCampana
     # solo permiso directo a subcampana puntual
     if PermisoCampana.objects.filter(usuario=user, subcampana=subcampana).exists():
