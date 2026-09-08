@@ -176,8 +176,6 @@ export default function TaskTableEnDesarrollo({
                             ? `${tarea.campana_nombre}-${tarea.subcampana_nombre}: ${tarea.asunto}`
                             : `${tarea.campana_nombre ?? "-"}: ${tarea.asunto}`}
                         </span>
-                        <span aria-hidden="true" style={{ fontSize: 12, color: "#2563eb", flexShrink: 0 }}>→</span>
-                        <span style={{ fontSize: 10, color: "#2563eb", fontWeight: 400, border: "1px solid #dbeafe", background: "#eff6ff", padding: "1px 6px", borderRadius: 999, whiteSpace: "nowrap" }}>Ver detalles</span>
                       </span>
                       <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400, marginTop: 4 }}>
                         Ticket {tarea.ticket ?? `#${tarea.id}`}

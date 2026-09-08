@@ -1,7 +1,8 @@
 AÑADIR:
-- TAREAS RECURRENTES(REUNIONES)
-- modificar diseño de asignar permisos de subcampañas
-- añadir la hora en que empezó, solucionó y el tiempo que tomó solucionar la subtarea
-- la tarea general tome la hora de entrega final y el tiempo que tomó solucionar todo
-- Que el contador tome tambien sabados de 9am a 1pm
-
+- Cuando una subtarea esta en stand-by, su contador de cuanto se tarda en resolver se reinicia
+- falta el estado y filtro stand-ny para clientes
+- alerta al correo para las 8am
+- en el modal de tareas cambiar las pestañas a progreso(llamada subtareas), historial y uno nuevo llamado asignaciones
+- cuando 2 usuarios estan abiertos en la misma pc(pero diferente navegador), el contador de las tareas se reinicia al cambiar de aplicacion siempre
+- el administradr deberia ver las tareas y subtareas de otros grupos pero de forma sencilla, es decir, no deberia poder cambiar nada ni ningun estado de las mismas pero si inactivarlas si ve conveniente
+- 

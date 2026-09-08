@@ -1,8 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
+import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
+import { useToast } from "@/components/ui/Toast";
+import { Task } from "@/lib/types";
+
+
 
 interface TareaConPendientes {
   tarea_id: number;
@@ -29,6 +34,11 @@ export default function Home() {
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openCrear, setOpenCrear] = useState(false);
+  const [tareas, setTareas] = useState<Task[]>([]);
+  const { showToast } = useToast();
+
+
 
   useEffect(() => {
     apiFetch<Resumen>("/api/tasks/tasks/resumen/")
@@ -37,6 +47,18 @@ export default function Home() {
       .finally(() => setCargando(false));
   }, []);
 
+  const cargar = useCallback(async () => {
+    try {
+      const data = await apiFetch<Task[]>("/api/tasks/tasks/");
+      setTareas(data);
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+      showToast((e as Error).message, "error");
+    } finally {
+      setCargando(false);
+    }
+  }, [showToast]);
   if (cargando) return <div>Cargando alertas…</div>;
   if (error) return <div className="rounded p-4 text-sm text-red-600">Error al cargar alertas: {error}</div>;
 
@@ -69,8 +91,12 @@ export default function Home() {
             <Link href="/mfpages/cliente/mis-solicitudes" style={{ color: "#2563eb", textDecoration: "underline", fontSize: 14 }}>
               Ver mis solicitudes →
             </Link>
+            {/*<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+              <button onClick={() => setOpenCrear(true)} style={{ background: "#2563eb", color: "white", padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer" }}>+ Nueva solicitud</button>
+            </div>*/}
           </div>
         )}
+        <CrearSolicitudModal open={openCrear} onClose={() => setOpenCrear(false)} onCreated={() => { showToast("Solicitud creada", "success"); cargar(); }} />
       </div>
     );
   }
@@ -166,6 +192,7 @@ export default function Home() {
           {pendientes > 0 && renderPendientesDetalle()}
         </div>
       )}
+
     </div>
   );
 }
