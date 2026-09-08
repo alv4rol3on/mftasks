@@ -8,6 +8,7 @@ import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import TaskCountdown from "./TaskCountdown";
 import Pagination from "../ui/Pagination";
+import { ContadoresProvider } from "./ContadoresProvider";
 
 const fmtSolicitud = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -101,13 +102,17 @@ export default function TaskTableEnDesarrollo({
     if (pagina > totalPages) setPagina(totalPages);
   }, [pagina, totalPages]);
 
+  // ids visibles para contadores centralizados (1 poll + 1 tick global)
+  const visibleIds = useMemo(() => tareasPaginadas.map((t) => t.id), [tareasPaginadas]);
+
   return (
     <>
-      <div className={styles.taskTableContainer}>
-        {tareasVisibles.length === 0 ? (
-          <div className={styles.noTasks}>No hay tareas en desarrollo</div>
-        ) : (
-          <table className={styles.taskTable}>
+      <ContadoresProvider ids={visibleIds}>
+        <div className={styles.taskTableContainer}>
+          {tareasVisibles.length === 0 ? (
+            <div className={styles.noTasks}>No hay tareas en desarrollo</div>
+          ) : (
+            <table className={styles.taskTable}>
             <thead>
               <tr>
                 <th>Fecha solicitud</th>
@@ -203,6 +208,7 @@ export default function TaskTableEnDesarrollo({
           </table>
         )}
       </div>
+      </ContadoresProvider>
       {tareasOrdenadas.length > 0 && (
         <Pagination page={paginaClamped} totalPages={totalPages} totalItems={tareasOrdenadas.length} pageSize={pageSize} onPageChange={setPagina} />
       )}
