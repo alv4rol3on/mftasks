@@ -18,12 +18,12 @@ const fmt = (f: string | null | undefined) => {
 };
 
 const estadoColor: Record<string, string> = {
-  EN_ESPERA: "#fbff00",
-  APROBADO: "#2563eb",
-  EN_DESARROLLO: "#7c3aed",
+  EN_ESPERA: "#9ca3af",
+  APROBADO: "#7c3aed",
+  EN_DESARROLLO: "#2563eb",
   RECHAZADO: "#dc2626",
   SOLUCIONADO: "#16a34a",
-  STAND_BY: "#f59e0b",
+  STAND_BY: "#d97706",
 };
 
 type Props = { tarea: Task | null; onClose: () => void };
@@ -128,10 +128,10 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                           }
                           title={(s as any).motivo_standby || ""}
                         >
-                          <td>{s.descripcion}</td>
-                          <td><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding:"2px 6px", borderRadius:6, fontSize:11}}>{s.estado}</span></td>
-                          <td>{s.peso}</td>
-                          <td>{s.asignado_nombre}</td>
+                          <td data-label="Subtarea">{s.descripcion}</td>
+                          <td data-label="Estado"><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding:"2px 6px", borderRadius:6, fontSize:11}}>{s.estado}</span></td>
+                          <td data-label="Peso">{s.peso}</td>
+                          <td data-label="Asignado">{s.asignado_nombre}</td>
                         </tr>
                       ))}
                     </tbody>

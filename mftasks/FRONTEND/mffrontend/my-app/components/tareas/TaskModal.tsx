@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import styles from "./TaskModalDesarrollo.module.css";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import SubtaskCountdown from "./SubtaskCountdown";
 import TaskIniciarModal from "./TaskIniciarModal";
+import Pagination from "../ui/Pagination";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima",
@@ -96,6 +97,9 @@ export default function TaskModal({
     const [logsError, setLogsError] = useState<string | null>(null);
     const [logsLoading, setLogsLoading] = useState(false);
     const [mostrarIniciar, setMostrarIniciar] = useState(false);
+    const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
+    const [paginaHist, setPaginaHist] = useState(1);
+    const histPageSize = 10;
 
     const usuario = getUsuarioActual();
 
@@ -124,7 +128,21 @@ export default function TaskModal({
         setLogs(null);
         setLogsError(null);
         setTab("subtareas");
+        setExpandedLogs(new Set());
+        setPaginaHist(1);
     }, [tarea?.id]);
+
+    useEffect(() => {
+        setPaginaHist(1);
+    }, [tab]);
+
+    const logsPaginados = useMemo(() => {
+        if (!logs) return [];
+        const start = (paginaHist - 1) * histPageSize;
+        return logs.slice(start, start + histPageSize);
+    }, [logs, paginaHist]);
+
+    const totalHistPages = logs ? Math.max(1, Math.ceil(logs.length / histPageSize)) : 1;
 
     const agregarDependencia = async () => {
         if (!tarea || depBloqueada === "" || depBloqueadora === "") { setDepMsg("Selecciona ambas subtareas"); return; }
@@ -231,7 +249,7 @@ export default function TaskModal({
                                         <td><strong>Sábados</strong></td>
                                         <td>{tarea.incluye_sabado ? "Sí (9:00-13:00)" : "No (solo L-V 9-18)"}</td>
                                     </tr>
-                                    {(tarea.estado === "APROBADO" || tarea.subtareas.length > 0) && (
+                                    {tarea.estado === "APROBADO" && (
                                         <tr>
                                             <td>
                                                 {tarea.puedo_operar && onIniciar && (
@@ -299,7 +317,7 @@ export default function TaskModal({
                                                             <tr
                                                                 key={subtarea.id}
                                                                 title={bloqueadaTooltip || subtarea.motivo_standby || ""}
-                                                                className={
+                                                                 className={
                                                                     subtarea.estado === "EN_ESPERA"
                                                                         ? styles.estadoEnEspera
                                                                         : subtarea.estado === "EN_DESARROLLO"
@@ -307,18 +325,18 @@ export default function TaskModal({
                                                                             : subtarea.estado === "SOLUCIONADO"
                                                                                 ? styles.estadoSolucionado
                                                                                 : subtarea.estado === "STAND_BY"
-                                                                                    ? styles.estadoEnEspera
+                                                                                    ? styles.estadoEnStandBy
                                                                                     : ""
                                                                 }
                                                             >
-                                                                <td>
+                                                                <td data-label="Descripción">
                                                                     <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.descripcion} {bloqueada && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
                                                                     <div style={{ fontSize: 10, color: "#6b7280" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)} {subtarea.motivo_standby && <span style={{ color: "#92400e" }}>({subtarea.motivo_standby})</span>}</div>
                                                                     {subtarea.estado === "SOLUCIONADO" && subtarea.tiempo_tomado_formateado && <div style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>Tomado: {subtarea.tiempo_tomado_formateado} ({subtarea.tiempo_tomado_horas}h)</div>}
                                                                 </td>
-                                                                <td>{subtarea.asignado_nombre}</td>
-                                                                <td>{subtarea.peso}</td>
-                                                                <td>
+                                                                <td data-label="Asignado">{subtarea.asignado_nombre}</td>
+                                                                <td data-label="Peso">{subtarea.peso}</td>
+                                                                <td data-label="Contador / Tiempo">
                                                                     <SubtaskCountdown
                                                                         tareaId={tarea.id}
                                                                         subtareaId={subtarea.id}
@@ -329,7 +347,7 @@ export default function TaskModal({
                                                                     />
                                                                     {subtarea.fecha_inicio && !subtarea.fecha_fin && <div style={{ fontSize: 10, color: "#6b7280" }}>Iniciada {formatearFecha(subtarea.fecha_inicio)}</div>}
                                                                 </td>
-                                                                <td>
+                                                                <td data-label="Cambiar Estado">
                                                                     {esMiSubtarea && onCambiarEstadoSubtarea ? (
                                                                         subtarea.estado === "SOLUCIONADO" ? (
                                                                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#dcfce7", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid #86efac" }}>✓ Solucionado</span>
@@ -457,8 +475,8 @@ export default function TaskModal({
                                     {logsLoading && !logs && <p style={{ fontSize: 12 }}>Cargando logs...</p>}
                                     {logs && logs.length === 0 && <p style={{ fontSize: 12, color: "#6b7280" }}>Sin registros.</p>}
                                     {logs && logs.length > 0 && (
-                                        <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 8 }}>
-                                            <table className={styles.subtareasTable} style={{ minWidth: 600 }}>
+                                        <div className={styles.subtareasContainer} style={{ maxHeight: 300, border: "1px solid #e5e7eb", borderRadius: 8 }}>
+                                            <table className={styles.subtareasTable}>
                                                 <thead>
                                                     <tr>
                                                         <th>Fecha</th>
@@ -468,17 +486,40 @@ export default function TaskModal({
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {logs.map((l) => (
+                                                    {logsPaginados.map((l) => {
+                                                        const expanded = expandedLogs.has(l.id);
+                                                        const detalle = l.detalle || `${l.estado_anterior ?? ""} → ${l.estado_nuevo ?? ""}`;
+                                                        const necesitaClamp = detalle.length > 120;
+                                                        return (
                                                         <tr key={l.id}>
-                                                            <td style={{ fontSize: 11 }}>{formatearFechaSec(l.fecha)}</td>
-                                                            <td style={{ fontSize: 11 }}>{l.usuario ?? "-"}</td>
-                                                            <td style={{ fontSize: 11 }}><span style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{l.tipo_evento}</span>{l.subtarea_id ? <div style={{ fontSize: 10, color: "#6b7280" }}>Sub #{l.subtarea_id}</div> : null}</td>
-                                                            <td style={{ fontSize: 11 }}>{l.detalle || `${l.estado_anterior ?? ""} → ${l.estado_nuevo ?? ""}`}</td>
+                                                            <td data-label="Fecha" style={{ fontSize: 11 }}>{formatearFechaSec(l.fecha)}</td>
+                                                            <td data-label="Usuario" style={{ fontSize: 11 }}>{l.usuario ?? "-"}</td>
+                                                            <td data-label="Evento" style={{ fontSize: 11 }}><span style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{l.tipo_evento}</span>{l.subtarea_id ? <div style={{ fontSize: 10, color: "#6b7280" }}>Sub #{l.subtarea_id}</div> : null}</td>
+                                                            <td data-label="Detalle" style={{ fontSize: 11 }}>
+                                                                <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>{detalle}</div>
+                                                                {necesitaClamp && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.historialToggle}
+                                                                        onClick={() => setExpandedLogs(prev => {
+                                                                            const n = new Set(prev);
+                                                                            if (n.has(l.id)) n.delete(l.id); else n.add(l.id);
+                                                                            return n;
+                                                                        })}
+                                                                    >
+                                                                        {expanded ? "Ver menos" : "Ver más"}
+                                                                    </button>
+                                                                )}
+                                                            </td>
                                                         </tr>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>
+                                    )}
+                                    {logs && logs.length > histPageSize && (
+                                        <Pagination page={paginaHist} totalPages={totalHistPages} totalItems={logs.length} pageSize={histPageSize} onPageChange={setPaginaHist} />
                                     )}
                                     <p style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>Solo miembros del equipo, líderes y sublíderes pueden ver este historial. El backend valida permisos.</p>
                                 </div>

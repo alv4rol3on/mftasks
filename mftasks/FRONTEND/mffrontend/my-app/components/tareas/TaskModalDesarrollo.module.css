@@ -13,9 +13,8 @@
 
 .modal {
     width: min(860px, calc(100vw - 32px));
-    max-width: 95%;
-    max-height: 90vh;
-    max-height: 90dvh;
+    max-height: 92vh;
+    max-height: 92dvh;
     background: white;
     border-radius: 14px;
     overflow: hidden;
@@ -34,6 +33,22 @@
     align-items: center;
     flex-shrink: 0;
     gap: 12px;
+}
+
+.modalHeader > div {
+    min-width: 0;
+}
+
+.modalHeader h2 {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.2;
+}
+
+.modalHeader p {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.3;
 }
 
 .modalBody {
@@ -138,21 +153,28 @@
 }
 
 .estadoEnEspera {
-    background-color: #fbff00;
+    background-color: #e5e7eb;
+    color: #1f2937;
+    border: 1px dashed #9ca3af;
 }
 
 .estadoEnStandBy {
-    background-color: #f59e0b;
+    background-color: #fef3c7;
+    color: #78350f;
+    border: 1px solid #d97706;
+    background-image: repeating-linear-gradient(45deg, #fef3c7, #fef3c7 6px, #fde68a 6px, #fde68a 12px);
 }
 
 .estadoEnDesarrollo {
-    background-color: #7c3aed;
-    color: white;
+    background-color: #dbeafe;
+    color: #1e3a8a;
+    border: 1px solid #2563eb;
 }
 
 .estadoSolucionado {
-    background-color: #16a34a;
-    color: white;
+    background-color: #dcfce7;
+    color: #14532d;
+    border: 1px solid #16a34a;
 }
 
 .progresoSection {
@@ -194,6 +216,28 @@
   overflow-y: auto;
   border-radius: 8px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #b5b5b5 transparent;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.subtareasContainer::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.subtareasContainer::-webkit-scrollbar-thumb {
+  background: #b5b5b5;
+  border-radius: 4px;
+}
+
+.subtareasContainer::-webkit-scrollbar-thumb:hover {
+  background: #8d8d8d;
+}
+
+.subtareasContainer::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .subtareasTable {
@@ -213,6 +257,17 @@
 
 .subtareasTable th {
     background: #ffffff;
+}
+
+/* Grid responsive para CrearSolicitudModal */
+.crearGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.crearGrid textarea {
+    grid-column: 1 / -1;
 }
 
 /* --- Clases para TaskIniciarModal (reemplazan inline styles no responsive) --- */
@@ -255,7 +310,7 @@
     min-width: 0;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 768px) {
     .modalBody {
         grid-template-columns: 1fr;
         padding: 16px;
@@ -266,18 +321,157 @@
         grid-column: 1;
     }
 
+    /* Cards para subtareas/historial: fuera scroll horizontal */
     .subtareasContainer {
-        max-height: 42vh;
-        margin: 0 -4px;
-        padding: 0 4px;
+        overflow-x: visible;
+        overflow-y: auto;
+        max-height: 50vh;
+        margin: 0;
+        padding: 0;
+        border: none;
+        scrollbar-gutter: auto;
+    }
+
+    .subtareasTable,
+    .subtareasTable thead,
+    .subtareasTable tbody,
+    .subtareasTable tr,
+    .subtareasTable th,
+    .subtareasTable td {
+        display: block;
+        width: 100%;
     }
 
     .subtareasTable {
-        min-width: 560px;
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+        background: transparent;
+    }
+
+    .subtareasTable thead {
+        display: none;
+    }
+
+    .subtareasTable tbody tr {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        border-left-width: 4px;
+        border-left-style: solid;
+        border-left-color: #e5e7eb;
+    }
+
+    .subtareasTable tbody tr.estadoEnEspera {
+        border-left-color: #9ca3af;
+    }
+
+    .subtareasTable tbody tr.estadoEnDesarrollo {
+        border-left-color: #2563eb;
+    }
+
+    .subtareasTable tbody tr.estadoEnStandBy {
+        border-left-color: #d97706;
+    }
+
+    .subtareasTable tbody tr.estadoSolucionado {
+        border-left-color: #16a34a;
+    }
+
+    .subtareasTable td {
+        border: none !important;
+        padding: 6px 0 !important;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 13px;
+        text-align: right;
+    }
+
+    .subtareasTable td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: #6b7280;
+        font-size: 12px;
+        flex: 0 0 42%;
+        text-align: left;
+    }
+
+    .subtareasTable td:first-child {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: left;
+        border-bottom: 1px solid #f3f4f6 !important;
+        margin-bottom: 4px;
+        padding-bottom: 8px !important;
+    }
+
+    .subtareasTable td:first-child::before,
+    .subtareasTable td:last-child::before {
+        display: none;
+    }
+
+    .subtareasTable td:last-child {
+        justify-content: flex-end;
+        border-top: 1px solid #f3f4f6 !important;
+        margin-top: 4px;
+        padding-top: 8px !important;
+    }
+
+    .subtareasTable td[data-label="Peso"] {
+        display: none;
+    }
+
+    .subtareasTable td[data-label="Contador / Tiempo"] {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: left;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px;
+        padding: 8px !important;
+        margin: 4px 0;
+    }
+
+    .subtareasTable td[data-label="Contador / Tiempo"]::before {
+        display: none;
+    }
+
+    .estadoSelect {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .historialClamp {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
+    }
+
+    .historialClamp.expanded {
+        -webkit-line-clamp: unset;
+        display: block;
+    }
+
+    .historialToggle {
+        font-size: 12px;
+        color: #2563eb;
+        background: none;
+        border: none;
+        padding: 2px 0;
+        cursor: pointer;
+        font-weight: 600;
+        align-self: flex-start;
     }
 
     .fechasRow {
         flex-direction: column;
+        gap: 12px;
     }
 
     .subtareaRow {
@@ -285,6 +479,18 @@
     }
 
     .subtareaRow input:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .iniciarBody {
+        padding: 16px;
+    }
+
+    .crearGrid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .crearGrid textarea {
         grid-column: 1 / -1;
     }
 }
@@ -312,7 +518,6 @@
 
     .modalHeader h2 {
         font-size: 16px;
-        word-break: break-word;
     }
 
     .modalHeader p {
@@ -332,14 +537,77 @@
 
     .modalBody {
         padding: 14px;
+        gap: 12px;
+    }
+
+    .iniciarBody {
+        padding: 14px;
+        gap: 12px;
+    }
+
+    .infoTable td {
+        display: block;
+        width: 100% !important;
+        padding: 4px 0;
+    }
+
+    .infoTable td:first-child {
+        width: 100% !important;
+        padding-bottom: 2px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .infoTable td:last-child {
+        padding-top: 0;
+        padding-bottom: 10px;
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    .infoTable tr {
+        display: block;
+        border-bottom: 1px solid #f3f4f6;
+        padding: 4px 0;
+    }
+
+    .infoTable tr:last-child {
+        border-bottom: none;
+    }
+
+    .descriptionBox {
+        min-height: 60px;
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .subtareasContainer {
+        max-height: 60vh;
     }
 
     .subtareaRow {
         grid-template-columns: 1fr;
+        gap: 8px;
     }
 
     .subtareaRow input:first-child {
         grid-column: auto;
+    }
+
+    .subtareaRow button {
+        width: auto;
+        justify-self: end;
+        padding: 6px 12px;
+    }
+
+    .modalFooter {
+        gap: 8px;
+    }
+
+    .modalFooter button {
+        flex: 1;
+        min-width: 120px;
     }
 }
 

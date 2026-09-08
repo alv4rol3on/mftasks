@@ -11,7 +11,7 @@
 
 .taskTable {
     width: 100%;
-    min-width: 1100px;
+    min-width: 900px;
     background: #fff;
     border: 1px solid #d8d8d8;
     border-radius: 10px;
@@ -20,6 +20,11 @@
     border-spacing: 0;
     overflow: hidden;
 }
+
+/* Anchos preferidos para 4 columnas nuevas */
+.taskTable thead th:nth-child(1) { width: 170px; }
+.taskTable thead th:nth-child(3) { width: 150px; }
+.taskTable thead th:nth-child(4) { width: 190px; }
 
 .taskTable thead th {
     background: #f3f4f6;
@@ -44,8 +49,23 @@
     border-bottom: none;
 }
 
+.taskTable tbody tr {
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s;
+}
+
 .taskTable tbody tr:hover {
-    background: #f8fbff;
+    background: #f0f7ff;
+    box-shadow: inset 0 0 0 1px #dbeafe;
+}
+
+.taskTable tbody tr:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+}
+
+.taskSubject a:hover {
+    color: #1e40af;
 }
 
 .taskSubject {
@@ -178,25 +198,22 @@
         text-align: left;
     }
 
-    /* Asunto ocupa fila completa, sin etiqueta */
-    .taskTable tbody td[data-label="Asunto"] {
+    /* Solicitud ocupa fila completa visualmente, con 2 líneas internas */
+    .taskTable tbody td[data-label="Solicitud"] {
         flex-direction: column;
         align-items: flex-start;
         text-align: left;
-        font-size: 15px;
+        font-size: 14px;
         border-bottom: 1px solid #eee;
     }
-    .taskTable tbody td[data-label="Asunto"]::before { display: none; }
+    .taskTable tbody td[data-label="Solicitud"]::before { display: none; }
 
-    /* Acciones ocupa fila completa, botones a ancho completo */
-    .taskTable tbody td[data-label="Acciones"] {
-        justify-content: flex-start;
-        flex-wrap: wrap;
-        border-top: 1px solid #eee;
-        margin-top: 4px;
-        padding-top: 12px;
+    /* Fecha solicitud y Estado/Contador mantienen label a la izquierda */
+    .taskTable tbody td[data-label="Fecha solicitud"],
+    .taskTable tbody td[data-label="Estado"],
+    .taskTable tbody td[data-label="Contador"] {
+        font-size: 13px;
     }
-    .taskTable tbody td[data-label="Acciones"]::before { display: none; }
 
     .btnDetalles, .btnIniciar {
         flex: 1;

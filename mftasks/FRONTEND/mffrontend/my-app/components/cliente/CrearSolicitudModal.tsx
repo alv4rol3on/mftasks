@@ -94,7 +94,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
         </div>
         <div className={styles.iniciarBody}>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className={styles.crearGrid}>
               <select value={campanaId} onChange={(e) => setCampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
                 <option value="">Seleccionar Campaña</option>
                 {campanas.map((c) => (
