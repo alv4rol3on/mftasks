@@ -514,13 +514,15 @@ export default function EquiposPage() {
           {equipos.map((equipo) => {
             const expandido = equipoExpandido === equipo.id;
             const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
-            const puedoGestionar = Boolean(equipo.puedo_gestionar);
             const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";
             const liderNombre = equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "—";
             const totalActivos = equipo.miembros.filter((m) => m.estado === "ACTIVO").length;
             const totalIndisponibles = equipo.miembros.filter((m) => m.estado === "INDISPONIBLE").length;
             const tieneSubLiderActivo = equipo.miembros.some((m) => m.rol_en_equipo === "SUB_LIDER" && m.estado === "ACTIVO");
             const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
+            const liderActivo = liderMiembro?.estado === "ACTIVO";
+            const puedoGestionar = Boolean(equipo.puedo_gestionar) && liderActivo;
+
 
             return (
               <div key={equipo.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
@@ -581,7 +583,7 @@ export default function EquiposPage() {
                                   abrirModalIndisponible(equipo.id, liderMiembro);
                                 }}
                                 disabled={!!accionando || !tieneSubLiderActivo}
-                                title={!tieneSubLiderActivo ? "Debe haber un sub-líder activo para que el líder pueda marcarse indisponible (condición)" : "Inactivar cuenta"}
+                                title={!tieneSubLiderActivo ? "CONDICION: Debe haber un sub-líder asignado en el equipo para que el líder pueda marcarse indisponible" : "Inactivar cuenta"}
                                 style={{ background: tieneSubLiderActivo ? "white" : "#f3f4f6", color: tieneSubLiderActivo ? "#92400e" : "#9ca3af", border: "1px solid #fde68a", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
                               >
                                 Inactivar cuenta
@@ -592,7 +594,7 @@ export default function EquiposPage() {
                                 disabled={!!accionando}
                                 style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
                               >
-                                Volver líder a activo
+                                Volver a estado activo
                               </button>
                             ) : null}
                             <span style={{ fontSize: 11, color: "#6b7280" }}>Condición: debe haber sub-líder</span>
@@ -645,9 +647,14 @@ export default function EquiposPage() {
                                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                         <button
                                           onClick={() => handleToggleSubLider(equipo, m)}
-                                          disabled={!!accionando || m.estado !== "ACTIVO"}
-                                          title={m.estado !== "ACTIVO" ? "Solo miembros activos pueden ser sub-líder" : soyLider ? "Otorgar/revocar SUB-LÍDER" : "Solo el líder puede hacer esto"}
-                                          style={{
+                                          disabled={!!accionando || !liderActivo || m.estado !== "ACTIVO"}
+                                          title={
+                                            !liderActivo
+                                              ? "No puedes gestionar el equipo porque el líder está inactivo"
+                                              : m.estado !== "ACTIVO"
+                                                ? "Solo miembros activos pueden ser sub-líder"
+                                                : "Otorgar/revocar SUB-LÍDER"
+                                          } style={{
                                             background: m.rol_en_equipo === "SUB_LIDER" ? "#fef3c7" : "white",
                                             color: m.rol_en_equipo === "SUB_LIDER" ? "#92400e" : "#374151",
                                             border: `1px solid ${m.rol_en_equipo === "SUB_LIDER" ? "#f59e0b" : "#d1d5db"}`,
@@ -664,7 +671,7 @@ export default function EquiposPage() {
 
                                         <button
                                           onClick={() => handleCambiarEstadoConReasignacion(equipo, m, "INACTIVO")}
-                                          disabled={!!accionando}
+                                          disabled={!!accionando || !liderActivo}
                                           title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
                                           style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
                                         >
@@ -674,7 +681,7 @@ export default function EquiposPage() {
                                         {m.estado !== "INDISPONIBLE" ? (
                                           <button
                                             onClick={() => abrirModalIndisponible(equipo.id, m)}
-                                            disabled={!!accionando || m.estado === "INACTIVO"}
+                                            disabled={!!accionando || !liderActivo || m.estado === "INACTIVO"}
                                             style={{ background: "white", color: "#92400e", border: "1px solid #fde68a", padding: "4px 8px", borderRadius: 6, cursor: m.estado === "INACTIVO" ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 600, opacity: m.estado === "INACTIVO" ? 0.5 : 1 }}
                                           >
                                             Inactivar
@@ -703,7 +710,7 @@ export default function EquiposPage() {
                       <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                         <button
                           onClick={() => abrirModalAgregar(equipo)}
-                          disabled={!!accionando}
+                          disabled={!!accionando || !liderActivo}
                           style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
                         >
                           + Agregar integrante

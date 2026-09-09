@@ -227,22 +227,18 @@ export default function TaskModal({
                                         <td><strong>Fecha de entrega aproximada</strong></td>
                                         <td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td>
                                     </tr>
-                                    {tarea.fecha_solucion && (
-                                        <tr>
-                                            <td><strong>Fecha de solución</strong></td>
-                                            <td>{formatearFechaSec(tarea.fecha_solucion)}</td>
-                                        </tr>
-                                    )}
-                                    {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
-                                        <tr>
-                                            <td><strong>Tiempo tomado (tarea)</strong></td>
-                                            <td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td>
-                                        </tr>
-                                    )}
+                                    
                                     {tarea.tiempo_planificado_segundos !== null && tarea.tiempo_planificado_segundos !== undefined && (
                                         <tr>
                                             <td><strong>Tiempo planificado</strong></td>
                                             <td>{Math.floor(tarea.tiempo_planificado_segundos / 3600)}h {Math.floor((tarea.tiempo_planificado_segundos % 3600) / 60)}m</td>
+                                        </tr>
+                                    )}
+
+                                    {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
+                                        <tr>
+                                            <td><strong>Tiempo tomado (tarea)</strong></td>
+                                            <td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td>
                                         </tr>
                                     )}
                                     <tr>

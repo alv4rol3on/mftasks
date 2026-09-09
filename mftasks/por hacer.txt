@@ -5,4 +5,14 @@ AÑADIR:
 - en el modal de tareas cambiar las pestañas a progreso(llamada subtareas), historial y uno nuevo llamado asignaciones
 - cuando 2 usuarios estan abiertos en la misma pc(pero diferente navegador), el contador de las tareas se reinicia al cambiar de aplicacion siempre
 - el administradr deberia ver las tareas y subtareas de otros grupos pero de forma sencilla, es decir, no deberia poder cambiar nada ni ningun estado de las mismas pero si inactivarlas si ve conveniente
+
+
+ADMIN
+- A lo mucho deberia poder inactivar tareas como una forma de borrado
+- 
+
+
+Detalles con el contador: 
+- el contador se reinicia cuando hay mas de un usuario abierto 
+- no esta tomando el tiempo acumulado de la subtarea - el tiempo perdido por standby
 - 

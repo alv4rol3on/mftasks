@@ -209,24 +209,24 @@ export default function AdminPage() {
 
           <div className={styles.card}>
             <div className={styles.usersHeader}>
-              <h3 className={styles.cardTitle} style={{ margin: 0 }}>Usuarios ({usuariosFiltrados.length})</h3>
+              <h3 className={styles.cardTitle} style={{ margin: 0, color: "white" }}>Usuarios ({usuariosFiltrados.length})</h3>
               <input placeholder="Buscar por email, nombre o codigo MFS-" value={filtro} onChange={e => setFiltro(e.target.value)} className={styles.searchInput} />
             </div>
             {cargando ? <div>Cargando...</div> : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead><tr><th>Codigo</th><th>Email</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Accion</th></tr></thead>
-                  <tbody>
+                  <tbody style={{backgroundColor: "white"}}>
                     {usuariosFiltrados.map(u => {
                       const esAdmin = (u.roles ?? []).map(r => r.toLowerCase()).includes("administrador");
                       const rolActual = (u.roles ?? [])[0] ?? "sin rol";
                       return (
                         <tr key={u.id} style={{ opacity: esAdmin ? 0.6 : 1 }}>
-                          <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>{(u as any).codigo ?? "-"}</td>
+                          <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#991b1b" }}>{(u as any).codigo ?? "-"}</td>
                           <td>{u.email}</td>
                           <td>{u.nombres} {u.apellidos}</td>
                           <td>
-                            {esAdmin ? <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: 6, fontSize: 11 }}>Administrador (bloqueado)</span> : (
+                            {esAdmin ? <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: 6, fontSize: 11 }}>Administrador</span> : (
                               <select value={rolActual.toLowerCase()} onChange={e => cambiarRol(u, e.target.value)} className={styles.select} style={{ padding: "4px 6px", fontSize: 12 }}>
                                 <option value="miembro">miembro</option>
                                 <option value="lider">lider</option>
@@ -235,7 +235,7 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td>{u.is_active ? "Si" : "No"}</td>
-                          <td>
+                          <td style={{color: "#991b1b"}}>
                             <button disabled={esAdmin} onClick={() => toggleActivo(u)} style={{ background: esAdmin ? "#f3f4f6" : u.is_active ? "#fee2e2" : "#dcfce7", color: esAdmin ? "#9ca3af" : u.is_active ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: esAdmin ? "not-allowed" : "pointer", fontSize: 12 }}>{u.is_active ? "Desactivar" : "Activar"}</button>
                           </td>
                         </tr>
