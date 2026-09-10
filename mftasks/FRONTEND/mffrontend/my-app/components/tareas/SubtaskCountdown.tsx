@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import { estaEnJornada, formatearTiempo } from "@/lib/tiempoLaboral";
+import { formatearTiempo, segundosLaboralesEntre } from "@/lib/tiempoLaboral";
 
 interface Props {
     tareaId: number;
@@ -25,17 +25,16 @@ interface ContadorSub {
     servidor_ahora?: string;
 }
 
+type Snap = { raw: ContadorSub; serverAhora: Date };
+
 export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeSabado, fallbackTiempoTomado, fallbackFormateado }: Props) {
-    const [segundos, setSegundos] = useState<number | null>(null);
+    const [snapshot, setSnapshot] = useState<Snap | null>(null);
+    const [displaySec, setDisplaySec] = useState<number | null>(null);
+    const snapshotRef = useRef<Snap | null>(null);
+    snapshotRef.current = snapshot;
     const [tiempoTomado, setTiempoTomado] = useState<number | null>(fallbackTiempoTomado ?? null);
-    const [pausado, setPausado] = useState(false);
-    const [activo, setActivo] = useState(false);
-    const incluyeRef = useRef(!!incluyeSabado);
-    const activoRef = useRef(false);
-    const pausadoRef = useRef(false);
 
     useEffect(() => {
-        // Si ya está solucionada y tenemos fallback, no fetchear
         if (estado === "SOLUCIONADO" && fallbackTiempoTomado !== undefined && fallbackTiempoTomado !== null) {
             setTiempoTomado(fallbackTiempoTomado);
             return;
@@ -43,36 +42,47 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeS
         let cancelado = false;
         let poll: ReturnType<typeof setInterval> | null = null;
         let tick: ReturnType<typeof setInterval> | null = null;
+        let lastFetch = 0;
 
         const cargar = async () => {
+            if (Date.now() - lastFetch < 2000) return;
+            lastFetch = Date.now();
             try {
                 const data = await apiFetch<ContadorSub>(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/contador/`);
                 if (cancelado) return;
-                const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!data.incluye_sabado;
-                incluyeRef.current = incluye;
-                setTiempoTomado(data.tiempo_tomado_segundos);
-                setPausado(data.pausado);
-                setActivo(data.activo);
-                setSegundos(data.segundos_restantes);
-                activoRef.current = data.activo;
-                pausadoRef.current = data.pausado;
-            } catch {
-                // si falla, usar fallback si existe
-                if (fallbackTiempoTomado !== null && fallbackTiempoTomado !== undefined) {
-                    setTiempoTomado(fallbackTiempoTomado);
+                if (data.tiempo_tomado_segundos !== null) {
+                    setTiempoTomado(data.tiempo_tomado_segundos);
+                    setSnapshot(null);
+                    setDisplaySec(null);
+                    return;
                 }
+                const snap: Snap = { raw: data, serverAhora: data.servidor_ahora ? new Date(data.servidor_ahora) : new Date() };
+                setSnapshot(snap);
+                setTiempoTomado(data.tiempo_tomado_segundos);
+                if (!data.activo || data.pausado) {
+                    setDisplaySec(data.segundos_restantes);
+                } else {
+                    const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!data.incluye_sabado;
+                    const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+                    setDisplaySec(Math.max(0, data.segundos_restantes - elapsed));
+                }
+            } catch {
+                if (fallbackTiempoTomado !== null && fallbackTiempoTomado !== undefined) setTiempoTomado(fallbackTiempoTomado);
             }
         };
 
         cargar();
         poll = setInterval(cargar, 30000);
         tick = setInterval(() => {
-            if (!activoRef.current || pausadoRef.current) return;
-            if (!estaEnJornada(new Date(), incluyeRef.current)) return;
-            setSegundos((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
+            const snap = snapshotRef.current;
+            if (!snap) return;
+            if (!snap.raw.activo || snap.raw.pausado || snap.raw.tiempo_tomado_segundos !== null) return;
+            const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!snap.raw.incluye_sabado;
+            const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+            setDisplaySec(Math.max(0, snap.raw.segundos_restantes - elapsed));
         }, 1000);
 
-        const onVis = () => { if (document.visibilityState === "visible") cargar(); };
+        const onVis = () => { if (document.visibilityState === "visible" && Date.now() - lastFetch > 5000) cargar(); };
         document.addEventListener("visibilitychange", onVis);
         return () => {
             cancelado = true;
@@ -85,8 +95,9 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeS
     if (tiempoTomado !== null) {
         return <span style={{ fontSize: 11, color: "#166534" }}>{fallbackFormateado ? `Tomado: ${fallbackFormateado}` : `Tomado: ${formatearTiempo(tiempoTomado)}`}</span>;
     }
-    if (pausado) return <span style={{ fontSize: 11, color: "#92400e" }}>En pausa</span>;
-    if (segundos === null) return <span style={{ fontSize: 11 }}>—</span>;
-    if (!activo && estado === "EN_ESPERA") return <span style={{ fontSize: 11 }}>{formatearTiempo(segundos)} (heredado)</span>;
-    return <span style={{ fontSize: 11 }}>{formatearTiempo(segundos)}</span>;
+    const snap = snapshot;
+    if (snap && snap.raw.pausado) return <span style={{ fontSize: 11, color: "#92400e" }}>En pausa</span>;
+    if (displaySec === null) return <span style={{ fontSize: 11 }}>—</span>;
+    if (snap && !snap.raw.activo && estado === "EN_ESPERA") return <span style={{ fontSize: 11 }}>{formatearTiempo(displaySec)} (heredado)</span>;
+    return <span style={{ fontSize: 11 }}>{formatearTiempo(displaySec)}</span>;
 }

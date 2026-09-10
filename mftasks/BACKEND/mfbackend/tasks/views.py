@@ -28,11 +28,22 @@ def _parsear_fecha(valor):
     return parse_datetime(valor)
 
 
+def _recalcular_progreso_tarea(tarea):
+    """Recalcula progreso ignorando subtareas inactivas."""
+    subtareas = Subtarea.objects.filter(tarea=tarea, activo=True)
+    total_peso = sum(s.peso for s in subtareas)
+    peso_solucionado = sum(s.peso for s in subtareas if s.estado == Subtarea.Estado.SOLUCIONADO)
+    if total_peso > 0:
+        tarea.progreso = round((peso_solucionado / total_peso) * 100, 2)
+    else:
+        tarea.progreso = 0
+
+
 def _tiene_dependencias_pendientes_subtarea(subtarea):
-    # retorna lista bloqueadoras no solucionadas
+    # retorna lista bloqueadoras no solucionadas y activas
     from .models import DependenciaSubtarea
     deps = DependenciaSubtarea.objects.filter(bloqueada=subtarea).select_related("bloqueadora")
-    pendientes = [d.bloqueadora for d in deps if d.bloqueadora.estado != Subtarea.Estado.SOLUCIONADO]
+    pendientes = [d.bloqueadora for d in deps if d.bloqueadora.estado != Subtarea.Estado.SOLUCIONADO and getattr(d.bloqueadora, "activo", True)]
     return pendientes
 
 
@@ -78,7 +89,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             return qs
 
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-            qs = Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante")
+            qs = Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
             return apply_search(qs)
 
         # CLIENTE nunca es miembro de equipo: solo ve sus propias solicitudes (no espía)
@@ -97,14 +108,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             qs = Tarea.objects.filter(
                 Q(equipo__lider=user)
                 | Q(equipo__miembros__usuario=user)
-            ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
+            ).distinct().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
             return apply_search(qs)
 
         # Miembro (rol miembro o lider): ve todas las tareas de su equipo
         qs = Tarea.objects.filter(
             Q(equipo__lider=user)
             | Q(equipo__miembros__usuario=user)
-        ).distinct().prefetch_related("subtareas", "equipo", "solicitante")
+        ).distinct().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
         return apply_search(qs)
 
     def get_permissions(self):
@@ -614,12 +625,10 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def contador(self, request, pk=None):
         tarea = self.get_object()
-
         from .services.tiempo_laboral import obtener_contador_tarea
-
-        return Response(
-            obtener_contador_tarea(tarea)
-        )
+        resp = Response(obtener_contador_tarea(tarea))
+        resp["Cache-Control"] = "no-store, max-age=0"
+        return resp
 
     @action(
         detail=True,
@@ -631,7 +640,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea = self.get_object()
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
         from .services.tiempo_laboral import obtener_contador_subtarea
-        return Response(obtener_contador_subtarea(subtarea))
+        resp = Response(obtener_contador_subtarea(subtarea))
+        resp["Cache-Control"] = "no-store, max-age=0"
+        return resp
 
     @action(
         detail=True,
@@ -643,12 +654,14 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea = self.get_object()
         from .services.tiempo_laboral import obtener_contador_tarea, obtener_contador_subtarea
         data_tarea = obtener_contador_tarea(tarea)
-        subtareas = tarea.subtareas.all()
+        subtareas = tarea.subtareas.filter(activo=True) if hasattr(Subtarea, "activo") else tarea.subtareas.all()
         lista = []
         for s in subtareas:
             c = obtener_contador_subtarea(s)
             lista.append({"subtarea_id": s.id, "contador": c, "estado": s.estado})
-        return Response({"tarea": data_tarea, "subtareas": lista})
+        resp = Response({"tarea": data_tarea, "subtareas": lista})
+        resp["Cache-Control"] = "no-store, max-age=0"
+        return resp
 
     @action(
         detail=True,
@@ -678,6 +691,31 @@ class TaskViewSet(viewsets.ModelViewSet):
             detalle=f"Incluye sábado cambiado a {'Sí' if val else 'No'}. Contador recalibrado.",
         )
         return Response({"incluye_sabado": val, "detail": "Actualizado."})
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAdministrador], url_path="inactivar")
+    def inactivar_tarea(self, request, pk=None):
+        tarea = self.get_object()
+        if not tarea.activo:
+            return Response({"detail": "La solicitud ya está inactivada."}, status=status.HTTP_400_BAD_REQUEST)
+        ahora = timezone.localtime(timezone.now())
+        tarea.activo = False
+        tarea.fecha_inactivacion = ahora
+        tarea.inactivada_por = request.user
+        tarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
+        registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO, estado_anterior=tarea.estado, estado_nuevo="INACTIVO", detalle=f"Solicitud inactivada por administrador {request.user.nombres} {request.user.apellidos}")
+        return Response(TaskSerializer(tarea, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAdministrador], url_path="reactivar")
+    def reactivar_tarea(self, request, pk=None):
+        tarea = self.get_object()
+        if tarea.activo:
+            return Response({"detail": "La solicitud ya está activa."}, status=status.HTTP_400_BAD_REQUEST)
+        tarea.activo = True
+        tarea.fecha_inactivacion = None
+        tarea.inactivada_por = None
+        tarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
+        registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO, estado_anterior="INACTIVO", estado_nuevo=tarea.estado, detalle=f"Solicitud reactivada por administrador {request.user.nombres} {request.user.apellidos}")
+        return Response(TaskSerializer(tarea, context={"request": request}).data)
 
     @action(
         detail=True,
@@ -887,28 +925,23 @@ class TaskViewSet(viewsets.ModelViewSet):
             detalle="Subtarea solucionada",
         )
 
-        # Recalcular progreso de la tarea basado en peso
-        subtareas = Subtarea.objects.filter(tarea=tarea)
-        total_peso = sum(s.peso for s in subtareas)
-        peso_solucionado = sum(s.peso for s in subtareas if s.estado == Subtarea.Estado.SOLUCIONADO)
-        if total_peso > 0:
-            tarea.progreso = round((peso_solucionado / total_peso) * 100, 2)
-        else:
-            tarea.progreso = 0
+        # Recalcular progreso ignorando inactivas
+        _recalcular_progreso_tarea(tarea)
+        subtareas_activas = Subtarea.objects.filter(tarea=tarea, activo=True)
 
-        # Si todas solucionadas, marcar tarea solucionada
+        # Si todas las activas solucionadas, marcar tarea solucionada (requiere al menos 1 activa)
 
         estado_tarea_anterior = tarea.estado
-        if all(
+        if subtareas_activas.exists() and all(
             s.estado == Subtarea.Estado.SOLUCIONADO
-            for s in subtareas
+            for s in subtareas_activas
         ):
             ahora = timezone.localtime(timezone.now())
 
             tarea.estado = Tarea.Estado.SOLUCIONADO
             tarea.fecha_solucion = ahora
-        # Si tarea estaba en STAND_BY y ya no quedan subtareas en STAND_BY, volver a EN_DESARROLLO (si no está solucionada)
-        elif tarea.estado == Tarea.Estado.STAND_BY and not any(s.estado == Subtarea.Estado.STAND_BY for s in subtareas):
+        # Si tarea estaba en STAND_BY y ya no quedan subtareas activas en STAND_BY, volver a EN_DESARROLLO
+        elif tarea.estado == Tarea.Estado.STAND_BY and not any(s.estado == Subtarea.Estado.STAND_BY for s in subtareas_activas):
             tarea.estado = Tarea.Estado.EN_DESARROLLO
             tarea.motivo_standby = ""
             tarea.fecha_standby = None
@@ -937,6 +970,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     def reasignar_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        if not subtarea.activo:
+            return Response({"detail": "No se puede reasignar una subtarea inactivada. Reactívala primero."}, status=status.HTTP_400_BAD_REQUEST)
         if subtarea.estado == Subtarea.Estado.SOLUCIONADO:
             return Response({"detail": "No se puede reasignar una subtarea solucionada."}, status=status.HTTP_400_BAD_REQUEST)
         if tarea.estado not in [Tarea.Estado.EN_DESARROLLO, Tarea.Estado.STAND_BY]:
@@ -983,6 +1018,101 @@ class TaskViewSet(viewsets.ModelViewSet):
             ),
         )
 
+        return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/inactivar",
+    )
+    def inactivar_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        if not subtarea.activo:
+            return Response({"detail": "La subtarea ya está inactivada."}, status=status.HTTP_400_BAD_REQUEST)
+        if subtarea.estado == Subtarea.Estado.SOLUCIONADO:
+            return Response({"detail": "No se puede inactivar una subtarea solucionada."}, status=status.HTTP_400_BAD_REQUEST)
+        if tarea.estado == Tarea.Estado.SOLUCIONADO:
+            return Response({"detail": "No se puede inactivar subtarea de tarea solucionada."}, status=status.HTTP_400_BAD_REQUEST)
+        ahora = timezone.localtime(timezone.now())
+        with transaction.atomic():
+            subtarea.activo = False
+            subtarea.fecha_inactivacion = ahora
+            subtarea.inactivada_por = request.user
+            subtarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
+            # eliminar dependencias donde participa
+            from .models import DependenciaSubtarea
+            DependenciaSubtarea.objects.filter(bloqueada=subtarea).delete()
+            DependenciaSubtarea.objects.filter(bloqueadora=subtarea).delete()
+            registrar_log(
+                tarea=tarea,
+                subtarea=subtarea,
+                usuario=request.user,
+                tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
+                estado_anterior=subtarea.estado,
+                estado_nuevo="INACTIVO",
+                detalle=f"Subtarea inactivada por {request.user.nombres} {request.user.apellidos}",
+            )
+            _recalcular_progreso_tarea(tarea)
+            # si tras inactivar todas las activas están solucionadas, cerrar tarea
+            activas = Subtarea.objects.filter(tarea=tarea, activo=True)
+            if activas.exists() and all(s.estado == Subtarea.Estado.SOLUCIONADO for s in activas):
+                estado_ant = tarea.estado
+                tarea.estado = Tarea.Estado.SOLUCIONADO
+                tarea.fecha_solucion = ahora
+                tarea.save(update_fields=["progreso", "estado", "fecha_solucion"])
+                registrar_log(
+                    tarea=tarea, usuario=request.user,
+                    tipo_evento=TareaLog.TipoEvento.FIN,
+                    estado_anterior=estado_ant, estado_nuevo=tarea.estado,
+                    detalle="Tarea finalizada tras inactivar subtareas pendientes.",
+                )
+            else:
+                # si no quedan activas en STAND_BY y tarea estaba STAND_BY, reanudar
+                if tarea.estado == Tarea.Estado.STAND_BY and not activas.filter(estado=Subtarea.Estado.STAND_BY).exists():
+                    estado_ant = tarea.estado
+                    tarea.estado = Tarea.Estado.EN_DESARROLLO
+                    tarea.motivo_standby = ""
+                    tarea.fecha_standby = None
+                    tarea.standby_por = None
+                    tarea.save(update_fields=["progreso", "estado", "motivo_standby", "fecha_standby", "standby_por"])
+                    registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.STANDBY_FIN, estado_anterior=estado_ant, estado_nuevo=tarea.estado, detalle="Tarea reanudada al inactivar última subtarea en pausa.")
+                else:
+                    tarea.save(update_fields=["progreso"])
+        return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/reactivar",
+    )
+    def reactivar_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        if subtarea.activo:
+            return Response({"detail": "La subtarea ya está activa."}, status=status.HTTP_400_BAD_REQUEST)
+        if tarea.estado == Tarea.Estado.SOLUCIONADO:
+            return Response({"detail": "No se puede reactivar subtarea de tarea solucionada."}, status=status.HTTP_400_BAD_REQUEST)
+        subtarea.activo = True
+        subtarea.fecha_inactivacion = None
+        subtarea.inactivada_por = None
+        subtarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
+        registrar_log(
+            tarea=tarea, subtarea=subtarea, usuario=request.user,
+            tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
+            estado_anterior="INACTIVO", estado_nuevo=subtarea.estado,
+            detalle=f"Subtarea reactivada por {request.user.nombres} {request.user.apellidos}",
+        )
+        _recalcular_progreso_tarea(tarea)
+        # si tarea estaba SOLUCIONADO y ahora hay activa no solucionada, reabrir
+        if tarea.estado == Tarea.Estado.SOLUCIONADO:
+            tarea.estado = Tarea.Estado.EN_DESARROLLO
+            tarea.fecha_solucion = None
+            tarea.save(update_fields=["progreso", "estado", "fecha_solucion"])
+        else:
+            tarea.save(update_fields=["progreso"])
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
 
     @action(
@@ -1183,6 +1313,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             quedan_subtareas_en_standby = Subtarea.objects.filter(
                 tarea=tarea,
                 estado=Subtarea.Estado.STAND_BY,
+                activo=True,
             ).exists()
 
             if not quedan_subtareas_en_standby:

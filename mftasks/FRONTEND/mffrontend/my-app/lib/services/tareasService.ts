@@ -99,3 +99,26 @@ export async function crearDependencia(tareaId: number, bloqueadaId: number, blo
     body: JSON.stringify({ bloqueadora_id: bloqueadoraId }),
   });
 }
+
+export async function reasignarSubtarea(tareaId: number, subtareaId: number, nuevoAsignado: number): Promise<void> {
+  await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reasignar/`, {
+    method: "POST",
+    body: JSON.stringify({ nuevo_asignado: nuevoAsignado }),
+  });
+}
+
+export async function inactivarSubtarea(tareaId: number, subtareaId: number): Promise<void> {
+  await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/inactivar/`, {
+    method: "POST",
+  });
+}
+
+export async function reactivarSubtarea(tareaId: number, subtareaId: number): Promise<void> {
+  await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reactivar/`, {
+    method: "POST",
+  });
+}
+
+export async function fetchEquipoMiembros(equipoId: number): Promise<{ id: number; miembros: any[]; lider: any }> {
+  return apiFetch(`/api/usuarios/equipos/${equipoId}/`);
+}

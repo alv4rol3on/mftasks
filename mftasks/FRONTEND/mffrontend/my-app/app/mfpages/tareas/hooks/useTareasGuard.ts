@@ -20,7 +20,10 @@ export function useTareasGuard() {
     const isAdmin = roles.includes("administrador");
     const isCliente = roles.includes("cliente");
     const isMiembro = roles.includes("miembro");
-    if (isAdmin) return;
+    if (isAdmin) {
+      router.replace("/mfpages/solicitudes");
+      return;
+    }
     if (isCliente && !isMiembro) {
       apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
         .then((data) => {

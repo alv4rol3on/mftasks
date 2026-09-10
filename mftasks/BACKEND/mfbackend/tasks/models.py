@@ -68,6 +68,16 @@ class Tarea(models.Model):
 
     incluye_sabado = models.BooleanField(default=False, help_text="Si está activo, el contador incluye sábados de 9am a 1pm; si no, solo L-V 9-18.")
 
+    activo = models.BooleanField(default=True, db_index=True)
+    fecha_inactivacion = models.DateTimeField(null=True, blank=True)
+    inactivada_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tareas_inactivadas",
+    )
+
     progreso = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -99,6 +109,7 @@ class Tarea(models.Model):
             models.Index(fields=["subcampana", "estado"]),
             models.Index(fields=["fecha_creacion"]),
             models.Index(fields=["ticket"]),
+            models.Index(fields=["activo"]),
         ]
         constraints = [
             CheckConstraint(check=Q(progreso__gte=0, progreso__lte=100), name="chk_tarea_progreso_0_100"),
@@ -214,10 +225,23 @@ class Subtarea(models.Model):
         blank=True,
     )
 
+    # Inactivación soft para pestaña Asignaciones
+    activo = models.BooleanField(default=True, db_index=True)
+    fecha_inactivacion = models.DateTimeField(null=True, blank=True)
+    inactivada_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subtareas_inactivadas",
+    )
+
     class Meta:
         indexes = [
             models.Index(fields=["tarea", "estado"]),
             models.Index(fields=["asignado", "estado"]),
+            models.Index(fields=["tarea", "activo"]),
+            models.Index(fields=["activo"]),
         ]
         constraints = [
             CheckConstraint(check=Q(peso__gte=1), name="chk_subtarea_peso_gte1"),

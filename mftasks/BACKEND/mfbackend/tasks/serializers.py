@@ -55,8 +55,11 @@ class SubtareaSerializer(serializers.ModelSerializer):
             "tiempo_tomado_segundos",
             "tiempo_tomado_horas",
             "tiempo_tomado_formateado",
+            "activo",
+            "fecha_inactivacion",
+            "inactivada_por",
         ]
-        read_only_fields = ["motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado"]
+        read_only_fields = ["motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "fecha_inactivacion", "inactivada_por"]
 
     def get_bloqueada_por(self, obj):
         # lista de ids bloqueadoras no solucionadas
@@ -127,8 +130,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos"]
-        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos"]
+        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "activo", "fecha_inactivacion", "inactivada_por"]
+        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fecha_inactivacion", "inactivada_por"]
 
     def get_cliente_nombre(self, obj):
         if obj.subcampana and obj.subcampana.campana:

@@ -267,6 +267,55 @@ def calcular_tiempo_util_tarea(
 
 
 # ============================================================
+# ============================================================
+# SEGMENTOS DE DESARROLLO SUBTAREA (solo EN_DESARROLLO, excluye EN_ESPERA)
+# ============================================================
+
+def obtener_segmentos_desarrollo_subtarea(subtarea, hasta: Optional[datetime] = None) -> list:
+    """
+    Retorna lista de (inicio, fin) de periodos en EN_DESARROLLO para la subtarea.
+    Usa TareaLog: INICIO abre, STANDBY_INICIO/FIN cierran. EN_ESPERA tras reanudar no cuenta
+    hasta próximo INICIO. Fallback a fecha_inicio/fecha_fin si no hay logs.
+    """
+    hasta = hasta or timezone.now()
+    try:
+        logs = list(
+            TareaLog.objects.filter(subtarea=subtarea).order_by("fecha", "id")
+        )
+    except Exception:
+        logs = []
+    segmentos: list = []
+    abierto = None
+    for log in logs:
+        t = log.tipo_evento
+        if t == TareaLog.TipoEvento.INICIO and abierto is None:
+            abierto = log.fecha
+        elif t == TareaLog.TipoEvento.STANDBY_INICIO and abierto is not None:
+            if log.fecha > abierto:
+                segmentos.append((abierto, log.fecha))
+            abierto = None
+        elif t == TareaLog.TipoEvento.STANDBY_FIN and abierto is None:
+            # reanudar deja EN_ESPERA, no abre hasta próximo INICIO
+            pass
+        elif t == TareaLog.TipoEvento.FIN and abierto is not None:
+            if log.fecha > abierto:
+                segmentos.append((abierto, log.fecha))
+            abierto = None
+    if abierto is not None:
+        # desarrollo abierto hasta 'hasta' si sigue EN_DESARROLLO
+        if getattr(subtarea, "estado", None) == "EN_DESARROLLO" and hasta > abierto:
+            segmentos.append((abierto, hasta))
+    if not segmentos:
+        # fallback legacy sin logs
+        if getattr(subtarea, "fecha_inicio", None) and getattr(subtarea, "fecha_fin", None):
+            if subtarea.fecha_fin > subtarea.fecha_inicio:
+                return [(subtarea.fecha_inicio, subtarea.fecha_fin)]
+        if getattr(subtarea, "fecha_inicio", None) and getattr(subtarea, "estado", None) == "EN_DESARROLLO":
+            if hasta > subtarea.fecha_inicio:
+                return [(subtarea.fecha_inicio, hasta)]
+    return segmentos
+
+
 # TIEMPO ÚTIL SUBTAREA
 # ============================================================
 
@@ -274,9 +323,23 @@ def calcular_tiempo_util_subtarea(
     subtarea,
     fecha_fin: Optional[datetime] = None,
 ) -> timedelta:
+    # En curso: suma solo EN_DESARROLLO hasta fecha_fin (o ahora)
+    fecha_fin = fecha_fin or timezone.now()
+    segmentos = obtener_segmentos_desarrollo_subtarea(subtarea, hasta=fecha_fin)
+    if segmentos:
+        incluye = _get_incluye_sabado(subtarea)
+        total = timedelta(0)
+        for a, b in segmentos:
+            # clamp a fecha_fin
+            if b > fecha_fin:
+                b = fecha_fin
+            if a >= b:
+                continue
+            total += calcular_tiempo_laboral(a, b, incluye_sabado=incluye)
+        return total
+    # Fallback si no hay segmentos (legacy sin logs y sin desarrollo activo)
     if not subtarea.fecha_inicio:
         return timedelta(0)
-    fecha_fin = fecha_fin or timezone.now()
     if fecha_fin <= subtarea.fecha_inicio:
         return timedelta(0)
     incluye = _get_incluye_sabado(subtarea)
@@ -307,6 +370,14 @@ def calcular_tiempo_tomado_tarea(
 def calcular_tiempo_tomado_subtarea(
     subtarea,
 ) -> timedelta:
+    segmentos = obtener_segmentos_desarrollo_subtarea(subtarea, hasta=getattr(subtarea, "fecha_fin", None) or timezone.now())
+    if segmentos:
+        incluye = _get_incluye_sabado(subtarea)
+        total = timedelta(0)
+        for a, b in segmentos:
+            total += calcular_tiempo_laboral(a, b, incluye_sabado=incluye)
+        return total
+    # fallback legacy
     if not subtarea.fecha_inicio:
         return timedelta(0)
     if not subtarea.fecha_fin:

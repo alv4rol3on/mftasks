@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import styles from "./TaskModalDesarrollo.module.css";
-import { Task } from "@/lib/types";
+import { Task, EquipoInfo, EquipoMiembroDetallado } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import SubtaskCountdown from "./SubtaskCountdown";
@@ -64,6 +64,10 @@ type Props = {
             }[];
         }
     ) => void | Promise<void>;
+    onReasignarSubtarea?: (tareaId: number, subtareaId: number, nuevoAsignado: number) => Promise<void>;
+    onInactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
+    onReactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
+    onTareaMutated?: () => void | Promise<void>;
 };
 
 interface LogItem {
@@ -78,6 +82,8 @@ interface LogItem {
     subtarea_descripcion: string | null;
 }
 
+type TabKey = "progreso" | "historial" | "asignaciones";
+
 export default function TaskModal({
     tarea,
     onClose,
@@ -88,11 +94,15 @@ export default function TaskModal({
     completandoId,
     accionando,
     onIniciar,
+    onReasignarSubtarea,
+    onInactivarSubtarea,
+    onReactivarSubtarea,
+    onTareaMutated,
 }: Props) {
     const [depBloqueada, setDepBloqueada] = useState<number | "">("");
     const [depBloqueadora, setDepBloqueadora] = useState<number | "">("");
     const [depMsg, setDepMsg] = useState<string | null>(null);
-    const [tab, setTab] = useState<"subtareas" | "historial">("subtareas");
+    const [tab, setTab] = useState<TabKey>("progreso");
     const [logs, setLogs] = useState<LogItem[] | null>(null);
     const [logsError, setLogsError] = useState<string | null>(null);
     const [logsLoading, setLogsLoading] = useState(false);
@@ -100,6 +110,17 @@ export default function TaskModal({
     const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
     const [paginaHist, setPaginaHist] = useState(1);
     const histPageSize = 10;
+
+    // Asignaciones tab state
+    const [miembros, setMiembros] = useState<EquipoMiembroDetallado[]>([]);
+    const [liderInfo, setLiderInfo] = useState<{ id: number; nombres: string; apellidos: string } | null>(null);
+    const [miembrosLoading, setMiembrosLoading] = useState(false);
+    const [miembrosError, setMiembrosError] = useState<string | null>(null);
+    const [draftAsignado, setDraftAsignado] = useState<Record<number, number | "">>({});
+    const [reasignandoId, setReasignandoId] = useState<number | null>(null);
+    const [inactivandoId, setInactivandoId] = useState<number | null>(null);
+    const [asigMsg, setAsigMsg] = useState<string | null>(null);
+    const [asigErr, setAsigErr] = useState<string | null>(null);
 
     const usuario = getUsuarioActual();
 
@@ -117,9 +138,29 @@ export default function TaskModal({
         }
     };
 
+    const cargarMiembros = async () => {
+        if (!tarea) return;
+        setMiembrosLoading(true);
+        setMiembrosError(null);
+        try {
+            const data = await apiFetch<EquipoInfo>(`/api/usuarios/equipos/${tarea.equipo}/`);
+            setMiembros(data.miembros ?? []);
+            if (data.lider) {
+                setLiderInfo({ id: data.lider.id, nombres: data.lider.nombres, apellidos: data.lider.apellidos });
+            }
+        } catch (e) {
+            setMiembrosError((e as Error).message);
+        } finally {
+            setMiembrosLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (tab === "historial" && tarea && logs === null && !logsLoading) {
             cargarLogs();
+        }
+        if (tab === "asignaciones" && tarea && miembros.length === 0 && !miembrosLoading && !miembrosError) {
+            cargarMiembros();
         }
     }, [tab, tarea?.id]);
 
@@ -127,9 +168,15 @@ export default function TaskModal({
     useEffect(() => {
         setLogs(null);
         setLogsError(null);
-        setTab("subtareas");
+        setTab("progreso");
         setExpandedLogs(new Set());
         setPaginaHist(1);
+        setMiembros([]);
+        setLiderInfo(null);
+        setMiembrosError(null);
+        setDraftAsignado({});
+        setAsigMsg(null);
+        setAsigErr(null);
     }, [tarea?.id]);
 
     useEffect(() => {
@@ -151,15 +198,113 @@ export default function TaskModal({
             await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${depBloqueada}/dependencias/`, { method: "POST", body: JSON.stringify({ bloqueadora_id: depBloqueadora }) });
             setDepMsg("Dependencia creada. Recarga la tarea.");
             setDepBloqueada(""); setDepBloqueadora("");
+            onTareaMutated?.();
         } catch (e) { setDepMsg((e as Error).message); }
+    };
+
+    const handleReasignar = async (subtareaId: number) => {
+        if (!tarea) return;
+        const nuevo = draftAsignado[subtareaId];
+        if (nuevo === "" || nuevo === undefined) { setAsigErr("Selecciona un nuevo asignado"); return; }
+        const subt = tarea.subtareas.find(s => s.id === subtareaId);
+        if (subt && subt.asignado === nuevo) { setAsigErr("El nuevo asignado es el mismo que el actual"); return; }
+        setAsigErr(null); setAsigMsg(null);
+        setReasignandoId(subtareaId);
+        try {
+            if (onReasignarSubtarea) {
+                await onReasignarSubtarea(tarea.id, subtareaId, nuevo as number);
+            } else {
+                await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/reasignar/`, { method: "POST", body: JSON.stringify({ nuevo_asignado: nuevo }) });
+            }
+            setAsigMsg(`Subtarea #${subtareaId} reasignada`);
+            setDraftAsignado(prev => ({ ...prev, [subtareaId]: "" }));
+            if (onTareaMutated) await onTareaMutated();
+            else window.location.reload();
+        } catch (e) {
+            setAsigErr((e as Error).message);
+        } finally {
+            setReasignandoId(null);
+        }
+    };
+
+    const handleInactivar = async (subtareaId: number) => {
+        if (!tarea) return;
+        const ok = confirm("¿Inactivar subtarea? No contará en el progreso y se eliminarán sus dependencias. Se puede reactivar.");
+        if (!ok) return;
+        setAsigErr(null); setAsigMsg(null);
+        setInactivandoId(subtareaId);
+        try {
+            if (onInactivarSubtarea) {
+                await onInactivarSubtarea(tarea.id, subtareaId);
+            } else {
+                await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/inactivar/`, { method: "POST" });
+            }
+            setAsigMsg(`Subtarea #${subtareaId} inactivada`);
+            if (onTareaMutated) await onTareaMutated();
+            else window.location.reload();
+        } catch (e) {
+            setAsigErr((e as Error).message);
+        } finally {
+            setInactivandoId(null);
+        }
+    };
+
+    const handleReactivar = async (subtareaId: number) => {
+        if (!tarea) return;
+        setAsigErr(null); setAsigMsg(null);
+        setInactivandoId(subtareaId);
+        try {
+            if (onReactivarSubtarea) {
+                await onReactivarSubtarea(tarea.id, subtareaId);
+            } else {
+                await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/reactivar/`, { method: "POST" });
+            }
+            setAsigMsg(`Subtarea #${subtareaId} reactivada`);
+            if (onTareaMutated) await onTareaMutated();
+            else window.location.reload();
+        } catch (e) {
+            setAsigErr((e as Error).message);
+        } finally {
+            setInactivandoId(null);
+        }
     };
 
     // determinar si usuario puede ver historial: miembros del equipo (no cliente puro)
     const roles = (usuario?.roles ?? []).map((r: string) => r.toLowerCase());
     const esClientePuro = roles.includes("cliente") && !roles.includes("miembro") && !roles.includes("lider") && !roles.includes("sub_lider") && !roles.includes("administrador");
     const puedeVerHistorial = !esClientePuro;
+    const puedeVerAsignaciones = !!tarea?.puedo_operar;
+
+    // opciones asignables (miembros ACTIVO + lider)
+    const opcionesAsignables = useMemo(() => {
+        const map = new Map<number, string>();
+        if (liderInfo) map.set(liderInfo.id, `${liderInfo.nombres} ${liderInfo.apellidos} (Líder)`);
+        miembros.forEach(m => {
+            if (m.estado === "ACTIVO") {
+                map.set(m.usuario.id, `${m.usuario.nombres} ${m.usuario.apellidos}`);
+            } else if (m.estado === "INDISPONIBLE") {
+                // no incluir indisponibles
+            }
+        });
+        // también incluir miembros aunque no estén en lista pero ya asignados (fallback)
+        return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre }));
+    }, [miembros, liderInfo]);
 
     if (!tarea) return null;
+
+    const subtareasProgreso = tarea.subtareas.filter(s => s.activo !== false);
+    const subtareasInactivasCount = tarea.subtareas.length - subtareasProgreso.length;
+
+    const tabButtonStyle = (active: boolean) => ({
+        flex: 1,
+        padding: "8px",
+        borderRadius: 8,
+        border: active ? "2px solid #3128bb" : "1px solid #d1d5db",
+        background: active ? "#ede9fe" : "white",
+        fontWeight: 700 as const,
+        fontSize: 13,
+        cursor: "pointer",
+    });
 
     return (
         <>
@@ -274,19 +419,25 @@ export default function TaskModal({
                             </div>
                             {/* Tabs */}
                             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                                <button onClick={() => setTab("subtareas")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: tab === "subtareas" ? "2px solid #3128bb" : "1px solid #d1d5db", background: tab === "subtareas" ? "#ede9fe" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Subtareas</button>
-                                {puedeVerHistorial && <button onClick={() => setTab("historial")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: tab === "historial" ? "2px solid #3128bb" : "1px solid #d1d5db", background: tab === "historial" ? "#ede9fe" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Historial</button>}
+                                <button onClick={() => setTab("progreso")} style={tabButtonStyle(tab === "progreso")}>Progreso</button>
+                                {puedeVerHistorial && <button onClick={() => setTab("historial")} style={tabButtonStyle(tab === "historial")}>Historial</button>}
+                                {puedeVerAsignaciones && <button onClick={() => setTab("asignaciones")} style={tabButtonStyle(tab === "asignaciones")}>Asignaciones</button>}
                             </div>
+                            {subtareasInactivasCount > 0 && tab === "progreso" && (
+                                <p style={{ fontSize: 11, color: "#6b7280", marginTop: 6 }}>{subtareasInactivasCount} subtarea(s) inactivada(s) — ver pestaña Asignaciones</p>
+                            )}
                         </div>
 
                         <div className={styles.progresoSection}>
-                            {tab === "subtareas" ? (
+                            {tab === "progreso" ? (
                                 <>
                                     <h3>Progreso — Subtareas</h3>
 
-                                    {tarea.subtareas.length === 0 ? (
+                                    {subtareasProgreso.length === 0 ? (
                                         <p className={styles.sinSubtareas}>
-                                            Esta tarea ha sido aprobada y se encuentra en proceso de asignación
+                                            {tarea.subtareas.length === 0
+                                                ? "Esta tarea ha sido aprobada y se encuentra en proceso de asignación"
+                                                : "Todas las subtareas activas han sido inactivadas. Revisa Asignaciones."}
                                         </p>
                                     ) : (
                                         <div className={styles.subtareasContainer}>
@@ -302,7 +453,7 @@ export default function TaskModal({
                                                 </thead>
 
                                                 <tbody>
-                                                    {tarea.subtareas.map((subtarea) => {
+                                                    {subtareasProgreso.map((subtarea) => {
                                                         const esMiSubtarea = usuario?.id === subtarea.asignado;
                                                         const bloqueadorasPendientes = subtarea.bloqueada_por?.filter(b => b.estado !== "SOLUCIONADO") ?? [];
                                                         const bloqueada = bloqueadorasPendientes.length > 0;
@@ -437,18 +588,18 @@ export default function TaskModal({
 
                                     {tarea.estado !== "SOLUCIONADO" ? (
                                         <>
-                                            {tarea.subtareas.length > 1 && tarea.puedo_operar && (
+                                            {subtareasProgreso.length > 1 && tarea.puedo_operar && (
                                                 <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
                                                     <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Crear dependencia</h4>
                                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
                                                         <select value={depBloqueada} onChange={e => setDepBloqueada(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
                                                             <option value="">-- subtarea --</option>
-                                                            {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                                            {subtareasProgreso.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
                                                         </select>
                                                         <span style={{ paddingBottom: 8 }}>depende de</span>
                                                         <select value={depBloqueadora} onChange={e => setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
                                                             <option value="">-- subtarea --</option>
-                                                            {tarea.subtareas.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                                            {subtareasProgreso.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
                                                         </select>
                                                         <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize: 12 }}>Agregar</button>
                                                     </div>
@@ -461,7 +612,7 @@ export default function TaskModal({
                                         <div></div>
                                     )}
                                 </>
-                            ) : (
+                            ) : tab === "historial" ? (
                                 <div>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                                         <h3 style={{ margin: 0 }}>Historial de la tarea</h3>
@@ -518,6 +669,102 @@ export default function TaskModal({
                                         <Pagination page={paginaHist} totalPages={totalHistPages} totalItems={logs.length} pageSize={histPageSize} onPageChange={setPaginaHist} />
                                     )}
                                     <p style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>Solo miembros del equipo, líderes y sublíderes pueden ver este historial. El backend valida permisos.</p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                        <h3 style={{ margin: 0 }}>Asignaciones</h3>
+                                        <button onClick={cargarMiembros} disabled={miembrosLoading} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{miembrosLoading ? "Cargando..." : "Recargar equipo"}</button>
+                                    </div>
+                                    <p style={{ fontSize: 11, color: "#6b7280", marginTop: -4, marginBottom: 8 }}>Cambia el asignado o inactiva subtareas. Solo líder / asignador / admin. Las inactivas no cuentan en progreso.</p>
+                                    {miembrosError && <p style={{ color: "#991b1b", fontSize: 12 }}>{miembrosError}</p>}
+                                    {asigErr && <p style={{ color: "#991b1b", fontSize: 12, background: "#fee2e2", padding: "6px 8px", borderRadius: 6 }}>{asigErr}</p>}
+                                    {asigMsg && <p style={{ color: "#166534", fontSize: 12, background: "#dcfce7", padding: "6px 8px", borderRadius: 6 }}>{asigMsg}</p>}
+
+                                    {tarea.subtareas.length === 0 ? (
+                                        <p className={styles.sinSubtareas}>Sin subtareas para asignar. Usa “Iniciar tarea” en la cabecera si está aprobada.</p>
+                                    ) : (
+                                        <div className={styles.subtareasContainer} style={{ maxHeight: 360 }}>
+                                            <table className={styles.subtareasTable}>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Subtarea</th>
+                                                        <th>Asignado actual</th>
+                                                        <th>Nuevo asignado</th>
+                                                        <th>Acciones</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {tarea.subtareas.map((subtarea) => {
+                                                        const inactiva = subtarea.activo === false;
+                                                        const esSolucionada = subtarea.estado === "SOLUCIONADO";
+                                                        return (
+                                                        <tr key={subtarea.id} style={inactiva ? { opacity: 0.7, background: "#f9fafb" } : undefined}>
+                                                            <td data-label="Subtarea">
+                                                                <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.descripcion} {inactiva && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Inactiva</span>} {esSolucionada && <span style={{ background: "#dcfce7", color: "#166534", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Solucionada</span>}</div>
+                                                                <div style={{ fontSize: 10, color: "#6b7280" }}>Peso {subtarea.peso} · Estado {subtarea.estado}</div>
+                                                            </td>
+                                                            <td data-label="Asignado actual">
+                                                                <div style={{ fontSize: 12 }}>{subtarea.asignado_nombre}</div>
+                                                                <div style={{ fontSize: 10, color: "#6b7280" }}>ID {subtarea.asignado}</div>
+                                                            </td>
+                                                            <td data-label="Nuevo asignado">
+                                                                {inactiva || esSolucionada ? (
+                                                                    <span style={{ fontSize: 11, color: "#9ca3af" }}>{inactiva ? "Reactivar para reasignar" : "No reasignable"}</span>
+                                                                ) : opcionesAsignables.length === 0 ? (
+                                                                    <span style={{ fontSize: 11 }}>{miembrosLoading ? "Cargando..." : "Sin miembros activos"}</span>
+                                                                ) : (
+                                                                    <select
+                                                                        value={draftAsignado[subtarea.id] ?? ""}
+                                                                        onChange={e => setDraftAsignado(prev => ({ ...prev, [subtarea.id]: e.target.value ? Number(e.target.value) : "" }))}
+                                                                        className={styles.estadoSelect}
+                                                                        style={{ minWidth: 140, height: 34, fontSize: 12 }}
+                                                                    >
+                                                                        <option value="">-- seleccionar --</option>
+                                                                        {opcionesAsignables.map(o => (
+                                                                            <option key={o.id} value={o.id}>{o.nombre}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                )}
+                                                            </td>
+                                                            <td data-label="Acciones">
+                                                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                                                    {!inactiva && !esSolucionada && (
+                                                                        <button
+                                                                            onClick={() => handleReasignar(subtarea.id)}
+                                                                            disabled={reasignandoId === subtarea.id || draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined}
+                                                                            style={{ background: "#2563eb", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700, opacity: (draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined) ? 0.5 : 1 }}
+                                                                        >
+                                                                            {reasignandoId === subtarea.id ? "..." : "Reasignar"}
+                                                                        </button>
+                                                                    )}
+                                                                    {!inactiva ? (
+                                                                        <button
+                                                                            onClick={() => handleInactivar(subtarea.id)}
+                                                                            disabled={esSolucionada || inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
+                                                                            title={esSolucionada ? "No se puede inactivar solucionada" : "Inactivar subtarea"}
+                                                                            style={{ background: esSolucionada ? "#9ca3af" : "#ef4444", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: esSolucionada ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700 }}
+                                                                        >
+                                                                            {inactivandoId === subtarea.id ? "..." : "Inactivar"}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={() => handleReactivar(subtarea.id)}
+                                                                            disabled={inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
+                                                                            style={{ background: "#16a34a", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                                                                        >
+                                                                            {inactivandoId === subtarea.id ? "..." : "Reactivar"}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

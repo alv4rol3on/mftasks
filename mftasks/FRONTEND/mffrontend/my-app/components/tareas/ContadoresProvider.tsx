@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { estaEnJornada } from "@/lib/tiempoLaboral";
+import { segundosLaboralesEntre } from "@/lib/tiempoLaboral";
 
 export interface ContadorResponse {
   activo: boolean;
@@ -18,14 +18,32 @@ export interface ContadorResponse {
   servidor_ahora: string;
 }
 
-type ContadoresMap = Map<number, ContadorResponse | null>;
+type Snapshot = {
+  raw: ContadorResponse;
+  serverAhora: Date;
+};
 
-const ContadoresContext = createContext<ContadoresMap | null>(null);
+type ContadoresMap = Map<number, Snapshot | null>;
+
+const ContadoresContext = createContext<Map<number, ContadorResponse | null> | null>(null);
+const POLL_MS = 30000;
+const VIS_DEBOUNCE_MS = 5000;
+
+function interpolate(snapshot: Snapshot, now: Date): ContadorResponse {
+  const { raw } = snapshot;
+  if (!raw.activo || raw.pausado || raw.tiempo_tomado_segundos !== null) return raw;
+  if (raw.segundos_restantes <= 0) return raw;
+  const incluye = !!raw.incluye_sabado;
+  const elapsed = segundosLaboralesEntre(snapshot.serverAhora, now, incluye);
+  const restante = Math.max(0, raw.segundos_restantes - elapsed);
+  if (restante === raw.segundos_restantes) return raw;
+  return { ...raw, segundos_restantes: restante };
+}
 
 export function useContador(tareaId: number): ContadorResponse | null | undefined {
   const ctx = useContext(ContadoresContext);
-  if (!ctx) return undefined; // no provider -> fallback a undefined
-  return ctx.get(tareaId) ?? null; // null = cargando aún
+  if (!ctx) return undefined;
+  return ctx.get(tareaId) ?? null;
 }
 
 export function ContadoresProvider({
@@ -35,15 +53,21 @@ export function ContadoresProvider({
   ids: number[];
   children: React.ReactNode;
 }) {
-  const [map, setMap] = useState<ContadoresMap>(new Map());
+  const [snapMap, setSnapMap] = useState<ContadoresMap>(new Map());
+  const [displayMap, setDisplayMap] = useState<Map<number, ContadorResponse | null>>(new Map());
   const idsRef = useRef<number[]>(ids);
   idsRef.current = ids;
+  const snapMapRef = useRef<ContadoresMap>(snapMap);
+  snapMapRef.current = snapMap;
+  const lastFetchRef = useRef<number>(0);
 
   const cargarBatch = useCallback(async () => {
     if (idsRef.current.length === 0) {
-      setMap(new Map());
+      setSnapMap(new Map());
       return;
     }
+    const nowFetch = Date.now();
+    lastFetchRef.current = nowFetch;
     const results = await Promise.all(
       idsRef.current.map(async (id) => {
         try {
@@ -54,15 +78,14 @@ export function ContadoresProvider({
         }
       })
     );
-    setMap((prev) => {
+    setSnapMap((prev) => {
       const next = new Map(prev);
       for (const [id, data] of results) {
-        // solo actualizar si el id sigue visible (evita race al cambiar página)
-        if (idsRef.current.includes(id)) {
-          next.set(id, data);
-        }
+        if (!idsRef.current.includes(id)) continue;
+        if (data === null) continue; // preserve on error
+        const serverAhora = data.servidor_ahora ? new Date(data.servidor_ahora) : new Date();
+        next.set(id, { raw: data, serverAhora });
       }
-      // limpiar ids que ya no están visibles
       for (const k of Array.from(next.keys())) {
         if (!idsRef.current.includes(k)) next.delete(k);
       }
@@ -70,34 +93,42 @@ export function ContadoresProvider({
     });
   }, []);
 
-  // poll inicial + cada 30s + visibilitychange
   useEffect(() => {
     let cancelled = false;
     let poll: ReturnType<typeof setInterval> | null = null;
-
     const doCargar = async () => {
       if (cancelled) return;
+      if (Date.now() - lastFetchRef.current < 2000) return;
       await cargarBatch();
     };
-
-    // reset map al cambiar ids (para mostrar "Calculando..." en nuevos)
-    setMap((prev) => {
-      const n = new Map<number, ContadorResponse | null>();
+    setSnapMap((prev) => {
+      const next = new Map(prev);
+      let changed = false;
       for (const id of ids) {
-        // preservar si ya existe, sino null (cargando)
-        n.set(id, prev.get(id) ?? null);
+        if (!next.has(id)) {
+          next.set(id, null);
+          changed = true;
+        }
       }
-      return n;
+      for (const k of Array.from(next.keys())) {
+        if (!ids.includes(k)) {
+          next.delete(k);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
     });
-
-    doCargar();
-    poll = setInterval(doCargar, 30000);
-
+    // schedule initial if needed
+    const hasNull = ids.some((id) => !snapMapRef.current.has(id) || snapMapRef.current.get(id) === null);
+    if (hasNull || snapMapRef.current.size === 0) doCargar();
+    poll = setInterval(doCargar, POLL_MS);
     const onVis = () => {
-      if (document.visibilityState === "visible") doCargar();
+      if (document.visibilityState === "visible") {
+        if (Date.now() - lastFetchRef.current < VIS_DEBOUNCE_MS) return;
+        doCargar();
+      }
     };
     document.addEventListener("visibilitychange", onVis);
-
     return () => {
       cancelled = true;
       if (poll) clearInterval(poll);
@@ -105,36 +136,35 @@ export function ContadoresProvider({
     };
   }, [ids, cargarBatch]);
 
-  // 1 tick global 1s -> decrementa todos los activos en jornada
+  // tick interpolado sin mutar snapshot
   useEffect(() => {
     const tick = setInterval(() => {
       const now = new Date();
-      // 1 cálculo de estaEnJornada por incluye_sabado distinto (true/false) -> cache
-      const jornadaCache = new Map<boolean, boolean>();
-      const getJornada = (incluye: boolean) => {
-        if (!jornadaCache.has(incluye)) jornadaCache.set(incluye, estaEnJornada(now, incluye));
-        return jornadaCache.get(incluye)!;
-      };
-
-      setMap((prev) => {
-        let changed = false;
-        const next = new Map(prev);
-        for (const [id, data] of prev.entries()) {
-          if (!data) continue;
-          if (!data.activo || data.pausado) continue;
-          if (data.tiempo_tomado_segundos !== null) continue; // ya finalizado
-          const incluye = !!data.incluye_sabado;
-          if (!getJornada(incluye)) continue;
-          if (data.segundos_restantes <= 0) continue;
-          const updated: ContadorResponse = { ...data, segundos_restantes: Math.max(0, data.segundos_restantes - 1) };
-          next.set(id, updated);
-          changed = true;
+      const snap = snapMapRef.current;
+      setDisplayMap(() => {
+        const next = new Map<number, ContadorResponse | null>();
+        for (const [id, s] of snap.entries()) {
+          if (s === null) next.set(id, null);
+          else next.set(id, interpolate(s, now));
         }
-        return changed ? next : prev;
+        for (const id of idsRef.current) if (!next.has(id)) next.set(id, null);
+        return next;
       });
     }, 1000);
     return () => clearInterval(tick);
   }, []);
 
-  return <ContadoresContext.Provider value={map}>{children}</ContadoresContext.Provider>;
+  // sync display on snapMap change (fetch)
+  useEffect(() => {
+    const now = new Date();
+    const next = new Map<number, ContadorResponse | null>();
+    for (const [id, s] of snapMap.entries()) {
+      if (s === null) next.set(id, null);
+      else next.set(id, interpolate(s, now));
+    }
+    for (const id of idsRef.current) if (!next.has(id)) next.set(id, null);
+    setDisplayMap(next);
+  }, [snapMap]);
+
+  return <ContadoresContext.Provider value={displayMap}>{children}</ContadoresContext.Provider>;
 }

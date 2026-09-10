@@ -45,10 +45,12 @@ export async function apiFetch<T>(
         headers.set("Authorization", `Bearer ${token}`);
     }
 
+    const isContador = path.includes("/contador") || path.includes("/contadores");
     let res = await fetch(`${apiBaseUrl}${path}`, {
         ...options,
         headers,
-    });
+        cache: isContador ? "no-store" : (options as any).cache,
+    } as RequestInit);
 
     if (res.status === 401 && token) {
         const renovado = await refrescarTokens();
@@ -62,7 +64,8 @@ export async function apiFetch<T>(
             res = await fetch(`${apiBaseUrl}${path}`, {
                 ...options,
                 headers,
-            });
+                cache: path.includes("/contador") || path.includes("/contadores") ? "no-store" : (options as any).cache,
+            } as RequestInit);
         }
     }
 

@@ -18,6 +18,9 @@ export interface Subtarea {
     tiempo_tomado_segundos?: number | null;
     tiempo_tomado_horas?: number | null;
     tiempo_tomado_formateado?: string | null;
+    activo?: boolean;
+    fecha_inactivacion?: string | null;
+    inactivada_por?: number | null;
 }
 
 export interface Task {
@@ -55,6 +58,9 @@ export interface Task {
     tiempo_tomado_horas?: number | null;
     tiempo_tomado_formateado?: string | null;
     tiempo_planificado_segundos?: number | null;
+    activo?: boolean;
+    fecha_inactivacion?: string | null;
+    inactivada_por?: number | null;
 }
 
 export interface CampanaInfo {

@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useTareas } from "./hooks/useTareas";
 import { useTareasGuard } from "./hooks/useTareasGuard";
 import { filtrarTareas } from "./utils/tareasFilters";
-import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar } from "@/lib/services/tareasService";
+import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar } from "@/lib/services/tareasService";
 
 export default function TareasPage() {
   const { tareas, cargando, error, busqueda, setBusqueda, cargar, setError } = useTareas();
@@ -85,6 +85,37 @@ export default function TareasPage() {
     }
   };
 
+  const reasignarSubtarea = async (tareaId: number, subtareaId: number, nuevoAsignado: number) => {
+    try {
+      await apiReasignar(tareaId, subtareaId, nuevoAsignado);
+      showToast("Subtarea reasignada", "success");
+      await cargar();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+      throw e;
+    }
+  };
+  const inactivarSubtarea = async (tareaId: number, subtareaId: number) => {
+    try {
+      await apiInactivar(tareaId, subtareaId);
+      showToast("Subtarea inactivada", "success");
+      await cargar();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+      throw e;
+    }
+  };
+  const reactivarSubtarea = async (tareaId: number, subtareaId: number) => {
+    try {
+      await apiReactivar(tareaId, subtareaId);
+      showToast("Subtarea reactivada", "success");
+      await cargar();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+      throw e;
+    }
+  };
+
   if (sinPermiso) {
     return (
       <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
@@ -92,6 +123,13 @@ export default function TareasPage() {
         <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE no tienes acceso a Tareas en desarrollo. Usa &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes.</p>
       </div>
     );
+  }
+  // admin redirect ya hecho en guard, pero fallback render
+  if (typeof window !== "undefined") {
+    const u = (() => { try { const g = localStorage.getItem("user"); return g ? JSON.parse(g) : null; } catch { return null; } })();
+    if (u && (u.roles ?? []).map((r: string)=>r.toLowerCase()).includes("administrador")) {
+      return <div style={{ padding: 16, color: "#6b7280" }}>Redirigiendo a Solicitudes...</div>;
+    }
   }
   if (cargando) return <div>Cargando tareas…</div>;
   if (error) return <div>Error al cargar las tareas: {error}</div>;
@@ -113,7 +151,7 @@ export default function TareasPage() {
         </form>
       </div>
       <p style={{ fontSize: 12, color: "#6b7280", marginTop: -8, marginBottom: 12 }}>Por defecto se muestran tareas en proceso o con solución reciente (≤3 días). Usa el buscador para ver anteriores por ticket o nombre.</p>
-      <TaskTableEnDesarrollo tareas={tareasFiltradas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} />
+      <TaskTableEnDesarrollo tareas={tareasFiltradas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} />
     </div>
   );
 }

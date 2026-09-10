@@ -49,6 +49,10 @@ export default function TaskTableEnDesarrollo({
   onEmpezarSubtarea,
   onCompletarSubtarea,
   onCambiarEstadoSubtarea,
+  onReasignarSubtarea,
+  onInactivarSubtarea,
+  onReactivarSubtarea,
+  onTareaMutated,
 }: {
   tareas: Task[];
   accionando?: number | null;
@@ -66,6 +70,10 @@ export default function TaskTableEnDesarrollo({
   onEmpezarSubtarea?: (tareaId: number, subtareaId: number) => void;
   onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
   onCambiarEstadoSubtarea?: (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => void;
+  onReasignarSubtarea?: (tareaId: number, subtareaId: number, nuevoAsignado: number) => Promise<void>;
+  onInactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
+  onReactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
+  onTareaMutated?: () => void | Promise<void>;
 }) {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   //const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
@@ -73,7 +81,7 @@ export default function TaskTableEnDesarrollo({
   const usuario = getUsuarioActual();
   const tienePendienteEnTarea = (tarea: Task) =>
     tarea.subtareas.some(
-      (s) => s.asignado === usuario?.id && (s.estado === "EN_ESPERA" || s.estado === "EN_DESARROLLO")
+      (s) => s.activo !== false && s.asignado === usuario?.id && (s.estado === "EN_ESPERA" || s.estado === "EN_DESARROLLO")
     );
 
   const tareasVisibles = tareas.filter((tarea) => tarea.estado !== "EN_ESPERA");
@@ -221,6 +229,10 @@ export default function TaskTableEnDesarrollo({
         completandoId={completandoId}
         accionando={accionando}
         onIniciar={onIniciar}
+        onReasignarSubtarea={onReasignarSubtarea}
+        onInactivarSubtarea={onInactivarSubtarea}
+        onReactivarSubtarea={onReactivarSubtarea}
+        onTareaMutated={onTareaMutated}
       />
 
       {/*{taskParaIniciar && (

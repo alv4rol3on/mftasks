@@ -29,10 +29,11 @@ const menuAll: MenuItem[] = [
   { nombre: "Inicio", ruta: "/mfpages/home", show: () => true },
   // CLIENTE: ve estado de sus solicitudes
   { nombre: "Mis Solicitudes", ruta: "/mfpages/cliente/mis-solicitudes", show: (c) => c.isCliente },
-  // ASISTENTE: ver pero no aprobar | SUB-LIDER/LIDER: aprobar | ADMIN/ASIGNADOR: aprobar
-  // Visible para todo el personal interno (asistente, asignador, lider, sub-lider, admin) pero NO para cliente puro
-  { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isAdmin || c.isLider || c.isSubLider || c.isMiembro) },
-  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isAdmin || c.isLider || c.isSubLider || c.isMiembro) },
+  // Para admin: una sola vista unificada "Solicitudes" (todos los estados, solo lectura + inactivar)
+  { nombre: "Solicitudes", ruta: "/mfpages/solicitudes", show: (c) => c.isAdmin },
+  // Personal interno no-admin
+  { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
   { nombre: "Administración de usuarios", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
 ];
