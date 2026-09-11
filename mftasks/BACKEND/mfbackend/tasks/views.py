@@ -828,25 +828,70 @@ class TaskViewSet(viewsets.ModelViewSet):
         if subtarea.estado == Subtarea.Estado.STAND_BY:
             return Response({"detail": "La subtarea está en pausa (STAND_BY). Debe reanudarla primero."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Cambiar estado
+        # Cambiar estado - con soporte inicio anticipado que amplía SLA y promueve tarea
         estado_anterior = subtarea.estado
         ahora = timezone.localtime(timezone.now())
 
-        subtarea.estado = Subtarea.Estado.EN_DESARROLLO
-        subtarea.fecha_inicio = ahora
-        subtarea.save(
-            update_fields=["estado", "fecha_inicio"]
-        )
+        with transaction.atomic():
+            subtarea.estado = Subtarea.Estado.EN_DESARROLLO
+            subtarea.fecha_inicio = ahora
+            subtarea.save(update_fields=["estado", "fecha_inicio"])
 
-        registrar_log(
-            tarea=tarea,
-            subtarea=subtarea,
-            usuario=request.user,
-            tipo_evento=TareaLog.TipoEvento.INICIO,
-            estado_anterior=estado_anterior,
-            estado_nuevo=subtarea.estado,
-            detalle="Subtarea iniciada",
-        )
+            registrar_log(
+                tarea=tarea,
+                subtarea=subtarea,
+                usuario=request.user,
+                tipo_evento=TareaLog.TipoEvento.INICIO,
+                estado_anterior=estado_anterior,
+                estado_nuevo=subtarea.estado,
+                detalle="Subtarea iniciada",
+            )
+
+            # Si tarea estaba APROBADO/EN_ESPERA y subtarea inicia antes de fecha_inicio programada, promover a EN_DESARROLLO inmediato
+            if tarea.estado in [Tarea.Estado.APROBADO, Tarea.Estado.EN_ESPERA]:
+                tarea_actualizada = Tarea.objects.select_for_update().get(pk=tarea.pk)
+                if tarea_actualizada.estado in [Tarea.Estado.APROBADO, Tarea.Estado.EN_ESPERA]:
+                    # calcular extra para log
+                    try:
+                        from .services.tiempo_laboral import calcular_tiempo_extra_tarea, formatear_extra_debug
+                    except Exception:
+                        calcular_tiempo_extra_tarea = None
+                    # refrescar tarea para que obtener_inicio_efectivo vea el nuevo log
+                    tarea.refresh_from_db()
+                    # promover a EN_DESARROLLO si estaba programada a futuro o en APROBADO
+                    estado_tarea_ant = tarea_actualizada.estado
+                    tarea_actualizada.estado = Tarea.Estado.EN_DESARROLLO
+                    tarea_actualizada.save(update_fields=["estado"])
+                    # log de promoción anticipada
+                    try:
+                        from .services.tiempo_laboral import calcular_tiempo_extra_tarea as _calc_extra
+                        tarea.refresh_from_db()
+                        extra = _calc_extra(tarea_actualizada)
+                        extra_s = int(extra.total_seconds()) if extra else 0
+                        extra_str = f" +{extra_s}s extra anticipado" if extra_s > 0 else ""
+                    except Exception:
+                        extra_str = ""
+                    registrar_log(
+                        tarea=tarea_actualizada,
+                        usuario=request.user,
+                        tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
+                        estado_anterior=estado_tarea_ant,
+                        estado_nuevo=tarea_actualizada.estado,
+                        detalle=f"Tarea promovida a EN_DESARROLLO por inicio anticipado de subtarea #{subtarea.id} a las {ahora.isoformat()}{extra_str}.",
+                    )
+                    tarea = tarea_actualizada
+
+        # broadcast via Valkey/Channels si disponible (no bloqueante)
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            from .services.tiempo_laboral import obtener_contador_tarea
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                data = obtener_contador_tarea(tarea)
+                async_to_sync(channel_layer.group_send)(f"tarea_{tarea.id}", {"type": "contador.update", "data": data})
+        except Exception:
+            pass
 
         return Response(
             SubtareaSerializer(subtarea).data,

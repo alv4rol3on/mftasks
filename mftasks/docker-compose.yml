@@ -1,4 +1,18 @@
 services:
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: mf-valkey
+    command: valkey-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
   backend:
     build:
       context: ./BACKEND/mfbackend
@@ -8,12 +22,14 @@ services:
 
     working_dir: /app
 
-    command: python manage.py runserver 0.0.0.0:8000
+    command: daphne -b 0.0.0.0 -p 8000 mfbackend.asgi:application
 
     environment:
       AZURE_TENANT_ID: 8d669035-9c23-4bfe-8439-816c8408e589
       AZURE_CLIENT_ID: 10a3c5ce-2a51-456e-8bc2-6256f4720848
       AZURE_ALLOWED_DOMAINS: ""
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
 
     volumes:
       - ./BACKEND/mfbackend:/app
@@ -21,6 +37,9 @@ services:
 
     ports:
       - "8000:8000"
+    depends_on:
+      valkey:
+        condition: service_healthy
 
   frontend:
     build:
@@ -48,3 +67,5 @@ services:
 
     depends_on:
       - backend
+volumes:
+  valkey_data:

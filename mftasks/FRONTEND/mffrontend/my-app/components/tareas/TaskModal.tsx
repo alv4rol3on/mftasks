@@ -379,6 +379,18 @@ export default function TaskModal({
                                             <td>{Math.floor(tarea.tiempo_planificado_segundos / 3600)}h {Math.floor((tarea.tiempo_planificado_segundos % 3600) / 60)}m</td>
                                         </tr>
                                     )}
+                                    {(tarea as any).tiempo_planificado_efectivo_segundos && (tarea as any).segundos_extra > 0 && (
+                                        <tr>
+                                            <td><strong>Plan efectivo</strong></td>
+                                            <td style={{ color: "#5b21b6", fontWeight: 700 }}>{Math.floor((tarea as any).tiempo_planificado_efectivo_segundos / 3600)}h {Math.floor(((tarea as any).tiempo_planificado_efectivo_segundos % 3600) / 60)}m <span style={{ background: "#ede9fe", border: "1px solid #ddd6fe", padding: "1px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6 }}>+{Math.floor((tarea as any).segundos_extra / 3600)}h {Math.floor(((tarea as any).segundos_extra % 3600) / 60)}m anticipado</span></td>
+                                        </tr>
+                                    )}
+                                    {(tarea as any).fecha_inicio_efectiva && (tarea as any).inicio_anticipado && (
+                                        <tr>
+                                            <td><strong>Inicio efectivo</strong></td>
+                                            <td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td>
+                                        </tr>
+                                    )}
 
                                     {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
                                         <tr>

@@ -3,19 +3,11 @@ AÑADIR:
     Miembros/lider:
     - Tareas pendientes, para revision
     Cliente:
-    - Cuando una tarea ha sido iniciado, empezó un estado o sale del standby, o ha sido solucionada
+    - Cuando el equipo al que le asignaste una solicitud haya aprobado, rechazado, empezado el desarrollo, haya puesto en standby o reanudado una tarea 
 
 Detalles con el contador: 
-- Cuando una subtarea se inicia antes de la hora programada para empezar la tarea(por ejemplo inicia a las 12:30 pero inicie una subtarea a las 12:00) deberia iniciar con el tiempo extra que sobra para que sea la hora programada
+- Cuando una subtarea se inicia antes de la hora programada para empezar la tarea(por ejemplo la tarea esta programada para iniciar a las 12:30 pero inicie una de sus subtareas a las 12:00) deberia iniciar con el tiempo extra que sobra para que sea la hora programada
 - Esta hora extra tambien cuenta para el tiempo tomado de la subtarea y el tiempo tomado de la tarea en general
-
-Solicitudes del cliente:
-- Deberia haber un diseño similar al de Solicitudes de Admin para seguir un patron 
 
 Lider/miembro:
 - Opcion de reunion
-
-Admin: 
-- registrar nuevo campaña/subcampaña
-- paginacion en el apartado de usuarios y filtro por tipo de usuario
-- paginacion de las campañas/subcampañas en permisos 

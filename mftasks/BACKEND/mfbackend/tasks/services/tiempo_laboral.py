@@ -40,6 +40,21 @@ def _jornada(fecha, incluye_sabado: bool, tzinfo):
     return None
 
 
+def obtener_inicio_efectivo_tarea(tarea: Tarea) -> Optional[datetime]:
+    """Inicio efectivo = min(fecha_inicio programada, primer INICIO de subtarea). Si no hay anticipado, es programada."""
+    if not tarea or not getattr(tarea, "fecha_inicio", None):
+        return None
+    try:
+        min_sub = TareaLog.objects.filter(
+            tarea=tarea, subtarea__isnull=False, tipo_evento=TareaLog.TipoEvento.INICIO
+        ).order_by("fecha", "id").values_list("fecha", flat=True).first()
+        if min_sub and min_sub < tarea.fecha_inicio:
+            return min_sub
+    except Exception:
+        pass
+    return tarea.fecha_inicio
+
+
 def _get_incluye_sabado(obj) -> bool:
     """Extrae incluye_sabado de Tarea o de Subtarea.tarea; fallback False."""
     if obj is None:
@@ -252,14 +267,15 @@ def calcular_tiempo_util_tarea(
     tarea: Tarea,
     fecha_fin: Optional[datetime] = None,
 ) -> timedelta:
-    if not tarea.fecha_inicio:
+    inicio_ef = obtener_inicio_efectivo_tarea(tarea)
+    if not inicio_ef:
         return timedelta(0)
     fecha_fin = fecha_fin or timezone.now()
-    if fecha_fin <= tarea.fecha_inicio:
+    if fecha_fin <= inicio_ef:
         return timedelta(0)
     incluye = _get_incluye_sabado(tarea)
-    tiempo_total = calcular_tiempo_laboral(tarea.fecha_inicio, fecha_fin, incluye_sabado=incluye)
-    tiempo_standby = calcular_tiempo_standby(tarea, tarea.fecha_inicio, fecha_fin)
+    tiempo_total = calcular_tiempo_laboral(inicio_ef, fecha_fin, incluye_sabado=incluye)
+    tiempo_standby = calcular_tiempo_standby(tarea, inicio_ef, fecha_fin)
     tiempo_util = tiempo_total - tiempo_standby
     if tiempo_util < timedelta(0):
         return timedelta(0)
@@ -404,6 +420,24 @@ def calcular_tiempo_planificado_tarea(
     return calcular_tiempo_laboral(tarea.fecha_inicio, tarea.fecha_entrega_aproximada, incluye_sabado=incluye)
 
 
+def calcular_tiempo_extra_tarea(tarea: Tarea) -> timedelta:
+    """Tiempo laboral extra por inicio anticipado de subtarea (0 si no hay anticipado)."""
+    if not tarea.fecha_inicio:
+        return timedelta(0)
+    inicio_ef = obtener_inicio_efectivo_tarea(tarea)
+    if not inicio_ef or inicio_ef >= tarea.fecha_inicio:
+        return timedelta(0)
+    incluye = _get_incluye_sabado(tarea)
+    return calcular_tiempo_laboral(inicio_ef, tarea.fecha_inicio, incluye_sabado=incluye)
+
+
+def calcular_tiempo_planificado_efectivo_tarea(tarea: Tarea) -> timedelta:
+    """Planificado ampliado = original + extra anticipado."""
+    base = calcular_tiempo_planificado_tarea(tarea)
+    extra = calcular_tiempo_extra_tarea(tarea)
+    return base + extra
+
+
 # ============================================================
 # CALCULAR TIEMPO ÚTIL RESTANTE
 # ============================================================
@@ -434,14 +468,15 @@ def calcular_tiempo_restante_tarea(
     if not tarea.fecha_entrega_aproximada:
         return timedelta(0)
     ahora = ahora or timezone.now()
-    inicio = tarea.fecha_inicio
+    inicio_ef = obtener_inicio_efectivo_tarea(tarea)
+    if not inicio_ef:
+        return timedelta(0)
     entrega = tarea.fecha_entrega_aproximada
-    if ahora <= inicio:
-        return calcular_tiempo_planificado_tarea(tarea)
-    incluye = _get_incluye_sabado(tarea)
-    tiempo_planificado = calcular_tiempo_laboral(inicio, entrega, incluye_sabado=incluye)
+    if ahora <= inicio_ef:
+        return calcular_tiempo_planificado_efectivo_tarea(tarea)
+    tiempo_planificado_ef = calcular_tiempo_planificado_efectivo_tarea(tarea)
     tiempo_transcurrido = calcular_tiempo_util_tarea(tarea, fecha_fin=ahora)
-    restante = tiempo_planificado - tiempo_transcurrido
+    restante = tiempo_planificado_ef - tiempo_transcurrido
     if restante < timedelta(0):
         return timedelta(0)
     return restante
@@ -464,16 +499,15 @@ def calcular_tiempo_restante_subtarea(
         return timedelta(0)
     ahora = ahora or timezone.now()
     # Si aún no ha empezado la subtarea, el restante es el de la tarea
-    # Si ya empezó, el restante es planificado - util_subtarea (pero nunca mayor que restante_tarea)
+    # Si ya empezó, el restante es planificado_efectivo - util_subtarea (pero nunca mayor que restante_tarea)
     restante_tarea = calcular_tiempo_restante_tarea(tarea, ahora=ahora)
     if not subtarea.fecha_inicio:
         return restante_tarea
     # Tiempo tomado subtarea hasta ahora
     tiempo_tomado = calcular_tiempo_util_subtarea(subtarea, fecha_fin=ahora)
-    incluye = _get_incluye_sabado(tarea)
-    tiempo_planificado = calcular_tiempo_laboral(tarea.fecha_inicio, tarea.fecha_entrega_aproximada, incluye_sabado=incluye)
-    # Restante subtarea = planificado - tomado_subtarea (cap a restante_tarea)
-    restante_sub = tiempo_planificado - tiempo_tomado
+    tiempo_planificado_ef = calcular_tiempo_planificado_efectivo_tarea(tarea)
+    # Restante subtarea = planificado_efectivo - tomado_subtarea (cap a restante_tarea)
+    restante_sub = tiempo_planificado_ef - tiempo_tomado
     if restante_sub < timedelta(0):
         return timedelta(0)
     # No puede ser mayor que restante_tarea (si subtarea empezó tarde, le queda menos)
@@ -497,6 +531,9 @@ def obtener_contador_tarea(
     if tarea.estado == Tarea.Estado.SOLUCIONADO:
         tiempo_tomado = calcular_tiempo_tomado_tarea(tarea)
         tiempo_planificado = calcular_tiempo_planificado_tarea(tarea)
+        tiempo_planificado_ef = calcular_tiempo_planificado_efectivo_tarea(tarea)
+        extra = calcular_tiempo_extra_tarea(tarea)
+        inicio_ef = obtener_inicio_efectivo_tarea(tarea)
         return {
             "activo": False,
             "pausado": False,
@@ -504,6 +541,11 @@ def obtener_contador_tarea(
             "segundos_restantes": 0,
             "tiempo_tomado_segundos": int(tiempo_tomado.total_seconds()),
             "tiempo_planificado_segundos": int(tiempo_planificado.total_seconds()),
+            "tiempo_planificado_efectivo_segundos": int(tiempo_planificado_ef.total_seconds()),
+            "segundos_extra": int(extra.total_seconds()),
+            "inicio_anticipado": bool(extra.total_seconds() > 0),
+            "fecha_inicio_efectiva": inicio_ef.isoformat() if inicio_ef else None,
+            "fecha_inicio_programada": tarea.fecha_inicio.isoformat() if tarea.fecha_inicio else None,
             "incluye_sabado": incluye,
             "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
             "fecha_solucion": tarea.fecha_solucion.isoformat() if tarea.fecha_solucion else None,
@@ -513,6 +555,8 @@ def obtener_contador_tarea(
 
     if tarea.estado == Tarea.Estado.STAND_BY:
         tiempo_restante = calcular_tiempo_restante_tarea(tarea, ahora=ahora)
+        extra = calcular_tiempo_extra_tarea(tarea)
+        inicio_ef = obtener_inicio_efectivo_tarea(tarea)
         return {
             "activo": False,
             "pausado": True,
@@ -520,6 +564,11 @@ def obtener_contador_tarea(
             "segundos_restantes": int(tiempo_restante.total_seconds()),
             "tiempo_tomado_segundos": None,
             "tiempo_planificado_segundos": int(calcular_tiempo_planificado_tarea(tarea).total_seconds()) if tarea.fecha_inicio and tarea.fecha_entrega_aproximada else 0,
+            "tiempo_planificado_efectivo_segundos": int(calcular_tiempo_planificado_efectivo_tarea(tarea).total_seconds()) if tarea.fecha_inicio and tarea.fecha_entrega_aproximada else 0,
+            "segundos_extra": int(extra.total_seconds()),
+            "inicio_anticipado": bool(extra.total_seconds() > 0),
+            "fecha_inicio_efectiva": inicio_ef.isoformat() if inicio_ef else None,
+            "fecha_inicio_programada": tarea.fecha_inicio.isoformat() if tarea.fecha_inicio else None,
             "incluye_sabado": incluye,
             "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
             "fecha_inicio": tarea.fecha_inicio.isoformat() if tarea.fecha_inicio else None,
@@ -548,10 +597,12 @@ def obtener_contador_tarea(
             "fecha_entrega_aproximada": None,
         }
 
-    # Programada pero aún no en desarrollo: no activa hasta APScheduler
+    # Programada pero aún no en desarrollo: no activa hasta APScheduler (o inicio anticipado)
     if tarea.estado in (Tarea.Estado.EN_ESPERA, Tarea.Estado.APROBADO):
-        # si fecha_inicio futura, mostrar planificado sin descontar
-        if tarea.fecha_inicio and ahora < tarea.fecha_inicio:
+        extra = calcular_tiempo_extra_tarea(tarea)
+        inicio_ef = obtener_inicio_efectivo_tarea(tarea)
+        # si fecha_inicio futura, mostrar planificado sin descontar (incluye extra si ya hubo anticipado)
+        if tarea.fecha_inicio and ahora < tarea.fecha_inicio and extra.total_seconds() == 0:
             plan = calcular_tiempo_planificado_tarea(tarea)
             return {
                 "activo": False,
@@ -560,6 +611,9 @@ def obtener_contador_tarea(
                 "segundos_restantes": int(plan.total_seconds()),
                 "tiempo_tomado_segundos": None,
                 "tiempo_planificado_segundos": int(plan.total_seconds()),
+                "tiempo_planificado_efectivo_segundos": int(plan.total_seconds()),
+                "segundos_extra": 0,
+                "inicio_anticipado": False,
                 "incluye_sabado": incluye,
                 "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat(),
                 "fecha_inicio": tarea.fecha_inicio.isoformat(),
@@ -568,13 +622,19 @@ def obtener_contador_tarea(
             }
         # ya pasó la hora pero aún APROBADO por estar fuera de jornada -> sigue no activo
         plan = calcular_tiempo_planificado_tarea(tarea)
+        plan_ef = calcular_tiempo_planificado_efectivo_tarea(tarea)
         return {
             "activo": False,
             "pausado": False,
             "finalizado": False,
-            "segundos_restantes": int(plan.total_seconds()),
+            "segundos_restantes": int(plan_ef.total_seconds()),
             "tiempo_tomado_segundos": None,
             "tiempo_planificado_segundos": int(plan.total_seconds()),
+            "tiempo_planificado_efectivo_segundos": int(plan_ef.total_seconds()),
+            "segundos_extra": int(extra.total_seconds()),
+            "inicio_anticipado": bool(extra.total_seconds() > 0),
+            "fecha_inicio_efectiva": inicio_ef.isoformat() if inicio_ef else None,
+            "fecha_inicio_programada": tarea.fecha_inicio.isoformat() if tarea.fecha_inicio else None,
             "incluye_sabado": incluye,
             "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat(),
             "fecha_inicio": tarea.fecha_inicio.isoformat(),
@@ -583,6 +643,8 @@ def obtener_contador_tarea(
         }
 
     tiempo_restante = calcular_tiempo_restante_tarea(tarea, ahora=ahora)
+    extra = calcular_tiempo_extra_tarea(tarea)
+    inicio_ef = obtener_inicio_efectivo_tarea(tarea)
     return {
         "activo": True,
         "pausado": False,
@@ -590,6 +652,11 @@ def obtener_contador_tarea(
         "segundos_restantes": int(tiempo_restante.total_seconds()),
         "tiempo_tomado_segundos": None,
         "tiempo_planificado_segundos": int(calcular_tiempo_planificado_tarea(tarea).total_seconds()),
+        "tiempo_planificado_efectivo_segundos": int(calcular_tiempo_planificado_efectivo_tarea(tarea).total_seconds()),
+        "segundos_extra": int(extra.total_seconds()),
+        "inicio_anticipado": bool(extra.total_seconds() > 0),
+        "fecha_inicio_efectiva": inicio_ef.isoformat() if inicio_ef else None,
+        "fecha_inicio_programada": tarea.fecha_inicio.isoformat() if tarea.fecha_inicio else None,
         "incluye_sabado": incluye,
         "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat(),
         "fecha_inicio": tarea.fecha_inicio.isoformat() if tarea.fecha_inicio else None,

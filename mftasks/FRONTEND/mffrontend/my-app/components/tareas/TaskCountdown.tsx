@@ -17,6 +17,11 @@ interface ContadorResponseFallback {
   segundos_restantes: number;
   tiempo_tomado_segundos: number | null;
   tiempo_planificado_segundos?: number | null;
+  tiempo_planificado_efectivo_segundos?: number | null;
+  segundos_extra?: number | null;
+  inicio_anticipado?: boolean;
+  fecha_inicio_efectiva?: string | null;
+  fecha_inicio_programada?: string | null;
   incluye_sabado?: boolean;
   fecha_entrega_aproximada: string | null;
   fecha_inicio?: string | null;
@@ -24,15 +29,21 @@ interface ContadorResponseFallback {
   servidor_ahora: string;
 }
 
+function BadgeExtra({ segundos }: { segundos: number }) {
+  if (!segundos || segundos <= 0) return null;
+  return <span style={{ marginLeft: 6, background: "#ede9fe", color: "#5b21b6", border: "1px solid #ddd6fe", padding: "1px 6px", borderRadius: 999, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>+{formatearTiempo(segundos)} anticipado</span>;
+}
+
 export default function TaskCountdown({ tareaId, incluyeSabado }: TaskCountdownProps) {
   const ctxData = useContador(tareaId);
   if (ctxData !== undefined) {
     if (ctxData === null) return <span>Calculando...</span>;
+    const extra = (ctxData as any).segundos_extra ?? (ctxData as any).segundos_extra ?? 0;
     if (ctxData.tiempo_tomado_segundos !== null) {
-      return <span>Tiempo tomado: {formatearTiempo(ctxData.tiempo_tomado_segundos)}</span>;
+      return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>Tiempo tomado: {formatearTiempo(ctxData.tiempo_tomado_segundos)}<BadgeExtra segundos={extra} /></span>;
     }
-    if (ctxData.pausado) return <span>En pausa</span>;
-    return <span>{formatearTiempo(ctxData.segundos_restantes)}</span>;
+    if (ctxData.pausado) return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>En pausa<BadgeExtra segundos={extra} /></span>;
+    return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>{formatearTiempo(ctxData.segundos_restantes)}<BadgeExtra segundos={extra} /></span>;
   }
 
   // Fallback aislado: snapshot + interpolación sin drift
@@ -90,8 +101,9 @@ export default function TaskCountdown({ tareaId, incluyeSabado }: TaskCountdownP
     };
   }, [tareaId, incluyeSabado]);
 
-  if (snapshot && snapshot.raw.tiempo_tomado_segundos !== null) return <span>Tiempo tomado: {formatearTiempo(snapshot.raw.tiempo_tomado_segundos)}</span>;
-  if (snapshot && snapshot.raw.pausado) return <span>En pausa</span>;
+  const extraFallback = (snapshot?.raw as any)?.segundos_extra ?? 0;
+  if (snapshot && snapshot.raw.tiempo_tomado_segundos !== null) return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>Tiempo tomado: {formatearTiempo(snapshot.raw.tiempo_tomado_segundos)}<BadgeExtra segundos={extraFallback} /></span>;
+  if (snapshot && snapshot.raw.pausado) return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>En pausa<BadgeExtra segundos={extraFallback} /></span>;
   if (displaySec === null) return <span>Calculando...</span>;
-  return <span>{formatearTiempo(displaySec)}</span>;
+  return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>{formatearTiempo(displaySec)}<BadgeExtra segundos={extraFallback} /></span>;
 }
