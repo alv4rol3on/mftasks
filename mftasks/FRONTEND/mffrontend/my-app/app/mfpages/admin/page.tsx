@@ -3,11 +3,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
+import Pagination from "@/components/ui/Pagination";
 import styles from "./Admin.module.css";
 
 type Usuario = { id: number; codigo?: string; email: string; nombres: string; apellidos: string; cargo?: string; is_active: boolean; roles?: string[] };
 type CampanaPerm = { id: number; nombre: string; codigo: string; subcampanas: { id: number; nombre: string; codigo: string; activo: boolean; campana: number }[]; activo: boolean };
 type Permiso = { id: number; usuario: number; usuario_email: string; subcampana: number | null; subcampana_nombre: string | null; campana: number | null; campana_nombre: string | null };
+
+const PAGE_SIZE_USUARIOS = 10;
+const PAGE_SIZE_CAMPANAS = 6;
 
 export default function AdminPage() {
   const router = useRouter();
@@ -17,6 +21,8 @@ export default function AdminPage() {
   const [cargando, setCargando] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState<string>("todos");
+  const [pageUsuarios, setPageUsuarios] = useState(1);
   const [nuevo, setNuevo] = useState({ email: "", nombres: "", apellidos: "", cargo: "", password: "", rol: "miembro" });
   const [selectedClienteId, setSelectedClienteId] = useState<number | "">("");
   const [filtroClientePerm, setFiltroClientePerm] = useState("");
@@ -25,7 +31,16 @@ export default function AdminPage() {
   const [cargandoPermisos, setCargandoPermisos] = useState(false);
   const [buscandoPermisos, setBuscandoPermisos] = useState(false);
   const [filtroCampana, setFiltroCampana] = useState("");
+  const [filtroActivoCampana, setFiltroActivoCampana] = useState<"activos" | "inactivos" | "todos">("activos");
   const [expandidas, setExpandidas] = useState<Set<number>>(new Set());
+  // paginación campañas (compartida pero con reset por tab)
+  const [pageCampanas, setPageCampanas] = useState(1);
+  const [pagePermisosCampanas, setPagePermisosCampanas] = useState(1);
+  // formulario campaña / subcampaña
+  const [tipoCreacion, setTipoCreacion] = useState<"campana" | "subcampana">("campana");
+  const [nuevaCampanaNombre, setNuevaCampanaNombre] = useState("");
+  const [nuevaSubcampana, setNuevaSubcampana] = useState({ campanaId: "", nombre: "" });
+  const [creandoCampana, setCreandoCampana] = useState(false);
 
   const user = getUsuarioActual();
   const isAdmin = (user?.roles ?? []).map(r => r.toLowerCase()).includes("administrador");
@@ -81,10 +96,19 @@ export default function AdminPage() {
   };
 
   const usuariosFiltrados = usuarios.filter(u => {
-    if (!filtro) return true;
-    const q = filtro.toLowerCase();
-    return u.email.toLowerCase().includes(q) || `${u.nombres} ${u.apellidos}`.toLowerCase().includes(q) || (u.codigo ?? "").toLowerCase().includes(q);
+    const q = filtro.toLowerCase().trim();
+    const matchTexto = !q || u.email.toLowerCase().includes(q) || `${u.nombres} ${u.apellidos}`.toLowerCase().includes(q) || (u.codigo ?? "").toLowerCase().includes(q);
+    if (!matchTexto) return false;
+    if (filtroTipo === "todos") return true;
+    const rolesLow = (u.roles ?? []).map(r => r.toLowerCase());
+    return rolesLow.includes(filtroTipo.toLowerCase());
   });
+
+  // paginación usuarios client-side
+  const totalPagesUsuarios = Math.max(1, Math.ceil(usuariosFiltrados.length / PAGE_SIZE_USUARIOS));
+  const usuariosPaginados = usuariosFiltrados.slice((pageUsuarios - 1) * PAGE_SIZE_USUARIOS, pageUsuarios * PAGE_SIZE_USUARIOS);
+  useEffect(() => { setPageUsuarios(1); }, [filtro, filtroTipo]);
+  useEffect(() => { if (pageUsuarios > totalPagesUsuarios) setPageUsuarios(1); }, [totalPagesUsuarios, pageUsuarios]);
 
   const clientes = usuarios.filter(u => (u.roles ?? []).map(r => r.toLowerCase()).includes("cliente"));
   const clientesFiltrados = clientes.filter(u => {
@@ -114,18 +138,22 @@ export default function AdminPage() {
 
   // Acordeón: colapsadas por defecto con animación simple
   const toggleCampana = (id: number) => setExpandidas(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const expandirTodas = () => setExpandidas(new Set(campanasFiltradas.map(c => c.id)));
+  const expandirTodas = () => setExpandidas(new Set(campanasPaginadas.map(c => c.id)));
+  const expandirTodasPermisos = () => setExpandidas(new Set(campanasPaginadasPermisos.map(c => c.id)));
   const colapsarTodas = () => setExpandidas(new Set());
 
   // Auto-expandir cuando se busca campaña/subcampaña
   useEffect(() => {
     if (filtroCampana.trim()) {
-      setExpandidas(new Set(campanasFiltradas.map(c => c.id)));
+      // expandir solo página visible para no romper paginación
+      setExpandidas(new Set(campanasFiltradas.slice(0, PAGE_SIZE_CAMPANAS).map(c => c.id)));
     }
   }, [filtroCampana]);
 
   // Colapsar al cambiar de cliente (evita mostrar todo apretado)
   useEffect(() => { setExpandidas(new Set()); }, [selectedClienteId]);
+  useEffect(() => { setExpandidas(new Set()); setPageCampanas(1); setPagePermisosCampanas(1); }, [filtroActivoCampana]);
+  useEffect(() => { setPageCampanas(1); setPagePermisosCampanas(1); setExpandidas(new Set()); }, [tab]);
 
   const togglePermiso = async (subcampanaId: number, checked: boolean) => {
     if (selectedClienteId === "") { setMsg("Error: selecciona un cliente primero"); return; }
@@ -168,12 +196,49 @@ export default function AdminPage() {
     finally { setTogglingId(null); }
   };
 
+  const crearCampana = async () => {
+    if (!nuevaCampanaNombre.trim()) { setMsg("Error: el nombre de la campaña es obligatorio"); return; }
+    setCreandoCampana(true);
+    try {
+      await apiFetch("/api/campanas/campanas/", { method: "POST", body: JSON.stringify({ nombre: nuevaCampanaNombre.trim() }) });
+      setMsg(`Campaña "${nuevaCampanaNombre.trim()}" creada`);
+      setNuevaCampanaNombre("");
+      await cargarCampanas();
+    } catch (e) { setMsg(`Error: ${(e as Error).message}`); }
+    finally { setCreandoCampana(false); }
+  };
+  const crearSubcampana = async () => {
+    if (!nuevaSubcampana.campanaId) { setMsg("Error: selecciona una campaña padre"); return; }
+    if (!nuevaSubcampana.nombre.trim()) { setMsg("Error: el nombre de la subcampaña es obligatorio"); return; }
+    setCreandoCampana(true);
+    try {
+      await apiFetch("/api/campanas/subcampanas/", { method: "POST", body: JSON.stringify({ campana: Number(nuevaSubcampana.campanaId), nombre: nuevaSubcampana.nombre.trim() }) });
+      setMsg(`Subcampaña "${nuevaSubcampana.nombre.trim()}" creada`);
+      setNuevaSubcampana({ campanaId: "", nombre: "" });
+      await cargarCampanas();
+    } catch (e) { setMsg(`Error: ${(e as Error).message}`); }
+    finally { setCreandoCampana(false); }
+  };
+
   const permisosSubcampanaIds = new Set(permisos.filter(p => p.subcampana != null).map(p => p.subcampana as number));
   const campanasFiltradas = campanas.filter(c => {
+    // filtro activo/inactivo
+    if (filtroActivoCampana === "activos" && !c.activo) return false;
+    if (filtroActivoCampana === "inactivos" && c.activo) return false;
     if (!filtroCampana) return true;
     const q = filtroCampana.toLowerCase();
     return c.nombre.toLowerCase().includes(q) || c.codigo.toLowerCase().includes(q) || c.subcampanas.some(s => s.nombre.toLowerCase().includes(q) || s.codigo.toLowerCase().includes(q));
   });
+
+  // paginación campañas - separada por tab para no cruzar estado
+  const totalPagesCampanas = Math.max(1, Math.ceil(campanasFiltradas.length / PAGE_SIZE_CAMPANAS));
+  const campanasPaginadas = campanasFiltradas.slice((pageCampanas - 1) * PAGE_SIZE_CAMPANAS, pageCampanas * PAGE_SIZE_CAMPANAS);
+  const totalPagesPermisos = Math.max(1, Math.ceil(campanasFiltradas.length / PAGE_SIZE_CAMPANAS));
+  const campanasPaginadasPermisos = campanasFiltradas.slice((pagePermisosCampanas - 1) * PAGE_SIZE_CAMPANAS, pagePermisosCampanas * PAGE_SIZE_CAMPANAS);
+  useEffect(() => { setPageCampanas(1); }, [filtroCampana, filtroActivoCampana]);
+  useEffect(() => { setPagePermisosCampanas(1); }, [filtroCampana, filtroActivoCampana, selectedClienteId]);
+  useEffect(() => { if (pageCampanas > totalPagesCampanas) setPageCampanas(1); }, [totalPagesCampanas, pageCampanas]);
+  useEffect(() => { if (pagePermisosCampanas > totalPagesPermisos) setPagePermisosCampanas(1); }, [totalPagesPermisos, pagePermisosCampanas]);
 
   if (!isAdmin) return <div style={{ padding: 16 }}>Acceso denegado - solo administrador</div>;
 
@@ -209,41 +274,55 @@ export default function AdminPage() {
 
           <div className={styles.card}>
             <div className={styles.usersHeader}>
-              <h3 className={styles.cardTitle} style={{ margin: 0, color: "white" }}>Usuarios ({usuariosFiltrados.length})</h3>
-              <input placeholder="Buscar por email, nombre o codigo MFS-" value={filtro} onChange={e => setFiltro(e.target.value)} className={styles.searchInput} />
-            </div>
-            {cargando ? <div>Cargando...</div> : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead><tr><th>Codigo</th><th>Email</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Accion</th></tr></thead>
-                  <tbody style={{backgroundColor: "white"}}>
-                    {usuariosFiltrados.map(u => {
-                      const esAdmin = (u.roles ?? []).map(r => r.toLowerCase()).includes("administrador");
-                      const rolActual = (u.roles ?? [])[0] ?? "sin rol";
-                      return (
-                        <tr key={u.id} style={{ opacity: esAdmin ? 0.6 : 1 }}>
-                          <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#991b1b" }}>{(u as any).codigo ?? "-"}</td>
-                          <td>{u.email}</td>
-                          <td>{u.nombres} {u.apellidos}</td>
-                          <td>
-                            {esAdmin ? <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: 6, fontSize: 11 }}>Administrador</span> : (
-                              <select value={rolActual.toLowerCase()} onChange={e => cambiarRol(u, e.target.value)} className={styles.select} style={{ padding: "4px 6px", fontSize: 12 }}>
-                                <option value="miembro">miembro</option>
-                                <option value="lider">lider</option>
-                                <option value="cliente">cliente</option>
-                              </select>
-                            )}
-                          </td>
-                          <td>{u.is_active ? "Si" : "No"}</td>
-                          <td style={{color: "#991b1b"}}>
-                            <button disabled={esAdmin} onClick={() => toggleActivo(u)} style={{ background: esAdmin ? "#f3f4f6" : u.is_active ? "#fee2e2" : "#dcfce7", color: esAdmin ? "#9ca3af" : u.is_active ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: esAdmin ? "not-allowed" : "pointer", fontSize: 12 }}>{u.is_active ? "Desactivar" : "Activar"}</button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <h3 className={styles.cardTitle} style={{ margin: 0, color: "white" }}>Usuarios ({usuariosFiltrados.length} / {usuarios.length})</h3>
+              <div className={styles.usersFilters}>
+                <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className={styles.select} style={{ minWidth: 140, fontSize: 12, padding: "6px 8px" }}>
+                  <option value="todos">Todos los roles</option>
+                  <option value="administrador">administrador</option>
+                  <option value="miembro">miembro</option>
+                  <option value="lider">lider</option>
+                  <option value="cliente">cliente</option>
+                </select>
+                <input placeholder="Buscar por email, nombre o codigo MFS-" value={filtro} onChange={e => setFiltro(e.target.value)} className={styles.searchInput} />
               </div>
+            </div>
+            {cargando ? <div style={{ color: "white", fontSize: 13 }}>Cargando...</div> : (
+              <>
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead><tr><th>Codigo</th><th>Email</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Accion</th></tr></thead>
+                    <tbody style={{backgroundColor: "white"}}>
+                      {usuariosPaginados.length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>No hay usuarios que coincidan.</td></tr>
+                      ) : usuariosPaginados.map(u => {
+                        const esAdmin = (u.roles ?? []).map(r => r.toLowerCase()).includes("administrador");
+                        const rolActual = (u.roles ?? [])[0] ?? "sin rol";
+                        return (
+                          <tr key={u.id} style={{ opacity: esAdmin ? 0.6 : 1 }}>
+                            <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#991b1b" }}>{(u as any).codigo ?? "-"}</td>
+                            <td>{u.email}</td>
+                            <td>{u.nombres} {u.apellidos}</td>
+                            <td>
+                              {esAdmin ? <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: 6, fontSize: 11 }}>Administrador</span> : (
+                                <select value={rolActual.toLowerCase()} onChange={e => cambiarRol(u, e.target.value)} className={styles.select} style={{ padding: "4px 6px", fontSize: 12 }}>
+                                  <option value="miembro">miembro</option>
+                                  <option value="lider">lider</option>
+                                  <option value="cliente">cliente</option>
+                                </select>
+                              )}
+                            </td>
+                            <td>{u.is_active ? "Si" : "No"}</td>
+                            <td style={{color: "#991b1b"}}>
+                              <button disabled={esAdmin} onClick={() => toggleActivo(u)} style={{ background: esAdmin ? "#f3f4f6" : u.is_active ? "#fee2e2" : "#dcfce7", color: esAdmin ? "#9ca3af" : u.is_active ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: esAdmin ? "not-allowed" : "pointer", fontSize: 12 }}>{u.is_active ? "Desactivar" : "Activar"}</button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination page={pageUsuarios} totalPages={totalPagesUsuarios} totalItems={usuariosFiltrados.length} pageSize={PAGE_SIZE_USUARIOS} onPageChange={setPageUsuarios} />
+              </>
             )}
           </div>
         </div>
@@ -252,12 +331,58 @@ export default function AdminPage() {
       {tab === "campanas" && (
         <div className={styles.container}>
           <div className={styles.card}>
+            <h3 className={styles.cardTitle}>Registrar campaña / subcampaña</h3>
+            <div className={styles.createToggle}>
+              <button type="button" onClick={() => setTipoCreacion("campana")} className={tipoCreacion === "campana" ? styles.createToggleActive : styles.createToggleBtn}>Nueva campaña</button>
+              <button type="button" onClick={() => setTipoCreacion("subcampana")} className={tipoCreacion === "subcampana" ? styles.createToggleActive : styles.createToggleBtn}>Nueva subcampaña</button>
+            </div>
+            {tipoCreacion === "campana" ? (
+              <div className={styles.createForm}>
+                <div className={styles.createField}>
+                  <label>Nombre campaña *</label>
+                  <input placeholder="Ej: BBVA, CSC, BCP..." value={nuevaCampanaNombre} onChange={e => setNuevaCampanaNombre(e.target.value)} className={styles.input} />
+                  <span className={styles.createHint}>El código se genera automáticamente. Solo el nombre es obligatorio.</span>
+                </div>
+                <button onClick={crearCampana} disabled={creandoCampana || !nuevaCampanaNombre.trim()} className={styles.btnPrimary} style={{ opacity: creandoCampana || !nuevaCampanaNombre.trim() ? 0.6 : 1 }}>{creandoCampana ? "Creando..." : "Crear campaña"}</button>
+              </div>
+            ) : (
+              <div className={styles.createForm}>
+                <div className={styles.createField}>
+                  <label>Campaña padre *</label>
+                  <select value={nuevaSubcampana.campanaId} onChange={e => setNuevaSubcampana({ ...nuevaSubcampana, campanaId: e.target.value })} className={styles.select}>
+                    <option value="">Selecciona campaña</option>
+                    {campanas.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo}) {c.activo ? "" : "— inactiva"}</option>)}
+                  </select>
+                </div>
+                <div className={styles.createField}>
+                  <label>Nombre subcampaña *</label>
+                  <input placeholder="Ej: Tarjetas Out, Digital..." value={nuevaSubcampana.nombre} onChange={e => setNuevaSubcampana({ ...nuevaSubcampana, nombre: e.target.value })} className={styles.input} />
+                  <span className={styles.createHint}>El código se genera como CODIGO_CAMPANA_NOMBRE.</span>
+                </div>
+                <button onClick={crearSubcampana} disabled={creandoCampana || !nuevaSubcampana.campanaId || !nuevaSubcampana.nombre.trim()} className={styles.btnPrimary} style={{ opacity: creandoCampana || !nuevaSubcampana.campanaId || !nuevaSubcampana.nombre.trim() ? 0.6 : 1 }}>{creandoCampana ? "Creando..." : "Crear subcampaña"}</button>
+              </div>
+            )}
+          </div>
+          <div className={styles.card}>
             <h3 className={styles.cardTitle}>Campañas / Subcampañas — habilitar para creación de tareas</h3>
             <p className={styles.permisosDesc}>Inhabilitar una campaña o subcampaña impide que <strong>ningún usuario</strong> (aunque tenga permiso) pueda seleccionarla al crear tareas. Las tareas ya creadas mantienen su vínculo.</p>
-            <div className={styles.permisosField} style={{ maxWidth: 400 }}>
-              <label style={{ fontSize: 13, fontWeight: 600 }}>Buscar campaña/subcampaña</label>
-              <input placeholder="Filtrar por campaña o subcampaña" value={filtroCampana} onChange={e => setFiltroCampana(e.target.value)} className={styles.input} />
+            <div className={styles.permisosHeader}>
+              <div className={styles.permisosField} style={{ maxWidth: 400 }}>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>Buscar campaña/subcampaña</label>
+                <input placeholder="Filtrar por campaña o subcampaña" value={filtroCampana} onChange={e => setFiltroCampana(e.target.value)} className={styles.input} />
+              </div>
+              <div className={styles.permisosField} style={{ maxWidth: 220 }}>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>Estado</label>
+                <select value={filtroActivoCampana} onChange={e => setFiltroActivoCampana(e.target.value as any)} className={styles.select}>
+                  <option value="activos">Activas</option>
+                  <option value="inactivos">Inactivas</option>
+                  <option value="todos">Todas</option>
+                </select>
+              </div>
             </div>
+            {campanasFiltradas.length > PAGE_SIZE_CAMPANAS && (
+              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>{campanasFiltradas.length} campaña(s) · Página {pageCampanas} de {totalPagesCampanas}</div>
+            )}
             {campanasFiltradas.length > 1 && (
               <div className={styles.accordionActions}>
                 <button type="button" onClick={expandirTodas} className={styles.linkBtn}>Expandir todo</button>
@@ -265,8 +390,8 @@ export default function AdminPage() {
               </div>
             )}
             <div className={styles.campanasList}>
-              {campanasFiltradas.length === 0 ? <div style={{ fontSize: 13, color: "#6b7280" }}>No hay campañas que coincidan.</div> : (
-                campanasFiltradas.map(camp => {
+              {campanasFiltradas.length === 0 ? <div style={{ fontSize: 13, color: "#6b7280" }}>{filtroActivoCampana === "activos" ? "No hay campañas activas." : filtroActivoCampana === "inactivos" ? "No hay campañas inactivas." : "No hay campañas que coincidan."}</div> : (
+                campanasPaginadas.map(camp => {
                   const abierta = expandidas.has(camp.id);
                   return (
                     <div key={camp.id} className={styles.campanaCard}>
@@ -304,6 +429,7 @@ export default function AdminPage() {
                 })
               )}
             </div>
+            <Pagination page={pageCampanas} totalPages={totalPagesCampanas} totalItems={campanasFiltradas.length} pageSize={PAGE_SIZE_CAMPANAS} onPageChange={setPageCampanas} />
           </div>
         </div>
       )}
@@ -337,6 +463,13 @@ export default function AdminPage() {
               <div className={styles.permisosField}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>Buscar campaña/subcampaña</label>
                 <input placeholder="Filtrar por campaña o subcampaña" value={filtroCampana} onChange={e => setFiltroCampana(e.target.value)} className={styles.input} />
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <select value={filtroActivoCampana} onChange={e => setFiltroActivoCampana(e.target.value as any)} className={styles.select} style={{ fontSize: 12, padding: "6px 8px" }}>
+                    <option value="activos">Activas</option>
+                    <option value="inactivos">Inactivas</option>
+                    <option value="todos">Todas</option>
+                  </select>
+                </div>
                 {selectedClienteId !== "" && (
                   <div className={`${styles.permisosStatus} ${buscandoPermisos ? styles.permisosStatusLoading : styles.permisosStatusOk}`}>
                     {buscandoPermisos ? "Cargando permisos..." : `${permisos.length} subcampaña(s) permitida(s) para este cliente`}
@@ -368,15 +501,18 @@ export default function AdminPage() {
               <div className={styles.emptyPermisos}>Selecciona un cliente arriba para ver y otorgar subcampañas. Solo usuarios con rol <code>cliente</code> aparecen aquí.</div>
             ) : (
               <>
+                {campanasFiltradas.length > PAGE_SIZE_CAMPANAS && (
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>{campanasFiltradas.length} campaña(s) · Página {pagePermisosCampanas} de {totalPagesPermisos}</div>
+                )}
                 {campanasFiltradas.length > 1 && (
                   <div className={styles.accordionActions}>
-                    <button type="button" onClick={expandirTodas} className={styles.linkBtn}>Expandir todo</button>
+                    <button type="button" onClick={expandirTodasPermisos} className={styles.linkBtn}>Expandir todo</button>
                     <button type="button" onClick={colapsarTodas} className={styles.linkBtn}>Colapsar todo</button>
                   </div>
                 )}
                 <div className={styles.campanasList}>
-                  {campanasFiltradas.length === 0 ? <div style={{ fontSize: 13, color: "#6b7280" }}>No hay campañas que coincidan.</div> : (
-                    campanasFiltradas.map(camp => {
+                  {campanasFiltradas.length === 0 ? <div style={{ fontSize: 13, color: "#6b7280" }}>{filtroActivoCampana === "activos" ? "No hay campañas activas que coincidan." : filtroActivoCampana === "inactivos" ? "No hay campañas inactivas que coincidan." : "No hay campañas que coincidan."}</div> : (
+                    campanasPaginadasPermisos.map(camp => {
                       const abierta = expandidas.has(camp.id);
                       return (
                         <div key={camp.id} className={styles.campanaCard}>
@@ -414,6 +550,7 @@ export default function AdminPage() {
                     })
                   )}
                 </div>
+                <Pagination page={pagePermisosCampanas} totalPages={totalPagesPermisos} totalItems={campanasFiltradas.length} pageSize={PAGE_SIZE_CAMPANAS} onPageChange={setPagePermisosCampanas} />
               </>
             )}
           </div>

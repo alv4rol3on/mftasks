@@ -125,6 +125,71 @@
   background: white;
 }
 
+.usersFilters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Formulario crear campaña / subcampaña */
+.createToggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.createToggleBtn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.createToggleActive {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+}
+
+.createField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.createField label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.createHint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9ca3af;
+}
+
 .tableWrap {
   overflow-x: auto;
   max-height: 60vh;
@@ -468,6 +533,16 @@
 }
 
 @media (max-width: 768px) {
+  .usersFilters {
+    width: 100%;
+  }
+  .usersFilters .searchInput {
+    flex: 1;
+    min-width: 0;
+  }
+  .createForm {
+    max-width: 100%;
+  }
   .formGrid {
     grid-template-columns: 1fr;
   }
