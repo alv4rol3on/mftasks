@@ -314,133 +314,75 @@ export default function TaskModal({
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className={styles.modalHeader}>
-                        <div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                             <h2>{tarea.ticket ? `${tarea.ticket} · ` : ""}Tarea #{tarea.id}</h2>
-                            <p>{tarea.asunto}</p>
-                            {tarea.incluye_sabado && <span style={{ background: "#f59e0b", color: "black", fontSize: 11, padding: "2px 6px", borderRadius: 6, marginTop: 4, display: "inline-block" }}>Incluye sábados 9-13</span>}
+                            <p style={{ margin: "4px 0 0", opacity: 0.95 }}>{tarea.asunto}</p>
+                            <div className={styles.headerMeta}>
+                                <span className={styles.headerBadge}>{tarea.estado}{tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion ? ` · ${formatearFecha(tarea.fecha_solucion)}` : ""}</span>
+                                <span className={styles.headerCountdown} title="Contador HH:MM:SS (tiempo laboral)">
+                                    ⏱ <span style={{ marginLeft: 4 }}>{tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" ? `Tomado ${tarea.tiempo_tomado_formateado}` : `Entrega ${formatearFecha(tarea.fecha_entrega_aproximada)}`}</span>
+                                </span>
+                                {tarea.incluye_sabado && <span style={{ background: "#f59e0b", color: "#111827", fontSize: 11, padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>Sáb 9-13</span>}
+                                {tarea.estado === "APROBADO" && tarea.puedo_operar && onIniciar && (
+                                    <button className={styles.btnIniciar} onClick={() => setMostrarIniciar(true)} disabled={accionando === tarea.id} style={{ marginLeft: 4 }}>
+                                        Iniciar tarea
+                                    </button>
+                                )}
+                            </div>
                         </div>
-
-                        <button className={styles.close} onClick={onClose}>
-                            ✕
-                        </button>
+                        <button className={styles.close} onClick={onClose}>✕</button>
                     </div>
 
                     <div className={styles.modalBody}>
-
-                        <div className={styles.modalColumn}>
-                            <h3>Información</h3>
-
+                        <div className={styles.infoCard}>
+                            <h3 className={styles.cardTitle}>Resumen</h3>
                             <table className={styles.infoTable}>
                                 <tbody>
-                                    <tr>
-                                        <td><strong>Solicitante</strong></td>
-                                        <td>{tarea.solicitante_nombre}</td>
-                                    </tr>
-
-                                    <tr>
-                                        <td><strong>Campaña</strong></td>
-                                        <td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td>
-                                    </tr>
-                                    {tarea.subcampana_nombre && (
-                                        <tr>
-                                            <td><strong>Subcampaña</strong></td>
-                                            <td>{tarea.subcampana_nombre}</td>
-                                        </tr>
-                                    )}
-
-                                    <tr>
-                                        <td><strong>Equipo</strong></td>
-                                        <td>{tarea.equipo_nombre}</td>
-                                    </tr>
-
-                                    <tr>
-                                        <td><strong>Estado</strong></td>
-                                        <td>{tarea.estado} {tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion ? `· ${formatearFecha(tarea.fecha_solucion)}` : ""}</td>
-                                    </tr>
-
-                                    <tr>
-                                        <td><strong>Fecha de solicitud</strong></td>
-                                        <td>{formatearFecha(tarea.fecha_creacion)}</td>
-                                    </tr>
-
-                                    <tr>
-                                        <td><strong>Fecha de inicio</strong></td>
-                                        <td>{formatearFecha(tarea.fecha_inicio)}</td>
-                                    </tr>
-
-                                    <tr>
-                                        <td><strong>Fecha de entrega aproximada</strong></td>
-                                        <td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td>
-                                    </tr>
-                                    
-                                    {tarea.tiempo_planificado_segundos !== null && tarea.tiempo_planificado_segundos !== undefined && (
-                                        <tr>
-                                            <td><strong>Tiempo planificado</strong></td>
-                                            <td>{Math.floor(tarea.tiempo_planificado_segundos / 3600)}h {Math.floor((tarea.tiempo_planificado_segundos % 3600) / 60)}m</td>
-                                        </tr>
-                                    )}
-                                    {(tarea as any).tiempo_planificado_efectivo_segundos && (tarea as any).segundos_extra > 0 && (
-                                        <tr>
-                                            <td><strong>Plan efectivo</strong></td>
-                                            <td style={{ color: "#5b21b6", fontWeight: 700 }}>{Math.floor((tarea as any).tiempo_planificado_efectivo_segundos / 3600)}h {Math.floor(((tarea as any).tiempo_planificado_efectivo_segundos % 3600) / 60)}m <span style={{ background: "#ede9fe", border: "1px solid #ddd6fe", padding: "1px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6 }}>+{Math.floor((tarea as any).segundos_extra / 3600)}h {Math.floor(((tarea as any).segundos_extra % 3600) / 60)}m anticipado</span></td>
-                                        </tr>
-                                    )}
-                                    {(tarea as any).fecha_inicio_efectiva && (tarea as any).inicio_anticipado && (
-                                        <tr>
-                                            <td><strong>Inicio efectivo</strong></td>
-                                            <td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td>
-                                        </tr>
-                                    )}
-
-                                    {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
-                                        <tr>
-                                            <td><strong>Tiempo tomado (tarea)</strong></td>
-                                            <td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td>
-                                        </tr>
-                                    )}
-                                    <tr>
-                                        <td><strong>Sábados</strong></td>
-                                        <td>{tarea.incluye_sabado ? "Sí (9:00-13:00)" : "No (solo L-V 9-18)"}</td>
-                                    </tr>
-                                    {tarea.estado === "APROBADO" && (
-                                        <tr>
-                                            <td>
-                                                {tarea.puedo_operar && onIniciar && (
-                                                    <button
-                                                        className={styles.btnIniciar}
-                                                        onClick={() => setMostrarIniciar(true)}
-                                                        disabled={accionando === tarea.id}
-                                                    >
-                                                        Iniciar tarea
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    )}
-
-
+                                    <tr><td><strong>Solicitante</strong></td><td>{tarea.solicitante_nombre}</td></tr>
+                                    <tr><td><strong>Campaña</strong></td><td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td></tr>
+                                    {tarea.subcampana_nombre && (<tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre}</td></tr>)}
+                                    <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
+                                    <tr><td><strong>Fecha solicitud</strong></td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
+                                    <tr><td><strong>Inicio</strong></td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>
+                                    <tr><td><strong>Entrega</strong></td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
+                                    <tr><td><strong>Sábados</strong></td><td>{tarea.incluye_sabado ? "Sí 9-13" : "No (L-V 9-18)"}</td></tr>
                                 </tbody>
                             </table>
                         </div>
 
-                        <div className={styles.modalColumn}>
-                            <h3>Descripción</h3>
-
-                            <div className={styles.descriptionBox}>
-                                {tarea.descripcion}
+                        <div className={styles.descCard}>
+                            <h3 className={styles.cardTitle}>Descripción</h3>
+                            <div className={styles.descriptionBox} style={{ marginBottom: 12 }}>{tarea.descripcion}</div>
+                            <div className={styles.infoCard} style={{ padding: 12 }}>
+                                <h4 className={styles.cardTitle} style={{ fontSize: 12, marginBottom: 8 }}>Tiempos</h4>
+                                <table className={styles.infoTable} style={{ fontSize: 13 }}>
+                                    <tbody>
+                                        {tarea.tiempo_planificado_segundos !== null && tarea.tiempo_planificado_segundos !== undefined && (
+                                            <tr><td><strong>Planificado</strong></td><td>{Math.floor(tarea.tiempo_planificado_segundos / 3600)}h {Math.floor((tarea.tiempo_planificado_segundos % 3600) / 60)}m</td></tr>
+                                        )}
+                                        {(tarea as any).tiempo_planificado_efectivo_segundos && (tarea as any).segundos_extra > 0 && (
+                                            <tr><td><strong>Plan efectivo</strong></td><td style={{ color: "#CF3215", fontWeight: 700 }}>{Math.floor((tarea as any).tiempo_planificado_efectivo_segundos / 3600)}h {Math.floor(((tarea as any).tiempo_planificado_efectivo_segundos % 3600) / 60)}m <span style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "1px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6, color: "#991b1b" }}>+{Math.floor((tarea as any).segundos_extra / 3600)}h {Math.floor(((tarea as any).segundos_extra % 3600) / 60)}m anticipado</span></td></tr>
+                                        )}
+                                        {(tarea as any).fecha_inicio_efectiva && (tarea as any).inicio_anticipado && (
+                                            <tr><td><strong>Inicio efectivo</strong></td><td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td></tr>
+                                        )}
+                                        {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
+                                            <tr><td><strong>Tomado</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
-                            {/* Tabs */}
-                            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                                <button onClick={() => setTab("progreso")} style={tabButtonStyle(tab === "progreso")}>Progreso</button>
-                                {puedeVerHistorial && <button onClick={() => setTab("historial")} style={tabButtonStyle(tab === "historial")}>Historial</button>}
-                                {puedeVerAsignaciones && <button onClick={() => setTab("asignaciones")} style={tabButtonStyle(tab === "asignaciones")}>Asignaciones</button>}
-                            </div>
-                            {subtareasInactivasCount > 0 && tab === "progreso" && (
-                                <p style={{ fontSize: 11, color: "#6b7280", marginTop: 6 }}>{subtareasInactivasCount} subtarea(s) inactivada(s) — ver pestaña Asignaciones</p>
+                            {subtareasInactivasCount > 0 && (
+                                <p style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>{subtareasInactivasCount} subtarea(s) inactivada(s) — ver Asignaciones</p>
                             )}
                         </div>
 
                         <div className={styles.progresoSection}>
+                            <div className={styles.tabsHeader}>
+                                <button onClick={() => setTab("progreso")} className={tab === "progreso" ? styles.tabBtnActive : styles.tabBtn}>Progreso</button>
+                                {puedeVerHistorial && <button onClick={() => setTab("historial")} className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}>Historial</button>}
+                                {puedeVerAsignaciones && <button onClick={() => setTab("asignaciones")} className={tab === "asignaciones" ? styles.tabBtnActive : styles.tabBtn}>Asignaciones</button>}
+                            </div>
                             {tab === "progreso" ? (
                                 <>
                                     <h3>Progreso — Subtareas</h3>
@@ -489,7 +431,7 @@ export default function TaskModal({
                                                                 }
                                                             >
                                                                 <td data-label="Descripción">
-                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.descripcion} {bloqueada && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
+                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
                                                                     <div style={{ fontSize: 10, color: "#6b7280" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)} {subtarea.motivo_standby && <span style={{ color: "#92400e" }}>({subtarea.motivo_standby})</span>}</div>
                                                                     {subtarea.estado === "SOLUCIONADO" && subtarea.tiempo_tomado_formateado && <div style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>Tomado: {subtarea.tiempo_tomado_formateado} ({subtarea.tiempo_tomado_horas}h)</div>}
                                                                 </td>

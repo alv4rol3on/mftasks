@@ -347,6 +347,28 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Asignar código secuencial YYYYMMDD00001-001 antes de bulk_create
+        if tarea.ticket:
+            base_ticket = tarea.ticket
+        else:
+            # tarea aún sin ticket (recién creada sin save previo): generar prefix
+            from django.utils import timezone as _tz
+            base_ticket = _tz.localtime(_tz.now()).strftime('%Y%m%d') + '00001'
+        # obtener último seq existente por tarea
+        try:
+            ultimo = Subtarea.objects.filter(tarea=tarea).order_by('-codigo').values_list('codigo', flat=True).first()
+            if ultimo and '-' in ultimo:
+                try:
+                    start_seq = int(ultimo.split('-')[-1]) + 1
+                except ValueError:
+                    start_seq = 1
+            else:
+                start_seq = Subtarea.objects.filter(tarea=tarea).count() + 1
+        except Exception:
+            start_seq = 1
+        for idx, st in enumerate(subtareas_crear):
+            st.codigo = f"{base_ticket}-{(start_seq + idx):03d}"
+
         Subtarea.objects.bulk_create(subtareas_crear)
 
         estado_anterior = tarea.estado
@@ -880,18 +902,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                         detalle=f"Tarea promovida a EN_DESARROLLO por inicio anticipado de subtarea #{subtarea.id} a las {ahora.isoformat()}{extra_str}.",
                     )
                     tarea = tarea_actualizada
-
-        # broadcast via Valkey/Channels si disponible (no bloqueante)
-        try:
-            from channels.layers import get_channel_layer
-            from asgiref.sync import async_to_sync
-            from .services.tiempo_laboral import obtener_contador_tarea
-            channel_layer = get_channel_layer()
-            if channel_layer:
-                data = obtener_contador_tarea(tarea)
-                async_to_sync(channel_layer.group_send)(f"tarea_{tarea.id}", {"type": "contador.update", "data": data})
-        except Exception:
-            pass
 
         return Response(
             SubtareaSerializer(subtarea).data,

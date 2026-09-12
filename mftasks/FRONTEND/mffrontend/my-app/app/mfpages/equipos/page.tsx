@@ -4,6 +4,7 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo, EquipoMiembroDetallado } from "@/lib/types";
+import styles from "./Equipos.module.css";
 
 type EquipoApiResponse = EquipoInfo[] | { results: EquipoInfo[] };
 
@@ -364,8 +365,8 @@ export default function EquiposPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0 }}>Equipos</h2>
-          <p style={{ fontSize: 13, color: "#6b7280", margin: "4px 0 0" }}>
+          <h2 className={styles.pageTitle}>Equipos</h2>
+          <p className={styles.pageSubtitle}>
             {esClientePuro
               ? "Ves los equipos a los que puedes solicitar servicios."
               : esAdmin
@@ -379,7 +380,7 @@ export default function EquiposPage() {
       </div>
 
       {mensaje && (
-        <div style={{ background: mensaje.startsWith("Error") ? "#fee2e2" : "#dcfce7", color: mensaje.startsWith("Error") ? "#991b1b" : "#166534", padding: "10px 12px", borderRadius: 8, fontSize: 13, whiteSpace: "pre-wrap" }}>
+        <div className={`${styles.alert} ${mensaje.startsWith("Error") ? styles.alertError : styles.alertSuccess}`}>
           {mensaje}
         </div>
       )}
@@ -510,7 +511,7 @@ export default function EquiposPage() {
           {!esClientePuro && <p style={{ color: "#9ca3af", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
         </div>
       ) : (
-        <div style={{ display: "grid", gap: 16 }}>
+        <div className={styles.grid}>
           {equipos.map((equipo) => {
             const expandido = equipoExpandido === equipo.id;
             const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
@@ -525,23 +526,23 @@ export default function EquiposPage() {
 
 
             return (
-              <div key={equipo.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+              <div key={equipo.id} className={styles.card}>
                 <div
                   onClick={() => setEquipoExpandido(expandido ? null : equipo.id)}
-                  style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", gap: 12 }}
+                  className={styles.cardHeader}
                 >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827" }}>{equipo.nombre}</h3>
-                      {!equipo.activo && <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>Inactivo</span>}
+                  <div className={styles.cardHeaderLeft}>
+                    <div className={styles.cardTitleRow}>
+                      <h3 className={styles.cardTitle}>{equipo.nombre}</h3>
+                      {!equipo.activo && <span className={`${styles.badge} ${styles.badgeInactivo}`}>Inactivo</span>}
                       {puedoGestionar ? (
-                        <span style={{ background: "#ede9fe", color: "#6d28d9", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Puedes gestionar</span>
+                        <span className={`${styles.badge} ${styles.badgeGestionar}`}>Puedes gestionar</span>
                       ) : equipo.mi_rol_en_equipo === "SUB_LIDER" ? (
-                        <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Eres Sub-líder</span>
+                        <span className={`${styles.badge} ${styles.badgeSubLider}`}>Eres Sub-líder</span>
                       ) : null}
                     </div>
-                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      <span>Líder: <strong style={{ color: "#111827" }}>{liderNombre}</strong></span>
+                    <div className={styles.cardMeta}>
+                      <span>Líder: <strong>{liderNombre}</strong></span>
                       <span>Miembros: {equipo.miembros.length} (activos {totalActivos}{totalIndisponibles ? `, indisponibles ${totalIndisponibles}` : ""})</span>
                       {!esClientePuro && (
 
@@ -550,14 +551,14 @@ export default function EquiposPage() {
                       )}
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, color: "#6b7280" }}>{expandido ? "Ocultar" : "Ver integrantes"}</span>
-                    <span style={{ transform: expandido ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", fontSize: 12 }}>▼</span>
+                  <div className={styles.cardHeaderRight}>
+                    <span>{expandido ? "Ocultar" : "Ver integrantes"}</span>
+                    <span className={`${styles.cardHeaderArrow} ${expandido ? styles.cardHeaderArrowOpen : ""}`}>▼</span>
                   </div>
                 </div>
 
                 {expandido && (
-                  <div style={{ borderTop: "1px solid #f3f4f6", padding: 16, background: "#fafafa" }}>
+                  <div className={styles.expand}>
                     {/* Fila líder con disponibilidad */}
                     <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.estado === "INDISPONIBLE" ? "#f59e0b" : "#e5e7eb"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                       <div>
@@ -603,6 +604,21 @@ export default function EquiposPage() {
                       }
                     </div>
 
+                    <div className={styles.expandToolbar}>
+                      <h4 className={styles.expandToolbarTitle}>Integrantes — {equipo.miembros.length} miembros</h4>
+                      <div className={styles.expandToolbarActions}>
+                        {puedoGestionar && (
+                          <button
+                            onClick={() => abrirModalAgregar(equipo)}
+                            disabled={!!accionando || !liderActivo}
+                            className={styles.btnAgregar}
+                            title={!liderActivo ? "El líder está inactivo" : "Agregar integrante"}
+                          >
+                            + Agregar integrante
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <div style={{ overflowX: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse", background: "white", borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
                         <thead>
@@ -706,17 +722,6 @@ export default function EquiposPage() {
                       </table>
                     </div>
 
-                    {puedoGestionar && (
-                      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                        <button
-                          onClick={() => abrirModalAgregar(equipo)}
-                          disabled={!!accionando || !liderActivo}
-                          style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-                        >
-                          + Agregar integrante
-                        </button>
-                      </div>
-                    )}
                     {puedoGestionar && (
                       <div style={{ marginTop: 8, padding: 10, background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 8, fontSize: 12, color: "#5b21b6" }}>
                         <strong>Como líder puedes:</strong> otorgar/revocar SUB-LÍDER, dar de baja (hard-delete), y cambiar disponibilidad (incluida la tuya si hay sub-líder) reasignando subtareas en desarrollo/en espera.

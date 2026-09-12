@@ -1,5 +1,6 @@
 export interface Subtarea {
     id: number;
+    codigo?: string | null;
     tarea: number;
     descripcion: string;
     asignado: number;

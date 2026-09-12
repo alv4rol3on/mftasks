@@ -53,13 +53,97 @@
 
 .modalBody {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 25px;
-    padding: 25px;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    padding: 20px 24px;
     overflow-y: auto;
     flex: 1;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
+}
+
+.headerMeta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.headerCountdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.headerBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    color: #3128bb;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.infoCard, .tiempoCard, .descCard {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.cardTitle {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tabsHeader {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.tabBtn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: white;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.tabBtnActive {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #CF3215;
+    border-bottom: 2px solid #CF3215;
+    background: #fef2f2;
+    color: #CF3215;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
 }
 
 .modalColumn {

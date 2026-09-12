@@ -6,11 +6,10 @@
 
 export function formatearTiempo(totalSegundos: number): string {
     const segundos = Math.max(0, Math.floor(totalSegundos));
-    const dias = Math.floor(segundos / 86400);
-    const horas = Math.floor((segundos % 86400) / 3600);
+    const horas = Math.floor(segundos / 3600);
     const minutos = Math.floor((segundos % 3600) / 60);
     const segundosRestantes = segundos % 60;
-    return `${dias}d ${String(horas).padStart(2, "0")}h ${String(minutos).padStart(2, "0")}m ${String(segundosRestantes).padStart(2, "0")}s`;
+    return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}:${String(segundosRestantes).padStart(2, "0")}`;
 }
 
 function partesLima(fecha: Date) {

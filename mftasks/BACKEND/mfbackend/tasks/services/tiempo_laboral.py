@@ -291,7 +291,7 @@ def obtener_segmentos_desarrollo_subtarea(subtarea, hasta: Optional[datetime] = 
     """
     Retorna lista de (inicio, fin) de periodos en EN_DESARROLLO para la subtarea.
     Usa TareaLog: INICIO abre, STANDBY_INICIO/FIN cierran. EN_ESPERA tras reanudar no cuenta
-    hasta próximo INICIO. Fallback a fecha_inicio/fecha_fin si no hay logs.
+    hasta próximo INICIO. 100% por logs: sin fallback a fecha_inicio/fecha_fin (evita reinicio al refresh).
     """
     hasta = hasta or timezone.now()
     try:
@@ -321,14 +321,6 @@ def obtener_segmentos_desarrollo_subtarea(subtarea, hasta: Optional[datetime] = 
         # desarrollo abierto hasta 'hasta' si sigue EN_DESARROLLO
         if getattr(subtarea, "estado", None) == "EN_DESARROLLO" and hasta > abierto:
             segmentos.append((abierto, hasta))
-    if not segmentos:
-        # fallback legacy sin logs
-        if getattr(subtarea, "fecha_inicio", None) and getattr(subtarea, "fecha_fin", None):
-            if subtarea.fecha_fin > subtarea.fecha_inicio:
-                return [(subtarea.fecha_inicio, subtarea.fecha_fin)]
-        if getattr(subtarea, "fecha_inicio", None) and getattr(subtarea, "estado", None) == "EN_DESARROLLO":
-            if hasta > subtarea.fecha_inicio:
-                return [(subtarea.fecha_inicio, hasta)]
     return segmentos
 
 
@@ -339,7 +331,7 @@ def calcular_tiempo_util_subtarea(
     subtarea,
     fecha_fin: Optional[datetime] = None,
 ) -> timedelta:
-    # En curso: suma solo EN_DESARROLLO hasta fecha_fin (o ahora)
+    # En curso: suma solo EN_DESARROLLO hasta fecha_fin (o ahora) — 100% por logs
     fecha_fin = fecha_fin or timezone.now()
     segmentos = obtener_segmentos_desarrollo_subtarea(subtarea, hasta=fecha_fin)
     if segmentos:
@@ -353,18 +345,8 @@ def calcular_tiempo_util_subtarea(
                 continue
             total += calcular_tiempo_laboral(a, b, incluye_sabado=incluye)
         return total
-    # Fallback si no hay segmentos (legacy sin logs y sin desarrollo activo)
-    if not subtarea.fecha_inicio:
-        return timedelta(0)
-    if fecha_fin <= subtarea.fecha_inicio:
-        return timedelta(0)
-    incluye = _get_incluye_sabado(subtarea)
-    tiempo_total = calcular_tiempo_laboral(subtarea.fecha_inicio, fecha_fin, incluye_sabado=incluye)
-    tiempo_standby = calcular_tiempo_standby_subtarea(subtarea, subtarea.fecha_inicio, fecha_fin)
-    tiempo_util = tiempo_total - tiempo_standby
-    if tiempo_util < timedelta(0):
-        return timedelta(0)
-    return tiempo_util
+    # Sin segmentos => sin tiempo útil (100% logs, sin fallback)
+    return timedelta(0)
 
 
 # ============================================================
@@ -393,14 +375,8 @@ def calcular_tiempo_tomado_subtarea(
         for a, b in segmentos:
             total += calcular_tiempo_laboral(a, b, incluye_sabado=incluye)
         return total
-    # fallback legacy
-    if not subtarea.fecha_inicio:
-        return timedelta(0)
-    if not subtarea.fecha_fin:
-        return timedelta(0)
-    if subtarea.fecha_fin <= subtarea.fecha_inicio:
-        return timedelta(0)
-    return calcular_tiempo_util_subtarea(subtarea, fecha_fin=subtarea.fecha_fin)
+    # Sin segmentos => 0 (100% logs)
+    return timedelta(0)
 
 
 # ============================================================

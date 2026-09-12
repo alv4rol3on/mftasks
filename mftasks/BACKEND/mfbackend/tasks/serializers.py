@@ -37,6 +37,7 @@ class SubtareaSerializer(serializers.ModelSerializer):
         model = Subtarea
         fields = [
             "id",
+            "codigo",
             "tarea",
             "descripcion",
             "asignado",
@@ -59,7 +60,7 @@ class SubtareaSerializer(serializers.ModelSerializer):
             "fecha_inactivacion",
             "inactivada_por",
         ]
-        read_only_fields = ["motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "fecha_inactivacion", "inactivada_por"]
+        read_only_fields = ["codigo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "fecha_inactivacion", "inactivada_por"]
 
     def get_bloqueada_por(self, obj):
         # lista de ids bloqueadoras no solucionadas
@@ -95,12 +96,11 @@ class SubtareaSerializer(serializers.ModelSerializer):
         seg = self.get_tiempo_tomado_segundos(obj)
         if seg is None:
             return None
-        # reutiliza formateo d h m s
-        dias = seg // 86400
-        horas = (seg % 86400) // 3600
+        # HH:MM:SS con horas totales
+        horas = seg // 3600
         minutos = (seg % 3600) // 60
         segundos = seg % 60
-        return f"{dias}d {horas:02d}h {minutos:02d}m {segundos:02d}s"
+        return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -191,11 +191,10 @@ class TaskSerializer(serializers.ModelSerializer):
         seg = self.get_tiempo_tomado_segundos(obj)
         if seg is None:
             return None
-        dias = seg // 86400
-        horas = (seg % 86400) // 3600
+        horas = seg // 3600
         minutos = (seg % 3600) // 60
         segundos = seg % 60
-        return f"{dias}d {horas:02d}h {minutos:02d}m {segundos:02d}s"
+        return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
     def get_tiempo_planificado_segundos(self, obj):
         _, plan = self._tiempo_tomado_tarea(obj)

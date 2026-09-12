@@ -117,30 +117,41 @@ class Tarea(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.ticket:
-            # Generar ticket único: TCK-YYYYMMDD-XXXX (incremental por día)
-            import random
             from django.utils import timezone
+            from django.db import transaction
+            # YYYYMMDD00001 basado en fecha_creacion (America/Lima)
             if not self.fecha_creacion:
-                # auto_now_add aún no seteado, usar now
-                base_date = timezone.now()
+                base_date = timezone.localtime(timezone.now())
             else:
-                base_date = self.fecha_creacion if hasattr(self.fecha_creacion, "strftime") else timezone.now()
-            # fallback si fecha_creacion es None
-            try:
-                prefix = f"TCK-{base_date.strftime('%Y%m%d')}"
-            except Exception:
-                prefix = f"TCK-{timezone.now().strftime('%Y%m%d')}"
-            # intentar hasta encontrar único
+                try:
+                    base_date = timezone.localtime(self.fecha_creacion) if timezone.is_naive(self.fecha_creacion) or self.fecha_creacion.tzinfo else self.fecha_creacion
+                except Exception:
+                    base_date = timezone.localtime(timezone.now())
+            prefix = base_date.strftime('%Y%m%d')
+            # Usar transacción atómica + MAX para correlativo diario y retry por unique
             for _ in range(5):
-                suffix = f"{random.randint(1000, 9999)}"
-                candidate = f"{prefix}-{suffix}"
-                if not Tarea.objects.filter(ticket=candidate).exists():
-                    self.ticket = candidate
-                    break
+                # Buscar último ticket del día
+                try:
+                    with transaction.atomic():
+                        # Lock: select max dentro de transacción para evitar carrera en SQLite
+                        max_ticket = Tarea.objects.filter(ticket__startswith=prefix).order_by('-ticket').values_list('ticket', flat=True).first()
+                        if max_ticket and len(max_ticket) >= 13 and max_ticket[:8] == prefix:
+                            try:
+                                seq = int(max_ticket[8:13]) + 1
+                            except ValueError:
+                                seq = 1
+                        else:
+                            # fallback: contar
+                            seq = Tarea.objects.filter(ticket__startswith=prefix).count() + 1
+                        candidate = f"{prefix}{seq:05d}"
+                        if not Tarea.objects.filter(ticket=candidate).exists():
+                            self.ticket = candidate
+                            break
+                except Exception:
+                    continue
             if not self.ticket:
-                # fallback uuid corto
                 import uuid
-                self.ticket = f"TCK-{uuid.uuid4().hex[:8].upper()}"
+                self.ticket = f"{prefix}{uuid.uuid4().int % 90000 + 10000:05d}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -225,6 +236,8 @@ class Subtarea(models.Model):
         blank=True,
     )
 
+    codigo = models.CharField(max_length=30, unique=True, blank=True, null=True, db_index=True, help_text="Formato YYYYMMDD00001-001 basado en ticket de la tarea")
+
     # Inactivación soft para pestaña Asignaciones
     activo = models.BooleanField(default=True, db_index=True)
     fecha_inactivacion = models.DateTimeField(null=True, blank=True)
@@ -242,6 +255,7 @@ class Subtarea(models.Model):
             models.Index(fields=["asignado", "estado"]),
             models.Index(fields=["tarea", "activo"]),
             models.Index(fields=["activo"]),
+            models.Index(fields=["codigo"]),
         ]
         constraints = [
             CheckConstraint(check=Q(peso__gte=1), name="chk_subtarea_peso_gte1"),
@@ -251,8 +265,44 @@ class Subtarea(models.Model):
             ),
         ]
 
+    def save(self, *args, **kwargs):
+        if not self.codigo and self.tarea_id:
+            # Generar codigo YYYYMMDD00001-001 basado en ticket de la tarea
+            from django.db import transaction
+            for _ in range(5):
+                try:
+                    with transaction.atomic():
+                        tarea_ticket = None
+                        if hasattr(self, 'tarea') and self.tarea_id:
+                            try:
+                                tarea_ticket = self.tarea.ticket if hasattr(self.tarea, 'ticket') and self.tarea.ticket else None
+                            except Exception:
+                                tarea_ticket = None
+                        if not tarea_ticket:
+                            tarea_ticket = Tarea.objects.filter(id=self.tarea_id).values_list('ticket', flat=True).first()
+                        if not tarea_ticket:
+                            break
+                        # correlativo por tarea
+                        existing = Subtarea.objects.filter(tarea_id=self.tarea_id).exclude(pk=self.pk)
+                        # buscar max seq
+                        max_codigo = existing.filter(codigo__startswith=f"{tarea_ticket}-").order_by('-codigo').values_list('codigo', flat=True).first()
+                        if max_codigo and '-' in max_codigo:
+                            try:
+                                seq = int(max_codigo.split('-')[-1]) + 1
+                            except ValueError:
+                                seq = existing.count() + 1
+                        else:
+                            seq = existing.count() + 1
+                        candidate = f"{tarea_ticket}-{seq:03d}"
+                        if not Subtarea.objects.filter(codigo=candidate).exists():
+                            self.codigo = candidate
+                            break
+                except Exception:
+                    continue
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"#{self.tarea} - {self.descripcion}"
+        return f"[{self.codigo}] {self.descripcion}" if self.codigo else f"#{self.tarea_id} - {self.descripcion}"
 
 
 #LOGS

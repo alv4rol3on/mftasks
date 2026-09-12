@@ -41,14 +41,12 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
-    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "channels",
     #librerias
     "rest_framework",
     "rest_framework_simplejwt",
@@ -92,39 +90,12 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "mfbackend.wsgi.application"
-ASGI_APPLICATION = "mfbackend.asgi.application"
-
-# Valkey (Redis-compatible) para Channels / cache multiusuario
-VALKEY_HOST = os.environ.get("VALKEY_HOST", "valkey")
-VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [(VALKEY_HOST, VALKEY_PORT)],
-            "capacity": 1500,
-            "expiry": 10,
-        },
-    }
-}
-# Fallback a InMemory si Valkey no disponible (desarrollo sin docker valkey)
-try:
-    import channels_redis  # noqa: F401
-except ImportError:
-    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": f"redis://{VALKEY_HOST}:{VALKEY_PORT}/1",
-        "TIMEOUT": 30,
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     }
 }
-# Si redis no instalado, fallback locmem
-try:
-    import django.core.cache.backends.redis  # noqa: F401
-except ImportError:
-    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
 
 # Database
