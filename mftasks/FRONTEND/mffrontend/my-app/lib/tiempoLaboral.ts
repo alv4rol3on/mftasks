@@ -4,6 +4,10 @@
  * Usado para congelar el tick fuera de jornada y para formateo.
  */
 
+// TEMP TEST: si true, el domingo cuenta como día laboral completo (00:00-24:00).
+// Poner en false para revertir al comportamiento normal (domingo no laboral).
+export const DOMINGO_LABORAL_TEST = true;
+
 export function formatearTiempo(totalSegundos: number): string {
     const segundos = Math.max(0, Math.floor(totalSegundos));
     const horas = Math.floor(segundos / 3600);
@@ -53,6 +57,8 @@ export function estaEnJornada(fecha: Date, incluyeSabado: boolean): boolean {
         if (!incluyeSabado) return false;
         return totalMin >= 9 * 60 && totalMin < 13 * 60;
     }
+    // Domingo (wd === 0): TEMP TEST
+    if (DOMINGO_LABORAL_TEST) return true;
     return false; // domingo
 }
 
@@ -84,6 +90,11 @@ export function segundosLaboralesEntre(inicio: Date, fin: Date, incluyeSabado: b
         } else if (wd === 6 && incluyeSabado) {
             const s = new Date(Date.UTC(year, month - 1, day, 9 + offsetHoras, 0, 0));
             const e = new Date(Date.UTC(year, month - 1, day, 13 + offsetHoras, 0, 0));
+            jornada = { start: s, end: e };
+        } else if (DOMINGO_LABORAL_TEST && wd === 0) {
+            // TEMP TEST: domingo completo 00:00-24:00 hora Lima
+            const s = new Date(Date.UTC(year, month - 1, day, 0 + offsetHoras, 0, 0));
+            const e = new Date(Date.UTC(year, month - 1, day + 1, 0 + offsetHoras, 0, 0));
             jornada = { start: s, end: e };
         }
         if (jornada) {

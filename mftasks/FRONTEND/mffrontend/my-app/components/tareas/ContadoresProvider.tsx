@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { segundosLaboralesEntre } from "@/lib/tiempoLaboral";
 
 export interface ContadorResponse {
   activo: boolean;
@@ -23,8 +24,55 @@ export interface ContadorResponse {
   servidor_ahora: string;
 }
 
+type Snapshot = { raw: ContadorResponse; serverAhora: Date };
+
 const ContadoresContext = createContext<Map<number, ContadorResponse | null> | null>(null);
-const POLL_MS = 15000;
+const POLL_MS = 30000;
+const VIS_DEBOUNCE_MS = 5000;
+const SNAP_STORAGE_KEY = "mftasks-snapMap-v1";
+
+/**
+ * Interpola el restante usando solo segundos laborales entre el snapshot y ahora.
+ * Fuera de jornada (noche, domingo, sábado sin incluye_sabado) no decrementa.
+ */
+function interpolate(snapshot: Snapshot, now: Date): ContadorResponse {
+  const { raw } = snapshot;
+  if (!raw.activo || raw.pausado || raw.tiempo_tomado_segundos !== null) return raw;
+  if (raw.segundos_restantes <= 0) return raw;
+  const incluye = !!raw.incluye_sabado;
+  const elapsed = segundosLaboralesEntre(snapshot.serverAhora, now, incluye);
+  const restante = Math.max(0, raw.segundos_restantes - elapsed);
+  if (restante === raw.segundos_restantes) return raw;
+  return { ...raw, segundos_restantes: restante };
+}
+
+function hidratar(): Map<number, Snapshot | null> {
+  if (typeof window === "undefined") return new Map();
+  try {
+    const raw = sessionStorage.getItem(SNAP_STORAGE_KEY);
+    if (!raw) return new Map();
+    const parsed: { id: number; raw: ContadorResponse; serverAhora: string }[] = JSON.parse(raw);
+    const m = new Map<number, Snapshot | null>();
+    for (const p of parsed) m.set(p.id, { raw: p.raw, serverAhora: new Date(p.serverAhora) });
+    return m;
+  } catch {
+    return new Map();
+  }
+}
+
+function persistir(snapMap: Map<number, Snapshot | null>) {
+  try {
+    const arr = Array.from(snapMap.entries())
+      .filter(([, v]) => v !== null)
+      .map(([id, v]) => {
+        const snap = v as Snapshot;
+        return { id, raw: snap.raw, serverAhora: snap.serverAhora.toISOString() };
+      });
+    sessionStorage.setItem(SNAP_STORAGE_KEY, JSON.stringify(arr));
+  } catch {
+    // sessionStorage puede no estar disponible
+  }
+}
 
 export function useContador(tareaId: number): ContadorResponse | null | undefined {
   const ctx = useContext(ContadoresContext);
@@ -34,21 +82,36 @@ export function useContador(tareaId: number): ContadorResponse | null | undefine
 
 export function ContadoresProvider({
   ids,
+  refreshKey,
   children,
 }: {
   ids: number[];
+  refreshKey?: string;
   children: React.ReactNode;
 }) {
-  const [displayMap, setDisplayMap] = useState<Map<number, ContadorResponse | null>>(new Map());
+  // Snapshot autoritativo del servidor (persistido para sobrevivir remounts/cambio de pestaña)
+  const [snapMap, setSnapMap] = useState<Map<number, Snapshot | null>>(() => hidratar());
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const idsRef = useRef<number[]>(ids);
-  idsRef.current = ids;
+  const snapMapRef = useRef<Map<number, Snapshot | null>>(snapMap);
   const lastFetchRef = useRef<number>(0);
+  const primeraRefreshRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    idsRef.current = ids;
+  }, [ids]);
+
+  useEffect(() => {
+    snapMapRef.current = snapMap;
+    persistir(snapMap);
+  }, [snapMap]);
 
   const cargarBatch = useCallback(async () => {
     if (idsRef.current.length === 0) {
-      setDisplayMap(new Map());
+      setSnapMap(new Map());
       return;
     }
+    lastFetchRef.current = Date.now();
     const results = await Promise.all(
       idsRef.current.map(async (id) => {
         try {
@@ -59,17 +122,23 @@ export function ContadoresProvider({
         }
       })
     );
-    setDisplayMap((prev) => {
-      const next = new Map<number, ContadorResponse | null>();
+    setSnapMap((prev) => {
+      const next = new Map(prev);
       for (const [id, data] of results) {
-        next.set(id, data);
+        if (!idsRef.current.includes(id)) continue;
+        if (data === null) {
+          // conservar snapshot previo si existe para no parpadear
+          if (!next.has(id)) next.set(id, null);
+        } else {
+          next.set(id, {
+            raw: data,
+            serverAhora: data.servidor_ahora ? new Date(data.servidor_ahora) : new Date(),
+          });
+        }
       }
-      // limpiar ids que ya no están
-      for (const id of idsRef.current) if (!next.has(id)) next.set(id, null);
-      // si prev tenía ids que ya no están, no los arrastramos (next ya es solo actuales)
+      for (const k of Array.from(next.keys())) if (!idsRef.current.includes(k)) next.delete(k);
       return next;
     });
-    lastFetchRef.current = Date.now();
   }, []);
 
   useEffect(() => {
@@ -82,22 +151,17 @@ export function ContadoresProvider({
       await cargarBatch();
     };
 
-    // inicializar mapa con null para evitar flash inconsistente
-    setDisplayMap((prev) => {
-      const next = new Map(prev);
-      let changed = false;
-      for (const id of ids) if (!next.has(id)) { next.set(id, null); changed = true; }
-      for (const k of Array.from(next.keys())) if (!ids.includes(k)) { next.delete(k); changed = true; }
-      return changed ? next : prev;
+    const hayFaltantes = ids.some((id) => {
+      const s = snapMapRef.current.get(id);
+      return !s;
     });
-
-    doCargar();
+    if (hayFaltantes || snapMapRef.current.size === 0) doCargar();
     poll = setInterval(doCargar, POLL_MS);
 
     const onVis = () => {
-      if (document.visibilityState === "visible") {
-        doCargar();
-      }
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastFetchRef.current < VIS_DEBOUNCE_MS) return;
+      doCargar();
     };
     document.addEventListener("visibilitychange", onVis);
 
@@ -107,6 +171,36 @@ export function ContadoresProvider({
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [ids, cargarBatch]);
+
+  // Refresco inmediato cuando cambian los datos (pausar/reanudar/completar, etc.)
+  useEffect(() => {
+    if (primeraRefreshRef.current) {
+      primeraRefreshRef.current = false;
+      return;
+    }
+    lastFetchRef.current = 0;
+    void cargarBatch();
+  }, [refreshKey, cargarBatch]);
+
+  // Tick por segundo: la interpolación se congela fuera de jornada laboral.
+  useEffect(() => {
+    const tick = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      setNowTick(Date.now());
+    }, 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  // Valor mostrado = snapshot + segundos laborales transcurridos.
+  const displayMap = useMemo(() => {
+    const now = new Date(nowTick);
+    const next = new Map<number, ContadorResponse | null>();
+    for (const id of ids) {
+      const s = snapMap.get(id);
+      next.set(id, s ? interpolate(s, now) : null);
+    }
+    return next;
+  }, [snapMap, nowTick, ids]);
 
   return <ContadoresContext.Provider value={displayMap}>{children}</ContadoresContext.Provider>;
 }

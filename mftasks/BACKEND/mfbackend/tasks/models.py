@@ -366,6 +366,15 @@ class TareaLog(models.Model):
         blank=True,
     )
 
+    standby_excluido = models.BooleanField(
+        default=True,
+        help_text=(
+            "Si es True, el tiempo de este período de standby se excluye del "
+            "contador. Al elegir cómo reanudar se guarda False y el efecto pasa "
+            "a la fecha de entrega."
+        ),
+    )
+
     class Meta:
         ordering = ["fecha"]
 

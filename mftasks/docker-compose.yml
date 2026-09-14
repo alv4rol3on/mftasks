@@ -8,7 +8,7 @@ services:
 
     working_dir: /app
 
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
 
     environment:
       AZURE_TENANT_ID: 8d669035-9c23-4bfe-8439-816c8408e589

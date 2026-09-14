@@ -1,7 +1,7 @@
 from datetime import datetime, time, timedelta
 
 from django.utils import timezone
-from ..models import Tarea, TareaLog
+from ..models import Subtarea, Tarea, TareaLog
 from typing import Optional
 
 # ============================================================
@@ -13,6 +13,10 @@ HORA_INICIO_LV = time(9, 0)
 HORA_FIN_LV = time(18, 0)
 HORA_INICIO_SAB = time(9, 0)
 HORA_FIN_SAB = time(13, 0)
+
+# TEMP TEST: si True, el domingo cuenta como día laboral completo (00:00-24:00).
+# Poner en False para revertir al comportamiento normal (domingo no laboral).
+DOMINGO_LABORAL_TEST = True
 
 
 # ============================================================
@@ -37,6 +41,12 @@ def _jornada(fecha, incluye_sabado: bool, tzinfo):
             datetime.combine(fecha, HORA_FIN_SAB, tzinfo=tzinfo),
         )
     # Domingo
+    if DOMINGO_LABORAL_TEST:
+        # TEMP TEST: domingo completo 00:00-24:00
+        return (
+            datetime.combine(fecha, time(0, 0), tzinfo=tzinfo),
+            datetime.combine(fecha + timedelta(days=1), time(0, 0), tzinfo=tzinfo),
+        )
     return None
 
 
@@ -107,16 +117,21 @@ def calcular_tiempo_laboral(
     if not inicio or not fin:
         return timedelta(0)
 
+    # Normalizar datetimes naive a aware (zona actual) antes de operar.
+    if inicio.tzinfo is None:
+        inicio = timezone.make_aware(inicio, timezone.get_current_timezone())
+    if fin.tzinfo is None:
+        fin = timezone.make_aware(fin, timezone.get_current_timezone())
+
     if inicio >= fin:
         return timedelta(0)
 
+    # Convertir a la zona local (America/Lima) para que la jornada 9-18
+    # se evalúe en hora local y no en UTC (Django almacena en UTC).
+    inicio = timezone.localtime(inicio)
+    fin = timezone.localtime(fin)
+
     tzinfo = inicio.tzinfo
-
-    if fin.tzinfo is None and tzinfo is not None:
-        fin = timezone.make_aware(fin, timezone=tzinfo)
-
-    if inicio.tzinfo is None and fin.tzinfo is not None:
-        inicio = timezone.make_aware(inicio, timezone=fin.tzinfo)
 
     # Si incluye_sabado no se pasó explícitamente pero obj lo tiene, caller debe pasarlo.
     # Mantener compat: si incluye_sabado es None, tratar como False.
@@ -139,6 +154,64 @@ def calcular_tiempo_laboral(
     return total
 
 
+def sumar_tiempo_laboral(
+    base: datetime,
+    delta: timedelta,
+    incluye_sabado: bool = False,
+) -> datetime:
+    """
+    Avanza 'base' por 'delta' de tiempo laboral, saltando fuera de jornada.
+    Si delta <= 0 retorna base sin cambios.
+    """
+    if not base or delta is None or delta <= timedelta(0):
+        return base
+
+    if base.tzinfo is None:
+        base = timezone.make_aware(base, timezone.get_current_timezone())
+    base = timezone.localtime(base)
+    tzinfo = base.tzinfo
+
+    restante = delta
+    cursor = base
+    guard = 0
+    while restante > timedelta(0) and guard < 4000:
+        guard += 1
+        jornada = _jornada(cursor.date(), bool(incluye_sabado), tzinfo)
+        if jornada is not None:
+            j_ini, j_fin = jornada
+            if cursor < j_ini:
+                cursor = j_ini
+            if cursor < j_fin:
+                disponible = j_fin - cursor
+                if disponible >= restante:
+                    return cursor + restante
+                restante -= disponible
+                cursor = j_fin
+                continue
+        cursor = datetime.combine(
+            cursor.date() + timedelta(days=1), time(0, 0), tzinfo=tzinfo
+        )
+    return cursor
+
+
+def _merge_intervalos(intervalos: list) -> list:
+    """Une intervalos solapados/contiguos."""
+    if not intervalos:
+        return []
+    intervalos = sorted(intervalos, key=lambda x: x[0])
+    merged = []
+    cur_i, cur_f = intervalos[0]
+    for i, f in intervalos[1:]:
+        if i <= cur_f:
+            if f > cur_f:
+                cur_f = f
+        else:
+            merged.append((cur_i, cur_f))
+            cur_i, cur_f = i, f
+    merged.append((cur_i, cur_f))
+    return merged
+
+
 # ============================================================
 # OBTENER PERÍODOS DE STAND_BY DE UNA TAREA
 # ============================================================
@@ -147,13 +220,18 @@ def obtener_periodos_standby(
     tarea: Tarea,
     hasta: Optional[datetime] = None
 ):
+    """
+    Intervalos de standby de la tarea (unión de los de sus subtareas) que SÍ
+    deben excluirse del contador. Los períodos ya decididos al reanudar
+    (standby_excluido=False) no se excluyen: su efecto va en la fecha de entrega.
+    """
     hasta = hasta or timezone.now()
 
     logs = (
         TareaLog.objects
         .filter(
             tarea=tarea,
-            subtarea__isnull=True,
+            subtarea__isnull=False,
             tipo_evento__in=[
                 TareaLog.TipoEvento.STANDBY_INICIO,
                 TareaLog.TipoEvento.STANDBY_FIN,
@@ -162,22 +240,27 @@ def obtener_periodos_standby(
         .order_by("fecha", "id")
     )
 
-    periodos = []
-    inicio_standby = None
+    por_subtarea: dict = {}
     for log in logs:
-        if log.tipo_evento == TareaLog.TipoEvento.STANDBY_INICIO:
-            if inicio_standby is None:
-                inicio_standby = log.fecha
-        elif log.tipo_evento == TareaLog.TipoEvento.STANDBY_FIN:
-            if inicio_standby is not None:
-                fin_standby = log.fecha
-                if fin_standby > inicio_standby:
-                    periodos.append((inicio_standby, fin_standby))
-                inicio_standby = None
-    if inicio_standby is not None:
-        if hasta > inicio_standby:
-            periodos.append((inicio_standby, hasta))
-    return periodos
+        por_subtarea.setdefault(log.subtarea_id, []).append(log)
+
+    intervalos = []
+    for sub_logs in por_subtarea.values():
+        inicio_standby = None
+        for log in sub_logs:
+            if log.tipo_evento == TareaLog.TipoEvento.STANDBY_INICIO:
+                if inicio_standby is None:
+                    inicio_standby = log.fecha
+            elif log.tipo_evento == TareaLog.TipoEvento.STANDBY_FIN:
+                if inicio_standby is not None:
+                    fin_standby = log.fecha
+                    if fin_standby > inicio_standby and getattr(log, "standby_excluido", True):
+                        intervalos.append((inicio_standby, fin_standby))
+                    inicio_standby = None
+        if inicio_standby is not None and hasta > inicio_standby:
+            intervalos.append((inicio_standby, hasta))
+
+    return _merge_intervalos(intervalos)
 
 
 def obtener_periodos_standby_subtarea(
@@ -206,7 +289,7 @@ def obtener_periodos_standby_subtarea(
         elif log.tipo_evento == TareaLog.TipoEvento.STANDBY_FIN:
             if inicio_standby is not None:
                 fin_standby = log.fecha
-                if fin_standby > inicio_standby:
+                if fin_standby > inicio_standby and getattr(log, "standby_excluido", True):
                     periodos.append((inicio_standby, fin_standby))
                 inicio_standby = None
     if inicio_standby is not None:
@@ -432,6 +515,9 @@ def esta_en_jornada(fecha: datetime, incluye_sabado: bool = False) -> bool:
         if not incluye_sabado:
             return False
         return 9 * 60 <= total_min < 13 * 60
+    # Domingo (wd == 6): TEMP TEST
+    if DOMINGO_LABORAL_TEST:
+        return True
     return False
 
 
@@ -529,7 +615,13 @@ def obtener_contador_tarea(
             "servidor_ahora": ahora.isoformat(),
         }
 
-    if tarea.estado == Tarea.Estado.STAND_BY:
+    # Si alguna subtarea activa está en STAND_BY, toda la tarea se considera
+    # en pausa (no se muestra el contador) aunque el estado de la tarea no lo refleje.
+    subtarea_en_standby = tarea.subtareas.filter(
+        activo=True, estado=Subtarea.Estado.STAND_BY
+    ).exists()
+
+    if tarea.estado == Tarea.Estado.STAND_BY or subtarea_en_standby:
         tiempo_restante = calcular_tiempo_restante_tarea(tarea, ahora=ahora)
         extra = calcular_tiempo_extra_tarea(tarea)
         inicio_ef = obtener_inicio_efectivo_tarea(tarea)

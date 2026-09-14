@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import { formatearTiempo } from "@/lib/tiempoLaboral";
+import { formatearTiempo, segundosLaboralesEntre } from "@/lib/tiempoLaboral";
 
 interface Props {
     tareaId: number;
@@ -25,19 +25,25 @@ interface ContadorSub {
     servidor_ahora?: string;
 }
 
-export default function SubtaskCountdown({ tareaId, subtareaId, estado, fallbackTiempoTomado, fallbackFormateado }: Props) {
+type Snap = { raw: ContadorSub; serverAhora: Date };
+
+export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeSabado, fallbackTiempoTomado, fallbackFormateado }: Props) {
+    const [snapshot, setSnapshot] = useState<Snap | null>(null);
+    const [displaySec, setDisplaySec] = useState<number | null>(null);
+    const snapshotRef = useRef<Snap | null>(null);
     const [tiempoTomado, setTiempoTomado] = useState<number | null>(fallbackTiempoTomado ?? null);
-    const [segRestante, setSegRestante] = useState<number | null>(null);
-    const [pausado, setPausado] = useState(false);
-    const [activo, setActivo] = useState(false);
+
+    useEffect(() => {
+        snapshotRef.current = snapshot;
+    }, [snapshot]);
 
     useEffect(() => {
         if (estado === "SOLUCIONADO" && fallbackTiempoTomado !== undefined && fallbackTiempoTomado !== null) {
-            setTiempoTomado(fallbackTiempoTomado);
             return;
         }
         let cancelado = false;
         let poll: ReturnType<typeof setInterval> | null = null;
+        let tick: ReturnType<typeof setInterval> | null = null;
         let lastFetch = 0;
 
         const cargar = async () => {
@@ -48,37 +54,56 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, fallback
                 if (cancelado) return;
                 if (data.tiempo_tomado_segundos !== null) {
                     setTiempoTomado(data.tiempo_tomado_segundos);
-                    setSegRestante(null);
-                    setPausado(false);
-                    setActivo(false);
+                    setSnapshot(null);
+                    setDisplaySec(null);
                     return;
                 }
+                const snap: Snap = { raw: data, serverAhora: data.servidor_ahora ? new Date(data.servidor_ahora) : new Date() };
+                setSnapshot(snap);
                 setTiempoTomado(data.tiempo_tomado_segundos);
-                setSegRestante(data.segundos_restantes);
-                setPausado(!!data.pausado);
-                setActivo(!!data.activo);
+                const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!data.incluye_sabado;
+                if (!data.activo || data.pausado) {
+                    setDisplaySec(data.segundos_restantes);
+                } else {
+                    const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+                    setDisplaySec(Math.max(0, data.segundos_restantes - elapsed));
+                }
             } catch {
                 if (fallbackTiempoTomado !== null && fallbackTiempoTomado !== undefined) setTiempoTomado(fallbackTiempoTomado);
             }
         };
 
         cargar();
-        poll = setInterval(cargar, 15000);
+        poll = setInterval(cargar, 30000);
+        tick = setInterval(() => {
+            const snap = snapshotRef.current;
+            if (!snap) return;
+            if (!snap.raw.activo || snap.raw.pausado || snap.raw.tiempo_tomado_segundos !== null) return;
+            const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!snap.raw.incluye_sabado;
+            const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+            setDisplaySec(Math.max(0, snap.raw.segundos_restantes - elapsed));
+        }, 1000);
 
-        const onVis = () => { if (document.visibilityState === "visible") cargar(); };
+        const onVis = () => { if (document.visibilityState === "visible" && Date.now() - lastFetch > 5000) cargar(); };
         document.addEventListener("visibilitychange", onVis);
         return () => {
             cancelado = true;
             if (poll) clearInterval(poll);
+            if (tick) clearInterval(tick);
             document.removeEventListener("visibilitychange", onVis);
         };
-    }, [tareaId, subtareaId, estado, fallbackTiempoTomado]);
+    }, [tareaId, subtareaId, estado, incluyeSabado, fallbackTiempoTomado]);
 
-    if (tiempoTomado !== null) {
-        return <span style={{ fontSize: 11, color: "#166534" }}>{fallbackFormateado ? `Tomado: ${fallbackFormateado}` : `Tomado: ${formatearTiempo(tiempoTomado)}`}</span>;
+    const tomadoMostrado = (estado === "SOLUCIONADO" && fallbackTiempoTomado !== undefined && fallbackTiempoTomado !== null)
+        ? fallbackTiempoTomado
+        : tiempoTomado;
+
+    if (tomadoMostrado !== null) {
+        return <span style={{ fontSize: 11, color: "#166534" }}>{fallbackFormateado ? `Tomado: ${fallbackFormateado}` : `Tomado: ${formatearTiempo(tomadoMostrado)}`}</span>;
     }
-    if (pausado) return <span style={{ fontSize: 11, color: "#92400e" }}>En pausa</span>;
-    if (segRestante === null) return <span style={{ fontSize: 11 }}>—</span>;
-    if (!activo && estado === "EN_ESPERA") return <span style={{ fontSize: 11 }}>{formatearTiempo(segRestante)} (heredado)</span>;
-    return <span style={{ fontSize: 11 }}>{formatearTiempo(segRestante)}</span>;
+    const snap = snapshot;
+    if (snap && snap.raw.pausado) return <span style={{ fontSize: 11, color: "#92400e" }}>En pausa</span>;
+    if (displaySec === null) return <span style={{ fontSize: 11 }}>—</span>;
+    if (snap && !snap.raw.activo && estado === "EN_ESPERA") return <span style={{ fontSize: 11 }}>{formatearTiempo(displaySec)} (heredado)</span>;
+    return <span style={{ fontSize: 11 }}>{formatearTiempo(displaySec)}</span>;
 }

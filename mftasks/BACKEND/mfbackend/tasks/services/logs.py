@@ -10,7 +10,11 @@ def registrar_log(
     estado_anterior=None,
     estado_nuevo=None,
     detalle="",
+    standby_excluido=None,
 ):
+    kwargs = {}
+    if standby_excluido is not None:
+        kwargs["standby_excluido"] = standby_excluido
     return TareaLog.objects.create(
         tarea=tarea,
         subtarea=subtarea,
@@ -19,4 +23,5 @@ def registrar_log(
         estado_anterior=estado_anterior,
         estado_nuevo=estado_nuevo,
         detalle=detalle,
+        **kwargs,
     )

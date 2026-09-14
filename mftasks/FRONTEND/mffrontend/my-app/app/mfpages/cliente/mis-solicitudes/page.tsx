@@ -10,7 +10,13 @@ import TaskDetailClienteModal from "@/components/cliente/TaskDetailClienteModal"
 import ClienteSolicitudesTable from "@/components/solicitudes/ClienteSolicitudesTable";
 import { getUsuarioActual } from "@/lib/auth";
 
-const ESTADOS = ["TODOS", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
+const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
+
+function etiquetaEstado(estado: string): string {
+  if (estado === "TODOS") return "Todos los estados";
+  if (estado === "EN_PROCESO") return "En desarrollo / Stand-by";
+  return estado;
+}
 
 export default function MisSolicitudesPage() {
   const router = useRouter();
@@ -19,7 +25,7 @@ export default function MisSolicitudesPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [filtro, setFiltro] = useState<string>("TODOS");
+  const [filtro, setFiltro] = useState<string>("EN_PROCESO");
   const [busqueda, setBusqueda] = useState("");
 
   const [openCrear, setOpenCrear] = useState(false);
@@ -70,7 +76,12 @@ export default function MisSolicitudesPage() {
     const texto = busqueda.trim().toLowerCase();
 
     return tareas.filter((t) => {
-      const coincideEstado = filtro === "TODOS" || t.estado === filtro;
+      const coincideEstado =
+        filtro === "TODOS"
+          ? true
+          : filtro === "EN_PROCESO"
+            ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY"
+            : t.estado === filtro;
       if (!coincideEstado) return false;
       if (!texto) return true;
       return (
@@ -168,7 +179,7 @@ export default function MisSolicitudesPage() {
           style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
         >
           {ESTADOS.map((s) => (
-            <option key={s} value={s}>{s === "TODOS" ? "Todos los estados" : s}</option>
+            <option key={s} value={s}>{etiquetaEstado(s)}</option>
           ))}
         </select>
         <input
@@ -179,7 +190,7 @@ export default function MisSolicitudesPage() {
         />
         {(busqueda || filtro !== "TODOS") && (
           <button
-            onClick={() => { setBusqueda(""); setFiltro("TODOS"); }}
+            onClick={() => { setBusqueda(""); setFiltro("EN_PROCESO"); }}
             style={{ border: "1px solid #d1d5db", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
           >
             Limpiar
@@ -200,6 +211,7 @@ export default function MisSolicitudesPage() {
       />
 
       <TaskDetailClienteModal
+        key={selected?.id ?? "none"}
         tarea={selected}
         onClose={() => setSelected(null)}
       />

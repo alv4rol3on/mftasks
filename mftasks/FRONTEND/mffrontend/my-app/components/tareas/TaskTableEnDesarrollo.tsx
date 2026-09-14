@@ -49,6 +49,7 @@ export default function TaskTableEnDesarrollo({
   onEmpezarSubtarea,
   onCompletarSubtarea,
   onCambiarEstadoSubtarea,
+  onReanudarSubtarea,
   onReasignarSubtarea,
   onInactivarSubtarea,
   onReactivarSubtarea,
@@ -70,6 +71,7 @@ export default function TaskTableEnDesarrollo({
   onEmpezarSubtarea?: (tareaId: number, subtareaId: number) => void;
   onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
   onCambiarEstadoSubtarea?: (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => void;
+  onReanudarSubtarea?: (tareaId: number, subtareaId: number, opts?: { modo?: "continuar" | "nueva_fecha" | "mantener"; nuevaFechaEntrega?: string }) => Promise<void>;
   onReasignarSubtarea?: (tareaId: number, subtareaId: number, nuevoAsignado: number) => Promise<void>;
   onInactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
   onReactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
@@ -113,9 +115,24 @@ export default function TaskTableEnDesarrollo({
   // ids visibles para contadores centralizados (1 poll + 1 tick global)
   const visibleIds = useMemo(() => tareasPaginadas.map((t) => t.id), [tareasPaginadas]);
 
+  // Firma de datos: cambia en cada mutación (estado, progreso, fecha, subtareas) y
+  // dispara un refresco inmediato de los contadores.
+  const refreshKey = useMemo(
+    () =>
+      tareasVisibles
+        .map(
+          (t) =>
+            `${t.id}:${t.estado}:${t.progreso}:${t.fecha_entrega_aproximada ?? ""}:${(t.subtareas ?? [])
+              .map((s) => `${s.id}:${s.estado}`)
+              .join(",")}`
+        )
+        .join("|"),
+    [tareasVisibles]
+  );
+
   return (
     <>
-      <ContadoresProvider ids={visibleIds}>
+      <ContadoresProvider ids={visibleIds} refreshKey={refreshKey}>
         <div className={styles.taskTableContainer}>
           {tareasVisibles.length === 0 ? (
             <div className={styles.noTasks}>No hay tareas en desarrollo</div>
@@ -225,6 +242,7 @@ export default function TaskTableEnDesarrollo({
         onEmpezarTarea={onEmpezarSubtarea}
         onCompletarSubtarea={onCompletarSubtarea}
         onCambiarEstadoSubtarea={onCambiarEstadoSubtarea}
+        onReanudarSubtarea={onReanudarSubtarea}
         empezandoId={empezandoId}
         completandoId={completandoId}
         accionando={accionando}

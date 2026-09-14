@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useTareas } from "./hooks/useTareas";
 import { useTareasGuard } from "./hooks/useTareasGuard";
 import { filtrarTareas } from "./utils/tareasFilters";
-import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar } from "@/lib/services/tareasService";
+import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar } from "@/lib/services/tareasService";
 
 export default function TareasPage() {
   const { tareas, cargando, error, busqueda, setBusqueda, cargar, setError } = useTareas();
@@ -85,6 +85,26 @@ export default function TareasPage() {
     }
   };
 
+  const reanudarSubtarea = async (
+    tareaId: number,
+    subtareaId: number,
+    opts?: { modo?: "continuar" | "nueva_fecha" | "mantener"; nuevaFechaEntrega?: string }
+  ) => {
+    try {
+      await apiReanudarSubtarea(tareaId, subtareaId, opts);
+      const msgs: Record<string, string> = {
+        continuar: "Subtarea reanudada: la cuenta regresiva continúa",
+        nueva_fecha: "Subtarea reanudada con nueva fecha de entrega",
+        mantener: "Subtarea reanudada manteniendo la fecha de entrega",
+      };
+      showToast(msgs[opts?.modo ?? "continuar"] ?? "Subtarea reanudada", "success");
+      await cargar();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+      throw e;
+    }
+  };
+
   const reasignarSubtarea = async (tareaId: number, subtareaId: number, nuevoAsignado: number) => {
     try {
       await apiReasignar(tareaId, subtareaId, nuevoAsignado);
@@ -151,7 +171,7 @@ export default function TareasPage() {
         </form>
       </div>
       <p style={{ fontSize: 12, color: "#6b7280", marginTop: -8, marginBottom: 12 }}>Por defecto se muestran tareas en proceso o con solución reciente (≤3 días). Usa el buscador para ver anteriores por ticket o nombre.</p>
-      <TaskTableEnDesarrollo tareas={tareasFiltradas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} />
+      <TaskTableEnDesarrollo tareas={tareasFiltradas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} />
     </div>
   );
 }

@@ -1,13 +1,9 @@
 AÑADIR:
 - alerta al correo para que mande:
     Miembros/lider:
-    - Tareas pendientes, para revision
+    - Tareas pendientes, para revision cada dia a las 8am
     Cliente:
     - Cuando el equipo al que le asignaste una solicitud haya aprobado, rechazado, empezado el desarrollo, haya puesto en standby o reanudado una tarea 
-
-Detalles con el contador: 
-- Cuando una subtarea se inicia antes de la hora programada para empezar la tarea(por ejemplo la tarea esta programada para iniciar a las 12:30 pero inicie una de sus subtareas a las 12:00) deberia iniciar con el tiempo extra que sobra para que sea la hora programada
-- Esta hora extra tambien cuenta para el tiempo tomado de la subtarea y el tiempo tomado de la tarea en general
 
 Lider/miembro:
 - Opcion de reunion

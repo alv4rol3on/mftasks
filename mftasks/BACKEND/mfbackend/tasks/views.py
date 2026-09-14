@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.db import transaction
 from django.db.models import Q
@@ -747,11 +747,49 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def logs(self, request, pk=None):
         tarea = self.get_object()
-        # Solo miembros del equipo, líderes, sublíderes (y admin) pueden ver logs
+        # Miembros del equipo, líderes, sublíderes y admin ven todo.
+        # El solicitante (cliente) también puede ver el historial de su propia solicitud,
+        # pero solo con eventos de estado (sin datos internos).
         from .permissions import es_miembro_del_equipo
-        if not es_miembro_del_equipo(request.user, tarea.equipo):
+        es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
+        es_solicitante = tarea.solicitante_id == request.user.id
+        if not (es_equipo or es_solicitante):
             return Response({"detail": "No tienes permiso para ver los logs de esta tarea."}, status=status.HTTP_403_FORBIDDEN)
-        qs = TareaLog.objects.filter(tarea=tarea).select_related("usuario", "subtarea").order_by("-fecha", "-id")
+
+        qs = TareaLog.objects.filter(tarea=tarea).select_related("usuario", "subtarea")
+
+        # Vista cliente (solicitante que no pertenece al equipo): solo la línea de
+        # tiempo de estados de la solicitud, sin nombres ni detalles internos.
+        if es_solicitante and not es_equipo:
+            qs = qs.filter(
+                subtarea__isnull=True,
+                tipo_evento__in=[
+                    TareaLog.TipoEvento.CREACION,
+                    TareaLog.TipoEvento.INICIO,
+                    TareaLog.TipoEvento.CAMBIO_ESTADO,
+                    TareaLog.TipoEvento.STANDBY_INICIO,
+                    TareaLog.TipoEvento.STANDBY_FIN,
+                    TareaLog.TipoEvento.FIN,
+                ],
+            ).order_by("-fecha", "-id")
+            data = [
+                {
+                    "id": l.id,
+                    "tipo_evento": l.tipo_evento,
+                    "estado_anterior": l.estado_anterior,
+                    "estado_nuevo": l.estado_nuevo,
+                    "fecha": l.fecha.isoformat() if l.fecha else None,
+                    "detalle": "",
+                    "usuario": None,
+                    "usuario_id": None,
+                    "subtarea_id": None,
+                    "subtarea_descripcion": None,
+                }
+                for l in qs
+            ]
+            return Response(data)
+
+        qs = qs.order_by("-fecha", "-id")
         # filtro opcional por subtarea
         subtarea_id = request.query_params.get("subtarea")
         if subtarea_id:
@@ -1329,15 +1367,127 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        # Modo al reanudar:
+        #  - continuar: la fecha de entrega se amplía por el tiempo laboral en standby
+        #  - nueva_fecha: se fija una nueva fecha de entrega aproximada
+        #  - mantener: la fecha de entrega no cambia (el standby se descuenta)
+        modo = (request.data.get("modo") or "").strip().lower()
+        if not modo:
+            tiene_fecha = bool(
+                request.data.get("nueva_fecha_entrega")
+                or request.data.get("fecha_entrega_aproximada")
+            )
+            modo = "nueva_fecha" if tiene_fecha else "continuar"
+        if modo not in ("continuar", "nueva_fecha", "mantener"):
+            return Response(
+                {"detail": "Modo inválido. Use continuar, nueva_fecha o mantener."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nueva_fecha = None
+        if modo == "nueva_fecha":
+            nueva_fecha_raw = (
+                request.data.get("nueva_fecha_entrega")
+                or request.data.get("fecha_entrega_aproximada")
+            )
+            nueva_fecha = _parsear_fecha(nueva_fecha_raw)
+            if not nueva_fecha:
+                return Response(
+                    {"detail": "Indique una nueva fecha de entrega válida."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if timezone.is_naive(nueva_fecha):
+                nueva_fecha = timezone.make_aware(
+                    nueva_fecha, timezone.get_current_timezone()
+                )
+            if nueva_fecha <= timezone.now():
+                return Response(
+                    {"detail": "La nueva fecha de entrega debe ser futura."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if (
+                tarea.fecha_entrega_aproximada
+                and nueva_fecha <= tarea.fecha_entrega_aproximada
+            ):
+                return Response(
+                    {"detail": "La nueva fecha de entrega debe ser posterior a la actual."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if tarea.fecha_inicio and nueva_fecha <= tarea.fecha_inicio:
+                return Response(
+                    {"detail": "La nueva fecha de entrega debe ser posterior al inicio."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         with transaction.atomic():
 
+            ahora = timezone.localtime(timezone.now())
+
             # ==========================================
-            # REANUDAR SUBTAREA
+            # AJUSTE DE FECHA DE ENTREGA SEGÚN MODO
+            # ==========================================
+
+            if modo == "nueva_fecha":
+                entrega_anterior = tarea.fecha_entrega_aproximada
+                tarea.fecha_entrega_aproximada = nueva_fecha
+                tarea.save(update_fields=["fecha_entrega_aproximada"])
+                registrar_log(
+                    tarea=tarea,
+                    usuario=request.user,
+                    tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
+                    estado_anterior=tarea.estado,
+                    estado_nuevo=tarea.estado,
+                    detalle=(
+                        f"Nueva fecha de entrega al reanudar subtarea "
+                        f"#{subtarea.id}: "
+                        f"{entrega_anterior.isoformat() if entrega_anterior else '-'} -> "
+                        f"{nueva_fecha.isoformat()}."
+                    ),
+                )
+            elif modo == "continuar":
+                if subtarea.fecha_standby and tarea.fecha_entrega_aproximada:
+                    from .services.tiempo_laboral import (
+                        calcular_tiempo_laboral,
+                        sumar_tiempo_laboral,
+                    )
+
+                    incluye = bool(tarea.incluye_sabado)
+                    tiempo_perdido = calcular_tiempo_laboral(
+                        subtarea.fecha_standby, ahora, incluye_sabado=incluye
+                    )
+                    if tiempo_perdido > timedelta(0):
+                        entrega_anterior = tarea.fecha_entrega_aproximada
+                        tarea.fecha_entrega_aproximada = sumar_tiempo_laboral(
+                            tarea.fecha_entrega_aproximada,
+                            tiempo_perdido,
+                            incluye_sabado=incluye,
+                        )
+                        tarea.save(update_fields=["fecha_entrega_aproximada"])
+                        registrar_log(
+                            tarea=tarea,
+                            usuario=request.user,
+                            tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
+                            estado_anterior=tarea.estado,
+                            estado_nuevo=tarea.estado,
+                            detalle=(
+                                f"Continuar cuenta regresiva: fecha de entrega "
+                                f"ampliada por el tiempo en standby de la subtarea "
+                                f"#{subtarea.id} "
+                                f"({int(tiempo_perdido.total_seconds())}s): "
+                                f"{entrega_anterior.isoformat()} -> "
+                                f"{tarea.fecha_entrega_aproximada.isoformat()}."
+                            ),
+                        )
+            # modo mantener: no se modifica la fecha de entrega
+
+            # ==========================================
+            # REANUDAR SUBTAREA (continúa cuenta regresiva)
             # ==========================================
 
             estado_anterior_subtarea = subtarea.estado
 
-            subtarea.estado = Subtarea.Estado.EN_ESPERA
+            subtarea.estado = Subtarea.Estado.EN_DESARROLLO
+            subtarea.fecha_inicio = ahora
             subtarea.motivo_standby = ""
             subtarea.fecha_standby = None
             subtarea.standby_por = None
@@ -1345,6 +1495,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             subtarea.save(
                 update_fields=[
                     "estado",
+                    "fecha_inicio",
                     "motivo_standby",
                     "fecha_standby",
                     "standby_por",
@@ -1358,7 +1509,18 @@ class TaskViewSet(viewsets.ModelViewSet):
                 tipo_evento=TareaLog.TipoEvento.STANDBY_FIN,
                 estado_anterior=estado_anterior_subtarea,
                 estado_nuevo=subtarea.estado,
-                detalle="Subtarea reanudada.",
+                detalle=f"Subtarea reanudada (modo: {modo}).",
+                standby_excluido=False,
+            )
+
+            registrar_log(
+                tarea=tarea,
+                subtarea=subtarea,
+                usuario=request.user,
+                tipo_evento=TareaLog.TipoEvento.INICIO,
+                estado_anterior=estado_anterior_subtarea,
+                estado_nuevo=subtarea.estado,
+                detalle="Subtarea reanudada en desarrollo (continuando cuenta regresiva).",
             )
 
             # ==========================================

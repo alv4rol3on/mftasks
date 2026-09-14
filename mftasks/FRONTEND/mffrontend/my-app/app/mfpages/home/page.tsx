@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
 import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
@@ -37,8 +38,16 @@ export default function Home() {
   const [openCrear, setOpenCrear] = useState(false);
   const [tareas, setTareas] = useState<Task[]>([]);
   const { showToast } = useToast();
+  const router = useRouter();
 
-
+  // El administrador no tiene alertas: se redirige al centro de Solicitudes.
+  useEffect(() => {
+    const u = getUsuarioActual();
+    const roles = (u?.roles ?? []).map((r) => r.toLowerCase());
+    if (roles.includes("administrador")) {
+      router.replace("/mfpages/solicitudes");
+    }
+  }, [router]);
 
   useEffect(() => {
     apiFetch<Resumen>("/api/tasks/tasks/resumen/")
@@ -59,6 +68,12 @@ export default function Home() {
       setCargando(false);
     }
   }, [showToast]);
+
+  const usuario = getUsuarioActual();
+  const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
+  const esAdmin = roles.includes("administrador");
+
+  if (esAdmin) return <div style={{ padding: 16, color: "#6b7280" }}>Redirigiendo a Solicitudes…</div>;
   if (cargando) return <div>Cargando alertas…</div>;
   if (error) return <div className="rounded p-4 text-sm text-red-600">Error al cargar alertas: {error}</div>;
 
@@ -66,11 +81,6 @@ export default function Home() {
   const esCliente = resumen?.tipo === "cliente";
   const porAprobar = resumen?.por_aprobar ?? 0;
   const pendientes = resumen?.pendientes ?? 0;
-
-  // Determinar si es asistente puro para mensaje
-  const usuario = getUsuarioActual();
-  const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
-  const esAdmin = roles.includes("administrador");
 
   if (esCliente) {
     const total = resumen?.total ?? 0;
@@ -175,22 +185,6 @@ export default function Home() {
         </div>
       ) : (
         <div className="rounded p-4 text-sm text-white-600">No hay alertas pendientes.</div>
-      )}
-
-      {esAdmin && resumen?.tipo === "admin" && (
-        <div className="mt-4 space-y-2">
-          {porAprobar > 0 && (
-            <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: 12, fontSize: 13 }}>
-              Admin: {porAprobar} tareas por aprobar
-            </div>
-          )}
-          {pendientes > 0 && (
-            <div style={{ background: "#dbeafe", border: "1px solid #3b82f6", borderRadius: 8, padding: 12, fontSize: 13 }}>
-              Admin: {pendientes} subtareas asignadas pendientes
-            </div>
-          )}
-          {pendientes > 0 && renderPendientesDetalle()}
-        </div>
       )}
 
     </div>

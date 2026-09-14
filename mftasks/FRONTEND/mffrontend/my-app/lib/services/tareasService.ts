@@ -33,6 +33,24 @@ export async function completarSubtarea(tareaId: number, subtareaId: number): Pr
   });
 }
 
+export async function reanudarSubtarea(
+  tareaId: number,
+  subtareaId: number,
+  opts?: { modo?: "continuar" | "nueva_fecha" | "mantener"; nuevaFechaEntrega?: string }
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (opts?.modo) {
+    body.modo = opts.modo;
+  }
+  if (opts?.nuevaFechaEntrega) {
+    body.nueva_fecha_entrega = opts.nuevaFechaEntrega;
+  }
+  await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reanudar/`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function cambiarEstadoSubtarea(
   tareaId: number,
   subtareaId: number,
@@ -57,14 +75,14 @@ export async function cambiarEstadoSubtarea(
       return;
     }
     if (estadoActual === "STAND_BY") {
-      await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reanudar/`, { method: "POST" });
+      await reanudarSubtarea(tareaId, subtareaId);
       return;
     }
     throw new Error(`Transición no válida ${estadoActual} -> ${nuevoEstado}`);
   }
   if (nuevoEstado === "EN_ESPERA") {
     if (estadoActual === "STAND_BY") {
-      await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reanudar/`, { method: "POST" });
+      await reanudarSubtarea(tareaId, subtareaId);
       return;
     }
     throw new Error("Esta subtarea fue iniciada, no se puede volver a En espera");

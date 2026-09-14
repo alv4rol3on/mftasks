@@ -48,6 +48,7 @@ type Props = {
     onEmpezarTarea?: (tareaId: number, subtareaId: number) => void;
     onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
     onCambiarEstadoSubtarea?: (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => void;
+    onReanudarSubtarea?: (tareaId: number, subtareaId: number, opts?: { modo?: "continuar" | "nueva_fecha" | "mantener"; nuevaFechaEntrega?: string }) => Promise<void>;
     empezandoId?: number | null;
     completandoId?: number | null;
     accionando?: number | null;
@@ -90,6 +91,7 @@ export default function TaskModal({
     onEmpezarTarea,
     onCompletarSubtarea,
     onCambiarEstadoSubtarea,
+    onReanudarSubtarea,
     empezandoId,
     completandoId,
     accionando,
@@ -121,6 +123,21 @@ export default function TaskModal({
     const [inactivandoId, setInactivandoId] = useState<number | null>(null);
     const [asigMsg, setAsigMsg] = useState<string | null>(null);
     const [asigErr, setAsigErr] = useState<string | null>(null);
+
+    // Reanudación desde STAND_BY: continuar cuenta regresiva o fijar nueva fecha de entrega
+    const [reanudarSubId, setReanudarSubId] = useState<number | null>(null);
+    const [resumeMode, setResumeMode] = useState<"continuar" | "nueva" | "mantener">("continuar");
+    const [nuevaFecha, setNuevaFecha] = useState("");
+    const [reanudando, setReanudando] = useState(false);
+    const [reanudarErr, setReanudarErr] = useState<string | null>(null);
+
+    const aDatetimeLocal = (iso: string | null | undefined) => {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        const pad = (n: number) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
 
     const usuario = getUsuarioActual();
 
@@ -177,6 +194,9 @@ export default function TaskModal({
         setDraftAsignado({});
         setAsigMsg(null);
         setAsigErr(null);
+        setReanudarSubId(null);
+        setReanudarErr(null);
+        setResumeMode("continuar");
     }, [tarea?.id]);
 
     useEffect(() => {
@@ -269,6 +289,42 @@ export default function TaskModal({
         }
     };
 
+    const abrirReanudar = (subtareaId: number) => {
+        setReanudarErr(null);
+        setResumeMode("continuar");
+        setNuevaFecha(tarea ? aDatetimeLocal(tarea.fecha_entrega_aproximada) : "");
+        setReanudarSubId(subtareaId);
+    };
+
+    const confirmarReanudar = async () => {
+        if (!tarea || reanudarSubId === null) return;
+        setReanudarErr(null);
+        let opts: { modo: "continuar" | "nueva_fecha" | "mantener"; nuevaFechaEntrega?: string };
+        if (resumeMode === "nueva") {
+            if (!nuevaFecha) { setReanudarErr("Selecciona la nueva fecha de entrega."); return; }
+            const d = new Date(nuevaFecha);
+            if (isNaN(d.getTime())) { setReanudarErr("Fecha inválida."); return; }
+            opts = { modo: "nueva_fecha", nuevaFechaEntrega: d.toISOString() };
+        } else if (resumeMode === "mantener") {
+            opts = { modo: "mantener" };
+        } else {
+            opts = { modo: "continuar" };
+        }
+        setReanudando(true);
+        try {
+            if (onReanudarSubtarea) {
+                await onReanudarSubtarea(tarea.id, reanudarSubId, opts);
+            } else if (onCambiarEstadoSubtarea) {
+                onCambiarEstadoSubtarea(tarea.id, reanudarSubId, "EN_DESARROLLO");
+            }
+            setReanudarSubId(null);
+        } catch (e) {
+            setReanudarErr((e as Error).message);
+        } finally {
+            setReanudando(false);
+        }
+    };
+
     // determinar si usuario puede ver historial: miembros del equipo (no cliente puro)
     const roles = (usuario?.roles ?? []).map((r: string) => r.toLowerCase());
     const esClientePuro = roles.includes("cliente") && !roles.includes("miembro") && !roles.includes("lider") && !roles.includes("sub_lider") && !roles.includes("administrador");
@@ -294,6 +350,14 @@ export default function TaskModal({
 
     const subtareasProgreso = tarea.subtareas.filter(s => s.activo !== false);
     const subtareasInactivasCount = tarea.subtareas.length - subtareasProgreso.length;
+
+    const minNuevaFecha = (() => {
+        if (!tarea.fecha_entrega_aproximada) return undefined;
+        const d = new Date(tarea.fecha_entrega_aproximada);
+        if (isNaN(d.getTime())) return undefined;
+        d.setMinutes(d.getMinutes() + 1);
+        return aDatetimeLocal(d.toISOString());
+    })();
 
     const tabButtonStyle = (active: boolean) => ({
         flex: 1,
@@ -454,9 +518,9 @@ export default function TaskModal({
                                                                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#dcfce7", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid #86efac" }}>✓ Solucionado</span>
                                                                         ) : subtarea.estado === "STAND_BY" ? (
                                                                             <button
-                                                                                onClick={() => onCambiarEstadoSubtarea(tarea.id, subtarea.id, "EN_ESPERA")}
+                                                                                onClick={() => abrirReanudar(subtarea.id)}
                                                                                 style={{ background: "#f59e0b", color: "black", border: "none", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700 }}
-                                                                                title="Reanudar - volverá a En espera"
+                                                                                title="Reanudar: continuar la cuenta regresiva o fijar nueva fecha de entrega"
                                                                             >
                                                                                 REANUDAR
                                                                             </button>
@@ -726,6 +790,63 @@ export default function TaskModal({
                     </div>
                 </div>
             </div>
+
+            {reanudarSubId !== null && (
+                <div
+                    style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}
+                    onClick={() => { if (!reanudando) setReanudarSubId(null); }}
+                >
+                    <div
+                        style={{ background: "white", borderRadius: 12, padding: 20, width: 440, maxWidth: "92vw", boxShadow: "0 10px 40px rgba(0,0,0,0.25)" }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>Reanudar subtarea</h3>
+                        <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px" }}>Elige cómo continuar la cuenta regresiva.</p>
+                        {reanudarErr && <p style={{ fontSize: 12, color: "#991b1b", background: "#fee2e2", padding: "6px 8px", borderRadius: 6 }}>{reanudarErr}</p>}
+                        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginBottom: 10, cursor: "pointer" }}>
+                            <input type="radio" name="resumeMode" checked={resumeMode === "continuar"} onChange={() => setResumeMode("continuar")} style={{ marginTop: 3 }} />
+                            <span>
+                                <strong>Continuar cuenta regresiva</strong>
+                                <br />
+                                <span style={{ fontSize: 11, color: "#6b7280" }}>Sigue desde donde se quedó; la fecha de entrega se amplía por el tiempo en stand-by.</span>
+                            </span>
+                        </label>
+                        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginBottom: 10, cursor: "pointer" }}>
+                            <input type="radio" name="resumeMode" checked={resumeMode === "nueva"} onChange={() => setResumeMode("nueva")} style={{ marginTop: 3 }} />
+                            <span>
+                                <strong>Nueva fecha de entrega aproximada</strong>
+                                <br />
+                                <span style={{ fontSize: 11, color: "#6b7280" }}>Fija una nueva fecha de entrega (más tiempo en la cuenta regresiva).</span>
+                            </span>
+                        </label>
+                        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginBottom: 10, cursor: "pointer" }}>
+                            <input type="radio" name="resumeMode" checked={resumeMode === "mantener"} onChange={() => setResumeMode("mantener")} style={{ marginTop: 3 }} />
+                            <span>
+                                <strong>Mantener fecha y hora de entrega</strong>
+                                <br />
+                                <span style={{ fontSize: 11, color: "#6b7280" }}>No cambia la fecha; el tiempo en stand-by se descuenta del plazo.</span>
+                            </span>
+                        </label>
+                        {resumeMode === "nueva" && (
+                            <div style={{ marginTop: 4, marginBottom: 8 }}>
+                                <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>Nueva fecha de entrega</label>
+                                <input
+                                    type="datetime-local"
+                                    value={nuevaFecha}
+                                    min={minNuevaFecha}
+                                    onChange={(e) => setNuevaFecha(e.target.value)}
+                                    style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                                />
+                                <span style={{ fontSize: 11, color: "#6b7280" }}>Actual: {formatearFecha(tarea.fecha_entrega_aproximada)}</span>
+                            </div>
+                        )}
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+                            <button onClick={() => setReanudarSubId(null)} disabled={reanudando} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+                            <button onClick={confirmarReanudar} disabled={reanudando} style={{ background: "#f59e0b", color: "black", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>{reanudando ? "Reanudando…" : "Confirmar"}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {mostrarIniciar && (
                 <TaskIniciarModal
