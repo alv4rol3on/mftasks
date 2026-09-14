@@ -214,7 +214,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                             title={s.motivo_standby || ""}
                           >
                             <td data-label="Subtarea">{s.descripcion}</td>
-                            <td data-label="Estado"><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding:"2px 6px", borderRadius:6, fontSize:11}}>{s.estado}</span></td>
+                            <td data-label="Estado"><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding:"2px 6px", borderRadius:6, fontSize:11, color:"white"}}>{s.estado}</span></td>
                             <td data-label="Peso">{s.peso}</td>
                             <td data-label="Asignado">{s.asignado_nombre}</td>
                           </tr>

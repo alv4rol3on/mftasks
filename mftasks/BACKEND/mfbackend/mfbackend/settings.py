@@ -34,7 +34,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "backend",
-    "192.168.202.12",
+    "198.41.192.57",
     ".trycloudflare.com",
 ]
 
@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    #"daphne",
+    #"channels",
     #apps
     "tasks",
     "usuarios",

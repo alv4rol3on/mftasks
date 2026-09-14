@@ -255,7 +255,7 @@ export default function AdminPage() {
       {tab === "usuarios" && (
         <div className={styles.container}>
           <div className={styles.card}>
-            <h3 className={styles.cardTitle}>Crear usuario</h3>
+            <h3 className={styles.cardTitle}>Crear nuevo usuario</h3>
             <div className={styles.formGrid}>
               <input placeholder="Email" value={nuevo.email} onChange={e => setNuevo({ ...nuevo, email: e.target.value })} className={styles.input} />
               <input placeholder="Cargo" value={nuevo.cargo} onChange={e => setNuevo({ ...nuevo, cargo: e.target.value })} className={styles.input} />
@@ -269,12 +269,12 @@ export default function AdminPage() {
                 <option value="administrador">administrador</option>
               </select>
             </div>
-            <button onClick={crearUsuario} className={styles.btnPrimary} style={{ marginTop: 12 }}>Crear usuario</button>
+            <button onClick={crearUsuario} className={styles.btnPrimary} style={{ marginTop: 12 }}>Crear</button>
           </div>
 
           <div className={styles.card}>
             <div className={styles.usersHeader}>
-              <h3 className={styles.cardTitle} style={{ margin: 0, color: "white" }}>Usuarios ({usuariosFiltrados.length} / {usuarios.length})</h3>
+              <h3 className={styles.cardTitle} style={{ margin: 0}}>Usuarios ({usuariosFiltrados.length} / {usuarios.length})</h3>
               <div className={styles.usersFilters}>
                 <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className={styles.select} style={{ minWidth: 140, fontSize: 12, padding: "6px 8px" }}>
                   <option value="todos">Todos los roles</option>
@@ -339,23 +339,22 @@ export default function AdminPage() {
             {tipoCreacion === "campana" ? (
               <div className={styles.createForm}>
                 <div className={styles.createField}>
-                  <label>Nombre campaña *</label>
+                  <label style={{color: "black"}}>Nombre campaña *</label>
                   <input placeholder="Ej: BBVA, CSC, BCP..." value={nuevaCampanaNombre} onChange={e => setNuevaCampanaNombre(e.target.value)} className={styles.input} />
-                  <span className={styles.createHint}>El código se genera automáticamente. Solo el nombre es obligatorio.</span>
                 </div>
                 <button onClick={crearCampana} disabled={creandoCampana || !nuevaCampanaNombre.trim()} className={styles.btnPrimary} style={{ opacity: creandoCampana || !nuevaCampanaNombre.trim() ? 0.6 : 1 }}>{creandoCampana ? "Creando..." : "Crear campaña"}</button>
               </div>
             ) : (
               <div className={styles.createForm}>
                 <div className={styles.createField}>
-                  <label>Campaña padre *</label>
+                  <label style={{color: "black"}}>Campaña padre *</label>
                   <select value={nuevaSubcampana.campanaId} onChange={e => setNuevaSubcampana({ ...nuevaSubcampana, campanaId: e.target.value })} className={styles.select}>
                     <option value="">Selecciona campaña</option>
                     {campanas.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo}) {c.activo ? "" : "— inactiva"}</option>)}
                   </select>
                 </div>
                 <div className={styles.createField}>
-                  <label>Nombre subcampaña *</label>
+                  <label style={{color: "black"}}>Nombre subcampaña *</label>
                   <input placeholder="Ej: Tarjetas Out, Digital..." value={nuevaSubcampana.nombre} onChange={e => setNuevaSubcampana({ ...nuevaSubcampana, nombre: e.target.value })} className={styles.input} />
                   <span className={styles.createHint}>El código se genera como CODIGO_CAMPANA_NOMBRE.</span>
                 </div>

@@ -57,7 +57,7 @@
 }
 
 .card {
-  background: #252525;
+  background: #f3f4f6;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 16px;
@@ -67,7 +67,7 @@
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 700;
-  color: white;
+  color: rgb(5, 5, 5);
 }
 
 .formGrid {
@@ -175,7 +175,7 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: #000000;
 }
 
 .createField label {
@@ -542,6 +542,7 @@
   }
   .createForm {
     max-width: 100%;
+    color: #000000;
   }
   .formGrid {
     grid-template-columns: 1fr;

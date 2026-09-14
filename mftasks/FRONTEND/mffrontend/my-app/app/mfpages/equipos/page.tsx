@@ -828,7 +828,7 @@ export default function EquiposPage() {
               Selecciona el nuevo miembro para que forme parte del equipo
             </p>
             <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151" }}>
-              ID usuario (MFS-YYYYMMDD-XXXXX) - solo MIEMBRO activo pre-asignado por admin
+              ID usuario (MFS-YYYYMMDD-XXXXX)
               <input
                 value={agregarUsuarioId}
                 onChange={(e) => setAgregarUsuarioId(e.target.value.toUpperCase())}

@@ -14,7 +14,7 @@ const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO"
 
 function etiquetaEstado(estado: string): string {
   if (estado === "TODOS") return "Todos los estados";
-  if (estado === "EN_PROCESO") return "En desarrollo / Stand-by";
+  if (estado === "EN_PROCESO") return "EN PROCESO";
   return estado;
 }
 
@@ -80,7 +80,7 @@ export default function MisSolicitudesPage() {
         filtro === "TODOS"
           ? true
           : filtro === "EN_PROCESO"
-            ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY"
+            ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
             : t.estado === filtro;
       if (!coincideEstado) return false;
       if (!texto) return true;

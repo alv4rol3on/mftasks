@@ -407,7 +407,6 @@ export default function TaskModal({
                                     <tr><td><strong>Fecha solicitud</strong></td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
                                     <tr><td><strong>Inicio</strong></td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>
                                     <tr><td><strong>Entrega</strong></td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
-                                    <tr><td><strong>Horario</strong></td><td>L-V 9:00-18:00 · Sáb 9:00-13:00</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -429,8 +428,9 @@ export default function TaskModal({
                                             <tr><td><strong>Inicio efectivo</strong></td><td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td></tr>
                                         )}
                                         {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
-                                            <tr><td><strong>Tomado</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
+                                                <tr><td><strong>Solucionado en:</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
                                         )}
+
                                     </tbody>
                                 </table>
                             </div>
@@ -480,7 +480,7 @@ export default function TaskModal({
                                                             <tr
                                                                 key={subtarea.id}
                                                                 title={bloqueadaTooltip || subtarea.motivo_standby || ""}
-                                                                 className={
+                                                                className={
                                                                     subtarea.estado === "EN_ESPERA"
                                                                         ? styles.estadoEnEspera
                                                                         : subtarea.estado === "EN_DESARROLLO"
@@ -586,7 +586,7 @@ export default function TaskModal({
                                                                             {completandoId === subtarea.id ? "Guardando…" : "Marcar como completado"}
                                                                         </button>
                                                                     ) : subtarea.estado === "SOLUCIONADO" ? (
-                                                                        <span style={{ color: "#FFFFFF", fontSize: 12 }}>✓ Terminada</span>
+                                                                        <span style={{ color: "#black", fontSize: 12 }}>✓ Terminada</span>
                                                                     ) : subtarea.estado === "STAND_BY" ? (
                                                                         <span style={{ color: "#f59e0b", fontSize: 11, fontWeight: 600 }}>Pausada</span>
                                                                     ) : (
@@ -653,27 +653,27 @@ export default function TaskModal({
                                                         const detalle = l.detalle || `${l.estado_anterior ?? ""} → ${l.estado_nuevo ?? ""}`;
                                                         const necesitaClamp = detalle.length > 120;
                                                         return (
-                                                        <tr key={l.id}>
-                                                            <td data-label="Fecha" style={{ fontSize: 11 }}>{formatearFechaSec(l.fecha)}</td>
-                                                            <td data-label="Usuario" style={{ fontSize: 11 }}>{l.usuario ?? "-"}</td>
-                                                            <td data-label="Evento" style={{ fontSize: 11 }}><span style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{l.tipo_evento}</span>{l.subtarea_id ? <div style={{ fontSize: 10, color: "#6b7280" }}>Sub #{l.subtarea_id}</div> : null}</td>
-                                                            <td data-label="Detalle" style={{ fontSize: 11 }}>
-                                                                <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>{detalle}</div>
-                                                                {necesitaClamp && (
-                                                                    <button
-                                                                        type="button"
-                                                                        className={styles.historialToggle}
-                                                                        onClick={() => setExpandedLogs(prev => {
-                                                                            const n = new Set(prev);
-                                                                            if (n.has(l.id)) n.delete(l.id); else n.add(l.id);
-                                                                            return n;
-                                                                        })}
-                                                                    >
-                                                                        {expanded ? "Ver menos" : "Ver más"}
-                                                                    </button>
-                                                                )}
-                                                            </td>
-                                                        </tr>
+                                                            <tr key={l.id}>
+                                                                <td data-label="Fecha" style={{ fontSize: 11 }}>{formatearFechaSec(l.fecha)}</td>
+                                                                <td data-label="Usuario" style={{ fontSize: 11 }}>{l.usuario ?? "-"}</td>
+                                                                <td data-label="Evento" style={{ fontSize: 11 }}><span style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{l.tipo_evento}</span>{l.subtarea_id ? <div style={{ fontSize: 10, color: "#6b7280" }}>Sub #{l.subtarea_id}</div> : null}</td>
+                                                                <td data-label="Detalle" style={{ fontSize: 11 }}>
+                                                                    <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>{detalle}</div>
+                                                                    {necesitaClamp && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className={styles.historialToggle}
+                                                                            onClick={() => setExpandedLogs(prev => {
+                                                                                const n = new Set(prev);
+                                                                                if (n.has(l.id)) n.delete(l.id); else n.add(l.id);
+                                                                                return n;
+                                                                            })}
+                                                                        >
+                                                                            {expanded ? "Ver menos" : "Ver más"}
+                                                                        </button>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
                                                         );
                                                     })}
                                                 </tbody>
@@ -683,7 +683,6 @@ export default function TaskModal({
                                     {logs && logs.length > histPageSize && (
                                         <Pagination page={paginaHist} totalPages={totalHistPages} totalItems={logs.length} pageSize={histPageSize} onPageChange={setPaginaHist} />
                                     )}
-                                    <p style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>Solo miembros del equipo, líderes y sublíderes pueden ver este historial. El backend valida permisos.</p>
                                 </div>
                             ) : (
                                 <div>
@@ -714,66 +713,66 @@ export default function TaskModal({
                                                         const inactiva = subtarea.activo === false;
                                                         const esSolucionada = subtarea.estado === "SOLUCIONADO";
                                                         return (
-                                                        <tr key={subtarea.id} style={inactiva ? { opacity: 0.7, background: "#f9fafb" } : undefined}>
-                                                            <td data-label="Subtarea">
-                                                                <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.descripcion} {inactiva && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Inactiva</span>} {esSolucionada && <span style={{ background: "#dcfce7", color: "#166534", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Solucionada</span>}</div>
-                                                                <div style={{ fontSize: 10, color: "#6b7280" }}>Peso {subtarea.peso} · Estado {subtarea.estado}</div>
-                                                            </td>
-                                                            <td data-label="Asignado actual">
-                                                                <div style={{ fontSize: 12 }}>{subtarea.asignado_nombre}</div>
-                                                                <div style={{ fontSize: 10, color: "#6b7280" }}>ID {subtarea.asignado}</div>
-                                                            </td>
-                                                            <td data-label="Nuevo asignado">
-                                                                {inactiva || esSolucionada ? (
-                                                                    <span style={{ fontSize: 11, color: "#9ca3af" }}>{inactiva ? "Reactivar para reasignar" : "No reasignable"}</span>
-                                                                ) : opcionesAsignables.length === 0 ? (
-                                                                    <span style={{ fontSize: 11 }}>{miembrosLoading ? "Cargando..." : "Sin miembros activos"}</span>
-                                                                ) : (
-                                                                    <select
-                                                                        value={draftAsignado[subtarea.id] ?? ""}
-                                                                        onChange={e => setDraftAsignado(prev => ({ ...prev, [subtarea.id]: e.target.value ? Number(e.target.value) : "" }))}
-                                                                        className={styles.estadoSelect}
-                                                                        style={{ minWidth: 140, height: 34, fontSize: 12 }}
-                                                                    >
-                                                                        <option value="">-- seleccionar --</option>
-                                                                        {opcionesAsignables.map(o => (
-                                                                            <option key={o.id} value={o.id}>{o.nombre}</option>
-                                                                        ))}
-                                                                    </select>
-                                                                )}
-                                                            </td>
-                                                            <td data-label="Acciones">
-                                                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                                                                    {!inactiva && !esSolucionada && (
-                                                                        <button
-                                                                            onClick={() => handleReasignar(subtarea.id)}
-                                                                            disabled={reasignandoId === subtarea.id || draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined}
-                                                                            style={{ background: "#2563eb", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700, opacity: (draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined) ? 0.5 : 1 }}
-                                                                        >
-                                                                            {reasignandoId === subtarea.id ? "..." : "Reasignar"}
-                                                                        </button>
-                                                                    )}
-                                                                    {!inactiva ? (
-                                                                        <button
-                                                                            onClick={() => handleInactivar(subtarea.id)}
-                                                                            disabled={esSolucionada || inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
-                                                                            title={esSolucionada ? "No se puede inactivar solucionada" : "Inactivar subtarea"}
-                                                                            style={{ background: esSolucionada ? "#9ca3af" : "#ef4444", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: esSolucionada ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700 }}
-                                                                        >
-                                                                            {inactivandoId === subtarea.id ? "..." : "Inactivar"}
-                                                                        </button>
+                                                            <tr key={subtarea.id} style={inactiva ? { opacity: 0.7, background: "#f9fafb" } : undefined}>
+                                                                <td data-label="Subtarea">
+                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.descripcion} {inactiva && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Inactiva</span>} {esSolucionada && <span style={{ background: "#dcfce7", color: "#166534", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Solucionada</span>}</div>
+                                                                    <div style={{ fontSize: 10, color: "#6b7280" }}>Peso {subtarea.peso} · Estado {subtarea.estado}</div>
+                                                                </td>
+                                                                <td data-label="Asignado actual">
+                                                                    <div style={{ fontSize: 12 }}>{subtarea.asignado_nombre}</div>
+                                                                    <div style={{ fontSize: 10, color: "#6b7280" }}>ID {subtarea.asignado}</div>
+                                                                </td>
+                                                                <td data-label="Nuevo asignado">
+                                                                    {inactiva || esSolucionada ? (
+                                                                        <span style={{ fontSize: 11, color: "#9ca3af" }}>{inactiva ? "Reactivar para reasignar" : "No reasignable"}</span>
+                                                                    ) : opcionesAsignables.length === 0 ? (
+                                                                        <span style={{ fontSize: 11 }}>{miembrosLoading ? "Cargando..." : "Sin miembros activos"}</span>
                                                                     ) : (
-                                                                        <button
-                                                                            onClick={() => handleReactivar(subtarea.id)}
-                                                                            disabled={inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
-                                                                            style={{ background: "#16a34a", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                                                                        <select
+                                                                            value={draftAsignado[subtarea.id] ?? ""}
+                                                                            onChange={e => setDraftAsignado(prev => ({ ...prev, [subtarea.id]: e.target.value ? Number(e.target.value) : "" }))}
+                                                                            className={styles.estadoSelect}
+                                                                            style={{ minWidth: 140, height: 34, fontSize: 12 }}
                                                                         >
-                                                                            {inactivandoId === subtarea.id ? "..." : "Reactivar"}
-                                                                        </button>
+                                                                            <option value="">-- seleccionar --</option>
+                                                                            {opcionesAsignables.map(o => (
+                                                                                <option key={o.id} value={o.id}>{o.nombre}</option>
+                                                                            ))}
+                                                                        </select>
                                                                     )}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
+                                                                </td>
+                                                                <td data-label="Acciones">
+                                                                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                                                        {!inactiva && !esSolucionada && (
+                                                                            <button
+                                                                                onClick={() => handleReasignar(subtarea.id)}
+                                                                                disabled={reasignandoId === subtarea.id || draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined}
+                                                                                style={{ background: "#2563eb", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700, opacity: (draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined) ? 0.5 : 1 }}
+                                                                            >
+                                                                                {reasignandoId === subtarea.id ? "..." : "Reasignar"}
+                                                                            </button>
+                                                                        )}
+                                                                        {!inactiva ? (
+                                                                            <button
+                                                                                onClick={() => handleInactivar(subtarea.id)}
+                                                                                disabled={esSolucionada || inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
+                                                                                title={esSolucionada ? "No se puede inactivar solucionada" : "Inactivar subtarea"}
+                                                                                style={{ background: esSolucionada ? "#9ca3af" : "#ef4444", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: esSolucionada ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700 }}
+                                                                            >
+                                                                                {inactivandoId === subtarea.id ? "..." : "Inactivar"}
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => handleReactivar(subtarea.id)}
+                                                                                disabled={inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
+                                                                                style={{ background: "#16a34a", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                                                                            >
+                                                                                {inactivandoId === subtarea.id ? "..." : "Reactivar"}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
                                                         );
                                                     })}
                                                 </tbody>
@@ -813,15 +812,7 @@ export default function TaskModal({
                             <span>
                                 <strong>Nueva fecha de entrega aproximada</strong>
                                 <br />
-                                <span style={{ fontSize: 11, color: "#6b7280" }}>Fija una nueva fecha de entrega (más tiempo en la cuenta regresiva).</span>
-                            </span>
-                        </label>
-                        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginBottom: 10, cursor: "pointer" }}>
-                            <input type="radio" name="resumeMode" checked={resumeMode === "mantener"} onChange={() => setResumeMode("mantener")} style={{ marginTop: 3 }} />
-                            <span>
-                                <strong>Mantener fecha y hora de entrega</strong>
-                                <br />
-                                <span style={{ fontSize: 11, color: "#6b7280" }}>No cambia la fecha; el tiempo en stand-by se descuenta del plazo.</span>
+                                <span style={{ fontSize: 11, color: "#6b7280" }}>Fija una nueva fecha de entrega.</span>
                             </span>
                         </label>
                         {resumeMode === "nueva" && (
