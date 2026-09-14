@@ -8,15 +8,11 @@ from typing import Optional
 # CONFIGURACIÓN DEL HORARIO LABORAL
 # ============================================================
 
-# Lunes a viernes 09:00-18:00, Sábado 09:00-13:00 opcional, Domingo no laboral
+# Lunes a viernes 09:00-18:00, Sábado 09:00-13:00, Domingo no laboral
 HORA_INICIO_LV = time(9, 0)
 HORA_FIN_LV = time(18, 0)
 HORA_INICIO_SAB = time(9, 0)
 HORA_FIN_SAB = time(13, 0)
-
-# TEMP TEST: si True, el domingo cuenta como día laboral completo (00:00-24:00).
-# Poner en False para revertir al comportamiento normal (domingo no laboral).
-DOMINGO_LABORAL_TEST = True
 
 
 # ============================================================
@@ -26,6 +22,9 @@ DOMINGO_LABORAL_TEST = True
 def _jornada(fecha, incluye_sabado: bool, tzinfo):
     """
     Retorna (inicio_jornada, fin_jornada) para la fecha dada o None si no es laboral.
+
+    El parámetro 'incluye_sabado' se mantiene por compatibilidad de firmas, pero
+    el sábado ya siempre es laborable (09:00-13:00).
     """
     wd = fecha.weekday()
     if wd < 5:  # L-V
@@ -34,19 +33,11 @@ def _jornada(fecha, incluye_sabado: bool, tzinfo):
             datetime.combine(fecha, HORA_FIN_LV, tzinfo=tzinfo),
         )
     if wd == 5:  # Sábado
-        if not incluye_sabado:
-            return None
         return (
             datetime.combine(fecha, HORA_INICIO_SAB, tzinfo=tzinfo),
             datetime.combine(fecha, HORA_FIN_SAB, tzinfo=tzinfo),
         )
-    # Domingo
-    if DOMINGO_LABORAL_TEST:
-        # TEMP TEST: domingo completo 00:00-24:00
-        return (
-            datetime.combine(fecha, time(0, 0), tzinfo=tzinfo),
-            datetime.combine(fecha + timedelta(days=1), time(0, 0), tzinfo=tzinfo),
-        )
+    # Domingo: no laboral
     return None
 
 
@@ -110,8 +101,8 @@ def calcular_tiempo_laboral(
 
     Reglas:
     - Lunes a viernes 09:00 a 18:00
-    - Sábado 09:00 a 13:00 si incluye_sabado=True
-    - Domingo nunca cuenta
+    - Sábado 09:00 a 13:00
+    - Domingo no laboral
     """
 
     if not inicio or not fin:
@@ -133,8 +124,7 @@ def calcular_tiempo_laboral(
 
     tzinfo = inicio.tzinfo
 
-    # Si incluye_sabado no se pasó explícitamente pero obj lo tiene, caller debe pasarlo.
-    # Mantener compat: si incluye_sabado es None, tratar como False.
+    # 'incluye_sabado' se mantiene por compatibilidad; ya no altera el cálculo.
 
     total = timedelta(0)
 
@@ -512,12 +502,8 @@ def esta_en_jornada(fecha: datetime, incluye_sabado: bool = False) -> bool:
     if wd < 5:
         return 9 * 60 <= total_min < 18 * 60
     if wd == 5:
-        if not incluye_sabado:
-            return False
         return 9 * 60 <= total_min < 13 * 60
-    # Domingo (wd == 6): TEMP TEST
-    if DOMINGO_LABORAL_TEST:
-        return True
+    # Domingo (wd == 6): no laboral
     return False
 
 

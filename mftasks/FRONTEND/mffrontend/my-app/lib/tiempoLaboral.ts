@@ -1,12 +1,8 @@
 /**
  * Utilidades de horario laboral en cliente (America/Lima).
- * L-V 09:00-18:00, Sábado 09:00-13:00 si incluye_sabado, Domingo no laboral.
+ * L-V 09:00-18:00, Sábado 09:00-13:00, Domingo no laboral.
  * Usado para congelar el tick fuera de jornada y para formateo.
  */
-
-// TEMP TEST: si true, el domingo cuenta como día laboral completo (00:00-24:00).
-// Poner en false para revertir al comportamiento normal (domingo no laboral).
-export const DOMINGO_LABORAL_TEST = true;
 
 export function formatearTiempo(totalSegundos: number): string {
     const segundos = Math.max(0, Math.floor(totalSegundos));
@@ -47,26 +43,24 @@ function partesLima(fecha: Date) {
  * Determina si un instante está dentro de la jornada laboral.
  * Usa zona America/Lima explícita.
  */
-export function estaEnJornada(fecha: Date, incluyeSabado: boolean): boolean {
+export function estaEnJornada(fecha: Date): boolean {
     const { wd, hour, minute } = partesLima(fecha);
     const totalMin = hour * 60 + minute;
     if (wd >= 1 && wd <= 5) {
         return totalMin >= 9 * 60 && totalMin < 18 * 60;
     }
     if (wd === 6) {
-        if (!incluyeSabado) return false;
         return totalMin >= 9 * 60 && totalMin < 13 * 60;
     }
-    // Domingo (wd === 0): TEMP TEST
-    if (DOMINGO_LABORAL_TEST) return true;
-    return false; // domingo
+    // Domingo (wd === 0): no laboral
+    return false;
 }
 
 /**
  * Calcula segundos laborales entre dos instantes (America/Lima).
  * Útil para interpolación sin drift: snapshotSec - laborales(snapshotAhora, now).
  */
-export function segundosLaboralesEntre(inicio: Date, fin: Date, incluyeSabado: boolean): number {
+export function segundosLaboralesEntre(inicio: Date, fin: Date): number {
     if (fin <= inicio) return 0;
     let total = 0;
     // Iterar por día en zona Lima. Para rangos cortos (<1 día) es 1 iter.
@@ -87,14 +81,9 @@ export function segundosLaboralesEntre(inicio: Date, fin: Date, incluyeSabado: b
             const s = new Date(Date.UTC(year, month - 1, day, 9 + offsetHoras, 0, 0));
             const e = new Date(Date.UTC(year, month - 1, day, 18 + offsetHoras, 0, 0));
             jornada = { start: s, end: e };
-        } else if (wd === 6 && incluyeSabado) {
+        } else if (wd === 6) {
             const s = new Date(Date.UTC(year, month - 1, day, 9 + offsetHoras, 0, 0));
             const e = new Date(Date.UTC(year, month - 1, day, 13 + offsetHoras, 0, 0));
-            jornada = { start: s, end: e };
-        } else if (DOMINGO_LABORAL_TEST && wd === 0) {
-            // TEMP TEST: domingo completo 00:00-24:00 hora Lima
-            const s = new Date(Date.UTC(year, month - 1, day, 0 + offsetHoras, 0, 0));
-            const e = new Date(Date.UTC(year, month - 1, day + 1, 0 + offsetHoras, 0, 0));
             jornada = { start: s, end: e };
         }
         if (jornada) {

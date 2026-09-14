@@ -34,7 +34,8 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "backend",
-    "192.168.202.12"
+    "192.168.202.12",
+    ".trycloudflare.com",
 ]
 
 
@@ -176,6 +177,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://frontend:3000",
     "http://192.168.202.12:3000"
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.trycloudflare.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.202.12:3000",
 ]
 
 AZURE_TENANT_ID = os.environ.get("AZURE_TENANT_ID", "")

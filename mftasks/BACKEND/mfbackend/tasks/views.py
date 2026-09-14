@@ -373,19 +373,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         estado_anterior = tarea.estado
 
-        # Flag sábado opcional: solo lider/sublider puede habilitarlo
-        incluye_sabado_raw = request.data.get("incluye_sabado")
-        if incluye_sabado_raw is None:
-            incluye_sabado_raw = request.data.get("trabaja_sabado")
-        incluye_sabado = False
-        if incluye_sabado_raw is not None:
-            if isinstance(incluye_sabado_raw, bool):
-                incluye_sabado = incluye_sabado_raw
-            elif isinstance(incluye_sabado_raw, str):
-                incluye_sabado = incluye_sabado_raw.lower() in ("true", "1", "on", "yes", "si")
-            else:
-                incluye_sabado = bool(incluye_sabado_raw)
-
         # Inicio programado: si fecha_inicio futura, queda en APROBADO hasta worker APScheduler
         ahora = timezone.localtime(timezone.now())
         if timezone.is_naive(fecha_inicio):
@@ -398,9 +385,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             # guarda programada y no activa todavía
             tarea.fecha_inicio = fecha_inicio
             tarea.fecha_entrega_aproximada = fecha_entrega
-            tarea.incluye_sabado = incluye_sabado
             # permanece APROBADO, worker la pasará a EN_DESARROLLO cuando llegue la hora y esté en jornada
-            tarea.save(update_fields=["fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado"])
+            tarea.save(update_fields=["fecha_inicio", "fecha_entrega_aproximada"])
             registrar_log(
                 tarea=tarea,
                 usuario=request.user,
@@ -409,7 +395,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 estado_nuevo=tarea.estado,
                 detalle=(
                     f"Tarea programada. Inicio programado: {fecha_inicio.isoformat()}. "
-                    f"Entrega aproximada: {fecha_entrega.isoformat()}. Incluye sábado: {'Sí' if incluye_sabado else 'No'}. "
+                    f"Entrega aproximada: {fecha_entrega.isoformat()}. "
                     f"Quedará en APROBADO hasta las {fecha_inicio.isoformat()} (solo en horario laboral)."
                 ),
             )
@@ -418,7 +404,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.estado = Tarea.Estado.EN_DESARROLLO
         tarea.fecha_inicio = fecha_inicio
         tarea.fecha_entrega_aproximada = fecha_entrega
-        tarea.incluye_sabado = incluye_sabado
         tarea.save()
 
         registrar_log(
@@ -430,8 +415,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             detalle=(
                 f"Tarea iniciada. "
                 f"Inicio: {fecha_inicio.isoformat()}. "
-                f"Entrega aproximada: {fecha_entrega.isoformat()}. "
-                f"Incluye sábado: {'Sí' if incluye_sabado else 'No'}."
+                f"Entrega aproximada: {fecha_entrega.isoformat()}."
             ),
         )
 
@@ -684,35 +668,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         resp = Response({"tarea": data_tarea, "subtareas": lista})
         resp["Cache-Control"] = "no-store, max-age=0"
         return resp
-
-    @action(
-        detail=True,
-        methods=["patch"],
-        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
-        url_path="incluye-sabado",
-    )
-    def incluye_sabado(self, request, pk=None):
-        tarea = self.get_object()
-        raw = request.data.get("incluye_sabado")
-        if raw is None:
-            raw = request.data.get("trabaja_sabado")
-        if raw is None:
-            return Response({"detail": "Debe enviar incluye_sabado (bool)."}, status=status.HTTP_400_BAD_REQUEST)
-        if isinstance(raw, bool):
-            val = raw
-        elif isinstance(raw, str):
-            val = raw.lower() in ("true", "1", "on", "yes", "si")
-        else:
-            val = bool(raw)
-        tarea.incluye_sabado = val
-        tarea.save(update_fields=["incluye_sabado"])
-        registrar_log(
-            tarea=tarea,
-            usuario=request.user,
-            tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
-            detalle=f"Incluye sábado cambiado a {'Sí' if val else 'No'}. Contador recalibrado.",
-        )
-        return Response({"incluye_sabado": val, "detail": "Actualizado."})
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAdministrador], url_path="inactivar")
     def inactivar_tarea(self, request, pk=None):

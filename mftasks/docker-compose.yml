@@ -44,7 +44,12 @@ services:
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_CLIENT_ID: 10a3c5ce-2a51-456e-8bc2-6256f4720848
       NEXT_PUBLIC_TENANT_ID: 8d669035-9c23-4bfe-8439-816c8408e589
-      NEXT_PUBLIC_REDIRECT_URI: http://localhost:3000
+      # Vacío => MSAL usa window.location.origin (sirve para localhost, LAN y túnel)
+      NEXT_PUBLIC_REDIRECT_URI: ""
+      # Vacío => las llamadas van a /api en el mismo origen y Next las proxya
+      NEXT_PUBLIC_API_URL: ""
+      # Destino interno para el rewrite /api -> backend (nombre del servicio Docker)
+      BACKEND_INTERNAL_URL: http://backend:8000
 
     depends_on:
       - backend

@@ -3,7 +3,9 @@ import { Configuration } from "@azure/msal-browser";
 const clientId = process.env.NEXT_PUBLIC_CLIENT_ID; 
 const tenantId = process.env.NEXT_PUBLIC_TENANT_ID;
 const redirectUri =
-    process.env.NEXT_PUBLIC_REDIRECT_URI || "http://localhost:3000";
+    typeof window !== "undefined"
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_REDIRECT_URI || "http://localhost:3000";
 
 console.log("=== MSAL CONFIG ===");
 console.log("CLIENT ID:", clientId);
@@ -26,4 +28,4 @@ export const loginRequest = {
 };
 
 export const apiBaseUrl =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";

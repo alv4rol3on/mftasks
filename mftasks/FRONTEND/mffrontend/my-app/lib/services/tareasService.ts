@@ -4,7 +4,6 @@ import { Task } from "@/lib/types";
 interface IniciarPayload {
   fecha_inicio: string;
   fecha_entrega_aproximada: string;
-  incluye_sabado: boolean;
   subtareas: { descripcion: string; asignado: number; peso: number }[];
 }
 

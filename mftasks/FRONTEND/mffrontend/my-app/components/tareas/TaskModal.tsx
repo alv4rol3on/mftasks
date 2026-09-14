@@ -57,7 +57,6 @@ type Props = {
         payload: {
             fecha_inicio: string;
             fecha_entrega_aproximada: string;
-            incluye_sabado: boolean;
             subtareas: {
                 descripcion: string;
                 asignado: number;
@@ -386,7 +385,6 @@ export default function TaskModal({
                                 <span className={styles.headerCountdown} title="Contador HH:MM:SS (tiempo laboral)">
                                     ⏱ <span style={{ marginLeft: 4 }}>{tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" ? `Tomado ${tarea.tiempo_tomado_formateado}` : `Entrega ${formatearFecha(tarea.fecha_entrega_aproximada)}`}</span>
                                 </span>
-                                {tarea.incluye_sabado && <span style={{ background: "#f59e0b", color: "#111827", fontSize: 11, padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>Sáb 9-13</span>}
                                 {tarea.estado === "APROBADO" && tarea.puedo_operar && onIniciar && (
                                     <button className={styles.btnIniciar} onClick={() => setMostrarIniciar(true)} disabled={accionando === tarea.id} style={{ marginLeft: 4 }}>
                                         Iniciar tarea
@@ -409,7 +407,7 @@ export default function TaskModal({
                                     <tr><td><strong>Fecha solicitud</strong></td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
                                     <tr><td><strong>Inicio</strong></td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>
                                     <tr><td><strong>Entrega</strong></td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
-                                    <tr><td><strong>Sábados</strong></td><td>{tarea.incluye_sabado ? "Sí 9-13" : "No (L-V 9-18)"}</td></tr>
+                                    <tr><td><strong>Horario</strong></td><td>L-V 9:00-18:00 · Sáb 9:00-13:00</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -506,7 +504,6 @@ export default function TaskModal({
                                                                         tareaId={tarea.id}
                                                                         subtareaId={subtarea.id}
                                                                         estado={subtarea.estado}
-                                                                        incluyeSabado={tarea.incluye_sabado}
                                                                         fallbackTiempoTomado={subtarea.tiempo_tomado_segundos}
                                                                         fallbackFormateado={subtarea.tiempo_tomado_formateado ?? undefined}
                                                                     />

@@ -8,7 +8,6 @@ interface Props {
     tareaId: number;
     subtareaId: number;
     estado: string;
-    incluyeSabado?: boolean;
     fallbackTiempoTomado?: number | null;
     fallbackFormateado?: string | null;
 }
@@ -27,7 +26,7 @@ interface ContadorSub {
 
 type Snap = { raw: ContadorSub; serverAhora: Date };
 
-export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeSabado, fallbackTiempoTomado, fallbackFormateado }: Props) {
+export default function SubtaskCountdown({ tareaId, subtareaId, estado, fallbackTiempoTomado, fallbackFormateado }: Props) {
     const [snapshot, setSnapshot] = useState<Snap | null>(null);
     const [displaySec, setDisplaySec] = useState<number | null>(null);
     const snapshotRef = useRef<Snap | null>(null);
@@ -61,11 +60,10 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeS
                 const snap: Snap = { raw: data, serverAhora: data.servidor_ahora ? new Date(data.servidor_ahora) : new Date() };
                 setSnapshot(snap);
                 setTiempoTomado(data.tiempo_tomado_segundos);
-                const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!data.incluye_sabado;
                 if (!data.activo || data.pausado) {
                     setDisplaySec(data.segundos_restantes);
                 } else {
-                    const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+                    const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date());
                     setDisplaySec(Math.max(0, data.segundos_restantes - elapsed));
                 }
             } catch {
@@ -79,8 +77,7 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeS
             const snap = snapshotRef.current;
             if (!snap) return;
             if (!snap.raw.activo || snap.raw.pausado || snap.raw.tiempo_tomado_segundos !== null) return;
-            const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!snap.raw.incluye_sabado;
-            const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+            const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date());
             setDisplaySec(Math.max(0, snap.raw.segundos_restantes - elapsed));
         }, 1000);
 
@@ -92,7 +89,7 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, incluyeS
             if (tick) clearInterval(tick);
             document.removeEventListener("visibilitychange", onVis);
         };
-    }, [tareaId, subtareaId, estado, incluyeSabado, fallbackTiempoTomado]);
+    }, [tareaId, subtareaId, estado, fallbackTiempoTomado]);
 
     const tomadoMostrado = (estado === "SOLUCIONADO" && fallbackTiempoTomado !== undefined && fallbackTiempoTomado !== null)
         ? fallbackTiempoTomado

@@ -33,14 +33,13 @@ const SNAP_STORAGE_KEY = "mftasks-snapMap-v1";
 
 /**
  * Interpola el restante usando solo segundos laborales entre el snapshot y ahora.
- * Fuera de jornada (noche, domingo, sábado sin incluye_sabado) no decrementa.
+ * Fuera de jornada (noche, domingo, sábado después de 13:00) no decrementa.
  */
 function interpolate(snapshot: Snapshot, now: Date): ContadorResponse {
   const { raw } = snapshot;
   if (!raw.activo || raw.pausado || raw.tiempo_tomado_segundos !== null) return raw;
   if (raw.segundos_restantes <= 0) return raw;
-  const incluye = !!raw.incluye_sabado;
-  const elapsed = segundosLaboralesEntre(snapshot.serverAhora, now, incluye);
+  const elapsed = segundosLaboralesEntre(snapshot.serverAhora, now);
   const restante = Math.max(0, raw.segundos_restantes - elapsed);
   if (restante === raw.segundos_restantes) return raw;
   return { ...raw, segundos_restantes: restante };

@@ -64,7 +64,6 @@ export default function TaskTableEnDesarrollo({
     payload: {
       fecha_inicio: string;
       fecha_entrega_aproximada: string;
-      incluye_sabado: boolean;
       subtareas: { descripcion: string; asignado: number; peso: number }[];
     }
   ) => void;
@@ -222,7 +221,7 @@ export default function TaskTableEnDesarrollo({
                       })()}
                     </td>
                     <td data-label="Contador" style={{ whiteSpace: "nowrap" }}>
-                      <TaskCountdown tareaId={tarea.id} incluyeSabado={tarea.incluye_sabado} />
+                      <TaskCountdown tareaId={tarea.id} />
                     </td>
                   </tr>
                 );

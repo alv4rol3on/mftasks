@@ -19,7 +19,7 @@ export default function TareasPage() {
 
   const iniciar = async (
     tarea: Task,
-    payload: { fecha_inicio: string; fecha_entrega_aproximada: string; incluye_sabado: boolean; subtareas: { descripcion: string; asignado: number; peso: number }[] }
+    payload: { fecha_inicio: string; fecha_entrega_aproximada: string; subtareas: { descripcion: string; asignado: number; peso: number }[] }
   ) => {
     setAccionando(tarea.id);
     setError(null);

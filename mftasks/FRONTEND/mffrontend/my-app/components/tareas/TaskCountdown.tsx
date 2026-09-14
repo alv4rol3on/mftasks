@@ -7,7 +7,6 @@ import { apiFetch } from "@/lib/api";
 
 interface TaskCountdownProps {
   tareaId: number;
-  incluyeSabado?: boolean;
 }
 
 interface ContadorResponseFallback {
@@ -28,7 +27,7 @@ function BadgeExtra({ segundos }: { segundos: number }) {
   return <span style={{ marginLeft: 6, background: "#ede9fe", color: "#5b21b6", border: "1px solid #ddd6fe", padding: "1px 6px", borderRadius: 999, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>+{formatearTiempo(segundos)} anticipado</span>;
 }
 
-export default function TaskCountdown({ tareaId, incluyeSabado }: TaskCountdownProps) {
+export default function TaskCountdown({ tareaId }: TaskCountdownProps) {
   const ctxData = useContador(tareaId);
   const conProvider = ctxData !== undefined;
 
@@ -59,8 +58,7 @@ export default function TaskCountdown({ tareaId, incluyeSabado }: TaskCountdownP
         if (!snap.raw.activo || snap.raw.pausado || snap.raw.tiempo_tomado_segundos !== null) {
           setDisplaySec(snap.raw.segundos_restantes);
         } else {
-          const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!snap.raw.incluye_sabado;
-          const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+          const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date());
           setDisplaySec(Math.max(0, snap.raw.segundos_restantes - elapsed));
         }
       } catch (e) {
@@ -74,8 +72,7 @@ export default function TaskCountdown({ tareaId, incluyeSabado }: TaskCountdownP
       const snap = snapshotRef.current;
       if (!snap) return;
       if (!snap.raw.activo || snap.raw.pausado || snap.raw.tiempo_tomado_segundos !== null) return;
-      const incluye = typeof incluyeSabado === "boolean" ? incluyeSabado : !!snap.raw.incluye_sabado;
-      const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date(), incluye);
+      const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date());
       setDisplaySec(Math.max(0, snap.raw.segundos_restantes - elapsed));
     }, 1000);
 
@@ -89,7 +86,7 @@ export default function TaskCountdown({ tareaId, incluyeSabado }: TaskCountdownP
       if (tick) clearInterval(tick);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [tareaId, incluyeSabado, conProvider]);
+  }, [tareaId, conProvider]);
 
   if (conProvider) {
     if (ctxData === null) return <span>Calculando...</span>;

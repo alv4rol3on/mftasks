@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from unittest import mock
 from zoneinfo import ZoneInfo
 
 from django.test import TestCase
@@ -327,35 +326,27 @@ class TiempoLaboralTestCase(TestCase):
         fin = datetime(2026, 9, 14, 20, 0, tzinfo=self.lima)
         self.assertEqual(calcular_tiempo_laboral(inicio, fin), timedelta(0))
 
-    def test_sabado_respeta_incluye_sabado(self):
+    def test_sabado_siempre_cuenta(self):
         inicio = datetime(2026, 9, 19, 10, 0, tzinfo=self.lima)  # sábado
         fin = datetime(2026, 9, 19, 11, 0, tzinfo=self.lima)
+        self.assertEqual(calcular_tiempo_laboral(inicio, fin), timedelta(hours=1))
+
+    def test_sabado_fuera_de_jornada_no_cuenta(self):
+        inicio = datetime(2026, 9, 19, 14, 0, tzinfo=self.lima)  # sábado 14:00
+        fin = datetime(2026, 9, 19, 15, 0, tzinfo=self.lima)
         self.assertEqual(calcular_tiempo_laboral(inicio, fin), timedelta(0))
+
+    def test_domingo_nunca_cuenta(self):
+        inicio = datetime(2026, 9, 20, 10, 0, tzinfo=self.lima)  # domingo
+        fin = datetime(2026, 9, 20, 11, 0, tzinfo=self.lima)
+        self.assertEqual(calcular_tiempo_laboral(inicio, fin), timedelta(0))
+        # tampoco de madrugada ni con cualquier flag
+        madrugada_i = datetime(2026, 9, 20, 2, 0, tzinfo=self.lima)
+        madrugada_f = datetime(2026, 9, 20, 2, 30, tzinfo=self.lima)
         self.assertEqual(
-            calcular_tiempo_laboral(inicio, fin, incluye_sabado=True),
-            timedelta(hours=1),
+            calcular_tiempo_laboral(madrugada_i, madrugada_f, incluye_sabado=True),
+            timedelta(0),
         )
-
-    def test_domingo_sin_interruptor_no_cuenta(self):
-        inicio = datetime(2026, 9, 20, 10, 0, tzinfo=self.lima)  # domingo
-        fin = datetime(2026, 9, 20, 11, 0, tzinfo=self.lima)
-        with mock.patch("tasks.services.tiempo_laboral.DOMINGO_LABORAL_TEST", False):
-            self.assertEqual(
-                calcular_tiempo_laboral(inicio, fin, incluye_sabado=True), timedelta(0)
-            )
-
-    def test_domingo_con_interruptor_cuenta_todo_el_dia(self):
-        # TEMP TEST: domingo laboral completo (00:00-24:00)
-        inicio = datetime(2026, 9, 20, 10, 0, tzinfo=self.lima)  # domingo
-        fin = datetime(2026, 9, 20, 11, 0, tzinfo=self.lima)
-        with mock.patch("tasks.services.tiempo_laboral.DOMINGO_LABORAL_TEST", True):
-            self.assertEqual(calcular_tiempo_laboral(inicio, fin), timedelta(hours=1))
-            # también de madrugada/noche (a diferencia de L-V)
-            madrugada_i = datetime(2026, 9, 20, 2, 0, tzinfo=self.lima)
-            madrugada_f = datetime(2026, 9, 20, 2, 30, tzinfo=self.lima)
-            self.assertEqual(
-                calcular_tiempo_laboral(madrugada_i, madrugada_f), timedelta(minutes=30)
-            )
 
     def test_sumar_tiempo_laboral_dentro_de_jornada(self):
         base = datetime(2026, 9, 14, 10, 0, tzinfo=self.lima)  # lunes
@@ -365,11 +356,10 @@ class TiempoLaboralTestCase(TestCase):
         )
 
     def test_sumar_tiempo_laboral_cruza_fin_de_jornada(self):
-        # viernes 17:00 + 2h laborales -> lunes 10:00 (sáb/dom no laborables)
+        # viernes 17:00 + 2h laborales -> sábado 10:00 (sábado 9-13 cuenta)
         base = datetime(2026, 9, 18, 17, 0, tzinfo=self.lima)  # viernes
-        with mock.patch("tasks.services.tiempo_laboral.DOMINGO_LABORAL_TEST", False):
-            res = sumar_tiempo_laboral(base, timedelta(hours=2))
-        self.assertEqual(res, datetime(2026, 9, 21, 10, 0, tzinfo=self.lima))
+        res = sumar_tiempo_laboral(base, timedelta(hours=2))
+        self.assertEqual(res, datetime(2026, 9, 19, 10, 0, tzinfo=self.lima))
 
 
 class ReanudarSubtareaTestCase(APITestCase):
@@ -401,7 +391,7 @@ class ReanudarSubtareaTestCase(APITestCase):
             peso=1,
             estado=Subtarea.Estado.STAND_BY,
             motivo_standby="pausa",
-            fecha_standby=timezone.now() - timedelta(days=1),
+            fecha_standby=timezone.now() - timedelta(days=7),
         )
 
     def _url(self):
