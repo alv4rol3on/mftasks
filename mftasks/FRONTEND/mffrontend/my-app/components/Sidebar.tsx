@@ -35,7 +35,7 @@ const menuAll: MenuItem[] = [
   { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
-  { nombre: "Administración de usuarios", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
+  { nombre: "Administración de usuarios/campañas", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
 ];
 
 interface SidebarProps {

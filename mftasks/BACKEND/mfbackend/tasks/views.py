@@ -16,6 +16,8 @@ from .permissions import EsAsignadorDeEquipoDeTarea, es_asignador_del_equipo, es
 from .serializers import SubtareaSerializer, TaskSerializer
 from .services.logs import registrar_log
 
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 def _parsear_fecha(valor):
 
@@ -193,6 +195,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.fecha_respuesta = timezone.localtime(timezone.now())
         tarea.save()
 
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            f"tarea_{tarea.id}",
+            {
+                "type": "task_status_changed",
+                "task_id": tarea.id,
+                "estado_nuevo": tarea.estado,
+            },
+        )
+
+
         registrar_log(
             tarea=tarea,
             usuario=request.user,
@@ -234,6 +248,19 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.motivo_rechazo = motivo
         tarea.fecha_respuesta = timezone.localtime(timezone.now())
         tarea.save()
+
+        
+        channel_layer = get_channel_layer()
+
+        async_to_sync(channel_layer.group_send)(
+            f"tarea_{tarea.id}",
+            {
+                "type": "task_status_changed",
+                "task_id": tarea.id,
+                "estado_nuevo": tarea.estado,
+            },
+        )
+
 
         registrar_log(
             tarea=tarea,

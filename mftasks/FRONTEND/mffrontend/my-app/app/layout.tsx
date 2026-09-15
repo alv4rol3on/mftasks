@@ -2,6 +2,7 @@ import "./globals.css";
 import AuthProvider from "./providers/MsalProviders";
 import { ToastProvider } from "@/components/ui/Toast";
 import VmErrorFilter from "@/components/ui/VmErrorFilter";
+import { TasksWebSocketProvider } from "./providers/TasksWebSocketProvider";
 
 export default function RootLayout({
     children,
@@ -12,8 +13,13 @@ export default function RootLayout({
         <html lang="es">
             <body>
                 <VmErrorFilter />
+
                 <AuthProvider>
-                    <ToastProvider>{children}</ToastProvider>
+                    <ToastProvider>
+                        <TasksWebSocketProvider>
+                            {children}
+                        </TasksWebSocketProvider>
+                    </ToastProvider>
                 </AuthProvider>
             </body>
         </html>

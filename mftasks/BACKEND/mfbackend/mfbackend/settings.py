@@ -47,13 +47,13 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "daphne",
+    "channels",
     "django.contrib.staticfiles",
     #librerias
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
-    #"daphne",
-    #"channels",
     #apps
     "tasks",
     "usuarios",
@@ -93,6 +93,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "mfbackend.wsgi.application"
+
+ASGI_APPLICATION = "mfbackend.asgi.application"
 
 CACHES = {
     "default": {
@@ -195,3 +197,9 @@ AZURE_ALLOWED_DOMAINS = tuple(
     for d in os.environ.get("AZURE_ALLOWED_DOMAINS", "").split(",")
     if d.strip()
 )
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}

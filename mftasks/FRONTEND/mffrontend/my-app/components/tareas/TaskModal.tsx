@@ -428,7 +428,7 @@ export default function TaskModal({
                                             <tr><td><strong>Inicio efectivo</strong></td><td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td></tr>
                                         )}
                                         {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
-                                                <tr><td><strong>Solucionado en:</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
+                                            <tr><td><strong>Solucionado en:</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
                                         )}
 
                                     </tbody>
@@ -494,7 +494,11 @@ export default function TaskModal({
                                                             >
                                                                 <td data-label="Descripción">
                                                                     <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
-                                                                    <div style={{ fontSize: 10, color: "#6b7280" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)} {subtarea.motivo_standby && <span style={{ color: "#92400e" }}>({subtarea.motivo_standby})</span>}</div>
+                                                                    
+                                                                    {subtarea.estado !== "STAND_BY" ? 
+                                                                    <div style={{ fontSize: 10, color: "#6b7280" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)}</div>
+                                                                    : <div>{subtarea.motivo_standby && <span style={{ color: "#92400e" }}>Motivo de pausa: {subtarea.motivo_standby}</span>}</div>}
+
                                                                     {subtarea.estado === "SOLUCIONADO" && subtarea.tiempo_tomado_formateado && <div style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>Tomado: {subtarea.tiempo_tomado_formateado} ({subtarea.tiempo_tomado_horas}h)</div>}
                                                                 </td>
                                                                 <td data-label="Asignado">{subtarea.asignado_nombre}</td>
@@ -586,7 +590,7 @@ export default function TaskModal({
                                                                             {completandoId === subtarea.id ? "Guardando…" : "Marcar como completado"}
                                                                         </button>
                                                                     ) : subtarea.estado === "SOLUCIONADO" ? (
-                                                                        <span style={{ color: "#black", fontSize: 12 }}>✓ Terminada</span>
+                                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#dcfce7", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid #86efac" }}>✓ Solucionado</span>
                                                                     ) : subtarea.estado === "STAND_BY" ? (
                                                                         <span style={{ color: "#f59e0b", fontSize: 11, fontWeight: 600 }}>Pausada</span>
                                                                     ) : (
@@ -720,7 +724,6 @@ export default function TaskModal({
                                                                 </td>
                                                                 <td data-label="Asignado actual">
                                                                     <div style={{ fontSize: 12 }}>{subtarea.asignado_nombre}</div>
-                                                                    <div style={{ fontSize: 10, color: "#6b7280" }}>ID {subtarea.asignado}</div>
                                                                 </td>
                                                                 <td data-label="Nuevo asignado">
                                                                     {inactiva || esSolucionada ? (

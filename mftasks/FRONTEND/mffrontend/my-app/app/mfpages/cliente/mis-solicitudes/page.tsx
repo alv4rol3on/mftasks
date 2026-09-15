@@ -1,5 +1,5 @@
 "use client";
-
+import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -20,17 +20,18 @@ function etiquetaEstado(estado: string): string {
 
 export default function MisSolicitudesPage() {
   const router = useRouter();
-
+  const {
+    eventos,
+    observarTarea,
+    dejarDeObservarTarea,
+  } = useTasksWebSocket();
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [filtro, setFiltro] = useState<string>("EN_PROCESO");
   const [busqueda, setBusqueda] = useState("");
-
   const [openCrear, setOpenCrear] = useState(false);
   const [selected, setSelected] = useState<Task | null>(null);
-
   const { showToast } = useToast();
   const [sinPermiso, setSinPermiso] = useState(false);
 
@@ -71,6 +72,54 @@ export default function MisSolicitudesPage() {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  const idsTareas = useMemo(
+    () => tareas.map((t) => t.id),
+    [tareas]
+  );
+
+  const idsTareasKey = idsTareas.join(",");
+
+  useEffect(() => {
+    idsTareas.forEach((id) => {
+      observarTarea(id);
+    });
+
+    return () => {
+      idsTareas.forEach((id) => {
+        dejarDeObservarTarea(id);
+      });
+    };
+  }, [
+    idsTareasKey,
+    observarTarea,
+    dejarDeObservarTarea,
+  ]);
+
+  useEffect(() => {
+    if (Object.keys(eventos).length === 0) {
+      return;
+    }
+
+    setTareas((actuales) =>
+      actuales.map((tarea) => {
+        const evento = eventos[tarea.id];
+
+        if (
+          !evento ||
+          evento.type !== "task_status_changed" ||
+          !evento.estado_nuevo
+        ) {
+          return tarea;
+        }
+
+        return {
+          ...tarea,
+          estado: String(evento.estado_nuevo),
+        };
+      })
+    );
+  }, [eventos]);
 
   const filtradas = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { Task } from "@/lib/types";
 import Pagination from "@/components/ui/Pagination";
 import styles from "@/components/shared/SharedTable.module.css";
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
+  const { observarTarea, dejarDeObservarTarea } = useTasksWebSocket();
   const [pagina, setPagina] = useState(1);
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(tareas.length / pageSize));
@@ -46,6 +48,23 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
 
   useEffect(() => setPagina(1), [tareas.length]);
   useEffect(() => { if (pagina > totalPages) setPagina(totalPages); }, [pagina, totalPages]);
+  useEffect(() => {
+    if (!tareas.length) return;
+
+    const taskId = tareas[0].id;
+
+    console.log(">>> PROBANDO WS TAREA:", taskId);
+
+    observarTarea(taskId);
+
+    return () => {
+      dejarDeObservarTarea(taskId);
+    };
+  }, [
+    tareas,
+    observarTarea,
+    dejarDeObservarTarea,
+  ]);
 
   return (
     <>
@@ -65,6 +84,7 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
             </thead>
             <tbody>
               {paginadas.map((t) => {
+
                 const b = badge(t.estado);
                 return (
                   <tr

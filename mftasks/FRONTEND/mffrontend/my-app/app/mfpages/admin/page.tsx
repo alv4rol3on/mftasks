@@ -244,7 +244,7 @@ export default function AdminPage() {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Administración de usuarios</h2>
+      <h2 className={styles.title}>Administración de usuarios/campañas</h2>
       <div className={styles.tabs}>
         {(["usuarios", "permisos", "campanas"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? styles.tabBtnActive : styles.tabBtn}>{t === "campanas" ? "campañas / subcampañas" : t}</button>
@@ -497,7 +497,7 @@ export default function AdminPage() {
             )}
 
             {selectedClienteId === "" ? (
-              <div className={styles.emptyPermisos}>Selecciona un cliente arriba para ver y otorgar subcampañas. Solo usuarios con rol <code>cliente</code> aparecen aquí.</div>
+              <div></div>
             ) : (
               <>
                 {campanasFiltradas.length > PAGE_SIZE_CAMPANAS && (
