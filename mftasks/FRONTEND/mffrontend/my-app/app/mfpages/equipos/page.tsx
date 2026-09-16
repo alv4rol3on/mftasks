@@ -721,12 +721,6 @@ export default function EquiposPage() {
                         </tbody>
                       </table>
                     </div>
-
-                    {puedoGestionar && (
-                      <div style={{ marginTop: 8, padding: 10, background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 8, fontSize: 12, color: "#5b21b6" }}>
-                        <strong>Como líder puedes:</strong> otorgar/revocar SUB-LÍDER, dar de baja (hard-delete), y cambiar disponibilidad (incluida la tuya si hay sub-líder) reasignando subtareas en desarrollo/en espera.
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

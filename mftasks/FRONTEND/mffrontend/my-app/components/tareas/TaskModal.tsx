@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import SubtaskCountdown from "./SubtaskCountdown";
 import TaskIniciarModal from "./TaskIniciarModal";
 import Pagination from "../ui/Pagination";
+import { apiBaseUrl } from "@/lib/authConfig";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima",
@@ -414,6 +415,44 @@ export default function TaskModal({
                         <div className={styles.descCard}>
                             <h3 className={styles.cardTitle}>Descripción</h3>
                             <div className={styles.descriptionBox} style={{ marginBottom: 12 }}>{tarea.descripcion}</div>
+                            {tarea.archivos && tarea.archivos.length > 0 && (
+                                <div
+                                    style={{
+                                        marginTop: 12,
+                                        padding: 12,
+                                        border: "1px solid #e5e7eb",
+                                        borderRadius: 8,
+                                        background: "#fafafa",
+                                    }}
+                                >
+                                    <h4 style={{ margin: "0 0 8px" }}>
+                                        Archivos adjuntos
+                                    </h4>
+
+                                    {tarea.archivos.map((archivo) => (
+                                        <div
+                                            key={archivo.id}
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 8,
+                                                marginBottom: 6,
+                                            }}
+                                        >
+                                            <span>📎</span>
+
+                                            <a
+                                                href={`${apiBaseUrl}${archivo.url}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+
+                                                📥 Descargar {archivo.nombre}
+                                            </a>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <div className={styles.infoCard} style={{ padding: 12 }}>
                                 <h4 className={styles.cardTitle} style={{ fontSize: 12, marginBottom: 8 }}>Tiempos</h4>
                                 <table className={styles.infoTable} style={{ fontSize: 13 }}>
@@ -494,10 +533,10 @@ export default function TaskModal({
                                                             >
                                                                 <td data-label="Descripción">
                                                                     <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "#ede9fe", color: "#5b21b6", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
-                                                                    
-                                                                    {subtarea.estado !== "STAND_BY" ? 
-                                                                    <div style={{ fontSize: 10, color: "#6b7280" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)}</div>
-                                                                    : <div>{subtarea.motivo_standby && <span style={{ color: "#92400e" }}>Motivo de pausa: {subtarea.motivo_standby}</span>}</div>}
+
+                                                                    {subtarea.estado !== "STAND_BY" ?
+                                                                        <div style={{ fontSize: 10, color: "#6b7280" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)}</div>
+                                                                        : <div>{subtarea.motivo_standby && <span style={{ color: "#92400e" }}>Motivo de pausa: {subtarea.motivo_standby}</span>}</div>}
 
                                                                     {subtarea.estado === "SOLUCIONADO" && subtarea.tiempo_tomado_formateado && <div style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>Tomado: {subtarea.tiempo_tomado_formateado} ({subtarea.tiempo_tomado_horas}h)</div>}
                                                                 </td>

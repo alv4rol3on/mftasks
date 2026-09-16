@@ -36,6 +36,7 @@ ALLOWED_HOSTS = [
     "backend",
     "198.41.192.57",
     ".trycloudflare.com",
+    "192.168.202.12",
 ]
 
 
@@ -113,6 +114,8 @@ DATABASES = {
     }
 }
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

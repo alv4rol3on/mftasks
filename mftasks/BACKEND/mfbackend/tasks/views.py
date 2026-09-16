@@ -8,10 +8,14 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.exceptions import ValidationError
+
+
 
 from usuarios.permissions import EsAdministrador, IsAuthenticatedActivo
 
-from .models import Subtarea, Tarea, TareaLog
+from .models import ArchivoTarea, Subtarea, Tarea, TareaLog
 from .permissions import EsAsignadorDeEquipoDeTarea, es_asignador_del_equipo, es_cliente
 from .serializers import SubtareaSerializer, TaskSerializer
 from .services.logs import registrar_log
@@ -72,9 +76,20 @@ def _detecta_ciclo_subtarea(bloqueada_id, bloqueadora_id):
 
 
 class TaskViewSet(viewsets.ModelViewSet):
+
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+        JSONParser,
+    ]
+
     serializer_class = TaskSerializer
 
     permission_classes = [IsAuthenticatedActivo]
+
+    def create(self, request, *args, **kwargs):
+        print(request.FILES)
+        return super().create(request, *args, **kwargs)
 
     def get_queryset(self):
 
@@ -152,24 +167,75 @@ class TaskViewSet(viewsets.ModelViewSet):
         return permisos
 
     def perform_create(self, serializer):
+
         user = self.request.user
+        archivo = self.request.FILES.get("archivo")
 
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            tarea = serializer.save(
-                solicitante=user,
-                estado=Tarea.Estado.EN_ESPERA,
-                progreso=0,
+        if archivo:
+            max_size = 10 * 1024 * 1024
+
+            if archivo.size > max_size:
+                raise ValidationError({
+                    "archivo": "El archivo no puede superar los 10 MB."
+                })
+
+            extensiones_permitidas = {
+                "pdf",
+                "doc",
+                "docx",
+                "xls",
+                "xlsx",
+                "png",
+                "jpg",
+                "jpeg",
+                "zip",
+            }
+
+            extension = (
+                archivo.name.rsplit(".", 1)[-1].lower()
+                if "." in archivo.name
+                else ""
             )
-        else:
-            tarea = serializer.save()
 
-        registrar_log(
-            tarea=tarea,
-            usuario=user,
-            tipo_evento=TareaLog.TipoEvento.CREACION,
-            estado_nuevo=tarea.estado,
-            detalle="Tarea creada",
-        )
+            if extension not in extensiones_permitidas:
+                raise ValidationError({
+                    "archivo": "El formato del archivo no está permitido."
+                })
+
+        with transaction.atomic():
+            if user.roles.filter(
+                rol__nombre__iexact="CLIENTE"
+            ).exists():
+                tarea = serializer.save(
+                    solicitante=user,
+                    estado=Tarea.Estado.EN_ESPERA,
+                    progreso=0,
+                )
+            else:
+                tarea = serializer.save(
+                    solicitante=user,
+                )
+
+            if archivo:
+                ArchivoTarea.objects.create(
+                    tarea=tarea,
+                    archivo=archivo,
+                    nombre=archivo.name,
+                    subido_por=user,
+                )
+
+            registrar_log(
+                tarea=tarea,
+                usuario=user,
+                tipo_evento=TareaLog.TipoEvento.CREACION,
+                estado_nuevo=tarea.estado,
+                detalle=(
+                    f"Tarea creada con archivo: {archivo.name}"
+                    if archivo
+                    else "Tarea creada"
+                ),
+            )
+
 
     @action(
         detail=True,

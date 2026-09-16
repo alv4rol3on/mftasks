@@ -24,6 +24,12 @@ export interface Subtarea {
     inactivada_por?: number | null;
 }
 
+export interface ArchivoTarea {
+  id: number;
+  nombre: string;
+  url: string;
+}
+
 export interface Task {
     id: number;
     ticket?: string | null;
@@ -62,6 +68,7 @@ export interface Task {
     activo?: boolean;
     fecha_inactivacion?: string | null;
     inactivada_por?: number | null;
+    archivos?: ArchivoTarea[];
 }
 
 export interface CampanaInfo {

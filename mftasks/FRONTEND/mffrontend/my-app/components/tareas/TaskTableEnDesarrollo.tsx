@@ -221,7 +221,9 @@ export default function TaskTableEnDesarrollo({
                       })()}
                     </td>
                     <td data-label="Contador" style={{ whiteSpace: "nowrap" }}>
-                      <TaskCountdown tareaId={tarea.id} />
+                      {tarea.estado === "APROBADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>Por asignar</span>
+                      : tarea.estado === "RECHAZADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>X</span>
+                      : <TaskCountdown tareaId={tarea.id} /> }
                     </td>
                   </tr>
                 );

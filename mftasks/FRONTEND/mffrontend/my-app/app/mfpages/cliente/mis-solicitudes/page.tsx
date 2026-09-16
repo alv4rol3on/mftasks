@@ -287,7 +287,6 @@ export default function MisSolicitudesPage() {
           </button>
         )}
       </div>
-      <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>Ordenadas de la más reciente a la más antigua. Responsive con filtros por estado y buscador. Barra de progreso solo en el detalle.</p>
 
       <ClienteSolicitudesTable tareas={filtradas} onSelect={(t) => setSelectedId(t.id)} />
 

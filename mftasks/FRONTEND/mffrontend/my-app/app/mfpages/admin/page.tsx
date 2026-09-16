@@ -363,8 +363,7 @@ export default function AdminPage() {
             )}
           </div>
           <div className={styles.card}>
-            <h3 className={styles.cardTitle}>Campañas / Subcampañas — habilitar para creación de tareas</h3>
-            <p className={styles.permisosDesc}>Inhabilitar una campaña o subcampaña impide que <strong>ningún usuario</strong> (aunque tenga permiso) pueda seleccionarla al crear tareas. Las tareas ya creadas mantienen su vínculo.</p>
+            <h3 className={styles.cardTitle}>Estados de Campañas / Subcampañas</h3>
             <div className={styles.permisosHeader}>
               <div className={styles.permisosField} style={{ maxWidth: 400 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>Buscar campaña/subcampaña</label>
@@ -400,7 +399,7 @@ export default function AdminPage() {
                           <span className={`${styles.badgeActive} ${camp.activo ? styles.badgeActiveOn : styles.badgeActiveOff}`}>{camp.activo ? "activa" : "inactiva"}</span>
                         </div>
                         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <button type="button" disabled={togglingId === camp.id} onClick={(e) => { e.stopPropagation(); toggleActivoCampana(camp); }} style={{ background: camp.activo ? "#fee2e2" : "#dcfce7", color: camp.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: togglingId === camp.id ? "wait" : "pointer", fontSize: 11, fontWeight: 700 }}>{camp.activo ? "Inhabilitar" : "Habilitar"}</button>
+                          <button type="button" disabled={togglingId === camp.id} onClick={(e) => { e.stopPropagation(); toggleActivoCampana(camp); }} style={{ background: camp.activo ? "#fee2e2" : "#dcfce7", color: camp.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: togglingId === camp.id ? "wait" : "pointer", fontSize: 11, fontWeight: 700 }}>{camp.activo ? "O" : "I"}</button>
                           <span className={styles.campanaCount}>{camp.subcampanas.length} sub</span>
                           <span className={`${styles.chevron} ${abierta ? styles.chevronOpen : ""}`}>▸</span>
                         </span>
@@ -416,7 +415,7 @@ export default function AdminPage() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <span className={`${styles.badgeActive} ${sub.activo && camp.activo ? styles.badgeActiveOn : styles.badgeActiveOff}`} style={{ fontSize: 10 }}>{sub.activo && camp.activo ? "habilitada" : "inhabilitada"}</span>
-                                <button type="button" disabled={togglingId === sub.id} onClick={() => toggleActivoSubcampana(sub, camp.activo)} style={{ background: sub.activo ? "#fee2e2" : "#dcfce7", color: sub.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>{sub.activo ? "Inhabilitar" : "Habilitar"}</button>
+                                <button type="button" disabled={togglingId === sub.id} onClick={() => toggleActivoSubcampana(sub, camp.activo)} style={{ background: sub.activo ? "#fee2e2" : "#dcfce7", color: sub.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>{sub.activo ? "O" : "I"}</button>
                               </div>
                             </div>
                           ))}

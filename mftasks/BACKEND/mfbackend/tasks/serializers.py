@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Subtarea, Tarea
+from .models import ArchivoTarea, Subtarea, Tarea
 from .permissions import es_asignador_del_equipo
 
 
@@ -102,6 +102,42 @@ class SubtareaSerializer(serializers.ModelSerializer):
         segundos = seg % 60
         return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
+class ArchivoTareaSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    subido_por_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ArchivoTarea
+        fields = [
+            "id",
+            "nombre",
+            "archivo",
+            "url",
+            "fecha_subida",
+            "subido_por",
+            "subido_por_nombre",
+        ]
+        read_only_fields = [
+            "id",
+            "nombre",
+            "archivo",
+            "url",
+            "fecha_subida",
+            "subido_por",
+            "subido_por_nombre",
+        ]
+
+    def get_url(self, obj):
+        if not obj.archivo:
+            return None
+
+        return obj.archivo.url
+
+    def get_subido_por_nombre(self, obj):
+        if not obj.subido_por:
+            return None
+
+        return f"{obj.subido_por.nombres} {obj.subido_por.apellidos}"
 
 class TaskSerializer(serializers.ModelSerializer):
 
@@ -127,10 +163,14 @@ class TaskSerializer(serializers.ModelSerializer):
     tiempo_tomado_horas = serializers.SerializerMethodField()
     tiempo_tomado_formateado = serializers.SerializerMethodField()
     tiempo_planificado_segundos = serializers.SerializerMethodField()
+    archivos = ArchivoTareaSerializer(
+        many=True,
+        read_only=True,
+    )
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "activo", "fecha_inactivacion", "inactivada_por"]
+        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
         read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fecha_inactivacion", "inactivada_por"]
 
     def get_cliente_nombre(self, obj):

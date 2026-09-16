@@ -19,6 +19,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [campanas, setCampanas] = useState<CampanaInfo[]>([]);
   const [subcampanas, setSubcampanas] = useState<SubCampanaInfo[]>([]);
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
+  const [archivo, setArchivo] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -51,30 +52,49 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
   if (!open) return null;
 
+
   const enviar = async () => {
-    if (!asunto.trim() || !descripcion.trim() || campanaId === "" || subcampanaId === "" || equipoId === "") {
+    if (
+      !asunto.trim() ||
+      !descripcion.trim() ||
+      campanaId === "" ||
+      subcampanaId === "" ||
+      equipoId === ""
+    ) {
       setError("Completa asunto, descripción, campaña, subcampaña y equipo.");
       return;
     }
+
     setEnviando(true);
     setError(null);
+
     try {
+      const formData = new FormData();
+
+      formData.append("asunto", asunto.trim());
+      formData.append("descripcion", descripcion.trim());
+      formData.append("subcampana", String(subcampanaId));
+      formData.append("equipo", String(equipoId));
+
+      if (archivo) {
+        formData.append("archivo", archivo);
+      }
+
       await apiFetch("/api/tasks/tasks/", {
         method: "POST",
-        body: JSON.stringify({
-          asunto: asunto.trim(),
-          descripcion: descripcion.trim(),
-          subcampana: Number(subcampanaId),
-          equipo: Number(equipoId),
-        }),
+        body: formData,
       });
+
       setAsunto("");
       setDescripcion("");
       setCampanaId("");
       setSubcampanaId("");
       setEquipoId("");
+      setArchivo(null);
+
       onCreated();
       onClose();
+
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -82,11 +102,13 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
     }
   };
 
+
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          
+
           <div>
             <h2>Nueva solicitud</h2>
           </div>
@@ -95,31 +117,62 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
         <div className={styles.iniciarBody}>
 
           <div className={styles.crearGrid}>
-              <select value={campanaId} onChange={(e) => setCampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
-                <option value="">Seleccionar Campaña</option>
-                {campanas.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
-                ))}
-              </select>
-              
-              <select value={subcampanaId} onChange={(e) => setSubcampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!campanaId}>
-                <option value="">{campanaId ? "Seleccionar Subcampaña" : "Elige campaña primero"}</option>
-                {subcampanas.map((s) => (
-                  <option key={s.id} value={s.id}>{s.nombre} ({s.codigo})</option>
-                ))}
-              </select>
+            <select value={campanaId} onChange={(e) => setCampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
+              <option value="">Seleccionar Campaña</option>
+              {campanas.map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
+              ))}
+            </select>
+
+            <select value={subcampanaId} onChange={(e) => setSubcampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!campanaId}>
+              <option value="">{campanaId ? "Seleccionar Subcampaña" : "Elige campaña primero"}</option>
+              {subcampanas.map((s) => (
+                <option key={s.id} value={s.id}>{s.nombre} ({s.codigo})</option>
+              ))}
+            </select>
 
 
-              <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
-                <option value="">Selecciona Equipo</option>
-                {equipos.map((e) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>
+            <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
+              <option value="">Selecciona Equipo</option>
+              {equipos.map((e) => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
 
-              <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />
+            <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />
 
-              <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={styles.inputField} rows={4} placeholder="Detalla la solicitud" />
+            <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={styles.inputField} rows={4} placeholder="Detalla la solicitud" />
+
+            <div className={styles.fileField}>
+              <label htmlFor="archivo">Archivo adjunto (opcional)</label>
+
+              <input
+                id="archivo"
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.zip"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+
+                  if (file && file.size > 10 * 1024 * 1024) {
+                    setArchivo(null);
+                    setError("El archivo no puede superar los 10 MB.");
+                    e.currentTarget.value = "";
+                    return;
+                  }
+
+                  setError(null);
+                  setArchivo(file);
+                }}
+              />
+
+              {archivo && (
+                <div className={styles.fileInfo}>
+                  📎 {archivo.name}
+                </div>
+              )}
+            </div>
+
+
           </div>
 
 
