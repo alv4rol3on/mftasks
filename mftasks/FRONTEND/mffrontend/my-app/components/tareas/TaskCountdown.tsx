@@ -1,6 +1,6 @@
 "use client";
 
-import { formatearTiempo, segundosLaboralesEntre } from "@/lib/tiempoLaboral";
+import { formatearTiempo, segundosLaboralesEntre, colorContador } from "@/lib/tiempoLaboral";
 import { useContador } from "./ContadoresProvider";
 import { useEffect, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api";
@@ -16,6 +16,8 @@ interface ContadorResponseFallback {
   segundos_restantes: number;
   tiempo_tomado_segundos: number | null;
   segundos_extra?: number | null;
+  tiempo_planificado_segundos?: number | null;
+  tiempo_planificado_efectivo_segundos?: number | null;
   incluye_sabado?: boolean;
   servidor_ahora: string;
 }
@@ -95,12 +97,19 @@ export default function TaskCountdown({ tareaId }: TaskCountdownProps) {
       return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>Tiempo tomado: {formatearTiempo(ctxData.tiempo_tomado_segundos)}<BadgeExtra segundos={extra} /></span>;
     }
     if (ctxData.pausado) return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>En pausa<BadgeExtra segundos={extra} /></span>;
-    return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>{formatearTiempo(ctxData.segundos_restantes)}<BadgeExtra segundos={extra} /></span>;
+    const planificadoProvider =
+      ctxData.tiempo_planificado_efectivo_segundos ??
+      ctxData.tiempo_planificado_segundos ??
+      null;
+    const colorProvider = colorContador(ctxData.segundos_restantes, planificadoProvider);
+    return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4, color: colorProvider ?? undefined }}>{formatearTiempo(ctxData.segundos_restantes)}<BadgeExtra segundos={extra} /></span>;
   }
 
   const extraFallback = snapshot?.raw.segundos_extra ?? 0;
   if (snapshot && snapshot.raw.tiempo_tomado_segundos !== null) return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>Tiempo tomado: {formatearTiempo(snapshot.raw.tiempo_tomado_segundos)}<BadgeExtra segundos={extraFallback} /></span>;
   if (snapshot && snapshot.raw.pausado) return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>En pausa<BadgeExtra segundos={extraFallback} /></span>;
   if (displaySec === null) return <span>Calculando...</span>;
-  return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>{formatearTiempo(displaySec)}<BadgeExtra segundos={extraFallback} /></span>;
+  const planificadoFallback = snapshot?.raw.tiempo_planificado_efectivo_segundos ?? snapshot?.raw.tiempo_planificado_segundos ?? null;
+  const colorFallback = colorContador(displaySec, planificadoFallback);
+  return <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4, color: colorFallback ?? undefined }}>{formatearTiempo(displaySec)}<BadgeExtra segundos={extraFallback} /></span>;
 }

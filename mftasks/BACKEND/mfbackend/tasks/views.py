@@ -15,9 +15,7 @@ from .models import Subtarea, Tarea, TareaLog
 from .permissions import EsAsignadorDeEquipoDeTarea, es_asignador_del_equipo, es_cliente
 from .serializers import SubtareaSerializer, TaskSerializer
 from .services.logs import registrar_log
-
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+from .services.notificaciones import notificar_subtarea, notificar_tarea
 
 def _parsear_fecha(valor):
 
@@ -195,16 +193,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.fecha_respuesta = timezone.localtime(timezone.now())
         tarea.save()
 
-        channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            f"tarea_{tarea.id}",
-            {
-                "type": "task_status_changed",
-                "task_id": tarea.id,
-                "estado_nuevo": tarea.estado,
-            },
-        )
+        notificar_tarea(tarea)
 
 
         registrar_log(
@@ -250,16 +239,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.save()
 
         
-        channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            f"tarea_{tarea.id}",
-            {
-                "type": "task_status_changed",
-                "task_id": tarea.id,
-                "estado_nuevo": tarea.estado,
-            },
-        )
+        notificar_tarea(tarea)
 
 
         registrar_log(
@@ -432,6 +412,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.fecha_inicio = fecha_inicio
         tarea.fecha_entrega_aproximada = fecha_entrega
         tarea.save()
+
+        notificar_tarea(tarea)
 
         registrar_log(
             tarea=tarea,
@@ -707,6 +689,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.inactivada_por = request.user
         tarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
         registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO, estado_anterior=tarea.estado, estado_nuevo="INACTIVO", detalle=f"Solicitud inactivada por administrador {request.user.nombres} {request.user.apellidos}")
+        notificar_tarea(tarea)
         return Response(TaskSerializer(tarea, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAdministrador], url_path="reactivar")
@@ -719,6 +702,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.inactivada_por = None
         tarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
         registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO, estado_anterior="INACTIVO", estado_nuevo=tarea.estado, detalle=f"Solicitud reactivada por administrador {request.user.nombres} {request.user.apellidos}")
+        notificar_tarea(tarea)
         return Response(TaskSerializer(tarea, context={"request": request}).data)
 
     @action(
@@ -923,6 +907,9 @@ class TaskViewSet(viewsets.ModelViewSet):
                     )
                     tarea = tarea_actualizada
 
+        notificar_subtarea(tarea, subtarea)
+        notificar_tarea(tarea)
+
         return Response(
             SubtareaSerializer(subtarea).data,
             status=status.HTTP_200_OK,
@@ -1033,6 +1020,9 @@ class TaskViewSet(viewsets.ModelViewSet):
                 estado_nuevo=tarea.estado,
                 detalle="Todas las subtareas fueron solucionadas. Tarea finalizada.",
             )
+
+        notificar_subtarea(tarea, subtarea)
+        notificar_tarea(tarea)
 
         return Response(SubtareaSerializer(subtarea).data)
 
@@ -1155,6 +1145,10 @@ class TaskViewSet(viewsets.ModelViewSet):
                     registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.STANDBY_FIN, estado_anterior=estado_ant, estado_nuevo=tarea.estado, detalle="Tarea reanudada al inactivar última subtarea en pausa.")
                 else:
                     tarea.save(update_fields=["progreso"])
+
+        notificar_subtarea(tarea, subtarea)
+        notificar_tarea(tarea)
+
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
 
     @action(
@@ -1188,6 +1182,10 @@ class TaskViewSet(viewsets.ModelViewSet):
             tarea.save(update_fields=["progreso", "estado", "fecha_solucion"])
         else:
             tarea.save(update_fields=["progreso"])
+
+        notificar_subtarea(tarea, subtarea)
+        notificar_tarea(tarea)
+
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
 
     @action(
@@ -1273,6 +1271,10 @@ class TaskViewSet(viewsets.ModelViewSet):
                     f"Motivo: {motivo}"
                 ),
             )
+
+        notificar_subtarea(tarea, subtarea)
+        notificar_tarea(tarea)
+
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
 
     @action(
@@ -1546,6 +1548,9 @@ class TaskViewSet(viewsets.ModelViewSet):
                             "Ya no quedan subtareas en standby."
                         ),
                     )
+
+        notificar_subtarea(tarea, subtarea)
+        notificar_tarea(tarea)
 
         return Response(
             SubtareaSerializer(subtarea).data,

@@ -107,6 +107,25 @@ def es_cliente(user):
     return user.roles.filter(rol__nombre__iexact="CLIENTE").exists()
 
 
+def puede_observar_tarea(user, tarea):
+    """Mismos criterios de visibilidad que TaskViewSet.get_queryset."""
+    if not user or not user.is_authenticated:
+        return False
+
+    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        return True
+
+    # CLIENTE: solo sus propias solicitudes
+    if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        return tarea.solicitante_id == user.id
+
+    equipo = tarea.equipo
+    return (
+        equipo.lider_id == user.id
+        or equipo.miembros.filter(usuario=user).exists()
+    )
+
+
 def tiene_permiso_subcampana(user, subcampana):
     """Verifica permiso puntual a subcampaña para cliente. Admin respeta activo."""
     if not user or not user.is_authenticated or subcampana is None:

@@ -1,21 +1,94 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TaskTableEnDesarrollo from "@/components/tareas/TaskTableEnDesarrollo";
 import { Task } from "@/lib/types";
 import { useToast } from "@/components/ui/Toast";
+import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { useTareasGuard } from "./hooks/useTareasGuard";
 import { filtrarTareas } from "./utils/tareasFilters";
 import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar } from "@/lib/services/tareasService";
 
 export default function TareasPage() {
-  const { tareas, cargando, error, busqueda, setBusqueda, cargar, setError } = useTareas();
+  const { tareas, cargando, error, busqueda, setBusqueda, cargar, setTareas, setError } = useTareas();
+  const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea } = useTasksWebSocket();
   const { sinPermiso } = useTareasGuard();
   const { showToast } = useToast();
   const [accionando, setAccionando] = useState<number | null>(null);
   const [empezandoId, setEmpezandoId] = useState<number | null>(null);
   const [completandoId, setCompletandoId] = useState<number | null>(null);
+
+  const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
+  const idsTareasKey = idsTareas.join(",");
+
+  useEffect(() => {
+    idsTareas.forEach((id) => observarTarea(id));
+
+    return () => {
+      idsTareas.forEach((id) => dejarDeObservarTarea(id));
+    };
+  }, [idsTareasKey, observarTarea, dejarDeObservarTarea]);
+
+  useEffect(() => {
+    if (
+      Object.keys(eventos).length === 0 &&
+      Object.keys(subtareaEventos).length === 0
+    ) {
+      return;
+    }
+
+    setTareas((actuales) =>
+      actuales.map((tarea) => {
+        const evento = eventos[tarea.id];
+
+        let actualizada = tarea;
+
+        if (evento && evento.type === "task_status_changed") {
+          actualizada = {
+            ...actualizada,
+            estado: evento.estado_nuevo
+              ? String(evento.estado_nuevo)
+              : actualizada.estado,
+            progreso:
+              typeof evento.progreso === "number"
+                ? String(evento.progreso)
+                : actualizada.progreso,
+            activo:
+              typeof evento.activo === "boolean"
+                ? evento.activo
+                : actualizada.activo,
+          };
+        }
+
+        if (actualizada.subtareas?.length) {
+          actualizada = {
+            ...actualizada,
+            subtareas: actualizada.subtareas.map((s) => {
+              const eventoSub = subtareaEventos[s.id];
+
+              if (!eventoSub || eventoSub.type !== "subtask_status_changed") {
+                return s;
+              }
+
+              return {
+                ...s,
+                estado: eventoSub.estado_nuevo
+                  ? String(eventoSub.estado_nuevo)
+                  : s.estado,
+                activo:
+                  typeof eventoSub.activo === "boolean"
+                    ? eventoSub.activo
+                    : s.activo,
+              };
+            }),
+          };
+        }
+
+        return actualizada;
+      })
+    );
+  }, [eventos, subtareaEventos, setTareas]);
 
   const iniciar = async (
     tarea: Task,

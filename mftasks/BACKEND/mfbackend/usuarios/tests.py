@@ -73,6 +73,33 @@ class UsuarioSSOTestCase(APITestCase):
 
     @patch(
         "usuarios.views.AzureTokenValidator.validar",
+        return_value={
+            "azure_id": "08a3b2c1-0000-0000-0000-000000000002",
+            "email": "jose@empresa.com",
+            "nombres": "José Pérez",
+        },
+    )
+    def test_login_ignora_sesion_django_autenticada(self, mock_validar):
+        # Con una sesión Django activa (cookie sessionid) el login JWT no debe
+        # fallar por CSRF: DRF ya no usa SessionAuthentication.
+        self.assertTrue(
+            self.client.login(
+                email="jose@empresa.com",
+                password="clave-segura-123",
+            )
+        )
+
+        respuesta = self.client.post(
+            self.url_login,
+            {"access_token": "token-azure-falso"},
+            format="json",
+        )
+
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertIn("access", respuesta.data)
+
+    @patch(
+        "usuarios.views.AzureTokenValidator.validar",
         side_effect=AzureTokenValidationError("Token inválido."),
     )
     def test_login_token_invalido_rechazado(self, mock_validar):

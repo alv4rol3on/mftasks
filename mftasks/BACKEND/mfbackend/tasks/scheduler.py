@@ -9,6 +9,7 @@ def check_inicios_programados():
     from .models import Tarea, TareaLog
     from .services.tiempo_laboral import esta_en_jornada
     from .services.logs import registrar_log
+    from .services.notificaciones import notificar_tarea
 
     ahora = timezone.localtime(timezone.now())
     candidatas = Tarea.objects.filter(
@@ -41,6 +42,7 @@ def check_inicios_programados():
                 estado_ant = t.estado
                 t.estado = Tarea.Estado.EN_DESARROLLO
                 t.save(update_fields=["estado"])
+                notificar_tarea(t)
                 registrar_log(
                     tarea=t,
                     usuario=None,

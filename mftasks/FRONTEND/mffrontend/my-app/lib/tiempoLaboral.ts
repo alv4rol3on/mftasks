@@ -12,6 +12,31 @@ export function formatearTiempo(totalSegundos: number): string {
     return `${String(horas).padStart(2, "0")}:${String(minutos).padStart(2, "0")}:${String(segundosRestantes).padStart(2, "0")}`;
 }
 
+export const COLOR_CONTADOR_VERDE = "#16a34a";
+export const COLOR_CONTADOR_AMARILLO = "#d97706";
+export const COLOR_CONTADOR_ROJO = "#dc2626";
+
+/**
+ * Color del contador según la proporción de tiempo restante sobre el
+ * planificado efectivo:
+ *   > 2/3 -> verde (queda casi todo)
+ *   > 1/3 y <= 2/3 -> amarillo
+ *   <= 1/3 -> rojo (cerca del límite)
+ * Retorna null cuando no hay planificado válido (sin color).
+ */
+export function colorContador(
+    segundosRestantes: number,
+    segundosPlanificados: number | null | undefined
+): string | null {
+    if (!segundosPlanificados || segundosPlanificados <= 0) return null;
+
+    const proporcion = Math.max(0, segundosRestantes) / segundosPlanificados;
+
+    if (proporcion > 2 / 3) return COLOR_CONTADOR_VERDE;
+    if (proporcion > 1 / 3) return COLOR_CONTADOR_AMARILLO;
+    return COLOR_CONTADOR_ROJO;
+}
+
 function partesLima(fecha: Date) {
     const fmt = new Intl.DateTimeFormat("en-US", {
         timeZone: "America/Lima",

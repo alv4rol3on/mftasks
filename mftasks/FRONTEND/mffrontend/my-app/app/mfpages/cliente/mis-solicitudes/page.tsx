@@ -22,6 +22,7 @@ export default function MisSolicitudesPage() {
   const router = useRouter();
   const {
     eventos,
+    subtareaEventos,
     observarTarea,
     dejarDeObservarTarea,
   } = useTasksWebSocket();
@@ -31,7 +32,7 @@ export default function MisSolicitudesPage() {
   const [filtro, setFiltro] = useState<string>("EN_PROCESO");
   const [busqueda, setBusqueda] = useState("");
   const [openCrear, setOpenCrear] = useState(false);
-  const [selected, setSelected] = useState<Task | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const { showToast } = useToast();
   const [sinPermiso, setSinPermiso] = useState(false);
 
@@ -97,7 +98,10 @@ export default function MisSolicitudesPage() {
   ]);
 
   useEffect(() => {
-    if (Object.keys(eventos).length === 0) {
+    if (
+      Object.keys(eventos).length === 0 &&
+      Object.keys(subtareaEventos).length === 0
+    ) {
       return;
     }
 
@@ -105,21 +109,58 @@ export default function MisSolicitudesPage() {
       actuales.map((tarea) => {
         const evento = eventos[tarea.id];
 
-        if (
-          !evento ||
-          evento.type !== "task_status_changed" ||
-          !evento.estado_nuevo
-        ) {
-          return tarea;
+        let actualizada = tarea;
+
+        if (evento && evento.type === "task_status_changed") {
+          actualizada = {
+            ...actualizada,
+            estado: evento.estado_nuevo
+              ? String(evento.estado_nuevo)
+              : actualizada.estado,
+            progreso:
+              typeof evento.progreso === "number"
+                ? String(evento.progreso)
+                : actualizada.progreso,
+            activo:
+              typeof evento.activo === "boolean"
+                ? evento.activo
+                : actualizada.activo,
+          };
         }
 
-        return {
-          ...tarea,
-          estado: String(evento.estado_nuevo),
-        };
+        if (actualizada.subtareas?.length) {
+          actualizada = {
+            ...actualizada,
+            subtareas: actualizada.subtareas.map((s) => {
+              const eventoSub = subtareaEventos[s.id];
+
+              if (!eventoSub || eventoSub.type !== "subtask_status_changed") {
+                return s;
+              }
+
+              return {
+                ...s,
+                estado: eventoSub.estado_nuevo
+                  ? String(eventoSub.estado_nuevo)
+                  : s.estado,
+                activo:
+                  typeof eventoSub.activo === "boolean"
+                    ? eventoSub.activo
+                    : s.activo,
+              };
+            }),
+          };
+        }
+
+        return actualizada;
       })
     );
-  }, [eventos]);
+  }, [eventos, subtareaEventos]);
+
+  const selected = useMemo(
+    () => tareas.find((t) => t.id === selectedId) ?? null,
+    [tareas, selectedId]
+  );
 
   const filtradas = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -248,7 +289,7 @@ export default function MisSolicitudesPage() {
       </div>
       <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>Ordenadas de la más reciente a la más antigua. Responsive con filtros por estado y buscador. Barra de progreso solo en el detalle.</p>
 
-      <ClienteSolicitudesTable tareas={filtradas} onSelect={setSelected} />
+      <ClienteSolicitudesTable tareas={filtradas} onSelect={(t) => setSelectedId(t.id)} />
 
       <CrearSolicitudModal
         open={openCrear}
@@ -262,7 +303,7 @@ export default function MisSolicitudesPage() {
       <TaskDetailClienteModal
         key={selected?.id ?? "none"}
         tarea={selected}
-        onClose={() => setSelected(null)}
+        onClose={() => setSelectedId(null)}
       />
     </div>
   );
