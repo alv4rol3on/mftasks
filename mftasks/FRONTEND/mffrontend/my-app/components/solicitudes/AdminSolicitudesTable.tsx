@@ -6,6 +6,7 @@ import TaskModal from "@/components/tareas/TaskModal";
 import Pagination from "@/components/ui/Pagination";
 import styles from "@/components/shared/SharedTable.module.css";
 import { apiFetch } from "@/lib/api";
+import { ContadoresProvider, useContador } from "@/components/tareas/ContadoresProvider";
 
 const fmt = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -22,7 +23,10 @@ function fmtFecha(f: string | null | undefined) {
   if (isNaN(d.getTime())) return "-";
   return fmt.format(d).replace(",", "");
 }
-function badge(estado: string) {
+function badge(estado: string, fueraDeTiempo = false) {
+  if (fueraDeTiempo && estado === "EN_DESARROLLO") {
+    return { bg: "#fee2e2", color: "#991b1b", border: "#f87171", label: "FUERA DE TIEMPO" };
+  }
   const m: Record<string, any> = {
     EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#9ca3af", label: "EN ESPERA" },
     APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#ddd6fe", label: "APROBADO" },
@@ -32,6 +36,15 @@ function badge(estado: string) {
     RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#fecaca", label: "RECHAZADO" },
   };
   return m[estado] ?? { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb", label: estado };
+}
+
+function EstadoCell({ tarea }: { tarea: Task }) {
+  const contador = useContador(tarea.id);
+  const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!contador?.con_retraso;
+  const b = badge(tarea.estado, fueraDeTiempo);
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", background: b.bg, color: b.color, border: `1px solid ${b.border}`, padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>{b.label}</span>
+  );
 }
 
 type Props = {
@@ -48,6 +61,20 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
   const totalPages = Math.max(1, Math.ceil(tareas.length / pageSize));
   const paginaClamped = Math.min(pagina, totalPages);
   const paginadas = useMemo(() => tareas.slice((paginaClamped - 1) * pageSize, paginaClamped * pageSize), [tareas, paginaClamped]);
+
+  const visibleIds = useMemo(() => paginadas.map((t) => t.id), [paginadas]);
+  const refreshKey = useMemo(
+    () =>
+      paginadas
+        .map(
+          (t) =>
+            `${t.id}:${t.estado}:${t.fecha_entrega_aproximada ?? ""}:${(t.subtareas ?? [])
+              .map((s) => `${s.id}:${s.estado}`)
+              .join(",")}`
+        )
+        .join("|"),
+    [paginadas]
+  );
 
   useEffect(() => setPagina(1), [tareas.length]);
   useEffect(() => { if (pagina > totalPages) setPagina(totalPages); }, [pagina, totalPages]);
@@ -78,7 +105,7 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
   };
 
   return (
-    <>
+    <ContadoresProvider ids={visibleIds} refreshKey={refreshKey}>
       <div className={styles.taskTableContainer}>
         {tareas.length === 0 ? (
           <div className={styles.noTasks}>No hay solicitudes con ese filtro</div>
@@ -96,7 +123,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
             </thead>
             <tbody>
               {paginadas.map((t) => {
-                const b = badge(t.estado);
                 const inactiva = (t as any).activo === false;
                 return (
                   <tr
@@ -116,7 +142,7 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                       </div>
                     </td>
                     <td data-label="Estado">
-                      <span style={{ display: "inline-flex", alignItems: "center", background: b.bg, color: b.color, border: `1px solid ${b.border}`, padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>{b.label}</span>
+                      <EstadoCell tarea={t} />
                     </td>
                     <td data-label="Solicitante" style={{ fontSize: 12 }}>{t.solicitante_nombre ?? "-"}</td>
                     <td data-label="Equipo" style={{ fontSize: 12 }}>{t.equipo_nombre}</td>
@@ -157,6 +183,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
       </div>
       {tareas.length > 0 && <Pagination page={paginaClamped} totalPages={totalPages} totalItems={tareas.length} pageSize={pageSize} onPageChange={setPagina} />}
       <TaskModal tarea={selected} onClose={() => setSelected(null)} onTareaMutated={onReload} />
-    </>
+    </ContadoresProvider>
   );
 }

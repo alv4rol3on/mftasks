@@ -163,6 +163,7 @@ class TaskSerializer(serializers.ModelSerializer):
     tiempo_tomado_horas = serializers.SerializerMethodField()
     tiempo_tomado_formateado = serializers.SerializerMethodField()
     tiempo_planificado_segundos = serializers.SerializerMethodField()
+    fuera_de_tiempo = serializers.SerializerMethodField()
     archivos = ArchivoTareaSerializer(
         many=True,
         read_only=True,
@@ -170,8 +171,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
-        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fecha_inactivacion", "inactivada_por"]
+        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
+        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "fecha_inactivacion", "inactivada_por"]
 
     def get_cliente_nombre(self, obj):
         if obj.subcampana and obj.subcampana.campana:
@@ -243,6 +244,21 @@ class TaskSerializer(serializers.ModelSerializer):
         if not obj.fecha_inicio or not obj.fecha_entrega_aproximada:
             return None
         return int(plan.total_seconds())
+
+    def get_fuera_de_tiempo(self, obj):
+        # Solo se calcula cuando el cliente lo pide (?con_retraso=1) para no
+        # encarecer el listado en vistas que no lo necesitan.
+        request = self.context.get("request")
+        if request is None:
+            return None
+        valor = str(request.query_params.get("con_retraso", "")).lower()
+        if valor not in ("1", "true", "yes"):
+            return None
+        try:
+            from .services.tiempo_laboral import esta_fuera_de_tiempo_tarea
+            return bool(esta_fuera_de_tiempo_tarea(obj))
+        except Exception:
+            return None
 
     def validate(self, attrs):
         request = self.context.get("request")

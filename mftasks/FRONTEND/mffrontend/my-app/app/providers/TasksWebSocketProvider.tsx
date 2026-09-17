@@ -11,6 +11,7 @@ import {
     ReactNode,
 } from "react";
 import { obtenerAccessToken } from "@/lib/auth";
+import { apiBaseUrl } from "@/lib/authConfig";
 
 export type TaskWebSocketEvent = {
     type: string;
@@ -42,6 +43,28 @@ const TasksWebSocketContext =
 
 const RECONEXION_MS = 3000;
 
+/**
+ * Base del WebSocket apuntando directo al backend (daphne), igual que el REST.
+ * Evita depender del rewrite/proxy WS de Next, que no maneja bien el upgrade.
+ * - NEXT_PUBLIC_WS_URL tiene prioridad (ej. ws://localhost:8000).
+ * - Si no, deriva de NEXT_PUBLIC_API_URL cambiando http->ws / https->wss.
+ * - Fallback: mismo origen (comportamiento anterior).
+ */
+function wsBaseUrl(): string {
+    const explicito = process.env.NEXT_PUBLIC_WS_URL?.trim();
+    if (explicito) return explicito.replace(/\/+$/, "");
+
+    try {
+        const base = new URL(apiBaseUrl, window.location.origin);
+        const protocol = base.protocol === "https:" ? "wss:" : "ws:";
+        return `${protocol}//${base.host}`;
+    } catch {
+        const protocol =
+            window.location.protocol === "https:" ? "wss:" : "ws:";
+        return `${protocol}//${window.location.host}`;
+    }
+}
+
 export function TasksWebSocketProvider({
     children,
 }: {
@@ -69,11 +92,8 @@ export function TasksWebSocketProvider({
 
         if (!token) return;
 
-        const protocol =
-            window.location.protocol === "https:" ? "wss:" : "ws:";
-
         const url =
-            `${protocol}//${window.location.host}/ws/tareas/${taskId}/` +
+            `${wsBaseUrl()}/ws/tareas/${taskId}/` +
             `?token=${encodeURIComponent(token)}`;
 
         const ws = new WebSocket(url);

@@ -565,6 +565,64 @@ def calcular_tiempo_restante_subtarea(
 
 
 # ============================================================
+# CALCULAR RETRASO / FUERA DE TIEMPO
+# ============================================================
+
+def calcular_retraso_tarea(
+    tarea: Tarea,
+    ahora: Optional[datetime] = None,
+) -> timedelta:
+    """Tiempo laboral excedido = max(0, transcurrido útil - planificado efectivo)."""
+    if not tarea or not tarea.fecha_inicio or not tarea.fecha_entrega_aproximada:
+        return timedelta(0)
+    ahora = ahora or timezone.now()
+    plan = calcular_tiempo_planificado_efectivo_tarea(tarea)
+    if plan <= timedelta(0):
+        return timedelta(0)
+    transcurrido = calcular_tiempo_util_tarea(tarea, fecha_fin=ahora)
+    retraso = transcurrido - plan
+    return retraso if retraso > timedelta(0) else timedelta(0)
+
+
+def calcular_retraso_subtarea(
+    subtarea,
+    ahora: Optional[datetime] = None,
+) -> timedelta:
+    """Tiempo laboral excedido de una subtarea frente al plan efectivo de su tarea."""
+    if subtarea is None or getattr(subtarea, "estado", None) == "SOLUCIONADO":
+        return timedelta(0)
+    tarea = getattr(subtarea, "tarea", None)
+    if tarea is None:
+        return timedelta(0)
+    if not tarea.fecha_inicio or not tarea.fecha_entrega_aproximada:
+        return timedelta(0)
+    ahora = ahora or timezone.now()
+    plan = calcular_tiempo_planificado_efectivo_tarea(tarea)
+    if plan <= timedelta(0):
+        return timedelta(0)
+    tomado = calcular_tiempo_util_subtarea(subtarea, fecha_fin=ahora)
+    retraso = tomado - plan
+    return retraso if retraso > timedelta(0) else timedelta(0)
+
+
+def esta_fuera_de_tiempo_tarea(
+    tarea: Tarea,
+    ahora: Optional[datetime] = None,
+) -> bool:
+    """True si la tarea sigue en curso y ya superó su tiempo planificado."""
+    if not tarea:
+        return False
+    estados_en_curso = (
+        Tarea.Estado.APROBADO,
+        Tarea.Estado.EN_DESARROLLO,
+        Tarea.Estado.STAND_BY,
+    )
+    if tarea.estado not in estados_en_curso:
+        return False
+    return calcular_retraso_tarea(tarea, ahora=ahora) > timedelta(0)
+
+
+# ============================================================
 # ESTADO DEL CONTADOR - TAREA
 # ============================================================
 
@@ -611,11 +669,14 @@ def obtener_contador_tarea(
         tiempo_restante = calcular_tiempo_restante_tarea(tarea, ahora=ahora)
         extra = calcular_tiempo_extra_tarea(tarea)
         inicio_ef = obtener_inicio_efectivo_tarea(tarea)
+        retraso = calcular_retraso_tarea(tarea, ahora=ahora)
         return {
             "activo": False,
             "pausado": True,
             "finalizado": False,
             "segundos_restantes": int(tiempo_restante.total_seconds()),
+            "con_retraso": retraso > timedelta(0),
+            "segundos_retraso": int(retraso.total_seconds()),
             "tiempo_tomado_segundos": None,
             "tiempo_planificado_segundos": int(calcular_tiempo_planificado_tarea(tarea).total_seconds()) if tarea.fecha_inicio and tarea.fecha_entrega_aproximada else 0,
             "tiempo_planificado_efectivo_segundos": int(calcular_tiempo_planificado_efectivo_tarea(tarea).total_seconds()) if tarea.fecha_inicio and tarea.fecha_entrega_aproximada else 0,
@@ -699,11 +760,14 @@ def obtener_contador_tarea(
     tiempo_restante = calcular_tiempo_restante_tarea(tarea, ahora=ahora)
     extra = calcular_tiempo_extra_tarea(tarea)
     inicio_ef = obtener_inicio_efectivo_tarea(tarea)
+    retraso = calcular_retraso_tarea(tarea, ahora=ahora)
     return {
         "activo": True,
         "pausado": False,
         "finalizado": False,
         "segundos_restantes": int(tiempo_restante.total_seconds()),
+        "con_retraso": retraso > timedelta(0),
+        "segundos_retraso": int(retraso.total_seconds()),
         "tiempo_tomado_segundos": None,
         "tiempo_planificado_segundos": int(calcular_tiempo_planificado_tarea(tarea).total_seconds()),
         "tiempo_planificado_efectivo_segundos": int(calcular_tiempo_planificado_efectivo_tarea(tarea).total_seconds()),
@@ -748,11 +812,14 @@ def obtener_contador_subtarea(
         # Congelado: restante igual que si estuviera pausada
         tarea = getattr(subtarea, "tarea", None)
         restante = calcular_tiempo_restante_subtarea(subtarea, ahora=ahora) if tarea else timedelta(0)
+        retraso = calcular_retraso_subtarea(subtarea, ahora=ahora) if tarea else timedelta(0)
         return {
             "activo": False,
             "pausado": True,
             "finalizado": False,
             "segundos_restantes": int(restante.total_seconds()),
+            "con_retraso": retraso > timedelta(0),
+            "segundos_retraso": int(retraso.total_seconds()),
             "tiempo_tomado_segundos": None,
             "incluye_sabado": incluye,
             "fecha_inicio": subtarea.fecha_inicio.isoformat() if subtarea.fecha_inicio else None,
@@ -779,11 +846,14 @@ def obtener_contador_subtarea(
 
     # EN_DESARROLLO activo
     restante = calcular_tiempo_restante_subtarea(subtarea, ahora=ahora)
+    retraso = calcular_retraso_subtarea(subtarea, ahora=ahora)
     return {
         "activo": True,
         "pausado": False,
         "finalizado": False,
         "segundos_restantes": int(restante.total_seconds()),
+        "con_retraso": retraso > timedelta(0),
+        "segundos_retraso": int(retraso.total_seconds()),
         "tiempo_tomado_segundos": None,
         "incluye_sabado": incluye,
         "fecha_inicio": subtarea.fecha_inicio.isoformat() if subtarea.fecha_inicio else None,

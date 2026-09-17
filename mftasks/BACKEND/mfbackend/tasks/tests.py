@@ -545,3 +545,95 @@ class LogsClienteTestCase(APITestCase):
         res = self.client.get(reverse("task-logs", args=[self.tarea.id]))
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class FueraDeTiempoContadorTestCase(APITestCase):
+    """Estado derivado 'FUERA DE TIEMPO': el contador sigue pasado el plan."""
+
+    def setUp(self):
+        self.lider = _crear_usuario("lider-ft@empresa.com")
+        self.miembro = _crear_usuario("miembro-ft@empresa.com")
+        campana = Campana.objects.create(nombre="C FT", codigo="CAMP_FT")
+        sub = SubCampana.objects.create(campana=campana, nombre="S FT", codigo="SUB_FT")
+
+        self.equipo = Equipo.objects.create(nombre="Equipo FT", lider=self.lider)
+        EquipoMiembro.objects.create(equipo=self.equipo, usuario=self.miembro)
+
+        self.lima = ZoneInfo("America/Lima")
+        self.inicio = datetime(2026, 9, 14, 9, 0, tzinfo=self.lima)  # lunes
+        self.entrega = datetime(2026, 9, 14, 10, 0, tzinfo=self.lima)
+
+        self.tarea = Tarea.objects.create(
+            asunto="Tarea FT",
+            descripcion="d",
+            subcampana=sub,
+            estado=Tarea.Estado.EN_DESARROLLO,
+            equipo=self.equipo,
+            fecha_inicio=self.inicio,
+            fecha_entrega_aproximada=self.entrega,
+        )
+        self.subtarea = Subtarea.objects.create(
+            tarea=self.tarea,
+            descripcion="Sub FT",
+            asignado=self.miembro,
+            peso=1,
+            estado=Subtarea.Estado.EN_DESARROLLO,
+            fecha_inicio=self.inicio,
+        )
+        log = TareaLog.objects.create(
+            tarea=self.tarea,
+            subtarea=self.subtarea,
+            tipo_evento=TareaLog.TipoEvento.INICIO,
+        )
+        # TareaLog.fecha es auto_now_add: forzar el inicio real del segmento.
+        TareaLog.objects.filter(pk=log.pk).update(fecha=self.inicio)
+
+    def test_tarea_dentro_de_tiempo_sin_retraso(self):
+        from .services.tiempo_laboral import obtener_contador_tarea
+        ahora = datetime(2026, 9, 14, 9, 30, tzinfo=self.lima)
+        contador = obtener_contador_tarea(self.tarea, ahora=ahora)
+        self.assertFalse(contador["con_retraso"])
+        self.assertEqual(contador["segundos_retraso"], 0)
+
+    def test_tarea_vencida_marca_retraso_y_restante_en_cero(self):
+        from .services.tiempo_laboral import obtener_contador_tarea
+        ahora = datetime(2026, 9, 14, 12, 0, tzinfo=self.lima)
+        contador = obtener_contador_tarea(self.tarea, ahora=ahora)
+        self.assertTrue(contador["activo"])
+        self.assertTrue(contador["con_retraso"])
+        self.assertEqual(contador["segundos_restantes"], 0)
+        self.assertEqual(contador["segundos_retraso"], 2 * 3600)
+
+    def test_subtarea_vencida_marca_retraso(self):
+        from .services.tiempo_laboral import obtener_contador_subtarea
+        ahora = datetime(2026, 9, 14, 12, 0, tzinfo=self.lima)
+        self.subtarea.refresh_from_db()
+        contador = obtener_contador_subtarea(self.subtarea, ahora=ahora)
+        self.assertTrue(contador["con_retraso"])
+        self.assertEqual(contador["segundos_retraso"], 2 * 3600)
+
+    def test_esta_fuera_de_tiempo_segun_estado(self):
+        from .services.tiempo_laboral import esta_fuera_de_tiempo_tarea
+        dentro = datetime(2026, 9, 14, 9, 30, tzinfo=self.lima)
+        fuera = datetime(2026, 9, 14, 12, 0, tzinfo=self.lima)
+        self.assertFalse(esta_fuera_de_tiempo_tarea(self.tarea, ahora=dentro))
+        self.assertTrue(esta_fuera_de_tiempo_tarea(self.tarea, ahora=fuera))
+        # Una tarea solucionada nunca se marca fuera de tiempo.
+        self.tarea.estado = Tarea.Estado.SOLUCIONADO
+        self.tarea.save(update_fields=["estado"])
+        self.assertFalse(esta_fuera_de_tiempo_tarea(self.tarea, ahora=fuera))
+
+    def test_serializer_fuera_de_tiempo_gateado_por_param(self):
+        self.tarea.estado = Tarea.Estado.EN_DESARROLLO
+        self.tarea.save(update_fields=["estado"])
+        self.client.force_authenticate(user=self.lider)
+
+        # Sin el parámetro -> None (no se calcula).
+        res = self.client.get(reverse("task-list"))
+        fila = next(t for t in res.data if t["id"] == self.tarea.id)
+        self.assertIsNone(fila["fuera_de_tiempo"])
+
+        # Con ?con_retraso=1 -> True (la tarea ya venció respecto a ahora real).
+        res2 = self.client.get(reverse("task-list"), {"con_retraso": "1"})
+        fila2 = next(t for t in res2.data if t["id"] == self.tarea.id)
+        self.assertTrue(fila2["fuera_de_tiempo"])

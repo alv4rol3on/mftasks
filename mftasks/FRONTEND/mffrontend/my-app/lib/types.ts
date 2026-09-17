@@ -65,6 +65,7 @@ export interface Task {
     tiempo_tomado_horas?: number | null;
     tiempo_tomado_formateado?: string | null;
     tiempo_planificado_segundos?: number | null;
+    fuera_de_tiempo?: boolean | null;
     activo?: boolean;
     fecha_inactivacion?: string | null;
     inactivada_por?: number | null;

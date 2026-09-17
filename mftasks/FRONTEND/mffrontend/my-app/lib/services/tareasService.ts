@@ -8,9 +8,10 @@ interface IniciarPayload {
 }
 
 export async function fetchTareas(search?: string): Promise<Task[]> {
+  const params = new URLSearchParams({ con_retraso: "1" });
   const q = search?.trim();
-  const url = q ? `/api/tasks/tasks/?search=${encodeURIComponent(q)}` : "/api/tasks/tasks/";
-  return apiFetch<Task[]>(url);
+  if (q) params.set("search", q);
+  return apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`);
 }
 
 export async function iniciarTarea(tareaId: number, payload: IniciarPayload): Promise<void> {

@@ -9,6 +9,8 @@ export interface ContadorResponse {
   pausado: boolean;
   finalizado: boolean;
   segundos_restantes: number;
+  con_retraso?: boolean;
+  segundos_retraso?: number | null;
   tiempo_tomado_segundos: number | null;
   tiempo_planificado_segundos?: number | null;
   tiempo_planificado_efectivo_segundos?: number | null;
@@ -38,11 +40,17 @@ const SNAP_STORAGE_KEY = "mftasks-snapMap-v1";
 function interpolate(snapshot: Snapshot, now: Date): ContadorResponse {
   const { raw } = snapshot;
   if (!raw.activo || raw.pausado || raw.tiempo_tomado_segundos !== null) return raw;
-  if (raw.segundos_restantes <= 0) return raw;
   const elapsed = segundosLaboralesEntre(snapshot.serverAhora, now);
-  const restante = Math.max(0, raw.segundos_restantes - elapsed);
-  if (restante === raw.segundos_restantes) return raw;
-  return { ...raw, segundos_restantes: restante };
+  // Firmado: positivo = restante, negativo = excedido (continúa más allá de 0).
+  const base = raw.con_retraso ? -(raw.segundos_retraso ?? 0) : raw.segundos_restantes;
+  const signed = base - elapsed;
+  if (signed >= 0) {
+    if (signed === raw.segundos_restantes && !raw.con_retraso) return raw;
+    return { ...raw, segundos_restantes: signed, con_retraso: false, segundos_retraso: 0 };
+  }
+  const retraso = -signed;
+  if (raw.con_retraso && retraso === (raw.segundos_retraso ?? 0)) return raw;
+  return { ...raw, segundos_restantes: 0, con_retraso: true, segundos_retraso: retraso };
 }
 
 function hidratar(): Map<number, Snapshot | null> {

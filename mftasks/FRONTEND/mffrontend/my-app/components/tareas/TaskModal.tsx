@@ -9,6 +9,8 @@ import SubtaskCountdown from "./SubtaskCountdown";
 import TaskIniciarModal from "./TaskIniciarModal";
 import Pagination from "../ui/Pagination";
 import { apiBaseUrl } from "@/lib/authConfig";
+import { useContador } from "./ContadoresProvider";
+import { formatearTiempo } from "@/lib/tiempoLaboral";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima",
@@ -109,6 +111,7 @@ export default function TaskModal({
     const [logsError, setLogsError] = useState<string | null>(null);
     const [logsLoading, setLogsLoading] = useState(false);
     const [mostrarIniciar, setMostrarIniciar] = useState(false);
+    const contadorTarea = useContador(tarea?.id ?? -1);
     const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
     const [paginaHist, setPaginaHist] = useState(1);
     const histPageSize = 10;
@@ -348,6 +351,9 @@ export default function TaskModal({
 
     if (!tarea) return null;
 
+    const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!contadorTarea?.con_retraso;
+    const segundosRetraso = contadorTarea?.segundos_retraso ?? 0;
+
     const subtareasProgreso = tarea.subtareas.filter(s => s.activo !== false);
     const subtareasInactivasCount = tarea.subtareas.length - subtareasProgreso.length;
 
@@ -382,9 +388,11 @@ export default function TaskModal({
                             <h2>{tarea.ticket ? `${tarea.ticket} · ` : ""}Tarea #{tarea.id}</h2>
                             <p style={{ margin: "4px 0 0", opacity: 0.95 }}>{tarea.asunto}</p>
                             <div className={styles.headerMeta}>
-                                <span className={styles.headerBadge}>{tarea.estado}{tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion ? ` · ${formatearFecha(tarea.fecha_solucion)}` : ""}</span>
+                                <span className={styles.headerBadge} style={fueraDeTiempo ? { background: "#fee2e2", color: "#991b1b", border: "1px solid #f87171" } : undefined}>{fueraDeTiempo ? "FUERA DE TIEMPO" : tarea.estado}{!fueraDeTiempo && tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion ? ` · ${formatearFecha(tarea.fecha_solucion)}` : ""}</span>
                                 <span className={styles.headerCountdown} title="Contador HH:MM:SS (tiempo laboral)">
-                                    ⏱ <span style={{ marginLeft: 4 }}>{tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" ? `Tomado ${tarea.tiempo_tomado_formateado}` : `Entrega ${formatearFecha(tarea.fecha_entrega_aproximada)}`}</span>
+                                    {fueraDeTiempo
+                                        ? <span style={{ marginLeft: 4, color: "#dc2626", fontWeight: 700 }}>⏱ +{formatearTiempo(segundosRetraso)} excedido</span>
+                                        : <span style={{ marginLeft: 4 }}>⏱ {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" ? `Tomado ${tarea.tiempo_tomado_formateado}` : `Entrega ${formatearFecha(tarea.fecha_entrega_aproximada)}`}</span>}
                                 </span>
                                 {tarea.estado === "APROBADO" && tarea.puedo_operar && onIniciar && (
                                     <button className={styles.btnIniciar} onClick={() => setMostrarIniciar(true)} disabled={accionando === tarea.id} style={{ marginLeft: 4 }}>

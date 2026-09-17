@@ -8,7 +8,7 @@ import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import TaskCountdown from "./TaskCountdown";
 import Pagination from "../ui/Pagination";
-import { ContadoresProvider } from "./ContadoresProvider";
+import { ContadoresProvider, useContador } from "./ContadoresProvider";
 
 const fmtSolicitud = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -28,16 +28,112 @@ function formatearFechaSolicitud(fecha: string | null | undefined): string {
   return fmtSolicitud.format(d).replace(",", "");
 }
 
-function estadoBadge(estado: string) {
-  const map: Record<string, { bg: string; color: string; border: string; icon: string }> = {
-    APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#ddd6fe", icon: "✓" },
-    EN_DESARROLLO: { bg: "#dbeafe", color: "#1e3a8a", border: "#2563eb", icon: "▶" },
-    STAND_BY: { bg: "#fef3c7", color: "#78350f", border: "#d97706", icon: "⏸" },
-    SOLUCIONADO: { bg: "#dcfce7", color: "#14532d", border: "#16a34a", icon: "✓" },
-    EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#9ca3af", icon: "⏳" },
-    RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#fecaca", icon: "✕" },
+function estadoBadge(estado: string, fueraDeTiempo = false) {
+  if (fueraDeTiempo && estado === "EN_DESARROLLO") {
+    return { bg: "#fee2e2", color: "#991b1b", border: "#f87171", icon: "⚠", label: "FUERA DE TIEMPO" };
+  }
+  const map: Record<string, { bg: string; color: string; border: string; icon: string; label: string }> = {
+    APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#ddd6fe", icon: "✓", label: "APROBADO" },
+    EN_DESARROLLO: { bg: "#dbeafe", color: "#1e3a8a", border: "#2563eb", icon: "▶", label: "EN DESARROLLO" },
+    STAND_BY: { bg: "#fef3c7", color: "#78350f", border: "#d97706", icon: "⏸", label: "STAND BY" },
+    SOLUCIONADO: { bg: "#dcfce7", color: "#14532d", border: "#16a34a", icon: "✓", label: "SOLUCIONADO" },
+    EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#9ca3af", icon: "⏳", label: "EN ESPERA" },
+    RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#fecaca", icon: "✕", label: "RECHAZADO" },
   };
-  return map[estado] ?? { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb", icon: "" };
+  return map[estado] ?? { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb", icon: "", label: estado };
+}
+
+function FilaTarea({
+  tarea,
+  conPendiente,
+  onSelect,
+}: {
+  tarea: Task;
+  conPendiente: boolean;
+  onSelect: (id: number) => void;
+}) {
+  const contador = useContador(tarea.id);
+  const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!contador?.con_retraso;
+
+  const rowClass =
+    tarea.estado === "SOLUCIONADO"
+      ? styles.rowSolucionado
+      : tarea.estado === "STAND_BY"
+        ? styles.rowStandBy
+        : conPendiente
+          ? styles.rowPendiente
+          : "";
+  const borderLeft =
+    tarea.estado === "SOLUCIONADO"
+      ? "4px solid #22c55e"
+      : tarea.estado === "STAND_BY"
+        ? "4px solid #f59e0b"
+        : fueraDeTiempo
+          ? "4px solid #dc2626"
+          : conPendiente
+            ? "4px solid #050505"
+            : undefined;
+  const b = estadoBadge(tarea.estado, fueraDeTiempo);
+
+  return (
+    <tr
+      className={rowClass}
+      style={{
+        ...(borderLeft ? { borderLeft } : undefined),
+        cursor: "pointer",
+      }}
+      onClick={() => onSelect(tarea.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(tarea.id);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Ver detalles de ${tarea.asunto}`}
+      title={
+        fueraDeTiempo
+          ? "Tarea fuera de tiempo — clic para ver detalles"
+          : conPendiente
+            ? "Tienes subtareas pendientes — clic para ver detalles"
+            : tarea.estado === "SOLUCIONADO"
+              ? "Tarea solucionada — clic para ver detalles"
+              : "Clic para ver detalles"
+      }
+    >
+      <td data-label="Fecha solicitud" style={{ whiteSpace: "nowrap", fontSize: 13, color: "#374151" }}>
+        {formatearFechaSolicitud(tarea.fecha_creacion)}
+      </td>
+      <td data-label="Solicitud" className={styles.taskSubject}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontWeight: 600, color: "#1d3557" }}>
+            {tarea.subcampana_nombre
+              ? `${tarea.campana_nombre}-${tarea.subcampana_nombre}: ${tarea.asunto}`
+              : `${tarea.campana_nombre ?? "-"}: ${tarea.asunto}`}
+          </span>
+        </span>
+        <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400, marginTop: 4 }}>
+          Ticket {tarea.ticket ?? `#${tarea.id}`}
+        </span>
+        {conPendiente && (
+          <span style={{ display: "block", fontSize: 11, color: "#92400e", marginTop: 2 }}>
+            Tienes subtareas pendientes por completar
+          </span>
+        )}
+      </td>
+      <td data-label="Estado">
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: b.bg, color: b.color, border: `1px solid ${b.border}`, padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+          <span aria-hidden="true">{b.icon}</span> {b.label}
+        </span>
+      </td>
+      <td data-label="Contador" style={{ whiteSpace: "nowrap" }}>
+        {tarea.estado === "APROBADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>Por asignar</span>
+        : tarea.estado === "RECHAZADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>X</span>
+        : <TaskCountdown tareaId={tarea.id} /> }
+      </td>
+    </tr>
+  );
 }
 
 export default function TaskTableEnDesarrollo({
@@ -130,138 +226,62 @@ export default function TaskTableEnDesarrollo({
   );
 
   return (
-    <>
-      <ContadoresProvider ids={visibleIds} refreshKey={refreshKey}>
-        <div className={styles.taskTableContainer}>
-          {tareasVisibles.length === 0 ? (
-            <div className={styles.noTasks}>No hay tareas en desarrollo</div>
-          ) : (
-            <table className={styles.taskTable}>
-            <thead>
-              <tr>
-                <th>Fecha solicitud</th>
-                <th>Solicitud</th>
-                <th>Estado</th>
-                <th>Contador</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tareasPaginadas.map((tarea) => {
-                const conPendiente = tienePendienteEnTarea(tarea);
-                const rowClass =
-                  tarea.estado === "SOLUCIONADO"
-                    ? styles.rowSolucionado
-                    : tarea.estado === "STAND_BY"
-                      ? styles.rowStandBy
-                      : conPendiente
-                        ? styles.rowPendiente
-                        : "";
-                const borderLeft =
-                  tarea.estado === "SOLUCIONADO"
-                    ? "4px solid #22c55e"
-                    : tarea.estado === "STAND_BY"
-                      ? "4px solid #f59e0b"
-                      : conPendiente
-                        ? "4px solid #050505"
-                        : undefined;
-                return (
-                  <tr
-                    key={tarea.id}
-                    className={rowClass}
-                    style={{
-                      ...(borderLeft ? { borderLeft } : undefined),
-                      cursor: "pointer",
-                    }}
-                    onClick={() => setSelectedTaskId(tarea.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSelectedTaskId(tarea.id);
-                      }
-                    }}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Ver detalles de ${tarea.asunto}`}
-                    title={
-                      conPendiente
-                        ? "Tienes subtareas pendientes — clic para ver detalles"
-                        : tarea.estado === "SOLUCIONADO"
-                          ? "Tarea solucionada — clic para ver detalles"
-                          : "Clic para ver detalles"
-                    }
-                  >
-                    <td data-label="Fecha solicitud" style={{ whiteSpace: "nowrap", fontSize: 13, color: "#374151" }}>
-                      {formatearFechaSolicitud(tarea.fecha_creacion)}
-                    </td>
-                    <td data-label="Solicitud" className={styles.taskSubject}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 600, color: "#1d3557" }}>
-                          {tarea.subcampana_nombre
-                            ? `${tarea.campana_nombre}-${tarea.subcampana_nombre}: ${tarea.asunto}`
-                            : `${tarea.campana_nombre ?? "-"}: ${tarea.asunto}`}
-                        </span>
-                      </span>
-                      <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400, marginTop: 4 }}>
-                        Ticket {tarea.ticket ?? `#${tarea.id}`}
-                      </span>
-                      {conPendiente && (
-                        <span style={{ display: "block", fontSize: 11, color: "#92400e", marginTop: 2 }}>
-                          Tienes subtareas pendientes por completar
-                        </span>
-                      )}
-                    </td>
-                    <td data-label="Estado">
-                      {(() => {
-                        const b = estadoBadge(tarea.estado);
-                        return (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: b.bg, color: b.color, border: `1px solid ${b.border}`, padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
-                            <span aria-hidden="true">{b.icon}</span> {tarea.estado}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td data-label="Contador" style={{ whiteSpace: "nowrap" }}>
-                      {tarea.estado === "APROBADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>Por asignar</span>
-                      : tarea.estado === "RECHAZADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>X</span>
-                      : <TaskCountdown tareaId={tarea.id} /> }
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-      </ContadoresProvider>
-      {tareasOrdenadas.length > 0 && (
-        <Pagination page={paginaClamped} totalPages={totalPages} totalItems={tareasOrdenadas.length} pageSize={pageSize} onPageChange={setPagina} />
+    <ContadoresProvider ids={visibleIds} refreshKey={refreshKey}>
+      <div className={styles.taskTableContainer}>
+        {tareasVisibles.length === 0 ? (
+          <div className={styles.noTasks}>No hay tareas en desarrollo</div>
+        ) : (
+          <table className={styles.taskTable}>
+          <thead>
+            <tr>
+              <th>Fecha solicitud</th>
+              <th>Solicitud</th>
+              <th>Estado</th>
+              <th>Contador</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tareasPaginadas.map((tarea) => (
+              <FilaTarea
+                key={tarea.id}
+                tarea={tarea}
+                conPendiente={tienePendienteEnTarea(tarea)}
+                onSelect={setSelectedTaskId}
+              />
+            ))}
+          </tbody>
+        </table>
       )}
+    </div>
+    {tareasOrdenadas.length > 0 && (
+      <Pagination page={paginaClamped} totalPages={totalPages} totalItems={tareasOrdenadas.length} pageSize={pageSize} onPageChange={setPagina} />
+    )}
 
-      <TaskModal
-        tarea={selectedTask}
-        onClose={() => setSelectedTaskId(null)}
-        onEmpezarTarea={onEmpezarSubtarea}
-        onCompletarSubtarea={onCompletarSubtarea}
-        onCambiarEstadoSubtarea={onCambiarEstadoSubtarea}
-        onReanudarSubtarea={onReanudarSubtarea}
-        empezandoId={empezandoId}
-        completandoId={completandoId}
-        accionando={accionando}
-        onIniciar={onIniciar}
-        onReasignarSubtarea={onReasignarSubtarea}
-        onInactivarSubtarea={onInactivarSubtarea}
-        onReactivarSubtarea={onReactivarSubtarea}
-        onTareaMutated={onTareaMutated}
+    <TaskModal
+      tarea={selectedTask}
+      onClose={() => setSelectedTaskId(null)}
+      onEmpezarTarea={onEmpezarSubtarea}
+      onCompletarSubtarea={onCompletarSubtarea}
+      onCambiarEstadoSubtarea={onCambiarEstadoSubtarea}
+      onReanudarSubtarea={onReanudarSubtarea}
+      empezandoId={empezandoId}
+      completandoId={completandoId}
+      accionando={accionando}
+      onIniciar={onIniciar}
+      onReasignarSubtarea={onReasignarSubtarea}
+      onInactivarSubtarea={onInactivarSubtarea}
+      onReactivarSubtarea={onReactivarSubtarea}
+      onTareaMutated={onTareaMutated}
+    />
+
+    {/*{taskParaIniciar && (
+      <TaskIniciarModal
+        tarea={taskParaIniciar}
+        accionando={accionando === taskParaIniciar.id}
+        onClose={() => setTaskParaIniciar(null)}
+        onSubmit={onIniciar}
       />
-
-      {/*{taskParaIniciar && (
-        <TaskIniciarModal
-          tarea={taskParaIniciar}
-          accionando={accionando === taskParaIniciar.id}
-          onClose={() => setTaskParaIniciar(null)}
-          onSubmit={onIniciar}
-        />
-      )}*/}
-    </>
+    )}*/}
+    </ContadoresProvider>
   );
 }

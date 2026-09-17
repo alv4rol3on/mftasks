@@ -8,9 +8,4 @@ AÑADIR:
 Lider/miembro:
 - Opcion de reunion
 
-Estado CON RETRASO:
-Cuando una tarea excede del tiempo programado, no se bloquea, el contador continua con el fin de mostrar la cantidad de tiempo excedido
-
 - opcion de inhabilitar un equipo
-
-- FILTROS para tareas en desarrollo de los asistentes

@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { useTareasGuard } from "./hooks/useTareasGuard";
-import { filtrarTareas } from "./utils/tareasFilters";
+import { filtrarTareas, ESTADOS_TAREA, type EstadoFiltro, type CampoFecha } from "./utils/tareasFilters";
 import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar } from "@/lib/services/tareasService";
 
 export default function TareasPage() {
@@ -18,9 +18,27 @@ export default function TareasPage() {
   const [accionando, setAccionando] = useState<number | null>(null);
   const [empezandoId, setEmpezandoId] = useState<number | null>(null);
   const [completandoId, setCompletandoId] = useState<number | null>(null);
+  const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("TODOS");
+  const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
 
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
   const idsTareasKey = idsTareas.join(",");
+
+  const tareasFiltradas = useMemo(
+    () => filtrarTareas(tareas, { busqueda, estado: filtroEstado, campoFecha, desde, hasta }),
+    [tareas, busqueda, filtroEstado, campoFecha, desde, hasta]
+  );
+  const hayFiltros = filtroEstado !== "TODOS" || !!desde || !!hasta || !!busqueda;
+  const limpiarFiltros = () => {
+    setFiltroEstado("TODOS");
+    setCampoFecha("solicitud");
+    setDesde("");
+    setHasta("");
+    setBusqueda("");
+    cargar("");
+  };
 
   useEffect(() => {
     idsTareas.forEach((id) => observarTarea(id));
@@ -227,21 +245,46 @@ export default function TareasPage() {
   if (cargando) return <div>Cargando tareas…</div>;
   if (error) return <div>Error al cargar las tareas: {error}</div>;
 
-  const tareasFiltradas = filtrarTareas(tareas, busqueda);
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault();
     cargar(busqueda);
   };
 
+  const selectStyle: React.CSSProperties = { border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white", minWidth: 160 };
+  const inputStyle: React.CSSProperties = { border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" };
+  const fechaLabelStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" };
+  const clearBtnStyle: React.CSSProperties = { border: "1px solid #d1d5db", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" };
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
         <h2 className="text-lg font-medium" style={{ margin: 0 }}>Tareas en desarrollo</h2>
+        <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradas.length} de {tareas.length}</span>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as EstadoFiltro)} style={selectStyle} title="Filtrar por estado">
+          {ESTADOS_TAREA.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+        <select value={campoFecha} onChange={(e) => setCampoFecha(e.target.value as CampoFecha)} style={selectStyle} title="Campo de fecha a filtrar">
+          <option value="solicitud">Fecha de solicitud</option>
+          <option value="entrega">Fecha de entrega</option>
+        </select>
+        <label style={fechaLabelStyle}>
+          Desde
+          <input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} style={inputStyle} />
+        </label>
+        <label style={fechaLabelStyle}>
+          Hasta
+          <input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} style={inputStyle} />
+        </label>
         <form onSubmit={handleBuscar} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240 }} />
-          {/*<button type="submit" style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
-          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}*/}
+          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ ...inputStyle, minWidth: 240 }} />
         </form>
+        {hayFiltros && (
+          <button type="button" onClick={limpiarFiltros} style={clearBtnStyle}>Limpiar</button>
+        )}
       </div>
       <TaskTableEnDesarrollo tareas={tareasFiltradas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} />
     </div>
