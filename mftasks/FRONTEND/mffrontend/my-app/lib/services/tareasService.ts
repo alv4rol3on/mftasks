@@ -7,10 +7,50 @@ interface IniciarPayload {
   subtareas: { descripcion: string; asignado: number; peso: number }[];
 }
 
-export async function fetchTareas(search?: string): Promise<Task[]> {
-  const params = new URLSearchParams({ con_retraso: "1" });
-  const q = search?.trim();
+export type EstadoFiltro =
+  | "TODOS"
+  | "EN_PROCESO"
+  | "APROBADO"
+  | "EN_DESARROLLO"
+  | "STAND_BY"
+  | "SOLUCIONADO"
+  | "RECHAZADO"
+  | "FUERA_DE_TIEMPO";
+
+export type CampoFecha = "solicitud" | "entrega";
+
+export interface FiltrosTareas {
+  busqueda?: string;
+  estado?: EstadoFiltro;
+  campoFecha?: CampoFecha;
+  desde?: string; // yyyy-mm-dd (día en America/Lima)
+  hasta?: string; // yyyy-mm-dd (día en America/Lima)
+}
+
+/**
+ * Lista de tareas con los filtros aplicados en el servidor.
+ * Siempre pide `con_retraso` (para el estado FUERA DE TIEMPO) y excluye EN_ESPERA
+ * (la tabla de desarrollo no los muestra).
+ */
+export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> {
+  const params = new URLSearchParams({ con_retraso: "1", excluir_espera: "1" });
+
+  const q = filtros.busqueda?.trim();
   if (q) params.set("search", q);
+
+  const estado = filtros.estado ?? "TODOS";
+  if (estado !== "TODOS") params.set("estado", estado);
+
+  if (filtros.desde) params.set("desde", filtros.desde);
+  if (filtros.hasta) params.set("hasta", filtros.hasta);
+  if (filtros.desde || filtros.hasta) {
+    params.set("campo_fecha", (filtros.campoFecha ?? "solicitud") === "entrega" ? "entrega" : "creacion");
+  }
+
+  // Regla de antigüedad: solo cuando no hay búsqueda ni filtros (replica el comportamiento previo).
+  const hayFiltro = estado !== "TODOS" || !!filtros.desde || !!filtros.hasta;
+  if (!q && !hayFiltro) params.set("solo_recientes", "1");
+
   return apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`);
 }
 

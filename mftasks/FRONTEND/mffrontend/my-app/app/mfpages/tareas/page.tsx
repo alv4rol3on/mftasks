@@ -7,29 +7,31 @@ import { useToast } from "@/components/ui/Toast";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { useTareasGuard } from "./hooks/useTareasGuard";
-import { filtrarTareas, ESTADOS_TAREA, type EstadoFiltro, type CampoFecha } from "./utils/tareasFilters";
-import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar } from "@/lib/services/tareasService";
+import { ESTADOS_TAREA } from "./utils/tareasFilters";
+import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar, type EstadoFiltro, type CampoFecha, type FiltrosTareas } from "@/lib/services/tareasService";
 
 export default function TareasPage() {
-  const { tareas, cargando, error, busqueda, setBusqueda, cargar, setTareas, setError } = useTareas();
   const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea } = useTasksWebSocket();
   const { sinPermiso } = useTareasGuard();
   const { showToast } = useToast();
   const [accionando, setAccionando] = useState<number | null>(null);
   const [empezandoId, setEmpezandoId] = useState<number | null>(null);
   const [completandoId, setCompletandoId] = useState<number | null>(null);
+  const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("TODOS");
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
 
+  const filtros = useMemo<FiltrosTareas>(
+    () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta }),
+    [busqueda, filtroEstado, campoFecha, desde, hasta]
+  );
+  const { tareas, cargando, error, cargar, setTareas, setError } = useTareas(filtros);
+
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
   const idsTareasKey = idsTareas.join(",");
 
-  const tareasFiltradas = useMemo(
-    () => filtrarTareas(tareas, { busqueda, estado: filtroEstado, campoFecha, desde, hasta }),
-    [tareas, busqueda, filtroEstado, campoFecha, desde, hasta]
-  );
   const hayFiltros = filtroEstado !== "TODOS" || !!desde || !!hasta || !!busqueda;
   const limpiarFiltros = () => {
     setFiltroEstado("TODOS");
@@ -37,7 +39,7 @@ export default function TareasPage() {
     setDesde("");
     setHasta("");
     setBusqueda("");
-    cargar("");
+    cargar({ busqueda: "", estado: "TODOS", campoFecha: "solicitud", desde: "", hasta: "" });
   };
 
   useEffect(() => {
@@ -247,7 +249,7 @@ export default function TareasPage() {
 
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault();
-    cargar(busqueda);
+    cargar({ busqueda });
   };
 
   const selectStyle: React.CSSProperties = { border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white", minWidth: 160 };
@@ -259,7 +261,7 @@ export default function TareasPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
         <h2 className="text-lg font-medium" style={{ margin: 0 }}>Tareas en desarrollo</h2>
-        <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradas.length} de {tareas.length}</span>
+        <span style={{ fontSize: 12, color: "#6b7280" }}>{tareas.length} resultado(s)</span>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as EstadoFiltro)} style={selectStyle} title="Filtrar por estado">
@@ -286,7 +288,7 @@ export default function TareasPage() {
           <button type="button" onClick={limpiarFiltros} style={clearBtnStyle}>Limpiar</button>
         )}
       </div>
-      <TaskTableEnDesarrollo tareas={tareasFiltradas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} />
+      <TaskTableEnDesarrollo tareas={tareas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} />
     </div>
   );
 }

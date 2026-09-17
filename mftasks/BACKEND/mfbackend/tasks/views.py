@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.functions import Coalesce
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -96,21 +97,12 @@ class TaskViewSet(viewsets.ModelViewSet):
         user = self.request.user
         from usuarios.models import Equipo, EquipoMiembro
 
-        # base queryset con search
-        search = self.request.query_params.get("search") or self.request.query_params.get("q")
-        def apply_search(qs):
-            if search:
-                qs = qs.filter(Q(ticket__icontains=search) | Q(asunto__icontains=search) | Q(descripcion__icontains=search))
-            return qs
-
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-            qs = Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
-            return apply_search(qs)
+            return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
 
         # CLIENTE nunca es miembro de equipo: solo ve sus propias solicitudes (no espía)
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            qs = Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
-            return apply_search(qs)
+            return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
 
         # Detectar lider por-equipo (Fase 1: 4 roles) -> lider = Equipo.lider o miembro LIDER activo
         es_lider = Equipo.objects.filter(lider=user).exists() or EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
@@ -118,20 +110,65 @@ class TaskViewSet(viewsets.ModelViewSet):
         es_asignador_global = user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists()
         es_asignador_amplio = es_asignador_global or es_lider
 
-        # LIDER / SUB-LIDER / ASIGNADOR: ven todas las tareas de su equipo (pueden aprobar/iniciar/asignar)
-        if es_asignador_amplio:
-            qs = Tarea.objects.filter(
-                Q(equipo__lider=user)
-                | Q(equipo__miembros__usuario=user)
-            ).distinct().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
-            return apply_search(qs)
-
-        # Miembro (rol miembro o lider): ve todas las tareas de su equipo
-        qs = Tarea.objects.filter(
+        # LIDER / SUB-LIDER / ASIGNADOR y Miembro: ven todas las tareas de su equipo
+        return Tarea.objects.filter(
             Q(equipo__lider=user)
             | Q(equipo__miembros__usuario=user)
         ).distinct().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
-        return apply_search(qs)
+
+    def filter_queryset(self, queryset):
+        """Filtros opcionales de listado: search, estado, fecha, exclusión de en espera y antigüedad."""
+        params = self.request.query_params
+
+        search = params.get("search") or params.get("q")
+        if search:
+            queryset = queryset.filter(
+                Q(ticket__icontains=search)
+                | Q(asunto__icontains=search)
+                | Q(descripcion__icontains=search)
+            )
+
+        estado = (params.get("estado") or "").upper()
+        if estado and estado not in ("TODOS", "FUERA_DE_TIEMPO"):
+            if estado == "EN_PROCESO":
+                queryset = queryset.filter(
+                    estado__in=[
+                        Tarea.Estado.APROBADO,
+                        Tarea.Estado.EN_DESARROLLO,
+                        Tarea.Estado.STAND_BY,
+                    ]
+                )
+            elif estado in Tarea.Estado.values:
+                queryset = queryset.filter(estado=estado)
+
+        if params.get("excluir_espera") in ("1", "true", "yes"):
+            queryset = queryset.exclude(estado=Tarea.Estado.EN_ESPERA)
+
+        campo_fecha = (params.get("campo_fecha") or "creacion").lower()
+        desde = parse_date(params.get("desde") or "")
+        hasta = parse_date(params.get("hasta") or "")
+        if desde or hasta:
+            tz = timezone.get_current_timezone()
+            campo = "fecha_entrega_aproximada" if campo_fecha == "entrega" else "fecha_creacion"
+            if desde:
+                inicio = timezone.make_aware(datetime.combine(desde, time.min), tz)
+                queryset = queryset.filter(**{f"{campo}__gte": inicio})
+            if hasta:
+                fin = timezone.make_aware(datetime.combine(hasta + timedelta(days=1), time.min), tz)
+                queryset = queryset.filter(**{f"{campo}__lt": fin})
+
+        if params.get("solo_recientes") in ("1", "true", "yes"):
+            limite = timezone.now() - timedelta(days=3)
+            queryset = queryset.annotate(
+                _fecha_ref=Coalesce("fecha_solucion", "fecha_creacion")
+            ).exclude(Q(estado=Tarea.Estado.SOLUCIONADO) & Q(_fecha_ref__lt=limite))
+
+        # FUERA_DE_TIEMPO es derivado (jornada + standby + logs): post-filtro en memoria.
+        if estado == "FUERA_DE_TIEMPO" and self.action == "list":
+            from .services.tiempo_laboral import esta_fuera_de_tiempo_tarea
+            return [t for t in queryset if esta_fuera_de_tiempo_tarea(t)]
+
+        return queryset
 
     def get_permissions(self):
 

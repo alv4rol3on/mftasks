@@ -637,3 +637,79 @@ class FueraDeTiempoContadorTestCase(APITestCase):
         res2 = self.client.get(reverse("task-list"), {"con_retraso": "1"})
         fila2 = next(t for t in res2.data if t["id"] == self.tarea.id)
         self.assertTrue(fila2["fuera_de_tiempo"])
+
+
+class TaskFiltrosTestCase(APITestCase):
+    """Filtrado en servidor del listado de tareas."""
+
+    def setUp(self):
+        self.lider = _crear_usuario("lider-fil@empresa.com")
+        campana = Campana.objects.create(nombre="C Fil", codigo="CAMP_FIL")
+        sub = SubCampana.objects.create(campana=campana, nombre="S Fil", codigo="SUB_FIL")
+        self.equipo = Equipo.objects.create(nombre="Equipo Fil", lider=self.lider)
+
+        ahora = timezone.now()
+
+        self.t_espera = Tarea.objects.create(
+            asunto="En espera", descripcion="d", subcampana=sub,
+            estado=Tarea.Estado.EN_ESPERA, equipo=self.equipo,
+        )
+        # Vencida: inicio y entrega en el pasado.
+        self.t_dev = Tarea.objects.create(
+            asunto="Dev", descripcion="d", subcampana=sub,
+            estado=Tarea.Estado.EN_DESARROLLO, equipo=self.equipo,
+            fecha_inicio=ahora - timedelta(days=5),
+            fecha_entrega_aproximada=ahora - timedelta(days=4),
+        )
+        self.t_aprob = Tarea.objects.create(
+            asunto="Aprob", descripcion="d", subcampana=sub,
+            estado=Tarea.Estado.APROBADO, equipo=self.equipo,
+            fecha_entrega_aproximada=ahora + timedelta(days=10),
+        )
+        self.t_sol = Tarea.objects.create(
+            asunto="Sol antigua", descripcion="d", subcampana=sub,
+            estado=Tarea.Estado.SOLUCIONADO, equipo=self.equipo,
+            fecha_solucion=ahora - timedelta(days=10),
+        )
+
+        # fecha_creacion es auto_now_add: forzar valores para probar el filtro.
+        Tarea.objects.filter(pk=self.t_dev.pk).update(fecha_creacion=ahora - timedelta(days=20))
+        Tarea.objects.filter(pk=self.t_aprob.pk).update(fecha_creacion=ahora - timedelta(days=1))
+
+        self.client.force_authenticate(user=self.lider)
+
+    def _ids(self, **params):
+        res = self.client.get(reverse("task-list"), params)
+        self.assertEqual(res.status_code, 200)
+        return {t["id"] for t in res.data}
+
+    def test_filtra_por_estado(self):
+        self.assertEqual(self._ids(estado="EN_DESARROLLO"), {self.t_dev.id})
+
+    def test_filtra_en_proceso(self):
+        self.assertEqual(self._ids(estado="EN_PROCESO"), {self.t_dev.id, self.t_aprob.id})
+
+    def test_excluir_espera(self):
+        ids = self._ids(excluir_espera="1")
+        self.assertNotIn(self.t_espera.id, ids)
+        self.assertIn(self.t_dev.id, ids)
+
+    def test_filtra_por_fecha_entrega(self):
+        desde = (timezone.now() + timedelta(days=5)).date().isoformat()
+        hasta = (timezone.now() + timedelta(days=15)).date().isoformat()
+        ids = self._ids(campo_fecha="entrega", desde=desde, hasta=hasta)
+        self.assertEqual(ids, {self.t_aprob.id})
+
+    def test_filtra_por_fecha_creacion(self):
+        desde = (timezone.now() - timedelta(days=2)).date().isoformat()
+        ids = self._ids(campo_fecha="creacion", desde=desde)
+        self.assertIn(self.t_aprob.id, ids)
+        self.assertNotIn(self.t_dev.id, ids)
+
+    def test_solo_recientes_oculta_solucionada_antigua(self):
+        ids = self._ids(solo_recientes="1")
+        self.assertNotIn(self.t_sol.id, ids)
+        self.assertIn(self.t_dev.id, ids)
+
+    def test_filtra_fuera_de_tiempo(self):
+        self.assertEqual(self._ids(estado="FUERA_DE_TIEMPO"), {self.t_dev.id})
