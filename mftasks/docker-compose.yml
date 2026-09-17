@@ -46,7 +46,9 @@ services:
       # Vacío => MSAL usa window.location.origin (sirve para localhost, LAN y túnel)
       NEXT_PUBLIC_REDIRECT_URI: ""
       # Vacío => las llamadas van a /api en el mismo origen y Next las proxya
-      NEXT_PUBLIC_API_URL: "http://localhost:8000"
+      # (necesario para la prueba por túnel temporal de Cloudflare: el navegador
+      # del cliente llama al mismo origen y Next enruta a backend:8000).
+      NEXT_PUBLIC_API_URL: ""
       # Destino interno para el rewrite /api -> backend (nombre del servicio Docker)
       BACKEND_INTERNAL_URL: http://backend:8000
 

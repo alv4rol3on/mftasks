@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Task } from "@/lib/types";
 import { fetchLogs, LogItem } from "@/lib/services/tareasService";
 import Pagination from "@/components/ui/Pagination";
+import { apiBaseUrl } from "@/lib/authConfig";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -174,6 +175,27 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                   <>
                     <h3>Motivo pausa</h3>
                     <div  className={styles.descriptionBox}>{tarea.motivo_standby}</div>
+                  </>
+                )}
+
+                {tarea.archivos && tarea.archivos.length > 0 && (
+                  <>
+                    <h3>Adjuntos</h3>
+                    <div style={{ marginTop: 6 }}>
+                      {tarea.archivos.map((archivo) => (
+                        <div key={archivo.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span aria-hidden="true">📎</span>
+                          <a
+                            href={`${apiBaseUrl}${archivo.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "#1d4ed8", textDecoration: "underline", fontSize: 13 }}
+                          >
+                            Descargar {archivo.nombre}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
                   </>
                 )}
               </div>

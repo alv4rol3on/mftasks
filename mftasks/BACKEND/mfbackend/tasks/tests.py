@@ -1,13 +1,15 @@
+import tempfile
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from campanas.models import Campana, SubCampana
+from campanas.models import Campana, PermisoCampana, SubCampana
 from usuarios.models import Equipo, EquipoMiembro, Rol, User, UserRol
 
 from .models import Subtarea, Tarea, TareaLog
@@ -713,3 +715,56 @@ class TaskFiltrosTestCase(APITestCase):
 
     def test_filtra_fuera_de_tiempo(self):
         self.assertEqual(self._ids(estado="FUERA_DE_TIEMPO"), {self.t_dev.id})
+
+
+_MEDIA_TMP = tempfile.mkdtemp()
+
+
+@override_settings(MEDIA_ROOT=_MEDIA_TMP)
+class CrearSolicitudConAdjuntoTestCase(APITestCase):
+    """El cliente crea una solicitud adjuntando un archivo (multipart)."""
+
+    def setUp(self):
+        self.lider = _crear_usuario("lider-up@empresa.com")
+        self.cliente = _crear_usuario("cliente-up@empresa.com")
+        _asignar_rol(self.cliente, "CLIENTE")
+
+        self.campana = Campana.objects.create(nombre="C UP", codigo="CAMP_UP")
+        self.sub = SubCampana.objects.create(campana=self.campana, nombre="S UP", codigo="SUB_UP")
+        self.equipo = Equipo.objects.create(nombre="Equipo UP", lider=self.lider)
+
+        PermisoCampana.objects.create(usuario=self.cliente, subcampana=self.sub)
+
+        self.client.force_authenticate(user=self.cliente)
+
+    def _payload(self, archivo=None):
+        data = {
+            "asunto": "Solicitud con adjunto",
+            "descripcion": "detalle",
+            "subcampana": self.sub.id,
+            "equipo": self.equipo.id,
+        }
+        if archivo is not None:
+            data["archivo"] = archivo
+        return data
+
+    def test_crear_solicitud_con_xlsx(self):
+        archivo = SimpleUploadedFile(
+            "Libro1.xlsx",
+            b"contenido-xlsx",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        res = self.client.post(reverse("task-list"), self._payload(archivo), format="multipart")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        tarea = Tarea.objects.get(id=res.data["id"])
+        self.assertEqual(tarea.solicitante_id, self.cliente.id)
+        self.assertEqual(tarea.archivos.count(), 1)
+        self.assertEqual(tarea.archivos.first().nombre, "Libro1.xlsx")
+
+    def test_rechaza_extension_no_permitida(self):
+        archivo = SimpleUploadedFile("mal.exe", b"x", content_type="application/octet-stream")
+        res = self.client.post(reverse("task-list"), self._payload(archivo), format="multipart")
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("archivo", res.data)

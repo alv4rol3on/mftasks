@@ -222,6 +222,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "docx",
                 "xls",
                 "xlsx",
+                "txt",
                 "png",
                 "jpg",
                 "jpeg",

@@ -149,7 +149,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
               <input
                 id="archivo"
                 type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.zip"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.zip"
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
 
