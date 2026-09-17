@@ -30,14 +30,16 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "backend",
-    "198.41.192.57",
-    ".trycloudflare.com",
-    "192.168.202.12",
-]
+#ALLOWED_HOSTS = [
+#    "localhost",
+#    "127.0.0.1",
+#    "backend",
+#    "198.41.192.57",
+#    ".trycloudflare.com",
+#    "192.168.202.12",
+#]
+
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition

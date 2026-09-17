@@ -18,7 +18,7 @@ export default function TareasPage() {
   const [empezandoId, setEmpezandoId] = useState<number | null>(null);
   const [completandoId, setCompletandoId] = useState<number | null>(null);
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("TODOS");
+  const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("EN_PROCESO");
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");

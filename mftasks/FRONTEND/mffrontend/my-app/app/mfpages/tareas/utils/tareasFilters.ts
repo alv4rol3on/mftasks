@@ -1,7 +1,6 @@
 import type { EstadoFiltro } from "@/lib/services/tareasService";
 
 export const ESTADOS_TAREA: { value: EstadoFiltro; label: string }[] = [
-  { value: "TODOS", label: "Todos los estados" },
   { value: "EN_PROCESO", label: "EN PROCESO" },
   { value: "APROBADO", label: "APROBADO" },
   { value: "EN_DESARROLLO", label: "EN DESARROLLO" },
