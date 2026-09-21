@@ -5,6 +5,7 @@ interface IniciarPayload {
   fecha_inicio: string;
   fecha_entrega_aproximada: string;
   subtareas: { descripcion: string; asignado: number; peso: number }[];
+  dependencias?: { bloqueada: number; bloqueadora: number }[];
 }
 
 export type EstadoFiltro =
@@ -144,6 +145,7 @@ export interface LogItem {
   detalle: string;
   usuario: string | null;
   subtarea_id: number | null;
+  subtarea_codigo: string | null;
   subtarea_descripcion: string | null;
 }
 

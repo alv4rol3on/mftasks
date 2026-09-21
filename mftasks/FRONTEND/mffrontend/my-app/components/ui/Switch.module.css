@@ -1,0 +1,52 @@
+.switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 42px;
+    height: 22px;
+    padding: 2px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color .18s ease, border-color .18s ease, opacity .18s ease;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+.switch:focus-visible {
+    outline: 2px solid #3128bb;
+    outline-offset: 2px;
+}
+
+.on {
+    background: #16a34a;
+}
+
+.off {
+    background: #d1d5db;
+}
+
+.disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+    transition: transform .18s ease;
+}
+
+.on .knob {
+    transform: translateX(20px);
+}
+
+.off .knob {
+    transform: translateX(0);
+}

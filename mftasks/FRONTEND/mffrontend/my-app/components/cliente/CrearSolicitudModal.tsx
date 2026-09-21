@@ -4,6 +4,21 @@ import { apiFetch } from "@/lib/api";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import { CampanaInfo, EquipoInfo, SubCampanaInfo } from "@/lib/types";
 
+const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+const EXTENSIONES_PERMITIDAS = ["pdf", "doc", "docx", "xls", "xlsx", "txt", "png", "jpg", "jpeg", "zip"];
+const ACCEPT_ARCHIVOS = ".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.zip";
+
+const extensionDe = (nombre: string) => {
+  const i = nombre.lastIndexOf(".");
+  return i >= 0 ? nombre.slice(i + 1).toLowerCase() : "";
+};
+
+const formatearBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -19,7 +34,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [campanas, setCampanas] = useState<CampanaInfo[]>([]);
   const [subcampanas, setSubcampanas] = useState<SubCampanaInfo[]>([]);
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
-  const [archivo, setArchivo] = useState<File | null>(null);
+  const [archivos, setArchivos] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -53,6 +68,38 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   if (!open) return null;
 
 
+  const totalBytes = archivos.reduce((acc, f) => acc + f.size, 0);
+
+  const agregarArchivos = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const resultado = [...archivos];
+    const rechazados: string[] = [];
+    let total = totalBytes;
+    for (const f of Array.from(files)) {
+      if (!EXTENSIONES_PERMITIDAS.includes(extensionDe(f.name))) {
+        rechazados.push(`${f.name} (formato no permitido)`);
+        continue;
+      }
+      const duplicado = resultado.some(
+        (x) => x.name === f.name && x.size === f.size && x.lastModified === f.lastModified
+      );
+      if (duplicado) continue;
+      if (total + f.size > MAX_TOTAL_BYTES) {
+        rechazados.push(`${f.name} (supera el límite de 10 MB en total)`);
+        continue;
+      }
+      resultado.push(f);
+      total += f.size;
+    }
+    setArchivos(resultado);
+    setError(rechazados.length > 0 ? `No se agregaron: ${rechazados.join(", ")}.` : null);
+  };
+
+  const quitarArchivo = (index: number) => {
+    setArchivos((prev) => prev.filter((_, i) => i !== index));
+    setError(null);
+  };
+
   const enviar = async () => {
     if (
       !asunto.trim() ||
@@ -76,9 +123,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       formData.append("subcampana", String(subcampanaId));
       formData.append("equipo", String(equipoId));
 
-      if (archivo) {
-        formData.append("archivo", archivo);
-      }
+      archivos.forEach((f) => formData.append("archivos", f, f.name));
 
       await apiFetch("/api/tasks/tasks/", {
         method: "POST",
@@ -90,7 +135,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       setCampanaId("");
       setSubcampanaId("");
       setEquipoId("");
-      setArchivo(null);
+      setArchivos([]);
 
       onCreated();
       onClose();
@@ -144,31 +189,40 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
             <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={styles.inputField} rows={4} placeholder="Detalla la solicitud" />
 
             <div className={styles.fileField}>
-              <label htmlFor="archivo">Archivo adjunto (opcional)</label>
+              <label htmlFor="archivo">Archivos adjuntos (opcional) — máx. 10 MB en total</label>
 
               <input
                 id="archivo"
                 type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.zip"
+                multiple
+                accept={ACCEPT_ARCHIVOS}
                 onChange={(e) => {
-                  const file = e.target.files?.[0] ?? null;
-
-                  if (file && file.size > 10 * 1024 * 1024) {
-                    setArchivo(null);
-                    setError("El archivo no puede superar los 10 MB.");
-                    e.currentTarget.value = "";
-                    return;
-                  }
-
-                  setError(null);
-                  setArchivo(file);
+                  agregarArchivos(e.target.files);
+                  e.currentTarget.value = "";
                 }}
               />
 
-              {archivo && (
-                <div className={styles.fileInfo}>
-                  📎 {archivo.name}
-                </div>
+              {archivos.length > 0 && (
+                <>
+                  <ul className={styles.fileList}>
+                    {archivos.map((f, i) => (
+                      <li key={`${f.name}-${f.size}-${f.lastModified}-${i}`} className={styles.fileItem}>
+                        <span className={styles.fileName}>📎 {f.name}</span>
+                        <span className={styles.fileSize}>{formatearBytes(f.size)}</span>
+                        <button
+                          type="button"
+                          className={styles.fileRemove}
+                          onClick={() => quitarArchivo(i)}
+                          title="Quitar archivo"
+                          aria-label={`Quitar ${f.name}`}
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className={styles.fileHint}>{formatearBytes(totalBytes)} de 10 MB</div>
+                </>
               )}
             </div>
 

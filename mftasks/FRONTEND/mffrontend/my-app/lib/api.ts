@@ -109,3 +109,42 @@ export async function apiFetch<T>(
         return {} as T;
     }
 }
+
+/** Descarga binaria autenticada (p. ej. ZIP de adjuntos). */
+export async function apiFetchBlob(path: string): Promise<Blob> {
+    const headers = new Headers();
+    const token = obtenerAccessToken();
+
+    if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    let res = await fetch(`${apiBaseUrl}${path}`, { headers, cache: "no-store" });
+
+    if (res.status === 401 && token) {
+        const renovado = await refrescarTokens();
+
+        if (renovado) {
+            headers.set(
+                "Authorization",
+                `Bearer ${obtenerAccessToken() ?? ""}`
+            );
+            res = await fetch(`${apiBaseUrl}${path}`, { headers, cache: "no-store" });
+        }
+    }
+
+    if (!res.ok) {
+        let mensaje = `Error de API: ${res.status}`;
+
+        try {
+            const data = await res.json();
+            if (data?.detail) mensaje = data.detail;
+        } catch {
+            // respuesta sin JSON
+        }
+
+        throw new Error(mensaje);
+    }
+
+    return res.blob();
+}

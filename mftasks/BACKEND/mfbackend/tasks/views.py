@@ -1,8 +1,12 @@
 from datetime import datetime, time, timedelta
+import io
+import os
+import zipfile
 
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.functions import Coalesce
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.shortcuts import get_object_or_404
@@ -87,10 +91,6 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
 
     permission_classes = [IsAuthenticatedActivo]
-
-    def create(self, request, *args, **kwargs):
-        print(request.FILES)
-        return super().create(request, *args, **kwargs)
 
     def get_queryset(self):
 
@@ -206,14 +206,17 @@ class TaskViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
 
         user = self.request.user
-        archivo = self.request.FILES.get("archivo")
+        archivos = (
+            self.request.FILES.getlist("archivos")
+            or self.request.FILES.getlist("archivo")
+        )
 
-        if archivo:
-            max_size = 10 * 1024 * 1024
+        if archivos:
+            max_total = 10 * 1024 * 1024
 
-            if archivo.size > max_size:
+            if sum(a.size for a in archivos) > max_total:
                 raise ValidationError({
-                    "archivo": "El archivo no puede superar los 10 MB."
+                    "archivo": "Los archivos adjuntos no pueden superar los 10 MB en total."
                 })
 
             extensiones_permitidas = {
@@ -229,16 +232,17 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "zip",
             }
 
-            extension = (
-                archivo.name.rsplit(".", 1)[-1].lower()
-                if "." in archivo.name
-                else ""
-            )
+            for archivo in archivos:
+                extension = (
+                    archivo.name.rsplit(".", 1)[-1].lower()
+                    if "." in archivo.name
+                    else ""
+                )
 
-            if extension not in extensiones_permitidas:
-                raise ValidationError({
-                    "archivo": "El formato del archivo no está permitido."
-                })
+                if extension not in extensiones_permitidas:
+                    raise ValidationError({
+                        "archivo": f"El formato del archivo '{archivo.name}' no está permitido."
+                    })
 
         with transaction.atomic():
             if user.roles.filter(
@@ -254,7 +258,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                     solicitante=user,
                 )
 
-            if archivo:
+            for archivo in archivos:
                 ArchivoTarea.objects.create(
                     tarea=tarea,
                     archivo=archivo,
@@ -268,8 +272,9 @@ class TaskViewSet(viewsets.ModelViewSet):
                 tipo_evento=TareaLog.TipoEvento.CREACION,
                 estado_nuevo=tarea.estado,
                 detalle=(
-                    f"Tarea creada con archivo: {archivo.name}"
-                    if archivo
+                    f"Tarea creada con {len(archivos)} archivo(s): "
+                    f"{', '.join(a.name for a in archivos)}"
+                    if archivos
                     else "Tarea creada"
                 ),
             )
@@ -397,6 +402,31 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Normalizar y validar rango de fechas (America/Lima = TIME_ZONE)
+        tz = timezone.get_current_timezone()
+        if timezone.is_naive(fecha_inicio):
+            fecha_inicio = timezone.make_aware(fecha_inicio, tz)
+        if timezone.is_naive(fecha_entrega):
+            fecha_entrega = timezone.make_aware(fecha_entrega, tz)
+
+        ahora = timezone.localtime(timezone.now())
+        inicio_min = timezone.make_aware(
+            datetime.combine(ahora.date(), time.min), tz
+        )
+        inicio_max = timezone.make_aware(
+            datetime.combine(ahora.date() + timedelta(days=5), time(23, 59, 59)), tz
+        )
+        if fecha_inicio < inicio_min or fecha_inicio > inicio_max:
+            return Response(
+                {"detail": "La fecha de inicio debe estar entre hoy y 5 días después."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if fecha_entrega <= fecha_inicio:
+            return Response(
+                {"detail": "La fecha de entrega aproximada debe ser posterior a la fecha de inicio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         subtareas_data = request.data.get("subtareas") or []
 
         if not subtareas_data:
@@ -418,8 +448,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         # sub-líder activo también ya está en miembros ACTIVO
 
         subtareas_crear = []
+        creadas_por_indice = {}
 
-        for item in subtareas_data:
+        for indice, item in enumerate(subtareas_data):
             descripcion = (item.get("descripcion") or "").strip()
             asignado_id = item.get("asignado")
             peso = item.get("peso") or 0
@@ -443,20 +474,69 @@ class TaskViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            subtareas_crear.append(
-                Subtarea(
-                    tarea=tarea,
-                    descripcion=descripcion,
-                    asignado_id=asignado_id,
-                    peso=peso,
-                )
+            nueva = Subtarea(
+                tarea=tarea,
+                descripcion=descripcion,
+                asignado_id=asignado_id,
+                peso=peso,
             )
+            subtareas_crear.append(nueva)
+            creadas_por_indice[indice] = nueva
 
         if not subtareas_crear:
             return Response(
                 {"detail": "Debe asignar al menos una subtarea válida."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Validar dependencias por índice antes de crear nada
+        dependencias = []
+        for dep in request.data.get("dependencias") or []:
+            try:
+                bi = int(dep.get("bloqueada"))
+                bj = int(dep.get("bloqueadora"))
+            except (TypeError, ValueError, AttributeError):
+                return Response(
+                    {"detail": "Dependencia inválida."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if bi == bj:
+                return Response(
+                    {"detail": "Una subtarea no puede depender de sí misma."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if bi not in creadas_por_indice or bj not in creadas_por_indice:
+                return Response(
+                    {"detail": "La dependencia referencia una subtarea inválida."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            dependencias.append((bi, bj))
+
+        # Detectar ciclos en el grafo de dependencias (aristas: subtarea -> bloqueadora)
+        adj = {}
+        for bi, bj in dependencias:
+            adj.setdefault(bi, set()).add(bj)
+
+        def _hay_ciclo(nodo, visitando, visitado):
+            if nodo in visitando:
+                return True
+            if nodo in visitado:
+                return False
+            visitando.add(nodo)
+            for vecino in adj.get(nodo, ()):
+                if _hay_ciclo(vecino, visitando, visitado):
+                    return True
+            visitando.discard(nodo)
+            visitado.add(nodo)
+            return False
+
+        visitando, visitado = set(), set()
+        for nodo in list(adj):
+            if _hay_ciclo(nodo, visitando, visitado):
+                return Response(
+                    {"detail": "Las dependencias forman un ciclo."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # Asignar código secuencial YYYYMMDD00001-001 antes de bulk_create
         if tarea.ticket:
@@ -481,6 +561,24 @@ class TaskViewSet(viewsets.ModelViewSet):
             st.codigo = f"{base_ticket}-{(start_seq + idx):03d}"
 
         Subtarea.objects.bulk_create(subtareas_crear)
+
+        if dependencias:
+            from .models import DependenciaSubtarea
+            # Reobtener con PKs por código (bulk_create puede no poblar ids en algunos backends)
+            codigos = [s.codigo for s in subtareas_crear]
+            creadas_db = {
+                s.codigo: s
+                for s in Subtarea.objects.filter(tarea=tarea, codigo__in=codigos)
+            }
+            for bi, bj in dependencias:
+                bloqueada = creadas_db.get(creadas_por_indice[bi].codigo)
+                bloqueadora = creadas_db.get(creadas_por_indice[bj].codigo)
+                if not bloqueada or not bloqueadora:
+                    continue
+                DependenciaSubtarea.objects.get_or_create(
+                    bloqueada=bloqueada,
+                    bloqueadora=bloqueadora,
+                )
 
         estado_anterior = tarea.estado
 
@@ -782,33 +880,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         resp["Cache-Control"] = "no-store, max-age=0"
         return resp
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAdministrador], url_path="inactivar")
-    def inactivar_tarea(self, request, pk=None):
-        tarea = self.get_object()
-        if not tarea.activo:
-            return Response({"detail": "La solicitud ya está inactivada."}, status=status.HTTP_400_BAD_REQUEST)
-        ahora = timezone.localtime(timezone.now())
-        tarea.activo = False
-        tarea.fecha_inactivacion = ahora
-        tarea.inactivada_por = request.user
-        tarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
-        registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO, estado_anterior=tarea.estado, estado_nuevo="INACTIVO", detalle=f"Solicitud inactivada por administrador {request.user.nombres} {request.user.apellidos}")
-        notificar_tarea(tarea)
-        return Response(TaskSerializer(tarea, context={"request": request}).data)
-
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAdministrador], url_path="reactivar")
-    def reactivar_tarea(self, request, pk=None):
-        tarea = self.get_object()
-        if tarea.activo:
-            return Response({"detail": "La solicitud ya está activa."}, status=status.HTTP_400_BAD_REQUEST)
-        tarea.activo = True
-        tarea.fecha_inactivacion = None
-        tarea.inactivada_por = None
-        tarea.save(update_fields=["activo", "fecha_inactivacion", "inactivada_por"])
-        registrar_log(tarea=tarea, usuario=request.user, tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO, estado_anterior="INACTIVO", estado_nuevo=tarea.estado, detalle=f"Solicitud reactivada por administrador {request.user.nombres} {request.user.apellidos}")
-        notificar_tarea(tarea)
-        return Response(TaskSerializer(tarea, context={"request": request}).data)
-
     @action(
         detail=True,
         methods=["get"],
@@ -853,6 +924,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                     "usuario": None,
                     "usuario_id": None,
                     "subtarea_id": None,
+                    "subtarea_codigo": None,
                     "subtarea_descripcion": None,
                 }
                 for l in qs
@@ -880,11 +952,55 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "usuario": f"{l.usuario.nombres} {l.usuario.apellidos}" if l.usuario else None,
                 "usuario_id": l.usuario_id,
                 "subtarea_id": l.subtarea_id,
+                "subtarea_codigo": l.subtarea.codigo if l.subtarea else None,
                 "subtarea_descripcion": l.subtarea.descripcion if l.subtarea else None,
             }
             for l in logs
         ]
         return Response(data)
+
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="archivos-zip",
+    )
+    def archivos_zip(self, request, pk=None):
+        tarea = self.get_object()
+        archivos = list(tarea.archivos.all())
+        if not archivos:
+            return Response(
+                {"detail": "La tarea no tiene archivos adjuntos."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        buffer = io.BytesIO()
+        usados = set()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for a in archivos:
+                if not a.archivo:
+                    continue
+                nombre = a.nombre or os.path.basename(a.archivo.name)
+                base, ext = os.path.splitext(nombre)
+                final = nombre
+                i = 1
+                while final in usados:
+                    final = f"{base}_{i}{ext}"
+                    i += 1
+                usados.add(final)
+                try:
+                    with a.archivo.open("rb") as fh:
+                        zf.writestr(final, fh.read())
+                except (FileNotFoundError, OSError):
+                    continue
+
+        buffer.seek(0)
+        respuesta = HttpResponse(buffer.getvalue(), content_type="application/zip")
+        respuesta["Content-Disposition"] = (
+            f'attachment; filename="adjuntos-{tarea.ticket or tarea.id}.zip"'
+        )
+        return respuesta
 
 
     @action(
@@ -1167,10 +1283,15 @@ class TaskViewSet(viewsets.ModelViewSet):
             dest = EquipoMiembro.objects.get(equipo=equipo, usuario_id=nuevo_id)
             if dest.estado != EquipoMiembro.EstadoMiembro.ACTIVO:
                 return Response({"detail": f"El usuario destino está {dest.estado}."}, status=status.HTTP_400_BAD_REQUEST)
+            destino_user = dest.usuario
         except EquipoMiembro.DoesNotExist:
             if nuevo_id != equipo.lider_id:
                 return Response({"detail": f"El usuario {nuevo_id} no es miembro del equipo."}, status=status.HTTP_400_BAD_REQUEST)
-        asignado_anterior = subtarea.asignado_id
+            destino_user = equipo.lider
+        asignado_anterior_user = subtarea.asignado
+
+        def _nombre_usuario(u):
+            return f"{u.nombres} {u.apellidos}" if u else "—"
 
         subtarea.asignado_id = nuevo_id
         subtarea.save(update_fields=["asignado"])
@@ -1181,9 +1302,9 @@ class TaskViewSet(viewsets.ModelViewSet):
             usuario=request.user,
             tipo_evento=TareaLog.TipoEvento.CAMBIO_ASIGNADO,
             detalle=(
-                f"Subtarea reasignada. "
-                f"Asignado anterior: {asignado_anterior}. "
-                f"Nuevo asignado: {nuevo_id}."
+                f"Subtarea reasignada: "
+                f"{_nombre_usuario(asignado_anterior_user)} → "
+                f"{_nombre_usuario(destino_user)}."
             ),
         )
 

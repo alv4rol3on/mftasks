@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/api";
 import SubtaskCountdown from "./SubtaskCountdown";
 import TaskIniciarModal from "./TaskIniciarModal";
 import Pagination from "../ui/Pagination";
-import { apiBaseUrl } from "@/lib/authConfig";
+import AdjuntosTarea from "../adjuntos/AdjuntosTarea";
 import { useContador } from "./ContadoresProvider";
 import { formatearTiempo } from "@/lib/tiempoLaboral";
 
@@ -45,6 +45,17 @@ const formatearFechaSec = (fecha: string | null | undefined) => {
     return formatterSec.format(date);
 };
 
+const ETIQUETAS_EVENTO: Record<string, string> = {
+    CREACION: "Creación",
+    INICIO: "Inicio",
+    CAMBIO_ESTADO: "Cambio de estado",
+    STANDBY_INICIO: "Inicio de pausa",
+    STANDBY_FIN: "Fin de pausa",
+    FIN: "Fin",
+    CAMBIO_ASIGNADO: "Reasignación",
+    CAMBIO_PROGRESO: "Cambio de progreso",
+};
+
 type Props = {
     tarea: Task | null;
     onClose: () => void;
@@ -65,6 +76,7 @@ type Props = {
                 asignado: number;
                 peso: number;
             }[];
+            dependencias: { bloqueada: number; bloqueadora: number }[];
         }
     ) => void | Promise<void>;
     onReasignarSubtarea?: (tareaId: number, subtareaId: number, nuevoAsignado: number) => Promise<void>;
@@ -82,6 +94,7 @@ interface LogItem {
     detalle: string;
     usuario: string | null;
     subtarea_id: number | null;
+    subtarea_codigo: string | null;
     subtarea_descripcion: string | null;
 }
 
@@ -122,7 +135,7 @@ export default function TaskModal({
     const [miembrosLoading, setMiembrosLoading] = useState(false);
     const [miembrosError, setMiembrosError] = useState<string | null>(null);
     const [draftAsignado, setDraftAsignado] = useState<Record<number, number | "">>({});
-    const [reasignandoId, setReasignandoId] = useState<number | null>(null);
+    const [guardandoAsignaciones, setGuardandoAsignaciones] = useState(false);
     const [inactivandoId, setInactivandoId] = useState<number | null>(null);
     const [asigMsg, setAsigMsg] = useState<string | null>(null);
     const [asigErr, setAsigErr] = useState<string | null>(null);
@@ -225,28 +238,51 @@ export default function TaskModal({
         } catch (e) { setDepMsg((e as Error).message); }
     };
 
-    const handleReasignar = async (subtareaId: number) => {
+    const guardarAsignaciones = async () => {
         if (!tarea) return;
-        const nuevo = draftAsignado[subtareaId];
-        if (nuevo === "" || nuevo === undefined) { setAsigErr("Selecciona un nuevo asignado"); return; }
-        const subt = tarea.subtareas.find(s => s.id === subtareaId);
-        if (subt && subt.asignado === nuevo) { setAsigErr("El nuevo asignado es el mismo que el actual"); return; }
-        setAsigErr(null); setAsigMsg(null);
-        setReasignandoId(subtareaId);
-        try {
-            if (onReasignarSubtarea) {
-                await onReasignarSubtarea(tarea.id, subtareaId, nuevo as number);
-            } else {
-                await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/reasignar/`, { method: "POST", body: JSON.stringify({ nuevo_asignado: nuevo }) });
+        const cambios: { subtareaId: number; nuevo: number }[] = [];
+        for (const s of tarea.subtareas) {
+            const v = draftAsignado[s.id];
+            if (typeof v === "number" && v !== s.asignado) {
+                cambios.push({ subtareaId: s.id, nuevo: v });
             }
-            setAsigMsg(`Subtarea #${subtareaId} reasignada`);
-            setDraftAsignado(prev => ({ ...prev, [subtareaId]: "" }));
+        }
+        if (cambios.length === 0) {
+            setAsigErr(null);
+            setAsigMsg("No hay cambios por guardar");
+            return;
+        }
+        setAsigErr(null); setAsigMsg(null);
+        setGuardandoAsignaciones(true);
+        const guardadas = new Set<number>();
+        const fallos: string[] = [];
+        for (const c of cambios) {
+            try {
+                if (onReasignarSubtarea) {
+                    await onReasignarSubtarea(tarea.id, c.subtareaId, c.nuevo);
+                } else {
+                    await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${c.subtareaId}/reasignar/`, { method: "POST", body: JSON.stringify({ nuevo_asignado: c.nuevo }) });
+                }
+                guardadas.add(c.subtareaId);
+            } catch (e) {
+                fallos.push(`#${c.subtareaId}: ${(e as Error).message}`);
+            }
+        }
+        if (guardadas.size > 0) {
+            setDraftAsignado(prev => {
+                const n = { ...prev };
+                guardadas.forEach(id => { n[id] = ""; });
+                return n;
+            });
+            setAsigMsg(`${guardadas.size} subtarea(s) reasignada(s)`);
+            setLogs(null);
+        }
+        if (fallos.length > 0) setAsigErr(fallos.join(" | "));
+        try {
             if (onTareaMutated) await onTareaMutated();
             else window.location.reload();
-        } catch (e) {
-            setAsigErr((e as Error).message);
         } finally {
-            setReasignandoId(null);
+            setGuardandoAsignaciones(false);
         }
     };
 
@@ -263,6 +299,7 @@ export default function TaskModal({
                 await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/inactivar/`, { method: "POST" });
             }
             setAsigMsg(`Subtarea #${subtareaId} inactivada`);
+            setLogs(null);
             if (onTareaMutated) await onTareaMutated();
             else window.location.reload();
         } catch (e) {
@@ -283,6 +320,7 @@ export default function TaskModal({
                 await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/reactivar/`, { method: "POST" });
             }
             setAsigMsg(`Subtarea #${subtareaId} reactivada`);
+            setLogs(null);
             if (onTareaMutated) await onTareaMutated();
             else window.location.reload();
         } catch (e) {
@@ -351,6 +389,11 @@ export default function TaskModal({
 
     if (!tarea) return null;
 
+    const hayCambiosAsignacion = tarea.subtareas.some(s => {
+        const v = draftAsignado[s.id];
+        return typeof v === "number" && v !== s.asignado;
+    });
+
     const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!contadorTarea?.con_retraso;
     const segundosRetraso = contadorTarea?.segundos_retraso ?? 0;
 
@@ -385,7 +428,7 @@ export default function TaskModal({
                 >
                     <div className={styles.modalHeader}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <h2>{tarea.ticket ? `${tarea.ticket} · ` : ""}Tarea #{tarea.id}</h2>
+                            <h2>{tarea.ticket ?? `Tarea #${tarea.id}`}</h2>
                             <p style={{ margin: "4px 0 0", opacity: 0.95 }}>{tarea.asunto}</p>
                             <div className={styles.headerMeta}>
                                 <span className={styles.headerBadge} style={fueraDeTiempo ? { background: "#fee2e2", color: "#991b1b", border: "1px solid #f87171" } : undefined}>{fueraDeTiempo ? "FUERA DE TIEMPO" : tarea.estado}{!fueraDeTiempo && tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion ? ` · ${formatearFecha(tarea.fecha_solucion)}` : ""}</span>
@@ -423,44 +466,7 @@ export default function TaskModal({
                         <div className={styles.descCard}>
                             <h3 className={styles.cardTitle}>Descripción</h3>
                             <div className={styles.descriptionBox} style={{ marginBottom: 12 }}>{tarea.descripcion}</div>
-                            {tarea.archivos && tarea.archivos.length > 0 && (
-                                <div
-                                    style={{
-                                        marginTop: 12,
-                                        padding: 12,
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 8,
-                                        background: "#fafafa",
-                                    }}
-                                >
-                                    <h4 style={{ margin: "0 0 8px" }}>
-                                        Archivos adjuntos
-                                    </h4>
-
-                                    {tarea.archivos.map((archivo) => (
-                                        <div
-                                            key={archivo.id}
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 8,
-                                                marginBottom: 6,
-                                            }}
-                                        >
-                                            <span>📎</span>
-
-                                            <a
-                                                href={`${apiBaseUrl}${archivo.url}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-
-                                                📥 Descargar {archivo.nombre}
-                                            </a>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                            <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} />
                             <div className={styles.infoCard} style={{ padding: 12 }}>
                                 <h4 className={styles.cardTitle} style={{ fontSize: 12, marginBottom: 8 }}>Tiempos</h4>
                                 <table className={styles.infoTable} style={{ fontSize: 13 }}>
@@ -658,14 +664,14 @@ export default function TaskModal({
                                                 <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
                                                     <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Crear dependencia</h4>
                                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
-                                                        <select value={depBloqueada} onChange={e => setDepBloqueada(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
+                                                        <select value={depBloqueada} onChange={e => { const v = e.target.value ? Number(e.target.value) : ""; setDepBloqueada(v); if (v !== "" && v === depBloqueadora) setDepBloqueadora(""); }} className={styles.inputField} style={{ minWidth: 160 }}>
                                                             <option value="">-- subtarea --</option>
-                                                            {subtareasProgreso.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                                            {subtareasProgreso.filter(s => s.id !== depBloqueadora).map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
                                                         </select>
                                                         <span style={{ paddingBottom: 8 }}>depende de</span>
-                                                        <select value={depBloqueadora} onChange={e => setDepBloqueadora(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} style={{ minWidth: 160 }}>
+                                                        <select value={depBloqueadora} onChange={e => { const v = e.target.value ? Number(e.target.value) : ""; setDepBloqueadora(v); if (v !== "" && v === depBloqueada) setDepBloqueada(""); }} className={styles.inputField} style={{ minWidth: 160 }}>
                                                             <option value="">-- subtarea --</option>
-                                                            {subtareasProgreso.map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                                            {subtareasProgreso.filter(s => s.id !== depBloqueada).map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
                                                         </select>
                                                         <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize: 12 }}>Agregar</button>
                                                     </div>
@@ -688,8 +694,8 @@ export default function TaskModal({
                                     {logsLoading && !logs && <p style={{ fontSize: 12 }}>Cargando logs...</p>}
                                     {logs && logs.length === 0 && <p style={{ fontSize: 12, color: "#6b7280" }}>Sin registros.</p>}
                                     {logs && logs.length > 0 && (
-                                        <div className={styles.subtareasContainer} style={{ maxHeight: 300, border: "1px solid #e5e7eb", borderRadius: 8 }}>
-                                            <table className={styles.subtareasTable}>
+                                        <div className={styles.historialContainer}>
+                                            <table className={`${styles.subtareasTable} ${styles.historialTable}`}>
                                                 <thead>
                                                     <tr>
                                                         <th>Fecha</th>
@@ -705,10 +711,10 @@ export default function TaskModal({
                                                         const necesitaClamp = detalle.length > 120;
                                                         return (
                                                             <tr key={l.id}>
-                                                                <td data-label="Fecha" style={{ fontSize: 11 }}>{formatearFechaSec(l.fecha)}</td>
-                                                                <td data-label="Usuario" style={{ fontSize: 11 }}>{l.usuario ?? "-"}</td>
-                                                                <td data-label="Evento" style={{ fontSize: 11 }}><span style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{l.tipo_evento}</span>{l.subtarea_id ? <div style={{ fontSize: 10, color: "#6b7280" }}>Sub #{l.subtarea_id}</div> : null}</td>
-                                                                <td data-label="Detalle" style={{ fontSize: 11 }}>
+                                                                <td data-label="Fecha">{formatearFechaSec(l.fecha)}</td>
+                                                                <td data-label="Usuario">{l.usuario ?? "-"}</td>
+                                                                <td data-label="Evento"><span title={l.tipo_evento} style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{ETIQUETAS_EVENTO[l.tipo_evento] ?? l.tipo_evento}</span>{l.subtarea_id ? <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>{l.subtarea_codigo ?? `Sub #${l.subtarea_id}`}</div> : null}</td>
+                                                                <td data-label="Detalle">
                                                                     <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>{detalle}</div>
                                                                     {necesitaClamp && (
                                                                         <button
@@ -739,7 +745,17 @@ export default function TaskModal({
                                 <div>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                                         <h3 style={{ margin: 0 }}>Asignaciones</h3>
-                                        <button onClick={cargarMiembros} disabled={miembrosLoading} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{miembrosLoading ? "Cargando..." : "Recargar equipo"}</button>
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                            <button onClick={cargarMiembros} disabled={miembrosLoading} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{miembrosLoading ? "Cargando..." : "Recargar equipo"}</button>
+                                            <button
+                                                onClick={guardarAsignaciones}
+                                                disabled={!hayCambiosAsignacion || guardandoAsignaciones}
+                                                title={hayCambiosAsignacion ? "Guardar todas las reasignaciones seleccionadas" : "No hay cambios por guardar"}
+                                                style={{ background: hayCambiosAsignacion ? "#2563eb" : "#9ca3af", color: "white", border: "none", padding: "6px 12px", borderRadius: 6, cursor: hayCambiosAsignacion && !guardandoAsignaciones ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 700 }}
+                                            >
+                                                {guardandoAsignaciones ? "Guardando…" : "Guardar cambios"}
+                                            </button>
+                                        </div>
                                     </div>
                                     <p style={{ fontSize: 11, color: "#6b7280", marginTop: -4, marginBottom: 8 }}>Cambia el asignado o inactiva subtareas. Solo líder / asignador / admin. Las inactivas no cuentan en progreso.</p>
                                     {miembrosError && <p style={{ color: "#991b1b", fontSize: 12 }}>{miembrosError}</p>}
@@ -793,15 +809,6 @@ export default function TaskModal({
                                                                 </td>
                                                                 <td data-label="Acciones">
                                                                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                                                                        {!inactiva && !esSolucionada && (
-                                                                            <button
-                                                                                onClick={() => handleReasignar(subtarea.id)}
-                                                                                disabled={reasignandoId === subtarea.id || draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined}
-                                                                                style={{ background: "#2563eb", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700, opacity: (draftAsignado[subtarea.id] === "" || draftAsignado[subtarea.id] === undefined) ? 0.5 : 1 }}
-                                                                            >
-                                                                                {reasignandoId === subtarea.id ? "..." : "Reasignar"}
-                                                                            </button>
-                                                                        )}
                                                                         {!inactiva ? (
                                                                             <button
                                                                                 onClick={() => handleInactivar(subtarea.id)}

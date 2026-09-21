@@ -186,7 +186,7 @@ export default function SolicitudesPage() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
           <h2 className="text-lg font-medium" style={{ margin: 0 }}>Solicitudes</h2>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradasAdmin.length} de {tareas.length} · Solo lectura + inactivar</span>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradasAdmin.length} de {tareas.length} · Solo lectura</span>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <select

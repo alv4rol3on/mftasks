@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./TaskModalDesarrollo.module.css";
 import { apiFetch } from "@/lib/api";
 import { EquipoInfo, EquipoMiembro, EquipoMiembroDetallado, Task } from "@/lib/types";
 
 interface SubtareaForm {
+    key: string;
     descripcion: string;
     asignado: number | "";
     peso: number;
+    dependeDe: string;
+}
+
+interface DependenciaPayload {
+    bloqueada: number;
+    bloqueadora: number;
 }
 
 interface TaskIniciarModalProps {
@@ -21,9 +28,25 @@ interface TaskIniciarModalProps {
             fecha_inicio: string;
             fecha_entrega_aproximada: string;
             subtareas: { descripcion: string; asignado: number; peso: number }[];
+            dependencias: DependenciaPayload[];
         }
     ) => void;
 }
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+const aDatetimeLocal = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+let contadorFila = 1;
+
+const crearFila = (): SubtareaForm => ({
+    key: `s${contadorFila++}`,
+    descripcion: "",
+    asignado: "",
+    peso: 1,
+    dependeDe: "",
+});
 
 export default function TaskIniciarModal({
     tarea,
@@ -34,9 +57,7 @@ export default function TaskIniciarModal({
     const [miembros, setMiembros] = useState<EquipoMiembro[]>([]);
     const [fechaInicio, setFechaInicio] = useState("");
     const [fechaEntrega, setFechaEntrega] = useState("");
-    const [subtareas, setSubtareas] = useState<SubtareaForm[]>([
-        { descripcion: "", asignado: "", peso: 1 },
-    ]);
+    const [subtareas, setSubtareas] = useState<SubtareaForm[]>(() => [crearFila()]);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -64,6 +85,24 @@ export default function TaskIniciarModal({
             .catch((e: Error) => setError(e.message));
     }, [tarea.equipo]);
 
+    const limitesInicio = useMemo(() => {
+        const hoy = new Date();
+        const min = new Date(hoy);
+        min.setHours(0, 0, 0, 0);
+        const max = new Date(hoy);
+        max.setDate(max.getDate() + 5);
+        max.setHours(23, 59, 0, 0);
+        return { min: aDatetimeLocal(min), max: aDatetimeLocal(max) };
+    }, []);
+
+    const minEntrega = useMemo(() => {
+        if (!fechaInicio) return undefined;
+        const d = new Date(fechaInicio);
+        if (isNaN(d.getTime())) return undefined;
+        d.setMinutes(d.getMinutes() + 1);
+        return aDatetimeLocal(d);
+    }, [fechaInicio]);
+
     const actualizar = (
         index: number,
         campo: keyof SubtareaForm,
@@ -75,19 +114,31 @@ export default function TaskIniciarModal({
     };
 
     const agregar = () => {
-        setSubtareas((prev) => [
-            ...prev,
-            { descripcion: "", asignado: "", peso: 1 },
-        ]);
+        setSubtareas((prev) => [...prev, crearFila()]);
     };
 
     const quitar = (index: number) => {
-        setSubtareas((prev) => prev.filter((_, i) => i !== index));
+        const key = subtareas[index]?.key;
+        setSubtareas((prev) =>
+            prev
+                .filter((_, i) => i !== index)
+                .map((s) => (s.dependeDe === key ? { ...s, dependeDe: "" } : s))
+        );
     };
 
     const confirmar = () => {
         if (!fechaInicio || !fechaEntrega) {
             setError("Debe indicar la fecha de inicio y de entrega aproximada.");
+            return;
+        }
+
+        if (fechaInicio < limitesInicio.min || fechaInicio > limitesInicio.max) {
+            setError("La fecha de inicio debe estar entre hoy y 5 días después.");
+            return;
+        }
+
+        if (fechaEntrega <= fechaInicio) {
+            setError("La fecha de entrega aproximada debe ser posterior a la fecha de inicio.");
             return;
         }
 
@@ -100,6 +151,41 @@ export default function TaskIniciarModal({
             return;
         }
 
+        const clavesValidas = new Set(validas.map((s) => s.key));
+
+        // Evitar ciclos antes de enviar (el backend también lo valida)
+        const depMap = new Map<string, string>();
+        for (const s of validas) {
+            if (s.dependeDe && clavesValidas.has(s.dependeDe)) {
+                depMap.set(s.key, s.dependeDe);
+            }
+        }
+        const enCamino = new Set<string>();
+        const visitados = new Set<string>();
+        const hayCiclo = (key: string): boolean => {
+            if (enCamino.has(key)) return true;
+            if (visitados.has(key)) return false;
+            enCamino.add(key);
+            const siguiente = depMap.get(key);
+            if (siguiente && hayCiclo(siguiente)) return true;
+            enCamino.delete(key);
+            visitados.add(key);
+            return false;
+        };
+        for (const s of validas) {
+            if (hayCiclo(s.key)) {
+                setError("Las dependencias forman un ciclo.");
+                return;
+            }
+        }
+
+        const dependencias: DependenciaPayload[] = validas
+            .filter((s) => s.dependeDe && clavesValidas.has(s.dependeDe))
+            .map((s) => ({
+                bloqueada: validas.findIndex((v) => v.key === s.key),
+                bloqueadora: validas.findIndex((v) => v.key === s.dependeDe),
+            }));
+
         setError(null);
 
         onSubmit(tarea, {
@@ -110,6 +196,7 @@ export default function TaskIniciarModal({
                 asignado: Number(s.asignado),
                 peso: Number(s.peso) || 1,
             })),
+            dependencias,
         });
     };
 
@@ -121,7 +208,7 @@ export default function TaskIniciarModal({
             >
                 <div className={styles.modalHeader}>
                     <div>
-                        <h2>Iniciar tarea #{tarea.id}</h2>
+                        <h2>{tarea.ticket ?? `Iniciar tarea #${tarea.id}`}</h2>
                         <p>{tarea.asunto}</p>
                     </div>
 
@@ -137,9 +224,20 @@ export default function TaskIniciarModal({
                             <input
                                 type="datetime-local"
                                 value={fechaInicio}
-                                onChange={(e) => setFechaInicio(e.target.value)}
+                                min={limitesInicio.min}
+                                max={limitesInicio.max}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    setFechaInicio(v);
+                                    if (fechaEntrega && v && fechaEntrega <= v) {
+                                        setFechaEntrega("");
+                                    }
+                                }}
                                 className={styles.inputField}
                             />
+                            <span style={{ fontSize: 11, color: "#6b7280" }}>
+                                Entre hoy y {limitesInicio.max.slice(0, 10)}.
+                            </span>
                         </label>
 
                         <label>
@@ -147,18 +245,30 @@ export default function TaskIniciarModal({
                             <input
                                 type="datetime-local"
                                 value={fechaEntrega}
+                                min={minEntrega}
                                 onChange={(e) => setFechaEntrega(e.target.value)}
                                 className={styles.inputField}
                             />
+                            <span style={{ fontSize: 11, color: "#6b7280" }}>
+                                Debe ser posterior a la fecha de inicio.
+                            </span>
                         </label>
                     </div>
 
                     <div>
                         <h3 style={{ marginBottom: "8px" }}>Subtareas</h3>
 
+                        <div className={styles.subtareaHeader}>
+                            <span>Descripción</span>
+                            <span>Asignado a</span>
+                            <span>Peso</span>
+                            <span>Depende de</span>
+                            <span></span>
+                        </div>
+
                         {subtareas.map((subtarea, index) => (
                             <div
-                                key={index}
+                                key={subtarea.key}
                                 className={styles.subtareaRow}
                             >
                                 <input
@@ -194,11 +304,34 @@ export default function TaskIniciarModal({
                                     type="number"
                                     min={1}
                                     value={subtarea.peso}
+                                    aria-label="Peso"
+                                    placeholder="Peso"
                                     onChange={(e) =>
                                         actualizar(index, "peso", Number(e.target.value))
                                     }
                                     className={styles.inputField}
                                 />
+
+                                <select
+                                    value={subtarea.dependeDe}
+                                    aria-label="Depende de"
+                                    onChange={(e) =>
+                                        actualizar(index, "dependeDe", e.target.value)
+                                    }
+                                    className={styles.inputField}
+                                    disabled={subtareas.length < 2}
+                                    title="Subtarea que debe solucionarse antes"
+                                >
+                                    <option value="">— Depende de —</option>
+                                    {subtareas
+                                        .filter((s) => s.key !== subtarea.key)
+                                        .map((s) => (
+                                            <option key={s.key} value={s.key}>
+                                                {s.descripcion.trim() ||
+                                                    `Subtarea ${subtareas.findIndex((x) => x.key === s.key) + 1}`}
+                                            </option>
+                                        ))}
+                                </select>
 
                                 <button
                                     type="button"
@@ -252,4 +385,3 @@ export default function TaskIniciarModal({
         </div>
     );
 }
-

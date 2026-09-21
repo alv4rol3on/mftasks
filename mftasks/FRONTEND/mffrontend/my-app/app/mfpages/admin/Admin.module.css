@@ -190,6 +190,46 @@
   color: #9ca3af;
 }
 
+.dupWarning {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.sugerencias {
+  margin-top: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  padding: 8px 10px;
+  font-weight: 400;
+}
+
+.sugerenciasTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 4px;
+}
+
+.sugerenciaItem {
+  font-size: 12px;
+  color: #374151;
+  padding: 3px 0;
+}
+
+.sugerenciaCode {
+  font-family: monospace;
+  color: #6b7280;
+}
+
 .tableWrap {
   overflow-x: auto;
   max-height: 60vh;

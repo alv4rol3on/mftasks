@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { useTareasGuard } from "./hooks/useTareasGuard";
-import { ESTADOS_TAREA } from "./utils/tareasFilters";
+import { ESTADOS_TAREA, rangoFechasPorDefecto } from "./utils/tareasFilters";
 import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar, type EstadoFiltro, type CampoFecha, type FiltrosTareas } from "@/lib/services/tareasService";
 
 export default function TareasPage() {
@@ -20,8 +20,9 @@ export default function TareasPage() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("EN_PROCESO");
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
+  const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
+  const [desde, setDesde] = useState(rangoInicial.desde);
+  const [hasta, setHasta] = useState(rangoInicial.hasta);
 
   const filtros = useMemo<FiltrosTareas>(
     () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta }),
@@ -32,14 +33,31 @@ export default function TareasPage() {
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
   const idsTareasKey = idsTareas.join(",");
 
-  const hayFiltros = filtroEstado !== "TODOS" || !!desde || !!hasta || !!busqueda;
+  const rangoDefecto = rangoFechasPorDefecto();
+  const hayFiltros =
+    filtroEstado !== "TODOS" ||
+    !!busqueda ||
+    desde !== rangoDefecto.desde ||
+    hasta !== rangoDefecto.hasta;
   const limpiarFiltros = () => {
+    const r = rangoFechasPorDefecto();
     setFiltroEstado("TODOS");
     setCampoFecha("solicitud");
-    setDesde("");
-    setHasta("");
+    setDesde(r.desde);
+    setHasta(r.hasta);
     setBusqueda("");
-    cargar({ busqueda: "", estado: "TODOS", campoFecha: "solicitud", desde: "", hasta: "" });
+    cargar({ busqueda: "", estado: "TODOS", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta });
+  };
+
+  const aplicarRangoPorDefecto = () => {
+    const r = rangoFechasPorDefecto();
+    setDesde(r.desde);
+    setHasta(r.hasta);
+  };
+
+  const handleEstadoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFiltroEstado(e.target.value as EstadoFiltro);
+    aplicarRangoPorDefecto();
   };
 
   useEffect(() => {
@@ -112,7 +130,7 @@ export default function TareasPage() {
 
   const iniciar = async (
     tarea: Task,
-    payload: { fecha_inicio: string; fecha_entrega_aproximada: string; subtareas: { descripcion: string; asignado: number; peso: number }[] }
+    payload: { fecha_inicio: string; fecha_entrega_aproximada: string; subtareas: { descripcion: string; asignado: number; peso: number }[]; dependencias: { bloqueada: number; bloqueadora: number }[] }
   ) => {
     setAccionando(tarea.id);
     setError(null);
@@ -264,7 +282,7 @@ export default function TareasPage() {
         <span style={{ fontSize: 12, color: "#6b7280" }}>{tareas.length} resultado(s)</span>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as EstadoFiltro)} style={selectStyle} title="Filtrar por estado">
+        <select value={filtroEstado} onChange={handleEstadoChange} style={selectStyle} title="Filtrar por estado">
           {ESTADOS_TAREA.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}

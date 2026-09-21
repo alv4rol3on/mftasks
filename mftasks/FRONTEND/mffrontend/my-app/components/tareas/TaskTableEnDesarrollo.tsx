@@ -161,6 +161,7 @@ export default function TaskTableEnDesarrollo({
       fecha_inicio: string;
       fecha_entrega_aproximada: string;
       subtareas: { descripcion: string; asignado: number; peso: number }[];
+      dependencias: { bloqueada: number; bloqueadora: number }[];
     }
   ) => void;
   onEmpezarSubtarea?: (tareaId: number, subtareaId: number) => void;

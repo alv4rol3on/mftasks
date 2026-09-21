@@ -9,6 +9,9 @@ import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
 import TaskDetailClienteModal from "@/components/cliente/TaskDetailClienteModal";
 import ClienteSolicitudesTable from "@/components/solicitudes/ClienteSolicitudesTable";
 import { getUsuarioActual } from "@/lib/auth";
+import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
+
+type CampoFecha = "solicitud" | "entrega";
 
 const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
 
@@ -30,6 +33,10 @@ export default function MisSolicitudesPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<string>("EN_PROCESO");
+  const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
+  const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
+  const [desde, setDesde] = useState(rangoInicial.desde);
+  const [hasta, setHasta] = useState(rangoInicial.hasta);
   const [busqueda, setBusqueda] = useState("");
   const [openCrear, setOpenCrear] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -157,6 +164,33 @@ export default function MisSolicitudesPage() {
     );
   }, [eventos, subtareaEventos]);
 
+  const rangoDefecto = rangoFechasPorDefecto();
+  const hayFiltros =
+    filtro !== "TODOS" ||
+    !!busqueda ||
+    desde !== rangoDefecto.desde ||
+    hasta !== rangoDefecto.hasta;
+
+  const aplicarRangoPorDefecto = () => {
+    const r = rangoFechasPorDefecto();
+    setDesde(r.desde);
+    setHasta(r.hasta);
+  };
+
+  const handleEstadoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFiltro(e.target.value);
+    aplicarRangoPorDefecto();
+  };
+
+  const limpiarFiltros = () => {
+    const r = rangoFechasPorDefecto();
+    setFiltro("TODOS");
+    setCampoFecha("solicitud");
+    setDesde(r.desde);
+    setHasta(r.hasta);
+    setBusqueda("");
+  };
+
   const selected = useMemo(
     () => tareas.find((t) => t.id === selectedId) ?? null,
     [tareas, selectedId]
@@ -173,6 +207,13 @@ export default function MisSolicitudesPage() {
             ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
             : t.estado === filtro;
       if (!coincideEstado) return false;
+
+      const fecha = campoFecha === "entrega" ? t.fecha_entrega_aproximada : t.fecha_creacion;
+      const fechaIso = fechaEnLima(fecha);
+      if (!fechaIso) return false;
+      if (desde && fechaIso < desde) return false;
+      if (hasta && fechaIso > hasta) return false;
+
       if (!texto) return true;
       return (
         (t.ticket ?? "").toLowerCase().includes(texto) ||
@@ -184,7 +225,7 @@ export default function MisSolicitudesPage() {
         String(t.equipo_nombre ?? "").toLowerCase().includes(texto)
       );
     });
-  }, [tareas, filtro, busqueda]);
+  }, [tareas, filtro, busqueda, campoFecha, desde, hasta]);
 
   if (sinPermiso) {
     return (
@@ -262,25 +303,54 @@ export default function MisSolicitudesPage() {
       </div>
 
       {/* FILTROS patron admin */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <select
           value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
+          onChange={handleEstadoChange}
           style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
         >
           {ESTADOS.map((s) => (
             <option key={s} value={s}>{etiquetaEstado(s)}</option>
           ))}
         </select>
+        <select
+          value={campoFecha}
+          onChange={(e) => setCampoFecha(e.target.value as CampoFecha)}
+          title="Campo de fecha a filtrar"
+          style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+        >
+          <option value="solicitud">Fecha de solicitud</option>
+          <option value="entrega">Fecha de entrega</option>
+        </select>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
+          Desde
+          <input
+            type="date"
+            value={desde}
+            max={hasta || undefined}
+            onChange={(e) => setDesde(e.target.value)}
+            style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+          />
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
+          Hasta
+          <input
+            type="date"
+            value={hasta}
+            min={desde || undefined}
+            onChange={(e) => setHasta(e.target.value)}
+            style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+          />
+        </label>
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por ticket, asunto, descripción..."
           style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240, flex: 1 }}
         />
-        {(busqueda || filtro !== "TODOS") && (
+        {hayFiltros && (
           <button
-            onClick={() => { setBusqueda(""); setFiltro("EN_PROCESO"); }}
+            onClick={limpiarFiltros}
             style={{ border: "1px solid #d1d5db", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
           >
             Limpiar

@@ -1,5 +1,28 @@
 from rest_framework import serializers
+import re
+import unicodedata
+
 from .models import Campana, SubCampana, PermisoCampana
+
+
+def _norm_nombre(valor):
+    """Normaliza un nombre: sin acentos, espacios colapsados y casefold."""
+    valor = unicodedata.normalize("NFKD", valor or "")
+    valor = "".join(c for c in valor if not unicodedata.combining(c))
+    valor = re.sub(r"\s+", " ", valor).strip().casefold()
+    return valor
+
+
+def _existe_nombre(qs, nombre, exclude_pk=None):
+    objetivo = _norm_nombre(nombre)
+    if not objetivo:
+        return False
+    if exclude_pk is not None:
+        qs = qs.exclude(pk=exclude_pk)
+    for existente in qs.only("id", "nombre"):
+        if _norm_nombre(existente.nombre) == objetivo:
+            return True
+    return False
 
 
 class SubCampanaSerializer(serializers.ModelSerializer):
@@ -10,6 +33,19 @@ class SubCampanaSerializer(serializers.ModelSerializer):
         fields = ["id", "campana", "campana_nombre", "nombre", "codigo", "activo", "fecha_creacion"]
         read_only_fields = ["codigo"]
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        nombre = attrs.get("nombre", getattr(self.instance, "nombre", ""))
+        campana = attrs.get("campana", getattr(self.instance, "campana", None))
+        if campana and nombre:
+            qs = SubCampana.objects.filter(campana=campana)
+            exclude_pk = self.instance.pk if self.instance is not None else None
+            if _existe_nombre(qs, nombre, exclude_pk):
+                raise serializers.ValidationError({
+                    "nombre": "Ya existe una subcampaña con ese nombre en esta campaña."
+                })
+        return attrs
+
 
 class CampanaSerializer(serializers.ModelSerializer):
     subcampanas = SubCampanaSerializer(many=True, read_only=True)
@@ -18,6 +54,14 @@ class CampanaSerializer(serializers.ModelSerializer):
         model = Campana
         fields = ["id", "nombre", "codigo", "ruc", "razon_social", "correo", "telefono", "direccion", "activo", "fecha_creacion", "subcampanas"]
         read_only_fields = ["codigo"]
+
+    def validate_nombre(self, value):
+        exclude_pk = self.instance.pk if self.instance is not None else None
+        if _existe_nombre(Campana.objects.all(), value, exclude_pk):
+            raise serializers.ValidationError(
+                "Ya existe una campaña con un nombre igual o similar."
+            )
+        return value
 
 
 class PermisoCampanaSerializer(serializers.ModelSerializer):

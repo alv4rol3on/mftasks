@@ -5,7 +5,6 @@ import { Task } from "@/lib/types";
 import TaskModal from "@/components/tareas/TaskModal";
 import Pagination from "@/components/ui/Pagination";
 import styles from "@/components/shared/SharedTable.module.css";
-import { apiFetch } from "@/lib/api";
 import { ContadoresProvider, useContador } from "@/components/tareas/ContadoresProvider";
 
 const fmt = new Intl.DateTimeFormat("es-PE", {
@@ -56,7 +55,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
   const [selected, setSelected] = useState<Task | null>(null);
   const [pagina, setPagina] = useState(1);
   const pageSize = 10;
-  const [inactivando, setInactivando] = useState<number | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(tareas.length / pageSize));
   const paginaClamped = Math.min(pagina, totalPages);
@@ -79,31 +77,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
   useEffect(() => setPagina(1), [tareas.length]);
   useEffect(() => { if (pagina > totalPages) setPagina(totalPages); }, [pagina, totalPages]);
 
-  const inactivar = async (t: Task) => {
-    const ok = confirm(`¿Inactivar solicitud ${t.ticket ?? "#" + t.id} - "${t.asunto}"? Quedará marcada como inactiva.`);
-    if (!ok) return;
-    setInactivando(t.id);
-    try {
-      await apiFetch(`/api/tasks/tasks/${t.id}/inactivar/`, { method: "POST" });
-      onReload();
-    } catch (e) {
-      alert((e as Error).message);
-    } finally {
-      setInactivando(null);
-    }
-  };
-  const reactivar = async (t: Task) => {
-    setInactivando(t.id);
-    try {
-      await apiFetch(`/api/tasks/tasks/${t.id}/reactivar/`, { method: "POST" });
-      onReload();
-    } catch (e) {
-      alert((e as Error).message);
-    } finally {
-      setInactivando(null);
-    }
-  };
-
   return (
     <ContadoresProvider ids={visibleIds} refreshKey={refreshKey}>
       <div className={styles.taskTableContainer}>
@@ -123,7 +96,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
             </thead>
             <tbody>
               {paginadas.map((t) => {
-                const inactiva = (t as any).activo === false;
                 return (
                   <tr
                     key={t.id}
@@ -131,14 +103,12 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     tabIndex={0}
                     role="button"
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(t); } }}
-                    style={inactiva ? { opacity: 0.6 } : undefined}
-                    title={inactiva ? "Inactiva" : undefined}
                   >
                     <td data-label="Fecha solicitud" style={{ whiteSpace: "nowrap", fontSize: 12 }}>{fmtFecha(t.fecha_creacion)}</td>
                     <td data-label="Solicitud">
                       <div className={styles.taskSubject}>
                         {t.campana_nombre ?? "-"} {t.subcampana_nombre ? `- ${t.subcampana_nombre}` : ""}: {t.asunto}
-                        <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`}{inactiva && <span style={{ marginLeft: 6, background: "#fee2e2", color: "#991b1b", padding: "1px 6px", borderRadius: 6, fontSize: 10 }}>Inactiva</span>}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`}</span>
                       </div>
                     </td>
                     <td data-label="Estado">
@@ -155,23 +125,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                         >
                           Ver
                         </button>
-                        {!inactiva ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); inactivar(t); }}
-                            disabled={inactivando === t.id}
-                            style={{ background: "#ef4444", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
-                          >
-                            {inactivando === t.id ? "..." : "Inactivar"}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); reactivar(t); }}
-                            disabled={inactivando === t.id}
-                            style={{ background: "#16a34a", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
-                          >
-                            {inactivando === t.id ? "..." : "Reactivar"}
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>

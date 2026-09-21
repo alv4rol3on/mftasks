@@ -3,6 +3,7 @@
 import { useState } from "react";
 import styles from "./TaskModalSolicitudes.module.css";
 import { Task } from "@/lib/types";
+import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 
 type Props = {
     tarea: Task | null;
@@ -112,6 +113,10 @@ export default function TaskModal({
                         <div className={styles.descriptionBox}>
                             {tarea.descripcion}
                         </div>
+                    </div>
+
+                    <div style={{ gridColumn: "1 / -1" }}>
+                        <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} />
                     </div>
                 </div>
 

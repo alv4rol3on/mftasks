@@ -294,7 +294,7 @@
 */
 
 .subtareasContainer {
-  max-height: 280px;
+  max-height: 360px;
   width: 100%;
   overflow-x: auto;
   overflow-y: auto;
@@ -326,21 +326,117 @@
 
 .subtareasTable {
   font-size: 13px;
-  min-width: 640px;
+  min-width: 680px;
   width: 100%;
   border-collapse: collapse;
 }
 
 .subtareasTable th,
 .subtareasTable td {
-    border: 1px solid #050505;
-    padding: 8px;
+    border: 1px solid #e5e7eb;
+    padding: 10px 12px;
     text-align: left;
     word-break: break-word;
+    line-height: 1.35;
+    vertical-align: middle;
 }
 
 .subtareasTable th {
-    background: #ffffff;
+    background: #f8fafc;
+    color: #374151;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+@media (min-width: 769px) {
+    .subtareasTable th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+}
+
+/* --- Historial de la tarea: layout más cómodo --- */
+.historialContainer {
+    max-height: 420px;
+    overflow-x: auto;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.historialClamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.historialClamp.expanded {
+    -webkit-line-clamp: unset;
+    display: block;
+}
+
+.historialToggle {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #2563eb;
+    background: none;
+    border: none;
+    padding: 2px 0;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+@media (min-width: 769px) {
+    .subtareasTable.historialTable {
+        min-width: 560px;
+        font-size: 12.5px;
+        border-collapse: collapse;
+    }
+
+    .subtareasTable.historialTable th,
+    .subtareasTable.historialTable td {
+        border: none;
+        border-bottom: 1px solid #eef2f7;
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+        word-break: break-word;
+    }
+
+    .subtareasTable.historialTable th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f8fafc;
+        color: #374151;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+        white-space: nowrap;
+    }
+
+    .subtareasTable.historialTable tbody tr:nth-child(even) {
+        background: #fafbfc;
+    }
+
+    .subtareasTable.historialTable tbody tr:hover {
+        background: #f1f5f9;
+    }
+
+    .subtareasTable.historialTable td[data-label="Fecha"],
+    .subtareasTable.historialTable td[data-label="Usuario"],
+    .subtareasTable.historialTable td[data-label="Evento"] {
+        white-space: nowrap;
+        width: 1%;
+    }
 }
 
 /* Grid responsive para CrearSolicitudModal */
@@ -381,9 +477,21 @@
 
 .subtareaRow {
     display: grid;
-    grid-template-columns: 1fr 180px 80px 36px;
+    grid-template-columns: 1fr 150px 70px 160px 36px;
     gap: 8px;
     margin-bottom: 8px;
+}
+
+.subtareaHeader {
+    display: grid;
+    grid-template-columns: 1fr 150px 70px 160px 36px;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: .03em;
 }
 
 .inputField {
@@ -392,6 +500,86 @@
     border: 1px solid #ccc;
     font-size: 14px;
     min-width: 0;
+}
+
+/* --- Campo de archivos adjuntos --- */
+.fileField {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.fileField label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.fileField input[type="file"] {
+    font-size: 13px;
+    color: #374151;
+}
+
+.fileList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fileItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.fileName {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fileSize {
+    color: #6b7280;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.fileRemove {
+    flex-shrink: 0;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    line-height: 1;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fileRemove:hover {
+    background: #fecaca;
+}
+
+.fileHint {
+    font-size: 11px;
+    color: #6b7280;
 }
 
 @media (max-width: 768px) {
@@ -414,6 +602,13 @@
         padding: 0;
         border: none;
         scrollbar-gutter: auto;
+    }
+
+    .historialContainer {
+        overflow-x: visible;
+        overflow-y: auto;
+        max-height: 60vh;
+        border: none;
     }
 
     .subtareasTable,
@@ -560,6 +755,10 @@
 
     .subtareaRow {
         grid-template-columns: 1fr 1fr;
+    }
+
+    .subtareaHeader {
+        display: none;
     }
 
     .subtareaRow input:first-child {

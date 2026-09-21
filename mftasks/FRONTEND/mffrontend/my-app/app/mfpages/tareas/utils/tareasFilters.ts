@@ -1,5 +1,7 @@
 import type { EstadoFiltro } from "@/lib/services/tareasService";
 
+export { rangoFechasPorDefecto } from "@/lib/fechas";
+
 export const ESTADOS_TAREA: { value: EstadoFiltro; label: string }[] = [
   { value: "EN_PROCESO", label: "EN PROCESO" },
   { value: "APROBADO", label: "APROBADO" },

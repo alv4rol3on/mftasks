@@ -1,9 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
 import Pagination from "@/components/ui/Pagination";
+import SearchableSelect, { SearchableOption } from "@/components/ui/SearchableSelect";
+import Switch from "@/components/ui/Switch";
+import { existeNombreNormalizado, nombresSimilares } from "@/lib/similitud";
 import styles from "./Admin.module.css";
 
 type Usuario = { id: number; codigo?: string; email: string; nombres: string; apellidos: string; cargo?: string; is_active: boolean; roles?: string[] };
@@ -72,6 +75,7 @@ export default function AdminPage() {
       setMsg("Error: No se puede modificar usuarios administradores");
       return;
     }
+    if (!confirm(`¿${u.is_active ? "Desactivar" : "Activar"} a ${u.nombres} ${u.apellidos} (${u.email})?`)) return;
     try {
       await apiFetch(`/api/usuarios/usuarios/${u.id}/`, { method: "PATCH", body: JSON.stringify({ is_active: !u.is_active }) });
       setMsg(`${u.email} ${!u.is_active ? "activado" : "desactivado"}`);
@@ -196,8 +200,43 @@ export default function AdminPage() {
     finally { setTogglingId(null); }
   };
 
+  const subcampanasPadre = useMemo(() => {
+    if (!nuevaSubcampana.campanaId) return [];
+    const padre = campanas.find((c) => String(c.id) === nuevaSubcampana.campanaId);
+    return padre?.subcampanas ?? [];
+  }, [campanas, nuevaSubcampana.campanaId]);
+
+  const sugerenciasCampana = useMemo(
+    () => nombresSimilares(nuevaCampanaNombre, campanas),
+    [nuevaCampanaNombre, campanas]
+  );
+  const campanaDuplicada = useMemo(
+    () => Boolean(existeNombreNormalizado(nuevaCampanaNombre, campanas)),
+    [nuevaCampanaNombre, campanas]
+  );
+
+  const sugerenciasSubcampana = useMemo(
+    () => nombresSimilares(nuevaSubcampana.nombre, subcampanasPadre),
+    [nuevaSubcampana.nombre, subcampanasPadre]
+  );
+  const subcampanaDuplicada = useMemo(
+    () => Boolean(existeNombreNormalizado(nuevaSubcampana.nombre, subcampanasPadre)),
+    [nuevaSubcampana.nombre, subcampanasPadre]
+  );
+
+  const opcionesCampana: SearchableOption[] = useMemo(
+    () =>
+      campanas.map((c) => ({
+        value: String(c.id),
+        label: `${c.nombre} (${c.codigo})`,
+        sublabel: c.activo ? undefined : "inactiva",
+      })),
+    [campanas]
+  );
+
   const crearCampana = async () => {
     if (!nuevaCampanaNombre.trim()) { setMsg("Error: el nombre de la campaña es obligatorio"); return; }
+    if (campanaDuplicada) { setMsg("Error: ya existe una campaña con un nombre igual o similar"); return; }
     setCreandoCampana(true);
     try {
       await apiFetch("/api/campanas/campanas/", { method: "POST", body: JSON.stringify({ nombre: nuevaCampanaNombre.trim() }) });
@@ -210,6 +249,7 @@ export default function AdminPage() {
   const crearSubcampana = async () => {
     if (!nuevaSubcampana.campanaId) { setMsg("Error: selecciona una campaña padre"); return; }
     if (!nuevaSubcampana.nombre.trim()) { setMsg("Error: el nombre de la subcampaña es obligatorio"); return; }
+    if (subcampanaDuplicada) { setMsg("Error: ya existe una subcampaña con ese nombre en la campaña seleccionada"); return; }
     setCreandoCampana(true);
     try {
       await apiFetch("/api/campanas/subcampanas/", { method: "POST", body: JSON.stringify({ campana: Number(nuevaSubcampana.campanaId), nombre: nuevaSubcampana.nombre.trim() }) });
@@ -290,10 +330,10 @@ export default function AdminPage() {
               <>
                 <div className={styles.tableWrap}>
                   <table className={styles.table}>
-                    <thead><tr><th>Codigo</th><th>Email</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Accion</th></tr></thead>
+                    <thead><tr><th>Codigo</th><th>Email</th><th>Nombre</th><th>Rol</th><th>Activo</th></tr></thead>
                     <tbody style={{backgroundColor: "white"}}>
                       {usuariosPaginados.length === 0 ? (
-                        <tr><td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>No hay usuarios que coincidan.</td></tr>
+                        <tr><td colSpan={5} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>No hay usuarios que coincidan.</td></tr>
                       ) : usuariosPaginados.map(u => {
                         const esAdmin = (u.roles ?? []).map(r => r.toLowerCase()).includes("administrador");
                         const rolActual = (u.roles ?? [])[0] ?? "sin rol";
@@ -311,9 +351,14 @@ export default function AdminPage() {
                                 </select>
                               )}
                             </td>
-                            <td>{u.is_active ? "Si" : "No"}</td>
-                            <td style={{color: "#991b1b"}}>
-                              <button disabled={esAdmin} onClick={() => toggleActivo(u)} style={{ background: esAdmin ? "#f3f4f6" : u.is_active ? "#fee2e2" : "#dcfce7", color: esAdmin ? "#9ca3af" : u.is_active ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: esAdmin ? "not-allowed" : "pointer", fontSize: 12 }}>{u.is_active ? "Desactivar" : "Activar"}</button>
+                            <td>
+                              <Switch
+                                checked={u.is_active}
+                                disabled={esAdmin}
+                                onChange={() => toggleActivo(u)}
+                                label={u.is_active ? "Desactivar usuario" : "Activar usuario"}
+                                title={esAdmin ? "No se puede modificar administradores" : u.is_active ? "Desactivar" : "Activar"}
+                              />
                             </td>
                           </tr>
                         )
@@ -338,27 +383,55 @@ export default function AdminPage() {
             </div>
             {tipoCreacion === "campana" ? (
               <div className={styles.createForm}>
-                <div className={styles.createField}>
+                <div className={styles.createField} style={{ position: "relative" }}>
                   <label style={{color: "black"}}>Nombre campaña *</label>
                   <input placeholder="Ej: BBVA, CSC, BCP..." value={nuevaCampanaNombre} onChange={e => setNuevaCampanaNombre(e.target.value)} className={styles.input} />
+                  {campanaDuplicada && (
+                    <div className={styles.dupWarning}>Ya existe una campaña con ese nombre.</div>
+                  )}
+                  {!campanaDuplicada && sugerenciasCampana.length > 0 && (
+                    <div className={styles.sugerencias}>
+                      <div className={styles.sugerenciasTitle}>Campañas existentes similares:</div>
+                      {sugerenciasCampana.map(c => (
+                        <div key={c.id} className={styles.sugerenciaItem}>
+                          {c.nombre} <span className={styles.sugerenciaCode}>({c.codigo})</span> {c.activo ? "" : "— inactiva"}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <button onClick={crearCampana} disabled={creandoCampana || !nuevaCampanaNombre.trim()} className={styles.btnPrimary} style={{ opacity: creandoCampana || !nuevaCampanaNombre.trim() ? 0.6 : 1 }}>{creandoCampana ? "Creando..." : "Crear campaña"}</button>
+                <button onClick={crearCampana} disabled={creandoCampana || !nuevaCampanaNombre.trim() || campanaDuplicada} className={styles.btnPrimary} style={{ opacity: creandoCampana || !nuevaCampanaNombre.trim() || campanaDuplicada ? 0.6 : 1 }}>{creandoCampana ? "Creando..." : "Crear campaña"}</button>
               </div>
             ) : (
               <div className={styles.createForm}>
                 <div className={styles.createField}>
                   <label style={{color: "black"}}>Campaña padre *</label>
-                  <select value={nuevaSubcampana.campanaId} onChange={e => setNuevaSubcampana({ ...nuevaSubcampana, campanaId: e.target.value })} className={styles.select}>
-                    <option value="">Selecciona campaña</option>
-                    {campanas.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.codigo}) {c.activo ? "" : "— inactiva"}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={nuevaSubcampana.campanaId}
+                    onChange={(v) => setNuevaSubcampana({ ...nuevaSubcampana, campanaId: v })}
+                    options={opcionesCampana}
+                    placeholder="Buscar campaña por nombre o código..."
+                  />
                 </div>
-                <div className={styles.createField}>
+                <div className={styles.createField} style={{ position: "relative" }}>
                   <label style={{color: "black"}}>Nombre subcampaña *</label>
                   <input placeholder="Ej: Tarjetas Out, Digital..." value={nuevaSubcampana.nombre} onChange={e => setNuevaSubcampana({ ...nuevaSubcampana, nombre: e.target.value })} className={styles.input} />
                   <span className={styles.createHint}>El código se genera como CODIGO_CAMPANA_NOMBRE.</span>
+                  {subcampanaDuplicada && (
+                    <div className={styles.dupWarning}>Ya existe una subcampaña con ese nombre en la campaña seleccionada.</div>
+                  )}
+                  {!subcampanaDuplicada && sugerenciasSubcampana.length > 0 && (
+                    <div className={styles.sugerencias}>
+                      <div className={styles.sugerenciasTitle}>Subcampañas existentes similares:</div>
+                      {sugerenciasSubcampana.map(s => (
+                        <div key={s.id} className={styles.sugerenciaItem}>
+                          {s.nombre} <span className={styles.sugerenciaCode}>({s.codigo})</span> {s.activo ? "" : "— inactiva"}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <button onClick={crearSubcampana} disabled={creandoCampana || !nuevaSubcampana.campanaId || !nuevaSubcampana.nombre.trim()} className={styles.btnPrimary} style={{ opacity: creandoCampana || !nuevaSubcampana.campanaId || !nuevaSubcampana.nombre.trim() ? 0.6 : 1 }}>{creandoCampana ? "Creando..." : "Crear subcampaña"}</button>
+                <button onClick={crearSubcampana} disabled={creandoCampana || !nuevaSubcampana.campanaId || !nuevaSubcampana.nombre.trim() || subcampanaDuplicada} className={styles.btnPrimary} style={{ opacity: creandoCampana || !nuevaSubcampana.campanaId || !nuevaSubcampana.nombre.trim() || subcampanaDuplicada ? 0.6 : 1 }}>{creandoCampana ? "Creando..." : "Crear subcampaña"}</button>
               </div>
             )}
           </div>
@@ -399,7 +472,13 @@ export default function AdminPage() {
                           <span className={`${styles.badgeActive} ${camp.activo ? styles.badgeActiveOn : styles.badgeActiveOff}`}>{camp.activo ? "activa" : "inactiva"}</span>
                         </div>
                         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <button type="button" disabled={togglingId === camp.id} onClick={(e) => { e.stopPropagation(); toggleActivoCampana(camp); }} style={{ background: camp.activo ? "#fee2e2" : "#dcfce7", color: camp.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: togglingId === camp.id ? "wait" : "pointer", fontSize: 11, fontWeight: 700 }}>{camp.activo ? "O" : "I"}</button>
+                          <Switch
+                            checked={camp.activo}
+                            loading={togglingId === camp.id}
+                            onChange={() => toggleActivoCampana(camp)}
+                            label={camp.activo ? "Inhabilitar campaña" : "Habilitar campaña"}
+                            title={camp.activo ? "Inhabilitar campaña" : "Habilitar campaña"}
+                          />
                           <span className={styles.campanaCount}>{camp.subcampanas.length} sub</span>
                           <span className={`${styles.chevron} ${abierta ? styles.chevronOpen : ""}`}>▸</span>
                         </span>
@@ -415,7 +494,14 @@ export default function AdminPage() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <span className={`${styles.badgeActive} ${sub.activo && camp.activo ? styles.badgeActiveOn : styles.badgeActiveOff}`} style={{ fontSize: 10 }}>{sub.activo && camp.activo ? "habilitada" : "inhabilitada"}</span>
-                                <button type="button" disabled={togglingId === sub.id} onClick={() => toggleActivoSubcampana(sub, camp.activo)} style={{ background: sub.activo ? "#fee2e2" : "#dcfce7", color: sub.activo ? "#991b1b" : "#166534", border: "1px solid #d1d5db", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}>{sub.activo ? "O" : "I"}</button>
+                                <Switch
+                                  checked={sub.activo}
+                                  loading={togglingId === sub.id}
+                                  disabled={!camp.activo && !sub.activo}
+                                  onChange={() => toggleActivoSubcampana(sub, camp.activo)}
+                                  label={sub.activo ? "Inhabilitar subcampaña" : "Habilitar subcampaña"}
+                                  title={!camp.activo && !sub.activo ? "La campaña está inhabilitada; habilítala primero" : sub.activo ? "Inhabilitar subcampaña" : "Habilitar subcampaña"}
+                                />
                               </div>
                             </div>
                           ))}
