@@ -1,11 +1,6 @@
-AÑADIR:
-- alerta al correo para que mande:
-    Miembros/lider:
-    - Tareas pendientes, para revision cada dia a las 8am
-    Cliente:
-    - Cuando el equipo al que le asignaste una solicitud haya aprobado, rechazado, empezado el desarrollo, haya puesto en standby o reanudado una tarea 
-
-Lider/miembro:
-- Opcion de reunion
-
-- opcion de inhabilitar un equipo
+popup de solicitud generada
+pirámide de tipos de usuarios(gerente subgerente supervisor etc)
+aprobación previa al jefe
+cambiar inicio por perfil
+al seleccionar un cliente en Permisos tambien deberia permitirme deseleccionarlo
+las alertas deberian ser desplegables

@@ -366,6 +366,16 @@ export default function TaskModal({
         }
     };
 
+    const maxNuevaFecha = (() => {
+        const fecha = new Date();
+        fecha.setDate(fecha.getDate() + 5);
+
+        const offset = fecha.getTimezoneOffset();
+        const local = new Date(fecha.getTime() - offset * 60000);
+
+        return local.toISOString().slice(0, 16);
+    })();
+
     // determinar si usuario puede ver historial: miembros del equipo (no cliente puro)
     const roles = (usuario?.roles ?? []).map((r: string) => r.toLowerCase());
     const esClientePuro = roles.includes("cliente") && !roles.includes("miembro") && !roles.includes("lider") && !roles.includes("sub_lider") && !roles.includes("administrador");
@@ -875,12 +885,22 @@ export default function TaskModal({
                         {resumeMode === "nueva" && (
                             <div style={{ marginTop: 4, marginBottom: 8 }}>
                                 <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>Nueva fecha de entrega</label>
+                                <span style={{ fontSize: 11, color: "#6b7280" }}>
+                                    Máximo permitido: 5 días desde hoy.
+                                </span>
                                 <input
                                     type="datetime-local"
                                     value={nuevaFecha}
                                     min={minNuevaFecha}
+                                    max={maxNuevaFecha}
                                     onChange={(e) => setNuevaFecha(e.target.value)}
-                                    style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                                    style={{
+                                        width: "100%",
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: 8,
+                                        padding: "8px 10px",
+                                        fontSize: 13
+                                    }}
                                 />
                                 <span style={{ fontSize: 11, color: "#6b7280" }}>Actual: {formatearFecha(tarea.fecha_entrega_aproximada)}</span>
                             </div>

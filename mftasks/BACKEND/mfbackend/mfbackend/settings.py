@@ -207,3 +207,47 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
+
+# =========================================================
+# CORREO PARA DESARROLLO
+# =========================================================
+
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+DEFAULT_FROM_EMAIL = "LZ4lv4roJoaqu1n@outlook.com"
+
+
+# =========================================================
+# MICROSOFT GRAPH
+# Se utilizará cuando tengamos un buzón corporativo real.
+# =========================================================
+
+#MAIL_TENANT_ID = os.environ.get("MAIL_TENANT_ID", "")
+MAIL_CLIENT_ID = os.environ.get("MAIL_CLIENT_ID", "")
+MAIL_CLIENT_SECRET = os.environ.get("MAIL_CLIENT_SECRET", "")
+MAIL_SENDER = os.environ.get("MAIL_SENDER", "")
+
+
+# =========================================================
+# CELERY
+# =========================================================
+
+CELERY_BROKER_URL = os.environ.get(
+    "CELERY_BROKER_URL",
+    "redis://redis:6379/0",
+)
+
+CELERY_RESULT_BACKEND = os.environ.get(
+    "CELERY_RESULT_BACKEND",
+    "redis://redis:6379/1",
+)
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 60
+CELERY_TASK_SOFT_TIME_LIMIT = 50

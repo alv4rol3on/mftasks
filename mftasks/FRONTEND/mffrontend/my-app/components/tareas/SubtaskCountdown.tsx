@@ -121,6 +121,6 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, fallback
     }
     if (displaySec === null) return <span style={{ fontSize: 11 }}>—</span>;
     if (displaySec < 0) return <TextoExcedido segundos={-displaySec} />;
-    if (snap && !snap.raw.activo && estado === "EN_ESPERA") return <span style={{ fontSize: 11 }}>{formatearTiempo(displaySec)} (heredado)</span>;
+    if (snap && !snap.raw.activo && estado === "EN_ESPERA") return <span style={{ fontSize: 11 }}>{formatearTiempo(displaySec)}</span>;
     return <span style={{ fontSize: 11 }}>{formatearTiempo(displaySec)}</span>;
 }

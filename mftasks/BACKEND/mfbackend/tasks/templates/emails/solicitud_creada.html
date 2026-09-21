@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Solicitud registrada</title>
+</head>
+
+<body style="
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6f8;
+    font-family: Arial, sans-serif;
+    color: #242424;
+">
+    <table
+        role="presentation"
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        style="background-color: #f4f6f8; padding: 32px 16px;"
+    >
+        <tr>
+            <td align="center">
+                <table
+                    role="presentation"
+                    width="600"
+                    cellpadding="0"
+                    cellspacing="0"
+                    style="
+                        width: 100%;
+                        max-width: 600px;
+                        background-color: #ffffff;
+                        border-radius: 8px;
+                        overflow: hidden;
+                    "
+                >
+                    <tr>
+                        <td style="
+                            padding: 24px 32px;
+                            background-color: #0f6cbd;
+                            color: #ffffff;
+                        ">
+                            <h1 style="
+                                margin: 0;
+                                font-size: 22px;
+                                font-weight: 600;
+                            ">
+                                Solicitud registrada
+                            </h1>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 32px;">
+                            <p style="margin-top: 0;">
+                                Hola
+                                <strong>
+                                    {{ nombre_destinatario|default:"usuario" }}
+                                </strong>,
+                            </p>
+
+                            <p>
+                                Tu solicitud fue registrada correctamente.
+                            </p>
+
+                            <table
+                                role="presentation"
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                style="
+                                    margin: 24px 0;
+                                    border: 1px solid #e0e0e0;
+                                    border-radius: 6px;
+                                "
+                            >
+                                <tr>
+                                    <td style="
+                                        padding: 12px 16px;
+                                        background-color: #f8f8f8;
+                                        width: 40%;
+                                    ">
+                                        Código
+                                    </td>
+
+                                    <td style="padding: 12px 16px;">
+                                        <strong>{{ codigo }}</strong>
+                                    </td>
+                                </tr>
+
+                                {% if titulo %}
+                                <tr>
+                                    <td style="
+                                        padding: 12px 16px;
+                                        background-color: #f8f8f8;
+                                    ">
+                                        Solicitud
+                                    </td>
+
+                                    <td style="padding: 12px 16px;">
+                                        {{ titulo }}
+                                    </td>
+                                </tr>
+                                {% endif %}
+
+                                {% if estado %}
+                                <tr>
+                                    <td style="
+                                        padding: 12px 16px;
+                                        background-color: #f8f8f8;
+                                    ">
+                                        Estado
+                                    </td>
+
+                                    <td style="padding: 12px 16px;">
+                                        {{ estado }}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+
+                            <p>
+                                Recibirás otra notificación cuando cambie
+                                el estado de la solicitud.
+                            </p>
+
+                            <p style="
+                                margin-bottom: 0;
+                                color: #616161;
+                                font-size: 13px;
+                            ">
+                                Este mensaje fue generado automáticamente.
+                                No respondas a este correo.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -1,0 +1,15 @@
+Hola {{ nombre_destinatario|default:"usuario" }},
+
+{{ mensaje }}
+
+Código de solicitud: {{ codigo }}
+
+{% if titulo %}
+Solicitud: {{ titulo }}
+{% endif %}
+
+{% if estado %}
+Estado: {{ estado }}
+{% endif %}
+
+Este correo fue generado automáticamente por el sistema MF.

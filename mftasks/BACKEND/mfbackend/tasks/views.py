@@ -16,6 +16,10 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import ValidationError
 
+from tasks.services.notificaciones_email import (
+    programar_correo_tarea,
+)
+
 
 
 from usuarios.permissions import EsAdministrador, IsAuthenticatedActivo
@@ -204,8 +208,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         return permisos
 
     def perform_create(self, serializer):
-
         user = self.request.user
+
         archivos = (
             self.request.FILES.getlist("archivos")
             or self.request.FILES.getlist("archivo")
@@ -214,9 +218,12 @@ class TaskViewSet(viewsets.ModelViewSet):
         if archivos:
             max_total = 10 * 1024 * 1024
 
-            if sum(a.size for a in archivos) > max_total:
+            if sum(archivo.size for archivo in archivos) > max_total:
                 raise ValidationError({
-                    "archivo": "Los archivos adjuntos no pueden superar los 10 MB en total."
+                    "archivo": (
+                        "Los archivos adjuntos no pueden superar "
+                        "los 10 MB en total."
+                    )
                 })
 
             extensiones_permitidas = {
@@ -241,7 +248,10 @@ class TaskViewSet(viewsets.ModelViewSet):
 
                 if extension not in extensiones_permitidas:
                     raise ValidationError({
-                        "archivo": f"El formato del archivo '{archivo.name}' no está permitido."
+                        "archivo": (
+                            f"El formato del archivo "
+                            f"'{archivo.name}' no está permitido."
+                        )
                     })
 
         with transaction.atomic():
@@ -279,6 +289,14 @@ class TaskViewSet(viewsets.ModelViewSet):
                 ),
             )
 
+            programar_correo_tarea(
+                evento="SOLICITUD_CREADA",
+                tarea=tarea,
+                usuario_destinatario=user,
+                mensaje=(
+                    "Tu solicitud fue registrada correctamente."
+                ),
+            )
 
     @action(
         detail=True,
