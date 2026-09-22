@@ -5,12 +5,13 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.generics import RetrieveUpdateAPIView
 
 from .azure import AzureTokenValidationError, AzureTokenValidator
 
@@ -640,4 +641,13 @@ class EquipoViewSet(ModelViewSet):
                 Subtarea.objects.filter(id=sid).update(asignado_id=nid)
         return Response({"detail": f"Se reasignaron {len(reassign_map)} subtareas.", "reasignadas": len(reassign_map)}, status=status.HTTP_200_OK)
 
-    
+class MisPreferenciasNotificacionView(RetrieveUpdateAPIView):
+    serializer_class = PreferenciaNotificacionSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self):
+        preferencias, _ = PreferenciaNotificacion.objects.get_or_create(
+            usuario=self.request.user,
+        )
+
+        return preferencias

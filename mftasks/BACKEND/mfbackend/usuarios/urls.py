@@ -9,6 +9,7 @@ from .views import (
     PreferenciaNotificacionView,
     RolViewSet,
     UserViewSet,
+    MisPreferenciasNotificacionView
 )
 
 router = DefaultRouter()
@@ -33,4 +34,5 @@ urlpatterns = [
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("notificaciones/", PreferenciaNotificacionView.as_view(), name="notificaciones"),
+    path("me/preferencias-notificacion/", MisPreferenciasNotificacionView.as_view(), name="mis-preferencias-notificacion")
 ] + router.urls

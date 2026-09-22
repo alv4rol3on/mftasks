@@ -7,6 +7,7 @@ from .models import (
     UserRol,
     Equipo,
     EquipoMiembro,
+    PreferenciaNotificacion,
 )
 
 class UserRolInline(admin.TabularInline):
@@ -17,6 +18,50 @@ class EquipoMiembroInline(admin.TabularInline):
     model = EquipoMiembro
     extra = 1
     autocomplete_fields = ("usuario",)
+
+class PreferenciaNotificacionInline(admin.StackedInline):
+        model = PreferenciaNotificacion
+        extra = 0
+        max_num = 1
+        can_delete = False
+
+        readonly_fields = (
+            "fecha_actualizacion",
+        )
+
+        fieldsets = (
+            (
+                "Configuración general",
+                {
+                    "fields": (
+                        "recibir_correos",
+                        "fecha_actualizacion",
+                    )
+                },
+            ),
+            (
+                "Notificaciones para clientes",
+                {
+                    "fields": (
+                        "cliente_solicitud_creada",
+                        "cliente_solicitud_resuelta",
+                        "cliente_solicitud_standby",
+                        "cliente_solicitud_solucionada",
+                    )
+                },
+            ),
+            (
+                "Notificaciones para el equipo",
+                {
+                    "fields": (
+                        "equipo_nueva_solicitud",
+                        "equipo_pendiente_revision",
+                        "equipo_alerta_diaria",
+                        "equipo_hora_alerta_diaria",
+                    )
+                },
+            ),
+        )
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
@@ -31,6 +76,10 @@ class UserAdmin(BaseUserAdmin):
         "cargo",
         "is_active",
         "is_staff",
+    )
+
+    inlines = (
+        PreferenciaNotificacionInline,
     )
 
     list_filter = (
@@ -85,7 +134,9 @@ class UserAdmin(BaseUserAdmin):
                     "fecha_creacion",
                 )
             },
-        ),
+        )
+
+        
     )
 
     add_fieldsets = (
@@ -204,3 +255,81 @@ class EquipoMiembroAdmin(admin.ModelAdmin):
         "equipo",
         "usuario",
     )
+
+@admin.register(PreferenciaNotificacion)
+class PreferenciaNotificacionAdmin(admin.ModelAdmin):
+    list_display = (
+        "usuario",
+        "recibir_correos",
+        "equipo_nueva_solicitud",
+        "equipo_pendiente_revision",
+        "equipo_alerta_diaria",
+        "equipo_hora_alerta_diaria",
+        "fecha_actualizacion",
+    )
+
+    list_filter = (
+        "recibir_correos",
+        "cliente_solicitud_creada",
+        "cliente_solicitud_resuelta",
+        "cliente_solicitud_standby",
+        "cliente_solicitud_solucionada",
+        "equipo_nueva_solicitud",
+        "equipo_pendiente_revision",
+        "equipo_alerta_diaria",
+    )
+
+    search_fields = (
+        "usuario__email",
+        "usuario__nombres",
+        "usuario__apellidos",
+    )
+
+    readonly_fields = (
+        "fecha_actualizacion",
+    )
+
+    list_select_related = (
+        "usuario",
+    )
+
+    fieldsets = (
+        (
+            "Usuario",
+            {
+                "fields": (
+                    "usuario",
+                    "recibir_correos",
+                    "fecha_actualizacion",
+                )
+            },
+        ),
+        (
+            "Notificaciones para clientes",
+            {
+                "fields": (
+                    "cliente_solicitud_creada",
+                    "cliente_solicitud_resuelta",
+                    "cliente_solicitud_standby",
+                    "cliente_solicitud_solucionada",
+                )
+            },
+        ),
+        (
+            "Notificaciones para el equipo",
+            {
+                "fields": (
+                    "equipo_nueva_solicitud",
+                    "equipo_pendiente_revision",
+                    "equipo_alerta_diaria",
+                    "equipo_hora_alerta_diaria",
+                )
+            },
+        ),
+    )
+
+    ordering = (
+        "usuario__email",
+    )
+
+    

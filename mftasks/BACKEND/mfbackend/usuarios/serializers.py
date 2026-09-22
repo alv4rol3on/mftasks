@@ -31,7 +31,6 @@ class UserSerializer(serializers.ModelSerializer):
     def get_roles(self, obj):
         return [r.rol.nombre for r in obj.roles.all()]
 
-
 class UserCreateSerializer(serializers.ModelSerializer):
     roles = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -126,7 +125,6 @@ class UserDetailSerializer(serializers.ModelSerializer):
             for r in obj.roles.all()
         ]
 
-
 class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -143,7 +141,6 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
             "fecha_actualizacion",
         ]
         read_only_fields = ["fecha_actualizacion"]
-
 
 class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
     usuario = UserSerializer(read_only=True)
@@ -174,7 +171,6 @@ class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
             "motivo_indisponibilidad",
             "fecha_ingreso",
         ]
-
 
 class EquipoDetailSerializer(serializers.ModelSerializer):
 
@@ -257,7 +253,6 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
                 return EquipoMiembro.EstadoMiembro.ACTIVO
             return None
 
-
 class EquipoCreateSerializer(serializers.ModelSerializer):
     lider = serializers.CharField(write_only=True)
 
@@ -307,3 +302,55 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
         )
 
         return equipo
+
+class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PreferenciaNotificacion
+
+        fields = (
+            "recibir_correos",
+            "cliente_solicitud_creada",
+            "cliente_solicitud_resuelta",
+            "cliente_solicitud_standby",
+            "cliente_solicitud_solucionada",
+            "equipo_nueva_solicitud",
+            "equipo_pendiente_revision",
+            "equipo_alerta_diaria",
+            "equipo_hora_alerta_diaria",
+            "fecha_actualizacion",
+        )
+
+        read_only_fields = (
+            "fecha_actualizacion",
+        )
+
+    def validate(self, attrs):
+        recibir_correos = attrs.get(
+            "recibir_correos",
+            getattr(self.instance, "recibir_correos", True),
+        )
+
+        equipo_alerta_diaria = attrs.get(
+            "equipo_alerta_diaria",
+            getattr(self.instance, "equipo_alerta_diaria", True),
+        )
+
+        hora_alerta = attrs.get(
+            "equipo_hora_alerta_diaria",
+            getattr(
+                self.instance,
+                "equipo_hora_alerta_diaria",
+                None,
+            ),
+        )
+
+        if recibir_correos and equipo_alerta_diaria and hora_alerta is None:
+            raise serializers.ValidationError(
+                {
+                    "equipo_hora_alerta_diaria": (
+                        "Debes indicar una hora para la alerta diaria."
+                    )
+                }
+            )
+
+        return attrs

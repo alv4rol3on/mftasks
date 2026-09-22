@@ -2,6 +2,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models import Q, UniqueConstraint, CheckConstraint
 from django.db.models.functions import Lower
+from django.conf import settings
+from datetime import time
+
 
 from .managers import UserManager
 
@@ -244,10 +247,10 @@ class EquipoMiembro(models.Model):
 
 
 class PreferenciaNotificacion(models.Model):
-    """Preferencias de correo por usuario (solo lectura/edición propia)."""
+    """Preferencias de correo por usuario."""
 
     usuario = models.OneToOneField(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="preferencias_notificacion",
     )
@@ -260,10 +263,13 @@ class PreferenciaNotificacion(models.Model):
     cliente_solicitud_standby = models.BooleanField(default=True)
     cliente_solicitud_solucionada = models.BooleanField(default=True)
 
-    # Líder / Miembro (equipo)
+    # Líder / Miembro del equipo
     equipo_nueva_solicitud = models.BooleanField(default=True)
     equipo_pendiente_revision = models.BooleanField(default=True)
     equipo_alerta_diaria = models.BooleanField(default=True)
+    equipo_hora_alerta_diaria = models.TimeField(
+        default=time(8, 0),
+    )
 
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
