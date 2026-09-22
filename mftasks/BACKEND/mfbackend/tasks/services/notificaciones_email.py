@@ -9,6 +9,42 @@ from tasks.tasks import enviar_notificacion_email
 logger = logging.getLogger(__name__)
 
 
+# Mapea cada evento de correo con el campo de preferencia que lo habilita.
+EVENTO_A_PREFERENCIA = {
+    "SOLICITUD_CREADA": "cliente_solicitud_creada",
+    "SOLICITUD_APROBADA": "cliente_solicitud_resuelta",
+    "SOLICITUD_RECHAZADA": "cliente_solicitud_resuelta",
+    "SOLICITUD_STANDBY": "cliente_solicitud_standby",
+    "SOLICITUD_FINALIZADA": "cliente_solicitud_solucionada",
+    "EQUIPO_NUEVA_SOLICITUD": "equipo_nueva_solicitud",
+    "EQUIPO_PENDIENTE_REVISION": "equipo_pendiente_revision",
+    "EQUIPO_ALERTA_DIARIA": "equipo_alerta_diaria",
+}
+
+
+def usuario_quiere_recibir(usuario, evento):
+    """Indica si el usuario tiene habilitado el correo para el evento dado."""
+
+    if usuario is None:
+        return False
+
+    campo = EVENTO_A_PREFERENCIA.get(evento)
+
+    if not campo:
+        return True
+
+    from usuarios.models import PreferenciaNotificacion
+
+    preferencias, _ = PreferenciaNotificacion.objects.get_or_create(
+        usuario=usuario
+    )
+
+    if not preferencias.recibir_correos:
+        return False
+
+    return bool(getattr(preferencias, campo, True))
+
+
 def obtener_correo_usuario(usuario):
     """
     Obtiene el correo disponible de un usuario.
@@ -125,6 +161,116 @@ def obtener_estado_tarea(tarea):
     return str(estado or "")
 
 
+def formatear_fecha(valor):
+    """Formatea una fecha/hora en la zona horaria actual (America/Lima)."""
+
+    if not valor:
+        return ""
+
+    from django.utils import timezone
+
+    try:
+        fecha = timezone.localtime(valor)
+    except Exception:
+        fecha = valor
+
+    try:
+        return fecha.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(fecha)
+
+
+def contexto_detalles_tarea(tarea):
+    """Contexto común con los detalles de la solicitud para las plantillas."""
+
+    campana = ""
+    subcampana = ""
+
+    sub = getattr(tarea, "subcampana", None)
+
+    if sub is not None:
+        subcampana = getattr(sub, "nombre", "") or ""
+
+        if getattr(sub, "campana", None) is not None:
+            campana = getattr(sub.campana, "nombre", "") or ""
+
+    equipo = getattr(tarea, "equipo", None)
+
+    adjuntos = []
+
+    try:
+        adjuntos = [
+            archivo.nombre
+            for archivo in tarea.archivos.all()
+            if getattr(archivo, "nombre", None)
+        ]
+    except Exception:
+        adjuntos = []
+
+    return {
+        "codigo": obtener_codigo_tarea(tarea),
+        "titulo": obtener_titulo_tarea(tarea),
+        "estado": obtener_estado_tarea(tarea),
+        "descripcion": getattr(tarea, "descripcion", "") or "",
+        "campana": campana,
+        "subcampana": subcampana,
+        "equipo_nombre": getattr(equipo, "nombre", "") or "",
+        "solicitante_nombre": obtener_nombre_usuario(
+            getattr(tarea, "solicitante", None)
+        ),
+        "fecha_creacion": formatear_fecha(
+            getattr(tarea, "fecha_creacion", None)
+        ),
+        "fecha_entrega_aproximada": formatear_fecha(
+            getattr(tarea, "fecha_entrega_aproximada", None)
+        ),
+        "adjuntos": adjuntos,
+    }
+
+
+def destinatarios_equipo(equipo, evento):
+    """
+    Correos de los integrantes del equipo (líder + miembros ACTIVO)
+    que tengan habilitado el correo para el evento.
+    """
+
+    if equipo is None:
+        return []
+
+    from usuarios.models import EquipoMiembro
+
+    usuarios = []
+
+    if getattr(equipo, "lider", None) is not None:
+        usuarios.append(equipo.lider)
+
+    miembros = equipo.miembros.select_related("usuario").filter(
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO
+    )
+
+    for miembro in miembros:
+        usuarios.append(miembro.usuario)
+
+    vistos = set()
+    correos = []
+
+    for usuario in usuarios:
+        if usuario is None or usuario.id in vistos:
+            continue
+
+        vistos.add(usuario.id)
+
+        if not usuario_quiere_recibir(usuario, evento):
+            continue
+
+        correo = obtener_correo_usuario(usuario)
+
+        if correo:
+            correos.append(correo)
+
+    return list(dict.fromkeys(correos))
+
+
 def programar_correo_tarea(
     *,
     evento,
@@ -166,12 +312,15 @@ def programar_correo_tarea(
     if destinatarios:
         correos.extend(destinatarios)
 
-    correo_usuario = obtener_correo_usuario(
-        usuario_destinatario
-    )
+    if usuario_destinatario is not None and usuario_quiere_recibir(
+        usuario_destinatario, evento
+    ):
+        correo_usuario = obtener_correo_usuario(
+            usuario_destinatario
+        )
 
-    if correo_usuario:
-        correos.append(correo_usuario)
+        if correo_usuario:
+            correos.append(correo_usuario)
 
     # Limpiar correos vacíos y eliminar duplicados,
     # conservando el orden original.
@@ -195,22 +344,18 @@ def programar_correo_tarea(
 
         return False
 
-    contexto = {
-        "codigo": obtener_codigo_tarea(tarea),
-        "titulo": obtener_titulo_tarea(tarea),
-        "estado": obtener_estado_tarea(tarea),
-        "nombre_destinatario": obtener_nombre_usuario(
-            usuario_destinatario
-        ),
-        "mensaje": mensaje,
-    }
+    contexto = contexto_detalles_tarea(tarea)
+    contexto["nombre_destinatario"] = obtener_nombre_usuario(
+        usuario_destinatario
+    )
+    contexto["mensaje"] = mensaje
 
     if contexto_adicional:
         contexto.update(contexto_adicional)
 
     transaction.on_commit(
         partial(
-            enviar_notificacion_email.delay,
+            enviar_notificacion_email,
             evento=evento,
             destinatarios=destinatarios_validos,
             contexto=contexto,
@@ -220,6 +365,76 @@ def programar_correo_tarea(
     logger.info(
         (
             "Notificación programada. "
+            "evento=%s tarea_id=%s destinatarios=%s"
+        ),
+        evento,
+        tarea.pk,
+        destinatarios_validos,
+    )
+
+    return True
+
+
+def programar_correo_equipo(
+    *,
+    evento,
+    tarea,
+    mensaje,
+    contexto_adicional=None,
+):
+    """
+    Programa una notificación por correo para los integrantes del equipo
+    de la tarea (líder + miembros ACTIVO) que tengan habilitado el evento.
+
+    Devuelve True si la notificación quedó programada.
+    Devuelve False si no encontró destinatarios válidos.
+    """
+
+    if tarea is None:
+        raise ValueError(
+            "La tarea es obligatoria para programar el correo."
+        )
+
+    equipo = getattr(tarea, "equipo", None)
+
+    if equipo is None:
+        return False
+
+    destinatarios_validos = destinatarios_equipo(equipo, evento)
+
+    if not destinatarios_validos:
+        logger.info(
+            (
+                "No se programó la notificación de equipo. "
+                "evento=%s tarea_id=%s motivo=sin_destinatarios"
+            ),
+            evento,
+            getattr(tarea, "pk", None),
+        )
+
+        return False
+
+    contexto = contexto_detalles_tarea(tarea)
+    contexto["nombre_destinatario"] = (
+        getattr(equipo, "nombre", "") or "equipo"
+    )
+    contexto["mensaje"] = mensaje
+
+    if contexto_adicional:
+        contexto.update(contexto_adicional)
+
+    transaction.on_commit(
+        partial(
+            enviar_notificacion_email,
+            evento=evento,
+            destinatarios=destinatarios_validos,
+            contexto=contexto,
+        )
+    )
+
+    logger.info(
+        (
+            "Notificación de equipo programada. "
             "evento=%s tarea_id=%s destinatarios=%s"
         ),
         evento,

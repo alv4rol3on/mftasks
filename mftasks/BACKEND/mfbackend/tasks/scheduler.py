@@ -60,12 +60,72 @@ def check_inicios_programados():
 
 _scheduler = None
 
+
+def enviar_alertas_diarias():
+    """Envía a cada equipo un resumen de sus solicitudes sin solucionar."""
+    from .models import Tarea
+    from usuarios.models import Equipo
+    from .services.notificaciones_email import programar_correo_equipo
+
+    estados_abiertos = [
+        Tarea.Estado.EN_ESPERA,
+        Tarea.Estado.APROBADO,
+        Tarea.Estado.EN_DESARROLLO,
+        Tarea.Estado.STAND_BY,
+    ]
+
+    equipos = Equipo.objects.filter(activo=True)
+    enviados = 0
+
+    for equipo in equipos:
+        tareas = Tarea.objects.filter(
+            equipo=equipo,
+            activo=True,
+            estado__in=estados_abiertos,
+        ).order_by("estado", "fecha_creacion")
+
+        if not tareas.exists():
+            continue
+
+        detalle = [
+            {
+                "codigo": t.ticket or str(t.id),
+                "titulo": t.asunto,
+                "estado": t.get_estado_display(),
+            }
+            for t in tareas
+        ]
+
+        programado = programar_correo_equipo(
+            evento="EQUIPO_ALERTA_DIARIA",
+            tarea=tareas.first(),
+            mensaje=(
+                f"Tienes {len(detalle)} solicitud(es) sin solucionar "
+                "en tu equipo."
+            ),
+            contexto_adicional={
+                "tareas": detalle,
+                "equipo_nombre": equipo.nombre,
+            },
+        )
+
+        if programado:
+            enviados += 1
+
+    if enviados:
+        logger.info(
+            "APScheduler: alertas diarias enviadas a %s equipo(s).",
+            enviados,
+        )
+
+
 def start_scheduler():
     global _scheduler
     if _scheduler is not None:
         return
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
         from apscheduler.triggers.interval import IntervalTrigger
 
         _scheduler = BackgroundScheduler(timezone=str(timezone.get_current_timezone()))
@@ -77,7 +137,17 @@ def start_scheduler():
             coalesce=True,
             replace_existing=True,
         )
+        _scheduler.add_job(
+            enviar_alertas_diarias,
+            trigger=CronTrigger(hour=8, minute=0),
+            id="envio_alertas_diarias",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
         _scheduler.start()
-        logger.info("APScheduler iniciado (check_inicios_programados cada 60s).")
+        logger.info(
+            "APScheduler iniciado (auto-inicio cada 60s, alertas diarias 8am)."
+        )
     except Exception as e:
         logger.exception(f"No se pudo iniciar APScheduler: {e}")

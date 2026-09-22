@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
-import { CampanaInfo, EquipoInfo, SubCampanaInfo } from "@/lib/types";
+import stylesSuccess from "./SolicitudGenerada.module.css";
+import { CampanaInfo, EquipoInfo, SubCampanaInfo, Task } from "@/lib/types";
 
 const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
 const EXTENSIONES_PERMITIDAS = ["pdf", "doc", "docx", "xls", "xlsx", "txt", "png", "jpg", "jpeg", "zip"];
@@ -37,6 +38,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [archivos, setArchivos] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [creada, setCreada] = useState<{ ticket: string | null; asunto: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -66,6 +68,35 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   }, [campanaId]);
 
   if (!open) return null;
+
+  if (creada) {
+    return (
+      <div className={stylesSuccess.overlay}>
+        <div className={stylesSuccess.card}>
+          <div className={stylesSuccess.circle}>
+            <svg className={stylesSuccess.check} viewBox="0 0 52 52" aria-hidden="true">
+              <path d="M14 27 L23 36 L38 18" />
+            </svg>
+          </div>
+          <h2 className={stylesSuccess.title}>¡Solicitud generada exitosamente!</h2>
+          {creada.ticket && (
+            <p className={stylesSuccess.ticket}>N.º {creada.ticket}</p>
+          )}
+          <p className={stylesSuccess.asunto}>{creada.asunto}</p>
+          <button
+            type="button"
+            className={stylesSuccess.button}
+            onClick={() => {
+              setCreada(null);
+              onClose();
+            }}
+          >
+            Aceptar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
 
   const totalBytes = archivos.reduce((acc, f) => acc + f.size, 0);
@@ -125,7 +156,9 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
       archivos.forEach((f) => formData.append("archivos", f, f.name));
 
-      await apiFetch("/api/tasks/tasks/", {
+      const asuntoEnviado = asunto.trim();
+
+      const res = await apiFetch<Task>("/api/tasks/tasks/", {
         method: "POST",
         body: formData,
       });
@@ -138,7 +171,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       setArchivos([]);
 
       onCreated();
-      onClose();
+      setCreada({ ticket: res?.ticket ?? null, asunto: asuntoEnviado });
 
     } catch (e) {
       setError((e as Error).message);

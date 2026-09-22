@@ -6,6 +6,7 @@ from .views import (
     EquipoViewSet,
     MeView,
     MicrosoftLoginView,
+    PreferenciaNotificacionView,
     RolViewSet,
     UserViewSet,
 )
@@ -31,4 +32,5 @@ urlpatterns = [
     path("auth/microsoft/", MicrosoftLoginView.as_view(), name="microsoft-login"),
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("notificaciones/", PreferenciaNotificacionView.as_view(), name="notificaciones"),
 ] + router.urls

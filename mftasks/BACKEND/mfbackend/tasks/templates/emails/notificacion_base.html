@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block titulo_documento %}Notificación{% endblock %}</title>
+</head>
+
+<body style="
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6f8;
+    font-family: Arial, sans-serif;
+    color: #242424;
+">
+    <table
+        role="presentation"
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        style="background-color: #f4f6f8; padding: 32px 16px;"
+    >
+        <tr>
+            <td align="center">
+                <table
+                    role="presentation"
+                    width="600"
+                    cellpadding="0"
+                    cellspacing="0"
+                    style="
+                        width: 100%;
+                        max-width: 600px;
+                        background-color: #ffffff;
+                        border-radius: 8px;
+                        overflow: hidden;
+                    "
+                >
+                    <tr>
+                        <td style="
+                            padding: 24px 32px;
+                            background-color: #CF3215;
+                            color: #ffffff;
+                        ">
+                            <h1 style="
+                                margin: 0;
+                                font-size: 22px;
+                                font-weight: 600;
+                            ">
+                                {% block encabezado %}Notificación{% endblock %}
+                            </h1>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 32px;">
+                            <p style="margin-top: 0;">
+                                Hola
+                                <strong>
+                                    {{ nombre_destinatario|default:"usuario" }}
+                                </strong>,
+                            </p>
+
+                            {% block contenido %}
+                            <p>{{ mensaje }}</p>
+
+                            <table
+                                role="presentation"
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                style="
+                                    margin: 24px 0;
+                                    border: 1px solid #e0e0e0;
+                                    border-radius: 6px;
+                                "
+                            >
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8; width: 38%;"><strong>Código</strong></td>
+                                    <td style="padding: 10px 14px;"><strong>{{ codigo }}</strong></td>
+                                </tr>
+
+                                {% if titulo %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Asunto</td>
+                                    <td style="padding: 10px 14px;">{{ titulo }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if estado %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Estado</td>
+                                    <td style="padding: 10px 14px;">{{ estado }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if descripcion %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Descripción</td>
+                                    <td style="padding: 10px 14px;">{{ descripcion|linebreaksbr }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if campana %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Cliente / Campaña</td>
+                                    <td style="padding: 10px 14px;">{{ campana }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if subcampana %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Subcampaña</td>
+                                    <td style="padding: 10px 14px;">{{ subcampana }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if equipo_nombre %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Equipo</td>
+                                    <td style="padding: 10px 14px;">{{ equipo_nombre }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if solicitante_nombre %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Solicitante</td>
+                                    <td style="padding: 10px 14px;">{{ solicitante_nombre }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if fecha_creacion %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Fecha de creación</td>
+                                    <td style="padding: 10px 14px;">{{ fecha_creacion }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if fecha_entrega_aproximada %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Entrega aproximada</td>
+                                    <td style="padding: 10px 14px;">{{ fecha_entrega_aproximada }}</td>
+                                </tr>
+                                {% endif %}
+
+                                {% if adjuntos %}
+                                <tr>
+                                    <td style="padding: 10px 14px; background-color: #f8f8f8;">Adjuntos</td>
+                                    <td style="padding: 10px 14px;">
+                                        <ul style="margin: 0; padding-left: 18px;">
+                                            {% for archivo in adjuntos %}
+                                            <li>{{ archivo }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                            {% endblock %}
+
+                            <p style="
+                                margin-bottom: 0;
+                                color: #616161;
+                                font-size: 13px;
+                            ">
+                                Este mensaje fue generado automáticamente.
+                                No respondas a este correo.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

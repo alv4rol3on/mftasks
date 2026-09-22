@@ -1,6 +1,5 @@
 import logging
 
-from celery import shared_task
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -22,30 +21,36 @@ EVENTOS_EMAIL = {
         "asunto": "Solicitud {codigo} rechazada",
         "template": "emails/solicitud_rechazada.html",
     },
+    "SOLICITUD_STANDBY": {
+        "asunto": "Solicitud {codigo} en pausa",
+        "template": "emails/solicitud_standby.html",
+    },
     "SOLICITUD_FINALIZADA": {
-        "asunto": "Solicitud {codigo} finalizada",
+        "asunto": "Solicitud {codigo} solucionada",
         "template": "emails/solicitud_finalizada.html",
+    },
+    "EQUIPO_NUEVA_SOLICITUD": {
+        "asunto": "Nueva solicitud en tu equipo: {codigo}",
+        "template": "emails/equipo_nueva_solicitud.html",
+    },
+    "EQUIPO_PENDIENTE_REVISION": {
+        "asunto": "Solicitud pendiente de revisión: {codigo}",
+        "template": "emails/equipo_pendiente_revision.html",
+    },
+    "EQUIPO_ALERTA_DIARIA": {
+        "asunto": "Alerta diaria - {equipo_nombre}",
+        "template": "emails/equipo_alerta_diaria.html",
+        "texto": "emails/equipo_alerta_diaria.txt",
     },
 }
 
 
-@shared_task(
-    bind=True,
-    autoretry_for=(Exception,),
-    retry_backoff=True,
-    retry_kwargs={"max_retries": 3},
-)
-def enviar_notificacion_email(
-    self,
-    evento,
-    destinatarios,
-    contexto,
-):
+def enviar_notificacion_email(evento, destinatarios, contexto):
     """
-    Envía una notificación por correo en segundo plano.
+    Envía una notificación por correo de forma síncrona.
 
     evento:
-        SOLICITUD_CREADA, SOLICITUD_APROBADA, etc.
+        Clave de EVENTOS_EMAIL.
 
     destinatarios:
         Lista de direcciones de correo.
@@ -87,7 +92,7 @@ def enviar_notificacion_email(
     )
 
     contenido_texto = render_to_string(
-        "emails/notificacion_base.txt",
+        configuracion.get("texto", "emails/notificacion_base.txt"),
         contexto,
     )
 
@@ -103,7 +108,19 @@ def enviar_notificacion_email(
         "text/html",
     )
 
-    enviados = mensaje.send(fail_silently=False)
+    try:
+        enviados = mensaje.send(fail_silently=False)
+    except Exception:
+        logger.exception(
+            "No se pudo enviar la notificación. evento=%s destinatarios=%s",
+            evento,
+            destinatarios_validos,
+        )
+        return {
+            "enviado": False,
+            "motivo": "ERROR_ENVIO",
+            "evento": evento,
+        }
 
     logger.info(
         "Notificación enviada. evento=%s destinatarios=%s",

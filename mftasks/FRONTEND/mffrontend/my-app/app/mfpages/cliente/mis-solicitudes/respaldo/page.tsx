@@ -114,7 +114,7 @@ export default function MisSolicitudesPage() {
         </div>
       )}
 
-      <CrearSolicitudModal open={openCrear} onClose={() => setOpenCrear(false)} onCreated={() => { showToast("Solicitud creada", "success"); cargar(); }} />
+      <CrearSolicitudModal open={openCrear} onClose={() => setOpenCrear(false)} onCreated={() => { cargar(); }} />
       <TaskDetailClienteModal tarea={selected} onClose={() => setSelected(null)} />
     </div>
   );

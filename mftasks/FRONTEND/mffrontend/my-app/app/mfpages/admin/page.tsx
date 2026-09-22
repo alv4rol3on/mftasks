@@ -47,7 +47,7 @@ export default function AdminPage() {
 
   const user = getUsuarioActual();
   const isAdmin = (user?.roles ?? []).map(r => r.toLowerCase()).includes("administrador");
-  useEffect(() => { if (!isAdmin) router.replace("/mfpages/home"); }, [isAdmin, router]);
+  useEffect(() => { if (!isAdmin) router.replace("/mfpages/perfil"); }, [isAdmin, router]);
 
   const cargarUsuarios = async () => {
     setCargando(true);
@@ -532,7 +532,7 @@ export default function AdminPage() {
                   {filtroClientePerm && clientesFiltrados.length > 0 && (
                     <div className={styles.clienteDropdown}>
                       {clientesFiltrados.slice(0, 8).map(c => (
-                        <div key={c.id} onClick={() => setSelectedClienteId(c.id)} className={`${styles.clienteOption} ${selectedClienteId === c.id ? styles.clienteOptionActive : ""}`}>
+                        <div key={c.id} onClick={() => { setSelectedClienteId(c.id); setFiltroClientePerm(""); }} className={`${styles.clienteOption} ${selectedClienteId === c.id ? styles.clienteOptionActive : ""}`}>
                           <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{c.codigo ?? c.id}</span> — {c.email} ({c.nombres} {c.apellidos})
                         </div>
                       ))}
@@ -540,7 +540,17 @@ export default function AdminPage() {
                   )}
                 </div>
                 {selectedClienteId !== "" && (
-                  <span style={{ fontSize: 12, color: "#374151" }}>Seleccionado: <strong style={{ fontFamily: "monospace" }}>{usuarios.find(u => u.id === selectedClienteId)?.codigo ?? selectedClienteId}</strong> — {usuarios.find(u => u.id === selectedClienteId)?.email}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: "#374151" }}>
+                    <span>Seleccionado: <strong style={{ fontFamily: "monospace" }}>{usuarios.find(u => u.id === selectedClienteId)?.codigo ?? selectedClienteId}</strong> — {usuarios.find(u => u.id === selectedClienteId)?.email}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedClienteId(""); setFiltroClientePerm(""); }}
+                      title="Quitar selección"
+                      style={{ border: "1px solid #d1d5db", background: "white", borderRadius: 6, padding: "2px 8px", fontSize: 11, cursor: "pointer", color: "#b91c1c" }}
+                    >
+                      ✕ Quitar selección
+                    </button>
+                  </span>
                 )}
               </label>
 

@@ -17,6 +17,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import ValidationError
 
 from tasks.services.notificaciones_email import (
+    programar_correo_equipo,
     programar_correo_tarea,
 )
 
@@ -298,6 +299,24 @@ class TaskViewSet(viewsets.ModelViewSet):
                 ),
             )
 
+            programar_correo_equipo(
+                evento="EQUIPO_NUEVA_SOLICITUD",
+                tarea=tarea,
+                mensaje=(
+                    "Se registró una nueva solicitud en tu equipo."
+                ),
+            )
+
+            if tarea.estado == Tarea.Estado.EN_ESPERA:
+                programar_correo_equipo(
+                    evento="EQUIPO_PENDIENTE_REVISION",
+                    tarea=tarea,
+                    mensaje=(
+                        "Hay una solicitud en espera de revisión "
+                        "(aprobar o rechazar) en tu equipo."
+                    ),
+                )
+
     @action(
         detail=True,
         methods=["post"],
@@ -331,6 +350,13 @@ class TaskViewSet(viewsets.ModelViewSet):
             estado_nuevo=tarea.estado,
             detalle="Tarea aprobada",
 )
+
+        programar_correo_tarea(
+            evento="SOLICITUD_APROBADA",
+            tarea=tarea,
+            usuario_destinatario=tarea.solicitante,
+            mensaje="Tu solicitud fue aprobada.",
+        )
 
         return Response(TaskSerializer(tarea).data)
 
@@ -377,6 +403,16 @@ class TaskViewSet(viewsets.ModelViewSet):
             estado_nuevo=tarea.estado,
             detalle=f"Tarea rechazada. Motivo: {motivo}",
 )
+
+        programar_correo_tarea(
+            evento="SOLICITUD_RECHAZADA",
+            tarea=tarea,
+            usuario_destinatario=tarea.solicitante,
+            mensaje=(
+                "Tu solicitud fue rechazada. "
+                f"Motivo: {motivo}"
+            ),
+        )
 
         return Response(TaskSerializer(tarea).data)
 
@@ -1259,6 +1295,13 @@ class TaskViewSet(viewsets.ModelViewSet):
                 detalle="Todas las subtareas fueron solucionadas. Tarea finalizada.",
             )
 
+            programar_correo_tarea(
+                evento="SOLICITUD_FINALIZADA",
+                tarea=tarea,
+                usuario_destinatario=tarea.solicitante,
+                mensaje="Tu solicitud fue solucionada.",
+            )
+
         notificar_subtarea(tarea, subtarea)
         notificar_tarea(tarea)
 
@@ -1511,6 +1554,16 @@ class TaskViewSet(viewsets.ModelViewSet):
                 estado_nuevo=tarea.estado,
                 detalle=(
                     f"Tarea pausada por la subtarea #{subtarea.id}. "
+                    f"Motivo: {motivo}"
+                ),
+            )
+
+            programar_correo_tarea(
+                evento="SOLICITUD_STANDBY",
+                tarea=tarea,
+                usuario_destinatario=tarea.solicitante,
+                mensaje=(
+                    "Tu solicitud fue puesta en pausa. "
                     f"Motivo: {motivo}"
                 ),
             )

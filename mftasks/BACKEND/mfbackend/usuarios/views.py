@@ -14,10 +14,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .azure import AzureTokenValidationError, AzureTokenValidator
 
-from .models import Equipo, EquipoMiembro, Rol, User
+from .models import Equipo, EquipoMiembro, PreferenciaNotificacion, Rol, User
 from .permissions import EsAdministrador, IsAuthenticatedActivo, puede_gestionar_miembros
 from .serializers import (
     EquipoDetailSerializer,
+    PreferenciaNotificacionSerializer,
     RolSerializer,
     UserCreateSerializer,
     UserDetailSerializer,
@@ -124,6 +125,36 @@ class MeView(APIView):
             UserDetailSerializer(request.user).data,
             status=status.HTTP_200_OK,
         )
+
+
+class PreferenciaNotificacionView(APIView):
+    """Preferencias de correo del usuario autenticado (solo las propias)."""
+
+    permission_classes = [IsAuthenticatedActivo]
+
+    def _obtener_preferencias(self, user):
+        preferencias, _ = PreferenciaNotificacion.objects.get_or_create(
+            usuario=user
+        )
+        return preferencias
+
+    def get(self, request):
+        preferencias = self._obtener_preferencias(request.user)
+        return Response(
+            PreferenciaNotificacionSerializer(preferencias).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def patch(self, request):
+        preferencias = self._obtener_preferencias(request.user)
+        serializer = PreferenciaNotificacionSerializer(
+            preferencias,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(ModelViewSet):

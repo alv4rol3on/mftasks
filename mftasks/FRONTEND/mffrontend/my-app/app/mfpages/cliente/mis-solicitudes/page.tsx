@@ -364,7 +364,6 @@ export default function MisSolicitudesPage() {
         open={openCrear}
         onClose={() => setOpenCrear(false)}
         onCreated={() => {
-          showToast("Solicitud creada", "success");
           cargar();
         }}
       />

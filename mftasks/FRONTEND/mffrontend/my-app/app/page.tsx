@@ -30,7 +30,7 @@ export default function Home() {
         instance.setActiveAccount(cuenta);
 
         if (isAutenticado()) {
-            router.replace("/mfpages/home");
+            router.replace("/mfpages/perfil");
             return;
         }
 
@@ -40,7 +40,7 @@ export default function Home() {
 
             try {
                 await intercambiarToken(instance, cuenta);
-                router.replace("/mfpages/home");
+                router.replace("/mfpages/perfil");
             } catch (e) {
                 setError(
                     e instanceof ErrorDeSesion

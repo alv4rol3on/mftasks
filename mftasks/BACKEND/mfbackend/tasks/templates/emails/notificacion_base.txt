@@ -5,11 +5,46 @@ Hola {{ nombre_destinatario|default:"usuario" }},
 Código de solicitud: {{ codigo }}
 
 {% if titulo %}
-Solicitud: {{ titulo }}
+Asunto: {{ titulo }}
 {% endif %}
 
 {% if estado %}
 Estado: {{ estado }}
+{% endif %}
+
+{% if descripcion %}
+Descripción: {{ descripcion }}
+{% endif %}
+
+{% if campana %}
+Cliente / Campaña: {{ campana }}
+{% endif %}
+
+{% if subcampana %}
+Subcampaña: {{ subcampana }}
+{% endif %}
+
+{% if equipo_nombre %}
+Equipo: {{ equipo_nombre }}
+{% endif %}
+
+{% if solicitante_nombre %}
+Solicitante: {{ solicitante_nombre }}
+{% endif %}
+
+{% if fecha_creacion %}
+Fecha de creación: {{ fecha_creacion }}
+{% endif %}
+
+{% if fecha_entrega_aproximada %}
+Entrega aproximada: {{ fecha_entrega_aproximada }}
+{% endif %}
+
+{% if adjuntos %}
+Adjuntos:
+{% for archivo in adjuntos %}
+- {{ archivo }}
+{% endfor %}
 {% endif %}
 
 Este correo fue generado automáticamente por el sistema MF.

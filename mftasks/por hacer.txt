@@ -1,6 +1,26 @@
 popup de solicitud generada
 pirámide de tipos de usuarios(gerente subgerente supervisor etc)
 aprobación previa al jefe
-cambiar inicio por perfil
 al seleccionar un cliente en Permisos tambien deberia permitirme deseleccionarlo
-las alertas deberian ser desplegables
+
+
+
+Verificación real
+- TRANSPORT=smtp, EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend.
+- SMTP: con un servidor local de captura → enviado: True, procesados: 1.
+- Graph: con stub → enruta a enviar_correo_graph con asunto/destinatarios correctos.
+- manage.py check OK. Backend reiniciado.
+Para que lleguen de verdad
+El destinatario puede ser cualquier correo. Edita .env (ej. Gmail) y recrea:
+EMAIL_TRANSPORT=smtp
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=tucorreo@gmail.com
+EMAIL_HOST_PASSWORD=app-password-de-16-caracteres
+EMAIL_USE_TLS=true
+DEFAULT_FROM_EMAIL=tucorreo@gmail.com
+Luego: docker compose up -d backend.
+Para Graph: EMAIL_TRANSPORT=graph, MAIL_SENDER=<buzón del tenant> y permiso Mail.Send con consentimiento de admin.
+Aviso importante
+user1@django.com y user2@django.com no son buzones reales: aunque SMTP/Graph funcione, esos rebotarán. Prueba con los correos reales del tenant (...@lz4lv4rojoaqu1noutlook.onmicrosoft.com) o con una dirección tuya.
+Nota: el "análisis" que pegaste no corresponde a este repo (no existen dispatch_tarea_evento, cola de Celery, ni notification_logs); los disparadores ya estaban correctamente enganchados.

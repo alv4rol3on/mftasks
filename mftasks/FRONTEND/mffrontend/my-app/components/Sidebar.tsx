@@ -26,7 +26,7 @@ type Caps = {
 };
 
 const menuAll: MenuItem[] = [
-  { nombre: "Inicio", ruta: "/mfpages/home", show: () => true },
+  { nombre: "Perfil", ruta: "/mfpages/perfil", show: () => true },
   // CLIENTE: ve estado de sus solicitudes
   { nombre: "Mis Solicitudes", ruta: "/mfpages/cliente/mis-solicitudes", show: (c) => c.isCliente },
   // Para admin: una sola vista unificada "Solicitudes" (todos los estados, solo lectura + inactivar)

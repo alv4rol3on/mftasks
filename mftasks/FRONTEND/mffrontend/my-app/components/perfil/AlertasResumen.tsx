@@ -1,14 +1,11 @@
 "use client";
+
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { getUsuarioActual } from "@/lib/auth";
 import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
 import { useToast } from "@/components/ui/Toast";
 import { Task } from "@/lib/types";
-
-
 
 interface TareaConPendientes {
   tarea_id: number;
@@ -17,6 +14,7 @@ interface TareaConPendientes {
   estado_tarea: string;
   subtareas: { subtarea_id: number; descripcion: string; estado: string; peso: number }[];
 }
+
 interface Resumen {
   tipo: "asignador" | "asistente" | "admin" | "cliente";
   por_aprobar?: number;
@@ -31,23 +29,13 @@ interface Resumen {
   total?: number;
 }
 
-export default function Home() {
+export default function AlertasResumen() {
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openCrear, setOpenCrear] = useState(false);
-  const [tareas, setTareas] = useState<Task[]>([]);
+  const [, setTareas] = useState<Task[]>([]);
   const { showToast } = useToast();
-  const router = useRouter();
-
-  // El administrador no tiene alertas: se redirige al centro de Solicitudes.
-  useEffect(() => {
-    const u = getUsuarioActual();
-    const roles = (u?.roles ?? []).map((r) => r.toLowerCase());
-    if (roles.includes("administrador")) {
-      router.replace("/mfpages/solicitudes");
-    }
-  }, [router]);
 
   useEffect(() => {
     apiFetch<Resumen>("/api/tasks/tasks/resumen/")
@@ -69,24 +57,19 @@ export default function Home() {
     }
   }, [showToast]);
 
-  const usuario = getUsuarioActual();
-  const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
-  const esAdmin = roles.includes("administrador");
-
-  if (esAdmin) return <div style={{ padding: 16, color: "#6b7280" }}>Redirigiendo a Solicitudes…</div>;
-  if (cargando) return <div>Cargando alertas…</div>;
+  if (cargando) return <div style={{ fontSize: 13, color: "#6b7280" }}>Cargando alertas…</div>;
   if (error) return <div className="rounded p-4 text-sm text-red-600">Error al cargar alertas: {error}</div>;
 
   const esAsignador = resumen?.tipo === "asignador" || resumen?.tipo === "admin";
   const esCliente = resumen?.tipo === "cliente";
   const porAprobar = resumen?.por_aprobar ?? 0;
   const pendientes = resumen?.pendientes ?? 0;
+  const tareasConPendientes = resumen?.tareas_con_pendientes ?? [];
 
   if (esCliente) {
     const total = resumen?.total ?? 0;
     return (
       <div>
-        <h2 className="mb-5 text-sm font-medium">Alertas:</h2>
         {total === 0 ? (
           <div className="rounded p-4 text-sm">No tienes solicitudes aún. Crea tu primera solicitud.</div>
         ) : (
@@ -96,28 +79,22 @@ export default function Home() {
               <span style={{ background: "#dcfce7", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Aprobadas: {resumen?.aprobadas ?? 0}</span>
               <span style={{ background: "#dbeafe", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En desarrollo: {resumen?.en_desarrollo ?? 0}</span>
               <span style={{ background: "#fee2e2", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Rechazadas: {resumen?.rechazadas ?? 0}</span>
-              <span style={{ background: "#e0e7ff", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Solucionadas: {resumen?.solucionadas ?? 0}</span>
             </div>
             <Link href="/mfpages/cliente/mis-solicitudes" style={{ color: "#2563eb", textDecoration: "underline", fontSize: 14 }}>
               Ver mis solicitudes →
             </Link>
-            {/*<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-              <button onClick={() => setOpenCrear(true)} style={{ background: "#2563eb", color: "white", padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer" }}>+ Nueva solicitud</button>
-            </div>*/}
           </div>
         )}
-        <CrearSolicitudModal open={openCrear} onClose={() => setOpenCrear(false)} onCreated={() => { showToast("Solicitud creada", "success"); cargar(); }} />
+        <CrearSolicitudModal open={openCrear} onClose={() => setOpenCrear(false)} onCreated={() => { cargar(); }} />
       </div>
     );
   }
-
-  const tareasConPendientes = resumen?.tareas_con_pendientes ?? [];
 
   const renderPendientesDetalle = () => {
     if (tareasConPendientes.length === 0) return null;
     return (
       <div style={{ marginTop: 12, background: "#dbeafe", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "10px 14px", background: "##dbeafe", borderBottom: "1px solid #e5e7eb", fontSize: 12, fontWeight: 700, color: "#374151" }}>
+        <div style={{ padding: "10px 14px", background: "#dbeafe", borderBottom: "1px solid #e5e7eb", fontSize: 12, fontWeight: 700, color: "#374151" }}>
           Estás teniendo subtareas pendientes por completar en:
         </div>
         {tareasConPendientes.map((t) => (
@@ -141,8 +118,6 @@ export default function Home() {
 
   return (
     <div>
-      <h2 className="mb-5 text-sm font-medium">Alertas:</h2>
-
       {esAsignador ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {porAprobar > 0 ? (
@@ -157,36 +132,14 @@ export default function Home() {
           ) : (
             <div className="rounded p-4 text-sm" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>No hay tareas por aprobar.</div>
           )}
-          {/*  {pendientes > 0 && (
-              <div style={{ background: "#dbeafe", border: "1px solid #3b82f6", borderRadius: 8, padding: 16 }}>
-                <p style={{ color: "#1e40af", fontWeight: 600 }}>
-                  Tienes {pendientes} {pendientes === 1 ? "subtarea pendiente" : "subtareas pendientes"}
-                  {resumen?.tareas_pendientes ? ` en ${resumen.tareas_pendientes} tarea(s)` : ""}
-                </p>
-                <Link href="/mfpages/tareas" style={{ color: "#1d4ed8", textDecoration: "underline", fontSize: 14 }}>
-                  Ver mis tareas →
-                </Link>
-              </div>
-            )}*/}
           {pendientes > 0 && renderPendientesDetalle()}
-          {pendientes === 0 && porAprobar === 0 && <div className="rounded p-4 text-sm text-white-600">No hay alertas pendientes.</div>}
+          {pendientes === 0 && porAprobar === 0 && <div className="rounded p-4 text-sm">No hay alertas pendientes.</div>}
         </div>
       ) : pendientes > 0 ? (
-        <div>
-          {/*<div style={{ background: "#dbeafe", border: "1px solid #3b82f6", borderRadius: 8, padding: 16 }}>
-            <p style={{ color: "#1e40af", fontWeight: 600 }}>
-              Tienes {pendientes} {pendientes === 1 ? "subtarea pendiente" : "subtareas pendientes"}
-            </p>
-            <Link href="/mfpages/tareas" style={{ color: "#1d4ed8", textDecoration: "underline", fontSize: 14 }}>
-              Ver mis tareas →
-            </Link>
-          </div>*/}
-          {renderPendientesDetalle()}
-        </div>
+        <div>{renderPendientesDetalle()}</div>
       ) : (
-        <div className="rounded p-4 text-sm text-white-600">No hay alertas pendientes.</div>
+        <div className="rounded p-4 text-sm">No hay alertas pendientes.</div>
       )}
-
     </div>
   );
 }

@@ -241,3 +241,35 @@ class EquipoMiembro(models.Model):
 
     def __str__(self):
         return f"{self.usuario} - {self.equipo} ({self.rol_en_equipo}/{self.estado})"
+
+
+class PreferenciaNotificacion(models.Model):
+    """Preferencias de correo por usuario (solo lectura/edición propia)."""
+
+    usuario = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="preferencias_notificacion",
+    )
+
+    recibir_correos = models.BooleanField(default=True)
+
+    # Cliente
+    cliente_solicitud_creada = models.BooleanField(default=True)
+    cliente_solicitud_resuelta = models.BooleanField(default=True)
+    cliente_solicitud_standby = models.BooleanField(default=True)
+    cliente_solicitud_solucionada = models.BooleanField(default=True)
+
+    # Líder / Miembro (equipo)
+    equipo_nueva_solicitud = models.BooleanField(default=True)
+    equipo_pendiente_revision = models.BooleanField(default=True)
+    equipo_alerta_diaria = models.BooleanField(default=True)
+
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Preferencia de notificación"
+        verbose_name_plural = "Preferencias de notificación"
+
+    def __str__(self):
+        return f"Preferencias de {self.usuario}"

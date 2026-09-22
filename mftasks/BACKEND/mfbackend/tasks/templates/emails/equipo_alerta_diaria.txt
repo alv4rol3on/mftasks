@@ -1,0 +1,9 @@
+Hola {{ nombre_destinatario|default:"equipo" }},
+
+{{ mensaje }}
+
+{% for t in tareas %}
+- {{ t.codigo }} | {{ t.titulo }} | {{ t.estado }}
+{% endfor %}
+
+Este correo fue generado automáticamente por el sistema MF.

@@ -126,8 +126,26 @@ class UserDetailSerializer(serializers.ModelSerializer):
             for r in obj.roles.all()
         ]
 
-class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
 
+class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PreferenciaNotificacion
+        fields = [
+            "recibir_correos",
+            "cliente_solicitud_creada",
+            "cliente_solicitud_resuelta",
+            "cliente_solicitud_standby",
+            "cliente_solicitud_solucionada",
+            "equipo_nueva_solicitud",
+            "equipo_pendiente_revision",
+            "equipo_alerta_diaria",
+            "fecha_actualizacion",
+        ]
+        read_only_fields = ["fecha_actualizacion"]
+
+
+class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
     usuario = UserSerializer(read_only=True)
 
     # campos planos para facilitar consumo en frontend
