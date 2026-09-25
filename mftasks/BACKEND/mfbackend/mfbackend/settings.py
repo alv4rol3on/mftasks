@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "anymail",
     #apps
     "tasks",
     "usuarios",
@@ -213,10 +214,16 @@ CHANNEL_LAYERS = {
 # =========================================================
 # CORREO PARA DESARROLLO
 # =========================================================
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+ANYMAIL = {
+    "RESEND_API_KEY": os.environ.get("RESEND_API_KEY"),
+}
 
-DEFAULT_FROM_EMAIL = "LZ4lv4roJoaqu1n@outlook.com"
+DEFAULT_FROM_EMAIL = (
+    f"Sistema de Solicitudes <{os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')}>"
+)
+
 
 
 # =========================================================

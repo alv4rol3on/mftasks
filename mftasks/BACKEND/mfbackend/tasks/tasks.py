@@ -1,9 +1,12 @@
 import logging
+import os
+
+import resend
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
+resend.api_key = os.environ["RESEND_API_KEY"]
 
 logger = logging.getLogger(__name__)
 
@@ -96,31 +99,20 @@ def enviar_notificacion_email(evento, destinatarios, contexto):
         contexto,
     )
 
-    mensaje = EmailMultiAlternatives(
-        subject=asunto,
-        body=contenido_texto,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=destinatarios_validos,
-    )
-
-    mensaje.attach_alternative(
-        contenido_html,
-        "text/html",
-    )
-
     try:
-        enviados = mensaje.send(fail_silently=False)
-    except Exception:
-        logger.exception(
-            "No se pudo enviar la notificación. evento=%s destinatarios=%s",
-            evento,
-            destinatarios_validos,
-        )
-        return {
-            "enviado": False,
-            "motivo": "ERROR_ENVIO",
-            "evento": evento,
-        }
+        respuesta = resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": destinatarios_validos,
+            "subject": asunto,
+            "html": contenido_html,
+            "text": contenido_texto,
+        })
+
+        enviados = 1
+
+    except Exception as e:
+        print("ERROR REAL:", repr(e))
+        raise
 
     logger.info(
         "Notificación enviada. evento=%s destinatarios=%s",

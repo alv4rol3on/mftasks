@@ -41,12 +41,12 @@ export default function TareasPage() {
     hasta !== rangoDefecto.hasta;
   const limpiarFiltros = () => {
     const r = rangoFechasPorDefecto();
-    setFiltroEstado("TODOS");
+    setFiltroEstado("EN_PROCESO");
     setCampoFecha("solicitud");
     setDesde(r.desde);
     setHasta(r.hasta);
     setBusqueda("");
-    cargar({ busqueda: "", estado: "TODOS", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta });
+    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta });
   };
 
   const aplicarRangoPorDefecto = () => {

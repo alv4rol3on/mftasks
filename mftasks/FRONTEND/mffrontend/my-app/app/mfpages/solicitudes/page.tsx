@@ -114,7 +114,7 @@ export default function SolicitudesPage() {
     setError(null);
     try {
       await apiFetch(`/api/tasks/tasks/${tarea.id}/rechazar/`, { method: "POST", body: JSON.stringify({ motivo_rechazo: motivo }) });
-      showToast("tarea rechazado", "error");
+      showToast("Solicitud rechazada", "error");
       await cargar();
     } catch (e) {
       const msg = (e as Error).message;

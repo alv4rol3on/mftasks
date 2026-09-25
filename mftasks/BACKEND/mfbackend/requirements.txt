@@ -12,5 +12,7 @@ APScheduler==3.10.4
 channels
 daphne
 msal
+resend
 celery
 redis
+django-anymail[resend]

@@ -62,22 +62,71 @@ _scheduler = None
 
 
 def enviar_alertas_diarias():
-    """Envía a cada equipo un resumen de sus solicitudes sin solucionar."""
+    """
+    Envía a cada equipo:
+    1. Solicitudes pendientes de revisión.
+    2. Resumen de solicitudes sin solucionar.
+    """
+
     from .models import Tarea
     from usuarios.models import Equipo
     from .services.notificaciones_email import programar_correo_equipo
 
     estados_abiertos = [
-        Tarea.Estado.EN_ESPERA,
         Tarea.Estado.APROBADO,
         Tarea.Estado.EN_DESARROLLO,
         Tarea.Estado.STAND_BY,
     ]
 
     equipos = Equipo.objects.filter(activo=True)
-    enviados = 0
+
+    enviados_revision = 0
+    enviados_alerta = 0
 
     for equipo in equipos:
+
+        # ============================================================
+        # 1. SOLICITUDES PENDIENTES DE REVISIÓN
+        # ============================================================
+
+        tareas_revision = Tarea.objects.filter(
+            equipo=equipo,
+            activo=True,
+            estado=Tarea.Estado.EN_ESPERA,
+        ).order_by("fecha_creacion")
+
+        if tareas_revision.exists():
+
+            detalle_revision = [
+                {
+                    "codigo": t.ticket or str(t.id),
+                    "titulo": t.asunto,
+                    "estado": t.get_estado_display(),
+                }
+                for t in tareas_revision
+            ]
+
+            programado = programar_correo_equipo(
+                evento="EQUIPO_PENDIENTE_REVISION",
+                tarea=tareas_revision.first(),
+                mensaje=(
+                    f"Tienes {len(detalle_revision)} "
+                    "solicitud(es) pendiente(s) de revisión "
+                    "en tu equipo."
+                ),
+                contexto_adicional={
+                    "tareas": detalle_revision,
+                    "equipo_nombre": equipo.nombre,
+                },
+            )
+
+            if programado:
+                enviados_revision += 1
+
+        # ============================================================
+        # 2. SOLICITUDES SIN SOLUCIONAR
+        # ============================================================
+
         tareas = Tarea.objects.filter(
             equipo=equipo,
             activo=True,
@@ -110,12 +159,18 @@ def enviar_alertas_diarias():
         )
 
         if programado:
-            enviados += 1
+            enviados_alerta += 1
 
-    if enviados:
+    if enviados_revision:
+        logger.info(
+            "APScheduler: recordatorios de revisión enviados a %s equipo(s).",
+            enviados_revision,
+        )
+
+    if enviados_alerta:
         logger.info(
             "APScheduler: alertas diarias enviadas a %s equipo(s).",
-            enviados,
+            enviados_alerta,
         )
 
 

@@ -307,15 +307,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                 ),
             )
 
-            if tarea.estado == Tarea.Estado.EN_ESPERA:
-                programar_correo_equipo(
-                    evento="EQUIPO_PENDIENTE_REVISION",
-                    tarea=tarea,
-                    mensaje=(
-                        "Hay una solicitud en espera de revisión "
-                        "(aprobar o rechazar) en tu equipo."
-                    ),
-                )
 
     @action(
         detail=True,
