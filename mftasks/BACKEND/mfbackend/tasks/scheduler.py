@@ -129,7 +129,7 @@ def enviar_alertas_diarias():
 
         tareas = Tarea.objects.filter(
             equipo=equipo,
-            activo=True,
+            #activo=True,
             estado__in=estados_abiertos,
         ).order_by("estado", "fecha_creacion")
 
@@ -194,7 +194,7 @@ def start_scheduler():
         )
         _scheduler.add_job(
             enviar_alertas_diarias,
-            trigger=CronTrigger(hour=8, minute=0),
+            trigger=CronTrigger(hour=11, minute=30),
             id="envio_alertas_diarias",
             max_instances=1,
             coalesce=True,
@@ -202,7 +202,7 @@ def start_scheduler():
         )
         _scheduler.start()
         logger.info(
-            "APScheduler iniciado (auto-inicio cada 60s, alertas diarias 8am)."
+            "APScheduler iniciado (auto-inicio cada 60s)."
         )
     except Exception as e:
         logger.exception(f"No se pudo iniciar APScheduler: {e}")
