@@ -88,7 +88,7 @@ export default function AdminPage() {
       setMsg("Error: No se puede modificar rol de administradores");
       return;
     }
-    if (!["miembro", "lider", "cliente", "gerente", "subgerente", "coordinador", "asistente"].includes(nuevoRol.toLowerCase())) {
+    if (!["miembro", "lider", "cliente", "gerente", "subgerente", "supervisor", "asistente"].includes(nuevoRol.toLowerCase())) {
       setMsg("Rol no permitido");
       return;
     }
@@ -308,7 +308,7 @@ export default function AdminPage() {
                 <option value="cliente">cliente</option>
                 <option value="gerente">gerente</option>
                 <option value="subgerente">subgerente</option>
-                <option value="coordinador">coordinador</option>
+                <option value="supervisor">supervisor</option>
                 <option value="asistente">asistente</option>
                 <option value="administrador">administrador</option>
               </select>
@@ -328,7 +328,7 @@ export default function AdminPage() {
                   <option value="cliente">cliente</option>
                   <option value="gerente">gerente</option>
                   <option value="subgerente">subgerente</option>
-                  <option value="coordinador">coordinador</option>
+                  <option value="supervisor">supervisor</option>
                   <option value="asistente">asistente</option>
                 </select>
                 <input placeholder="Buscar por email, nombre o codigo MFS-" value={filtro} onChange={e => setFiltro(e.target.value)} className={styles.searchInput} />
@@ -358,7 +358,7 @@ export default function AdminPage() {
                                   <option value="cliente">cliente</option>
                                   <option value="gerente">gerente</option>
                                   <option value="subgerente">subgerente</option>
-                                  <option value="coordinador">coordinador</option>
+                                  <option value="supervisor">supervisor</option>
                                   <option value="asistente">asistente</option>
                                 </select>
                               )}

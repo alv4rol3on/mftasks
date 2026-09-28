@@ -32,11 +32,11 @@ export default function SolicitudesPage() {
   const user = getUsuarioActual();
   const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
   const isAdmin = rolesLower.includes("administrador");
-  // Solo GERENTE/SUBGERENTE/COORDINADOR ven todo (seguimiento).
+  // Solo GERENTE/SUBGERENTE/SUPERVISOR ven todo (seguimiento).
   // El líder del equipo ve solo su equipo (rama por defecto).
   const esAprobador =
     !isAdmin &&
-    (rolesLower.includes("gerente") || rolesLower.includes("subgerente") || rolesLower.includes("coordinador"));
+    (rolesLower.includes("gerente") || rolesLower.includes("subgerente") || rolesLower.includes("supervisor"));
 
   // filtros (admin y aprobadores de la cadena)
   const [filtroEstado, setFiltroEstado] = useState<string>(esAprobador ? "TODOS" : "EN_PROCESO");
@@ -56,7 +56,7 @@ export default function SolicitudesPage() {
     const isAsistente = roles.includes("asistente");
     const isAsignador = roles.includes("asignador");
     if (isAd) return; // admin unificada
-    if (nivelJerarquico()) return; // GERENTE/SUBGERENTE/COORDINADOR
+    if (nivelJerarquico()) return; // GERENTE/SUBGERENTE/SUPERVISOR
     if (isAsignador) return;
     if (isAsistente) { setEsSoloLectura(true); return; }
     if (isCliente && !isAsistente && !isAsignador) {

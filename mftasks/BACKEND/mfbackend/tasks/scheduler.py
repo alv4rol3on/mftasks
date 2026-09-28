@@ -323,10 +323,10 @@ def start_scheduler():
             coalesce=True,
             replace_existing=True,
         )
-        # 08:00 Coordinador
+        # 08:00 Supervisor
         _scheduler.add_job(
             enviar_digest_aprobadores,
-            args=[["COORDINADOR"]],
+            args=[["SUPERVISOR"]],
             trigger=CronTrigger(hour=8, minute=0),
             id="digest_aprobadores_0800",
             max_instances=1,

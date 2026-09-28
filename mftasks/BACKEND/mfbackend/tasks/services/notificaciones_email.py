@@ -278,7 +278,7 @@ def correos_por_rol(rol, evento=None):
     """Correos de los usuarios activos que poseen el rol indicado.
 
     Se usa para notificar a los responsables de un nivel GLOBAL de la cadena
-    de aprobación (GERENTE, SUBGERENTE, COORDINADOR).
+    de aprobación (GERENTE, SUBGERENTE, SUPERVISOR).
     """
 
     if not rol:

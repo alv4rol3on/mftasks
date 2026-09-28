@@ -57,8 +57,8 @@ class TareaFlujoTestCase(APITestCase):
         _asignar_rol(self.gerente, "GERENTE")
         self.subgerente = _crear_usuario("subgerente@empresa.com")
         _asignar_rol(self.subgerente, "SUBGERENTE")
-        self.coordinador = _crear_usuario("coordinador@empresa.com")
-        _asignar_rol(self.coordinador, "COORDINADOR")
+        self.supervisor = _crear_usuario("supervisor@empresa.com")
+        _asignar_rol(self.supervisor, "SUPERVISOR")
 
         self.campana = Campana.objects.create(nombre="Campana Test", codigo="CAMP_TEST")
         self.subcampana = SubCampana.objects.create(campana=self.campana, nombre="Sub Test", codigo="SUB_TEST")
@@ -142,7 +142,7 @@ class TareaFlujoTestCase(APITestCase):
 
     def test_aprobador_de_equipo_ya_no_aprueba(self):
 
-        # El flujo exige la cadena GERENTE -> SUBGERENTE -> COORDINADOR -> LIDER.
+        # El flujo exige la cadena GERENTE -> SUBGERENTE -> SUPERVISOR -> LIDER.
         self.client.force_authenticate(user=self.asignador1)
 
         res = self.client.post(
@@ -165,8 +165,8 @@ class TareaFlujoTestCase(APITestCase):
     def _avanzar_hasta_lider(self, url):
         for usuario, siguiente in [
             (self.gerente, "SUBGERENTE"),
-            (self.subgerente, "COORDINADOR"),
-            (self.coordinador, "LIDER"),
+            (self.subgerente, "SUPERVISOR"),
+            (self.supervisor, "LIDER"),
         ]:
             self.client.force_authenticate(user=usuario)
             res = self.client.post(url)

@@ -506,7 +506,7 @@ export default function TaskModal({
                             <div className={styles.tabsHeader}>
                                 <button onClick={() => setTab("progreso")} className={tab === "progreso" ? styles.tabBtnActive : styles.tabBtn}>Progreso</button>
                                 {puedeVerHistorial && <button onClick={() => setTab("historial")} className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}>Historial</button>}
-                                {puedeVerAsignaciones && <button onClick={() => setTab("asignaciones")} className={tab === "asignaciones" ? styles.tabBtnActive : styles.tabBtn}>Asignaciones</button>}
+                                {puedeVerAsignaciones && tarea.estado !== "SOLUCIONADO" && <button onClick={() => setTab("asignaciones")} className={tab === "asignaciones" ? styles.tabBtnActive : styles.tabBtn}>Asignaciones</button>}
                             </div>
                             {tab === "progreso" ? (
                                 <>
@@ -847,7 +847,8 @@ export default function TaskModal({
                                         </div>
                                     )}
                                 </div>
-                            )}
+                            )
+                            }
                         </div>
 
                     </div>

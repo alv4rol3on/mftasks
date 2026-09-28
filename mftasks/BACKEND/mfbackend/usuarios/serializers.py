@@ -47,7 +47,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate_roles(self, value):
         allowed = {
             "administrador", "miembro", "cliente", "lider",
-            "gerente", "subgerente", "coordinador", "asistente",
+            "gerente", "subgerente", "supervisor", "asistente",
         }
         normalized = [v.lower().strip() for v in value]
         for r in normalized:

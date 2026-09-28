@@ -116,9 +116,9 @@ export default function PerfilPage() {
     ["miembro", "lider", "líder", "administrador"].includes(r.toLowerCase())
   );
   const esAprobador = roles.some((r) =>
-    ["gerente", "subgerente", "coordinador"].includes(r.toLowerCase())
+    ["gerente", "subgerente", "supervisor"].includes(r.toLowerCase())
   );
-  // Gerente/Subgerente/Coordinador: solo ven las 2 opciones de aprobador.
+  // Gerente/Subgerente/supervisor: solo ven las 2 opciones de aprobador.
   const soloAprobador = esAprobador && !esAdmin;
 
   const prefsSucias =

@@ -17,7 +17,7 @@ class Tarea(models.Model):
     class PasoAprobacion(models.TextChoices):
         GERENTE = "GERENTE", "Gerente"
         SUBGERENTE = "SUBGERENTE", "Subgerente"
-        COORDINADOR = "COORDINADOR", "Coordinador"
+        SUPERVISOR = "SUPERVISOR", "Supervisor"
         LIDER = "LIDER", "Líder"
         COMPLETADO = "COMPLETADO", "Completado"
 

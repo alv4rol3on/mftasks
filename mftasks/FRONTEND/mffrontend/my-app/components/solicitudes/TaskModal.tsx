@@ -63,13 +63,13 @@ export default function TaskModal({
 
     const ocupado = accionando === tarea.id;
 
-    const CADENA = ["GERENTE", "SUBGERENTE", "COORDINADOR", "LIDER"];
+    const CADENA = ["GERENTE", "SUBGERENTE", "SUPERVISOR", "LIDER"];
 
     const nombreNivelLocal = (nivel?: string | null): string => {
         const nombres: Record<string, string> = {
             GERENTE: "Gerente",
             SUBGERENTE: "Subgerente",
-            COORDINADOR: "Coordinador",
+            SUPERVISOR: "Supervisor",
             LIDER: "Líder",
             COMPLETADO: "Completado",
         };
@@ -220,30 +220,6 @@ export default function TaskModal({
                                         {a.accion === "APROBADO" ? "Aprobó" : "Rechazó"} —{" "}
                                         {a.usuario_nombre ?? "—"}
                                         {a.motivo ? ` (${a.motivo})` : ""}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-
-                    <div style={{ gridColumn: "1 / -1" }}>
-                        <h3>Seguimiento</h3>
-                        {seguimiento === null ? (
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>Cargando historial…</div>
-                        ) : seguimiento.length === 0 ? (
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>Sin eventos registrados.</div>
-                        ) : (
-                            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#374151" }}>
-                                {seguimiento.map((ev) => (
-                                    <li key={ev.id} style={{ marginBottom: 4 }}>
-                                        <span style={{ color: "#6b7280" }}>
-                                            {ev.fecha ? new Date(ev.fecha).toLocaleString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"}
-                                        </span>{" "}
-                                        <strong>{ev.tipo_evento}</strong>
-                                        {ev.estado_nuevo ? ` → ${ev.estado_nuevo}` : ""}
-                                        {ev.subtarea_codigo ? ` (${ev.subtarea_codigo})` : ""}
-                                        {ev.usuario ? ` · ${ev.usuario}` : ""}
-                                        {ev.detalle ? ` — ${ev.detalle}` : ""}
                                     </li>
                                 ))}
                             </ul>

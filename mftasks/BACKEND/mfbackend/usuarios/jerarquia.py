@@ -1,7 +1,7 @@
 """Jerarquía organizacional y cadena de aprobación de solicitudes.
 
 Aprobación global (roles a nivel organización):
-    GERENTE -> SUBGERENTE -> COORDINADOR
+    GERENTE -> SUBGERENTE -> SUPERVISOR
 Paso final:
     LIDER (líder del equipo de la solicitud)
 
@@ -11,7 +11,7 @@ Este módulo no importa modelos para evitar imports circulares.
 PASOS_GLOBALES = [
     "GERENTE",
     "SUBGERENTE",
-    "COORDINADOR",
+    "SUPERVISOR",
 ]
 
 PASO_FINAL = "LIDER"
@@ -21,7 +21,7 @@ CADENA_APROBACION = PASOS_GLOBALES + [PASO_FINAL]
 NOMBRES_NIVEL = {
     "GERENTE": "Gerente",
     "SUBGERENTE": "Subgerente",
-    "COORDINADOR": "Coordinador",
+    "SUPERVISOR": "Supervisor",
     "LIDER": "Líder",
     "COMPLETADO": "Completado",
 }

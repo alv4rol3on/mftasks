@@ -264,7 +264,7 @@ class PreferenciaNotificacion(models.Model):
     cliente_solicitud_solucionada = models.BooleanField(default=True)
     cliente_resumen_diario = models.BooleanField(default=True)
 
-    # Aprobador global (GERENTE / SUBGERENTE / COORDINADOR)
+    # Aprobador global (GERENTE / SUBGERENTE / SUPERVISOR)
     aprobador_nueva_solicitud = models.BooleanField(default=True)
     aprobador_pendiente_revision = models.BooleanField(default=True)
 

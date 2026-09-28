@@ -77,7 +77,7 @@ export default function Sidebar({
     // compat: viejo asignador/asistente mapean a miembro
     const isAsistenteExplicit = roles.includes("asistente");
     const isAsignadorLegacy = roles.includes("asignador");
-    const isAprobador = ["gerente", "subgerente", "coordinador"].some((r) => roles.includes(r));
+    const isAprobador = ["gerente", "subgerente", "supervisor"].some((r) => roles.includes(r));
     const isAsistente = false; // deprecado
     const isAsignador = isAdmin || isAsignadorLegacy || isAprobador;
 

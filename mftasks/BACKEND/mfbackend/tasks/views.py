@@ -162,7 +162,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante", "aprobaciones").order_by("-fecha_creacion")
 
-        # Roles globales de la cadena (GERENTE/SUBGERENTE/COORDINADOR):
+        # Roles globales de la cadena (GERENTE/SUBGERENTE/SUPERVISOR):
         # alcance global, deben resolver solicitudes de cualquier equipo.
         # El líder del equipo ve solo lo de su equipo (rama de abajo).
         if nivel_jerarquico(user):
