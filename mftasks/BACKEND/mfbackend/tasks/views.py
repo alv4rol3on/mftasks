@@ -23,13 +23,70 @@ from tasks.services.notificaciones_email import (
 
 
 
-from usuarios.permissions import EsAdministrador, IsAuthenticatedActivo
+from usuarios.permissions import (
+    EsAdministrador,
+    IsAuthenticatedActivo,
+    nivel_jerarquico,
+)
+from usuarios.jerarquia import PASO_FINAL, nombre_nivel, siguiente_paso
 
-from .models import ArchivoTarea, Subtarea, Tarea, TareaLog
-from .permissions import EsAsignadorDeEquipoDeTarea, es_asignador_del_equipo, es_cliente
+from .models import AprobacionTarea, ArchivoTarea, Subtarea, Tarea, TareaLog
+from .permissions import (
+    EsAsignadorDeEquipoDeTarea,
+    PuedeAprobarPasoDeTarea,
+    es_aprobador_de_tarea,
+)
 from .serializers import SubtareaSerializer, TaskSerializer
 from .services.logs import registrar_log
 from .services.notificaciones import notificar_subtarea, notificar_tarea
+
+def _notificar_nivel(tarea, nivel):
+    """Programa el correo a quienes deben resolver el nivel indicado.
+
+    - Pasos globales: usuarios con el rol (gated por aprobador_nueva_solicitud).
+    - Paso final (LIDER): líder(es) del equipo de la tarea
+      (gated por equipo_pendiente_revision).
+    """
+    from .services.notificaciones_email import correos_lideres, correos_por_rol
+
+    if nivel == PASO_FINAL:
+        correos = correos_lideres(tarea.equipo, evento="EQUIPO_PENDIENTE_REVISION")
+        if not correos:
+            return False
+        return programar_correo_tarea(
+            evento="EQUIPO_PENDIENTE_REVISION",
+            tarea=tarea,
+            destinatarios=correos,
+            mensaje=(
+                f"La solicitud {tarea.ticket or tarea.id} está pendiente de "
+                "tu aprobación final como líder del equipo."
+            ),
+            contexto_adicional={
+                "nivel_nombre": nombre_nivel(nivel),
+                "nivel": nivel,
+                "nombre_destinatario": f"equipo {tarea.equipo.nombre}",
+            },
+        )
+
+    correos = correos_por_rol(nivel, evento="SOLICITUD_PENDIENTE_NIVEL")
+    if not correos:
+        return False
+
+    return programar_correo_tarea(
+        evento="SOLICITUD_PENDIENTE_NIVEL",
+        tarea=tarea,
+        destinatarios=correos,
+        mensaje=(
+            f"La solicitud {tarea.ticket or tarea.id} está pendiente de "
+            f"tu revisión como {nombre_nivel(nivel)}."
+        ),
+        contexto_adicional={
+            "nivel_nombre": nombre_nivel(nivel),
+            "nivel": nivel,
+            "nombre_destinatario": f"equipo {nombre_nivel(nivel)}",
+        },
+    )
+
 
 def _parsear_fecha(valor):
 
@@ -103,11 +160,17 @@ class TaskViewSet(viewsets.ModelViewSet):
         from usuarios.models import Equipo, EquipoMiembro
 
         if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-            return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
+            return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante", "aprobaciones").order_by("-fecha_creacion")
+
+        # Roles globales de la cadena (GERENTE/SUBGERENTE/COORDINADOR):
+        # alcance global, deben resolver solicitudes de cualquier equipo.
+        # El líder del equipo ve solo lo de su equipo (rama de abajo).
+        if nivel_jerarquico(user):
+            return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante", "aprobaciones").order_by("-fecha_creacion")
 
         # CLIENTE nunca es miembro de equipo: solo ve sus propias solicitudes (no espía)
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
-            return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
+            return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante", "aprobaciones")
 
         # Detectar lider por-equipo (Fase 1: 4 roles) -> lider = Equipo.lider o miembro LIDER activo
         es_lider = Equipo.objects.filter(lider=user).exists() or EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
@@ -119,7 +182,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Tarea.objects.filter(
             Q(equipo__lider=user)
             | Q(equipo__miembros__usuario=user)
-        ).distinct().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
+        ).distinct().prefetch_related("subtareas", "equipo", "solicitante", "aprobaciones").order_by("-fecha_creacion")
 
     def filter_queryset(self, queryset):
         """Filtros opcionales de listado: search, estado, fecha, exclusión de en espera y antigüedad."""
@@ -263,10 +326,12 @@ class TaskViewSet(viewsets.ModelViewSet):
                     solicitante=user,
                     estado=Tarea.Estado.EN_ESPERA,
                     progreso=0,
+                    activo=True,
                 )
             else:
                 tarea = serializer.save(
                     solicitante=user,
+                    activo=True,
                 )
 
             for archivo in archivos:
@@ -307,11 +372,15 @@ class TaskViewSet(viewsets.ModelViewSet):
                 ),
             )
 
+            # Aviso inmediato "nuevas solicitudes" al nivel que debe resolver
+            # (por defecto GERENTE). El aviso al resto de niveles ocurre al aprobar.
+            _notificar_nivel(tarea, tarea.paso_aprobacion)
+
 
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        permission_classes=[IsAuthenticatedActivo, PuedeAprobarPasoDeTarea],
     )
     def aprobar(self, request, pk=None):
 
@@ -323,15 +392,47 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        estado_anterior = tarea.estado
+        paso_actual = tarea.paso_aprobacion
 
-        tarea.estado = Tarea.Estado.APROBADO
-        tarea.aprobador = request.user
-        tarea.fecha_respuesta = timezone.localtime(timezone.now())
-        tarea.save()
+        if paso_actual == Tarea.PasoAprobacion.COMPLETADO:
+            return Response(
+                {"detail": "La solicitud ya completó el flujo de aprobación."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not es_aprobador_de_tarea(request.user, tarea):
+            return Response(
+                {
+                    "detail": (
+                        "Esta solicitud está pendiente de "
+                        f"{nombre_nivel(paso_actual)}."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        estado_anterior = tarea.estado
+        siguiente = siguiente_paso(paso_actual)
+
+        with transaction.atomic():
+            AprobacionTarea.objects.create(
+                tarea=tarea,
+                nivel=paso_actual,
+                usuario=request.user,
+                accion=AprobacionTarea.Accion.APROBADO,
+            )
+
+            if siguiente is None:
+                tarea.paso_aprobacion = Tarea.PasoAprobacion.COMPLETADO
+                tarea.estado = Tarea.Estado.APROBADO
+                tarea.aprobador = request.user
+                tarea.fecha_respuesta = timezone.localtime(timezone.now())
+            else:
+                tarea.paso_aprobacion = siguiente
+
+            tarea.save()
 
         notificar_tarea(tarea)
-
 
         registrar_log(
             tarea=tarea,
@@ -339,22 +440,29 @@ class TaskViewSet(viewsets.ModelViewSet):
             tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
             estado_anterior=estado_anterior,
             estado_nuevo=tarea.estado,
-            detalle="Tarea aprobada",
-)
-
-        programar_correo_tarea(
-            evento="SOLICITUD_APROBADA",
-            tarea=tarea,
-            usuario_destinatario=tarea.solicitante,
-            mensaje="Tu solicitud fue aprobada.",
+            detalle=(
+                f"Aprobado en nivel {nombre_nivel(paso_actual)}."
+                if siguiente
+                else f"Aprobación final por {nombre_nivel(paso_actual)}."
+            ),
         )
 
-        return Response(TaskSerializer(tarea).data)
+        if siguiente is None:
+            programar_correo_tarea(
+                evento="SOLICITUD_APROBADA",
+                tarea=tarea,
+                usuario_destinatario=tarea.solicitante,
+                mensaje="Tu solicitud fue aprobada.",
+            )
+        else:
+            _notificar_nivel(tarea, siguiente)
+
+        return Response(TaskSerializer(tarea, context={"request": request}).data)
 
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        permission_classes=[IsAuthenticatedActivo, PuedeAprobarPasoDeTarea],
     )
     def rechazar(self, request, pk=None):
 
@@ -364,6 +472,25 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response(
                 {"detail": "Solo se pueden rechazar solicitudes en espera."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        paso_actual = tarea.paso_aprobacion
+
+        if paso_actual == Tarea.PasoAprobacion.COMPLETADO:
+            return Response(
+                {"detail": "La solicitud ya completó el flujo de aprobación."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not es_aprobador_de_tarea(request.user, tarea):
+            return Response(
+                {
+                    "detail": (
+                        "Esta solicitud está pendiente de "
+                        f"{nombre_nivel(paso_actual)}."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         motivo = (request.data.get("motivo_rechazo") or "").strip()
@@ -376,15 +503,23 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         estado_anterior = tarea.estado
 
-        tarea.estado = Tarea.Estado.RECHAZADO
-        tarea.aprobador = request.user
-        tarea.motivo_rechazo = motivo
-        tarea.fecha_respuesta = timezone.localtime(timezone.now())
-        tarea.save()
+        with transaction.atomic():
+            AprobacionTarea.objects.create(
+                tarea=tarea,
+                nivel=paso_actual,
+                usuario=request.user,
+                accion=AprobacionTarea.Accion.RECHAZADO,
+                motivo=motivo,
+            )
 
-        
+            tarea.estado = Tarea.Estado.RECHAZADO
+            tarea.paso_aprobacion = Tarea.PasoAprobacion.COMPLETADO
+            tarea.aprobador = request.user
+            tarea.motivo_rechazo = motivo
+            tarea.fecha_respuesta = timezone.localtime(timezone.now())
+            tarea.save()
+
         notificar_tarea(tarea)
-
 
         registrar_log(
             tarea=tarea,
@@ -392,8 +527,11 @@ class TaskViewSet(viewsets.ModelViewSet):
             tipo_evento=TareaLog.TipoEvento.CAMBIO_ESTADO,
             estado_anterior=estado_anterior,
             estado_nuevo=tarea.estado,
-            detalle=f"Tarea rechazada. Motivo: {motivo}",
-)
+            detalle=(
+                f"Tarea rechazada en nivel {nombre_nivel(paso_actual)}. "
+                f"Motivo: {motivo}"
+            ),
+        )
 
         programar_correo_tarea(
             evento="SOLICITUD_RECHAZADA",
@@ -405,7 +543,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             ),
         )
 
-        return Response(TaskSerializer(tarea).data)
+        return Response(TaskSerializer(tarea, context={"request": request}).data)
 
     @action(
         detail=True,
@@ -824,6 +962,28 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "tareas_con_pendientes": detalle,
             })
 
+        # Roles de la cadena de aprobación: cuentan solicitudes pendientes en su nivel
+        nivel = nivel_jerarquico(user)
+        if nivel:
+            por_aprobar = Tarea.objects.filter(
+                estado=Tarea.Estado.EN_ESPERA,
+                paso_aprobacion=nivel,
+            ).count()
+            pendientes = Subtarea.objects.filter(
+                asignado=user,
+                estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
+                tarea__estado=Tarea.Estado.EN_DESARROLLO,
+            ).count()
+            detalle = self._tareas_con_pendientes(user)
+            return Response({
+                "tipo": "aprobador",
+                "nivel": nivel,
+                "por_aprobar": por_aprobar,
+                "pendientes": pendientes,
+                "tareas_pendientes": len(detalle),
+                "tareas_con_pendientes": detalle,
+            })
+
         es_asignador = False
         if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists():
             es_asignador = True
@@ -833,11 +993,23 @@ class TaskViewSet(viewsets.ModelViewSet):
             es_asignador = True
 
         if es_asignador:
-            # tareas por aprobar de sus equipos
+            # El líder del equipo resuelve el paso final (LIDER) de sus equipos.
+            equipos_liderados_ids = set(
+                Equipo.objects.filter(lider=user).values_list("id", flat=True)
+            )
+            equipos_liderados_ids.update(
+                EquipoMiembro.objects.filter(
+                    usuario=user,
+                    rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER,
+                    estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+                ).values_list("equipo_id", flat=True)
+            )
             por_aprobar = Tarea.objects.filter(
-                Q(equipo__lider=user) | Q(equipo__miembros__usuario=user),
+                equipo_id__in=equipos_liderados_ids,
                 estado=Tarea.Estado.EN_ESPERA,
-            ).distinct().count()
+                paso_aprobacion=PASO_FINAL,
+                activo=True,
+            ).count()
             # Además informar pendientes propios con detalle
             pendientes = Subtarea.objects.filter(
                 asignado=user,

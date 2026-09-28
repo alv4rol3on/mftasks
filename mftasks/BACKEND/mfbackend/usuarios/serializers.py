@@ -45,7 +45,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def validate_roles(self, value):
-        allowed = {"administrador", "miembro", "cliente", "lider"}
+        allowed = {
+            "administrador", "miembro", "cliente", "lider",
+            "gerente", "subgerente", "coordinador", "asistente",
+        }
         normalized = [v.lower().strip() for v in value]
         for r in normalized:
             if r not in allowed:
@@ -313,6 +316,9 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
             "cliente_solicitud_resuelta",
             "cliente_solicitud_standby",
             "cliente_solicitud_solucionada",
+            "cliente_resumen_diario",
+            "aprobador_nueva_solicitud",
+            "aprobador_pendiente_revision",
             "equipo_nueva_solicitud",
             "equipo_pendiente_revision",
             "equipo_alerta_diaria",

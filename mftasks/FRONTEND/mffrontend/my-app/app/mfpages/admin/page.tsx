@@ -88,7 +88,7 @@ export default function AdminPage() {
       setMsg("Error: No se puede modificar rol de administradores");
       return;
     }
-    if (!["miembro", "lider", "cliente"].includes(nuevoRol.toLowerCase())) {
+    if (!["miembro", "lider", "cliente", "gerente", "subgerente", "coordinador", "asistente"].includes(nuevoRol.toLowerCase())) {
       setMsg("Rol no permitido");
       return;
     }
@@ -306,6 +306,10 @@ export default function AdminPage() {
                 <option value="miembro">miembro</option>
                 <option value="lider">lider</option>
                 <option value="cliente">cliente</option>
+                <option value="gerente">gerente</option>
+                <option value="subgerente">subgerente</option>
+                <option value="coordinador">coordinador</option>
+                <option value="asistente">asistente</option>
                 <option value="administrador">administrador</option>
               </select>
             </div>
@@ -322,6 +326,10 @@ export default function AdminPage() {
                   <option value="miembro">miembro</option>
                   <option value="lider">lider</option>
                   <option value="cliente">cliente</option>
+                  <option value="gerente">gerente</option>
+                  <option value="subgerente">subgerente</option>
+                  <option value="coordinador">coordinador</option>
+                  <option value="asistente">asistente</option>
                 </select>
                 <input placeholder="Buscar por email, nombre o codigo MFS-" value={filtro} onChange={e => setFiltro(e.target.value)} className={styles.searchInput} />
               </div>
@@ -348,6 +356,10 @@ export default function AdminPage() {
                                   <option value="miembro">miembro</option>
                                   <option value="lider">lider</option>
                                   <option value="cliente">cliente</option>
+                                  <option value="gerente">gerente</option>
+                                  <option value="subgerente">subgerente</option>
+                                  <option value="coordinador">coordinador</option>
+                                  <option value="asistente">asistente</option>
                                 </select>
                               )}
                             </td>

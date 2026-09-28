@@ -1,5 +1,7 @@
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
+from .jerarquia import PASOS_GLOBALES, PASO_FINAL
+
 
 class IsAuthenticatedActivo(IsAuthenticated):
 
@@ -27,6 +29,54 @@ def es_administrador(user):
     if not user or not user.is_authenticated:
         return False
     return user.roles.filter(rol__nombre__iexact="Administrador").exists()
+
+
+def tiene_rol(user, nombre):
+    """Indica si el usuario posee el rol indicado (case-insensitive)."""
+    if not user or not user.is_authenticated or not nombre:
+        return False
+    return user.roles.filter(rol__nombre__iexact=nombre).exists()
+
+
+def nivel_jerarquico(user):
+    """Devuelve el nivel global de la cadena que posee el usuario, o None.
+
+    El paso final (LIDER) no es un rol global: se resuelve por equipo en
+    `tasks.permissions.es_aprobador_de_tarea`.
+    """
+    for nombre in PASOS_GLOBALES:
+        if tiene_rol(user, nombre):
+            return nombre
+    return None
+
+
+def es_lider_del_equipo(user, equipo):
+    """True si el usuario es líder de ESE equipo (FK o miembro LIDER activo)."""
+    if not user or not user.is_authenticated or equipo is None:
+        return False
+    if equipo.lider_id == user.id:
+        return True
+    from .models import EquipoMiembro
+    return EquipoMiembro.objects.filter(
+        equipo=equipo,
+        usuario=user,
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER,
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+    ).exists()
+
+
+def es_aprobador_de_paso(user, paso):
+    """True si el usuario puede actuar en un paso GLOBAL de aprobación.
+
+    Se exige el rol exacto del paso. El Administrador puede actuar como
+    override. El paso final (LIDER) se valida con el equipo en
+    `tasks.permissions.es_aprobador_de_tarea`.
+    """
+    if es_administrador(user):
+        return True
+    if not paso or paso == "COMPLETADO" or paso == PASO_FINAL:
+        return False
+    return tiene_rol(user, paso)
 
 
 def es_lider_de_equipo(user, equipo):

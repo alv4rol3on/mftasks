@@ -78,6 +78,56 @@ export function esCliente(): boolean {
     return rolesLower(usuario.roles).includes("cliente");
 }
 
+/** Niveles globales de la cadena (roles a nivel organización). */
+export const PASOS_GLOBALES = ["GERENTE", "SUBGERENTE", "COORDINADOR"] as const;
+
+/** Paso final de la cadena: lo resuelve el líder del equipo de la solicitud. */
+export const PASO_FINAL = "LIDER";
+
+export const CADENA_APROBACION = [...PASOS_GLOBALES, PASO_FINAL] as const;
+
+export function nivelJerarquico(): string | null {
+    const usuario = getUsuarioActual();
+    if (!usuario) return null;
+    const roles = rolesLower(usuario.roles);
+    for (const nivel of PASOS_GLOBALES) {
+        if (roles.includes(nivel.toLowerCase())) return nivel;
+    }
+    return null;
+}
+
+export function esRolAprobacion(): boolean {
+    return nivelJerarquico() !== null;
+}
+
+/**
+ * GERENTE / SUBGERENTE / COORDINADOR: solo acceden a aprobar/rechazar y al
+ * seguimiento de solicitudes (sin Equipos ni Tareas en desarrollo).
+ * El Administrador queda fuera de la restricción.
+ */
+export function esAprobadorRestringido(): boolean {
+    const usuario = getUsuarioActual();
+    if (!usuario) return false;
+    const roles = rolesLower(usuario.roles);
+    if (roles.includes("administrador")) return false;
+    return (
+        roles.includes("gerente") ||
+        roles.includes("subgerente") ||
+        roles.includes("coordinador")
+    );
+}
+
+export function nombreNivel(nivel?: string | null): string {
+    const nombres: Record<string, string> = {
+        GERENTE: "Gerente",
+        SUBGERENTE: "Subgerente",
+        COORDINADOR: "Coordinador",
+        LIDER: "Líder",
+        COMPLETADO: "Completado",
+    };
+    return nivel ? nombres[nivel] ?? nivel : "";
+}
+
 export function isAutenticado(): boolean {
     return Boolean(obtenerAccessToken());
 }

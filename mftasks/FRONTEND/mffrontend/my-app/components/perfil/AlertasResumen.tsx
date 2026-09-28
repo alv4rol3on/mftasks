@@ -16,7 +16,8 @@ interface TareaConPendientes {
 }
 
 interface Resumen {
-  tipo: "asignador" | "asistente" | "admin" | "cliente";
+  tipo: "asignador" | "asistente" | "admin" | "cliente" | "aprobador";
+  nivel?: string;
   por_aprobar?: number;
   pendientes?: number;
   tareas_pendientes?: number;
@@ -60,7 +61,7 @@ export default function AlertasResumen() {
   if (cargando) return <div style={{ fontSize: 13, color: "#6b7280" }}>Cargando alertas…</div>;
   if (error) return <div className="rounded p-4 text-sm text-red-600">Error al cargar alertas: {error}</div>;
 
-  const esAsignador = resumen?.tipo === "asignador" || resumen?.tipo === "admin";
+  const esAsignador = resumen?.tipo === "asignador" || resumen?.tipo === "admin" || resumen?.tipo === "aprobador";
   const esCliente = resumen?.tipo === "cliente";
   const porAprobar = resumen?.por_aprobar ?? 0;
   const pendientes = resumen?.pendientes ?? 0;

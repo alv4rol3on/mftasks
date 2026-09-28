@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { getUsuarioActual } from "@/lib/auth";
+import { esAprobadorRestringido, getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo, EquipoMiembroDetallado } from "@/lib/types";
 import styles from "./Equipos.module.css";
 
@@ -44,10 +45,25 @@ export default function EquiposPage() {
   const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; codigo?: string; email: string; nombres: string; apellidos: string; is_active?: boolean; activo?: boolean }[]>([]);
   const [agregarUsuarioId, setAgregarUsuarioId] = useState<string>("");
 
+  const router = useRouter();
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
   const esAdmin = roles.includes("administrador");
   const esClientePuro = roles.includes("cliente") && !esAdmin && !roles.includes("miembro") && !roles.includes("asignador") && !roles.includes("asistente");
+  const esAprobadorRestringidoFlag = esAprobadorRestringido();
+  const [soloMios, setSoloMios] = useState(false);
+
+  useEffect(() => {
+    if (esAprobadorRestringidoFlag) {
+      router.replace("/mfpages/solicitudes");
+    }
+  }, [esAprobadorRestringidoFlag, router]);
+
+  const esMiEquipo = (equipo: EquipoInfo) =>
+    equipo.lider?.id === usuario?.id ||
+    (equipo.miembros ?? []).some((m) => m.id_usuario === usuario?.id);
+
+  const equiposVisibles = soloMios ? equipos.filter(esMiEquipo) : equipos;
   const [nuevo, setNuevo] = useState({
     nombre: "",
     lider: "",
@@ -371,13 +387,37 @@ export default function EquiposPage() {
               ? "Ves los equipos a los que puedes solicitar servicios."
               : esAdmin
                 ? "Vista administrador: ves todos los equipos del sistema."
-                : "Puedes ver los equipos donde eres líder o integrante."}
+                : "Ves todos los equipos del sistema; usa el filtro para ver solo aquellos a los que perteneces."}
           </p>
         </div>
         <button onClick={recargar} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
           Recargar
         </button>
       </div>
+
+      {!esClientePuro && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => setSoloMios((v) => !v)}
+            style={{
+              border: "1px solid #d1d5db",
+              background: soloMios ? "#111827" : "white",
+              color: soloMios ? "white" : "#374151",
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {soloMios ? "Filtro: solo mis equipos" : "Filtro: todos los equipos"}
+          </button>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>
+            {equiposVisibles.length} de {equipos.length} equipo(s)
+          </span>
+        </div>
+      )}
 
       {mensaje && (
         <div className={`${styles.alert} ${mensaje.startsWith("Error") ? styles.alertError : styles.alertSuccess}`}>
@@ -503,16 +543,20 @@ export default function EquiposPage() {
         </div>
       )}
 
-      {equipos.length === 0 ? (
+      {equiposVisibles.length === 0 ? (
         <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, padding: 24, textAlign: "center" }}>
           <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>
-            {esClientePuro ? "No hay equipos activos disponibles por el momento." : "No perteneces a ningún equipo aún."}
+            {soloMios
+              ? "No perteneces a ningún equipo aún."
+              : esClientePuro
+                ? "No hay equipos activos disponibles por el momento."
+                : "No hay equipos disponibles."}
           </p>
-          {!esClientePuro && <p style={{ color: "#9ca3af", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
+          {!esClientePuro && !soloMios && <p style={{ color: "#9ca3af", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
         </div>
       ) : (
         <div className={styles.grid}>
-          {equipos.map((equipo) => {
+          {equiposVisibles.map((equipo) => {
             const expandido = equipoExpandido === equipo.id;
             const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
             const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";

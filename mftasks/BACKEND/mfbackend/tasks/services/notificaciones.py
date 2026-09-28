@@ -30,6 +30,7 @@ def notificar_tarea(tarea):
             "type": "task_status_changed",
             "task_id": tarea.id,
             "estado_nuevo": tarea.estado,
+            "paso_aprobacion": getattr(tarea, "paso_aprobacion", None),
             "progreso": _progreso(tarea),
             "activo": bool(tarea.activo),
         },

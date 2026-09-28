@@ -258,7 +258,9 @@ export default function TareasPage() {
   // admin redirect ya hecho en guard, pero fallback render
   if (typeof window !== "undefined") {
     const u = (() => { try { const g = localStorage.getItem("user"); return g ? JSON.parse(g) : null; } catch { return null; } })();
-    if (u && (u.roles ?? []).map((r: string)=>r.toLowerCase()).includes("administrador")) {
+    const rolesU = u ? (u.roles ?? []).map((r: string) => r.toLowerCase()) : [];
+    const esRestringido = rolesU.includes("gerente") || rolesU.includes("subgerente") || rolesU.includes("coordinador");
+    if (u && (rolesU.includes("administrador") || esRestringido)) {
       return <div style={{ padding: 16, color: "#6b7280" }}>Redirigiendo a Solicitudes...</div>;
     }
   }

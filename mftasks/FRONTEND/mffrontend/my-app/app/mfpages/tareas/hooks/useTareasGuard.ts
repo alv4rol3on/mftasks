@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { getUsuarioActual } from "@/lib/auth";
+import { esAprobadorRestringido, getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo } from "@/lib/types";
 
 export function useTareasGuard() {
@@ -21,6 +21,10 @@ export function useTareasGuard() {
     const isCliente = roles.includes("cliente");
     const isMiembro = roles.includes("miembro");
     if (isAdmin) {
+      router.replace("/mfpages/solicitudes");
+      return;
+    }
+    if (esAprobadorRestringido()) {
       router.replace("/mfpages/solicitudes");
       return;
     }

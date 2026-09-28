@@ -4,6 +4,29 @@ from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
+ESTADOS_RESUMEN_CLIENTE = [
+    ("EN_ESPERA", "En espera"),
+    ("APROBADO", "Aprobado"),
+    ("EN_DESARROLLO", "En desarrollo"),
+    ("STAND_BY", "En pausa"),
+    ("SOLUCIONADO", "Solucionado"),
+    ("RECHAZADO", "Rechazado"),
+]
+
+ESTADOS_ABIERTOS = ["APROBADO", "EN_DESARROLLO", "STAND_BY"]
+
+
+def _detalle_tareas(tareas):
+    return [
+        {
+            "codigo": t.ticket or str(t.id),
+            "titulo": t.asunto,
+            "estado": t.get_estado_display(),
+        }
+        for t in tareas
+    ]
+
+
 def check_inicios_programados():
     """Worker APScheduler: APROBADO con fecha_inicio pasada y en jornada -> EN_DESARROLLO."""
     from .models import Tarea, TareaLog
@@ -58,120 +81,218 @@ def check_inicios_programados():
         logger.info(f"APScheduler: {count} tareas iniciadas automáticamente.")
 
 
-_scheduler = None
+def enviar_digest_aprobadores(niveles):
+    """07:00/08:00 -> roles globales: solicitudes EN_ESPERA en su paso.
 
-
-def enviar_alertas_diarias():
+    Se envía a los usuarios del rol indicado que tengan habilitado
+    `aprobador_pendiente_revision`.
     """
-    Envía a cada equipo:
-    1. Solicitudes pendientes de revisión.
-    2. Resumen de solicitudes sin solucionar.
-    """
-
     from .models import Tarea
-    from usuarios.models import Equipo
-    from .services.notificaciones_email import programar_correo_equipo
+    from usuarios.jerarquia import nombre_nivel
+    from .services.notificaciones_email import correos_por_rol, programar_correo_tarea
 
-    estados_abiertos = [
-        Tarea.Estado.APROBADO,
-        Tarea.Estado.EN_DESARROLLO,
-        Tarea.Estado.STAND_BY,
-    ]
+    enviados = 0
 
-    equipos = Equipo.objects.filter(activo=True)
-
-    enviados_revision = 0
-    enviados_alerta = 0
-
-    for equipo in equipos:
-
-        # ============================================================
-        # 1. SOLICITUDES PENDIENTES DE REVISIÓN
-        # ============================================================
-
-        tareas_revision = Tarea.objects.filter(
-            equipo=equipo,
-            activo=True,
+    for nivel in niveles:
+        tareas = Tarea.objects.filter(
             estado=Tarea.Estado.EN_ESPERA,
+            paso_aprobacion=nivel,
+            activo=True,
         ).order_by("fecha_creacion")
 
-        if tareas_revision.exists():
+        if not tareas.exists():
+            continue
 
-            detalle_revision = [
-                {
-                    "codigo": t.ticket or str(t.id),
-                    "titulo": t.asunto,
-                    "estado": t.get_estado_display(),
-                }
-                for t in tareas_revision
-            ]
+        correos = correos_por_rol(nivel, evento="APROBADOR_PENDIENTE_REVISION_DIARIA")
+        if not correos:
+            continue
 
-            programado = programar_correo_equipo(
-                evento="EQUIPO_PENDIENTE_REVISION",
-                tarea=tareas_revision.first(),
-                mensaje=(
-                    f"Tienes {len(detalle_revision)} "
-                    "solicitud(es) pendiente(s) de revisión "
-                    "en tu equipo."
-                ),
-                contexto_adicional={
-                    "tareas": detalle_revision,
-                    "equipo_nombre": equipo.nombre,
-                },
-            )
+        detalle = _detalle_tareas(tareas)
+        programado = programar_correo_tarea(
+            evento="APROBADOR_PENDIENTE_REVISION_DIARIA",
+            tarea=tareas.first(),
+            destinatarios=correos,
+            mensaje=(
+                f"Tienes {len(detalle)} solicitud(es) pendiente(s) de revisión "
+                f"como {nombre_nivel(nivel)}."
+            ),
+            contexto_adicional={
+                "tareas": detalle,
+                "nivel_nombre": nombre_nivel(nivel),
+                "nombre_destinatario": f"equipo {nombre_nivel(nivel)}",
+            },
+        )
+        if programado:
+            enviados += 1
 
-            if programado:
-                enviados_revision += 1
+    if enviados:
+        logger.info(
+            "APScheduler: digests de aprobadores enviados a %s nivel(es).",
+            enviados,
+        )
 
-        # ============================================================
-        # 2. SOLICITUDES SIN SOLUCIONAR
-        # ============================================================
 
+def enviar_digest_lideres():
+    """08:00 -> a cada líder del equipo: solicitudes EN_ESPERA en paso LIDER de su equipo."""
+    from .models import Tarea
+    from usuarios.models import Equipo
+    from .services.notificaciones_email import correos_lideres, programar_correo_tarea
+
+    enviados = 0
+
+    for equipo in Equipo.objects.filter(activo=True):
         tareas = Tarea.objects.filter(
             equipo=equipo,
-            #activo=True,
-            estado__in=estados_abiertos,
+            estado=Tarea.Estado.EN_ESPERA,
+            paso_aprobacion="LIDER",
+            activo=True,
+        ).order_by("fecha_creacion")
+
+        if not tareas.exists():
+            continue
+
+        correos = correos_lideres(equipo, evento="EQUIPO_PENDIENTE_REVISION")
+        if not correos:
+            continue
+
+        detalle = _detalle_tareas(tareas)
+        programado = programar_correo_tarea(
+            evento="EQUIPO_PENDIENTE_REVISION",
+            tarea=tareas.first(),
+            destinatarios=correos,
+            mensaje=(
+                f"Tienes {len(detalle)} solicitud(es) pendiente(s) de tu "
+                f"aprobación final en el equipo {equipo.nombre}."
+            ),
+            contexto_adicional={
+                "tareas": detalle,
+                "equipo_nombre": equipo.nombre,
+                "nombre_destinatario": f"equipo {equipo.nombre}",
+            },
+        )
+        if programado:
+            enviados += 1
+
+    if enviados:
+        logger.info(
+            "APScheduler: digests de líderes enviados a %s equipo(s).",
+            enviados,
+        )
+
+
+def enviar_digest_miembros():
+    """09:00 -> a miembros activos (no líderes): solicitudes sin solucionar."""
+    from .models import Tarea
+    from usuarios.models import Equipo, EquipoMiembro
+    from .services.notificaciones_email import (
+        obtener_correo_usuario,
+        programar_correo_tarea,
+        usuario_quiere_recibir,
+    )
+
+    enviados = 0
+
+    for equipo in Equipo.objects.filter(activo=True):
+        tareas = Tarea.objects.filter(
+            equipo=equipo,
+            estado__in=ESTADOS_ABIERTOS,
         ).order_by("estado", "fecha_creacion")
 
         if not tareas.exists():
             continue
 
-        detalle = [
-            {
-                "codigo": t.ticket or str(t.id),
-                "titulo": t.asunto,
-                "estado": t.get_estado_display(),
-            }
-            for t in tareas
-        ]
+        miembros = equipo.miembros.select_related("usuario").filter(
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO,
+        )
 
-        programado = programar_correo_equipo(
+        correos = []
+        for miembro in miembros:
+            usuario = miembro.usuario
+            if usuario is None or usuario.id == equipo.lider_id:
+                continue
+            if not usuario_quiere_recibir(usuario, "EQUIPO_ALERTA_DIARIA"):
+                continue
+            correo = obtener_correo_usuario(usuario)
+            if correo:
+                correos.append(correo)
+
+        correos = list(dict.fromkeys(correos))
+        if not correos:
+            continue
+
+        detalle = _detalle_tareas(tareas)
+        programado = programar_correo_tarea(
             evento="EQUIPO_ALERTA_DIARIA",
             tarea=tareas.first(),
+            destinatarios=correos,
             mensaje=(
                 f"Tienes {len(detalle)} solicitud(es) sin solucionar "
-                "en tu equipo."
+                f"en el equipo {equipo.nombre}."
             ),
             contexto_adicional={
                 "tareas": detalle,
                 "equipo_nombre": equipo.nombre,
+                "nombre_destinatario": f"equipo {equipo.nombre}",
             },
         )
-
         if programado:
-            enviados_alerta += 1
+            enviados += 1
 
-    if enviados_revision:
-        logger.info(
-            "APScheduler: recordatorios de revisión enviados a %s equipo(s).",
-            enviados_revision,
-        )
-
-    if enviados_alerta:
+    if enviados:
         logger.info(
             "APScheduler: alertas diarias enviadas a %s equipo(s).",
-            enviados_alerta,
+            enviados,
         )
+
+
+def enviar_resumen_clientes():
+    """09:00 -> a cada cliente: conteo de sus solicitudes por estado."""
+    from .models import Tarea
+    from usuarios.models import User
+    from .services.notificaciones_email import programar_correo_tarea
+
+    ahora = timezone.localtime(timezone.now())
+    usuarios = User.objects.filter(
+        is_active=True,
+        roles__rol__nombre__iexact="CLIENTE",
+    ).distinct()
+
+    enviados = 0
+
+    for usuario in usuarios:
+        qs = Tarea.objects.filter(solicitante=usuario)
+        total = qs.count()
+        if total == 0:
+            continue
+
+        resumen = [
+            {"estado": etiqueta, "total": qs.filter(estado=valor).count()}
+            for valor, etiqueta in ESTADOS_RESUMEN_CLIENTE
+        ]
+        primera = qs.order_by("fecha_creacion").first()
+
+        programado = programar_correo_tarea(
+            evento="CLIENTE_RESUMEN_DIARIO",
+            tarea=primera,
+            usuario_destinatario=usuario,
+            mensaje=(
+                f"Resumen de tus {total} solicitud(es) al "
+                f"{ahora.strftime('%d/%m/%Y')}."
+            ),
+            contexto_adicional={"resumen": resumen, "total": total},
+        )
+        if programado:
+            enviados += 1
+
+    if enviados:
+        logger.info(
+            "APScheduler: resúmenes diarios enviados a %s cliente(s).",
+            enviados,
+        )
+
+
+_scheduler = None
 
 
 def start_scheduler():
@@ -192,17 +313,56 @@ def start_scheduler():
             coalesce=True,
             replace_existing=True,
         )
+        # 07:00 Gerente / Subgerente
         _scheduler.add_job(
-            enviar_alertas_diarias,
-            trigger=CronTrigger(hour=11, minute=30),
-            id="envio_alertas_diarias",
+            enviar_digest_aprobadores,
+            args=[["GERENTE", "SUBGERENTE"]],
+            trigger=CronTrigger(hour=7, minute=0),
+            id="digest_aprobadores_0700",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+        # 08:00 Coordinador
+        _scheduler.add_job(
+            enviar_digest_aprobadores,
+            args=[["COORDINADOR"]],
+            trigger=CronTrigger(hour=8, minute=0),
+            id="digest_aprobadores_0800",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+        # 08:00 Líderes de equipo
+        _scheduler.add_job(
+            enviar_digest_lideres,
+            trigger=CronTrigger(hour=8, minute=0),
+            id="digest_lideres_0800",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+        # 09:00 Miembros de equipo
+        _scheduler.add_job(
+            enviar_digest_miembros,
+            trigger=CronTrigger(hour=9, minute=0),
+            id="digest_miembros_0900",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+        # 09:00 Clientes (resumen de estados)
+        _scheduler.add_job(
+            enviar_resumen_clientes,
+            trigger=CronTrigger(hour=9, minute=0),
+            id="resumen_clientes_0900",
             max_instances=1,
             coalesce=True,
             replace_existing=True,
         )
         _scheduler.start()
         logger.info(
-            "APScheduler iniciado (auto-inicio cada 60s)."
+            "APScheduler iniciado (auto-inicio cada 60s; digests 07/08/09)."
         )
     except Exception as e:
         logger.exception(f"No se pudo iniciar APScheduler: {e}")

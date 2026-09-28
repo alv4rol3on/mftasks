@@ -9,6 +9,11 @@ def es_miembro_del_equipo(user, equipo):
     if user.roles.filter(rol__nombre__iexact="Administrador").exists():
         return True
 
+    # Roles de la cadena de aprobación: pueden ver cualquier equipo
+    from usuarios.permissions import nivel_jerarquico
+    if nivel_jerarquico(user):
+        return True
+
     # CLIENTE nunca es miembro de equipo
     if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
         return False
@@ -115,6 +120,11 @@ def puede_observar_tarea(user, tarea):
     if user.roles.filter(rol__nombre__iexact="Administrador").exists():
         return True
 
+    # Roles de la cadena de aprobación: alcance global
+    from usuarios.permissions import nivel_jerarquico
+    if nivel_jerarquico(user):
+        return True
+
     # CLIENTE: solo sus propias solicitudes
     if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
         return tarea.solicitante_id == user.id
@@ -174,6 +184,36 @@ class EsSolicitanteDeTarea(BasePermission):
         if request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
             return True
         return obj.solicitante_id == request.user.id
+
+
+def es_aprobador_de_tarea(user, tarea):
+    """True si el usuario puede resolver el paso de aprobación actual.
+
+    El paso final (LIDER) lo resuelve el líder del equipo de la tarea.
+    No valida el estado de la tarea: eso se reporta con un 400 en la vista.
+    """
+    if not user or not user.is_authenticated or tarea is None:
+        return False
+    from usuarios.permissions import (
+        es_administrador,
+        es_aprobador_de_paso,
+        es_lider_del_equipo,
+    )
+    from usuarios.jerarquia import PASO_FINAL
+
+    if es_administrador(user):
+        return True
+
+    paso = getattr(tarea, "paso_aprobacion", None)
+    if paso == PASO_FINAL:
+        return es_lider_del_equipo(user, getattr(tarea, "equipo", None))
+    return es_aprobador_de_paso(user, paso)
+
+
+class PuedeAprobarPasoDeTarea(BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        return es_aprobador_de_tarea(request.user, obj)
 
 
 class EsAsignadoDeSubtarea(BasePermission):

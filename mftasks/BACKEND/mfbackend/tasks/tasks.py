@@ -16,6 +16,18 @@ EVENTOS_EMAIL = {
         "asunto": "Solicitud {codigo} registrada correctamente",
         "template": "emails/solicitud_creada.html",
     },
+    "SOLICITUD_PENDIENTE_NIVEL": {
+        "asunto": "Solicitud {codigo} pendiente de {nivel_nombre}",
+        "template": "emails/solicitud_pendiente_nivel.html",
+    },
+    "APROBADOR_PENDIENTE_REVISION_DIARIA": {
+        "asunto": "Solicitudes pendientes de revisión - {nivel_nombre}",
+        "template": "emails/aprobador_pendiente_revision.html",
+    },
+    "CLIENTE_RESUMEN_DIARIO": {
+        "asunto": "Resumen de tus solicitudes",
+        "template": "emails/cliente_resumen_diario.html",
+    },
     "SOLICITUD_APROBADA": {
         "asunto": "Solicitud {codigo} aprobada",
         "template": "emails/solicitud_aprobada.html",

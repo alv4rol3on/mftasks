@@ -158,6 +158,10 @@ class TaskSerializer(serializers.ModelSerializer):
 
     subtareas = serializers.SerializerMethodField()
 
+    paso_aprobacion_nombre = serializers.SerializerMethodField()
+    aprobaciones = serializers.SerializerMethodField()
+    puedo_aprobar = serializers.SerializerMethodField()
+
     puedo_operar = serializers.SerializerMethodField()
     tiempo_tomado_segundos = serializers.SerializerMethodField()
     tiempo_tomado_horas = serializers.SerializerMethodField()
@@ -171,8 +175,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
-        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "fecha_inactivacion", "inactivada_por"]
+        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
+        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por"]
 
     def get_cliente_nombre(self, obj):
         if obj.subcampana and obj.subcampana.campana:
@@ -193,6 +197,38 @@ class TaskSerializer(serializers.ModelSerializer):
         if not obj.solicitante:
             return None
         return f"{obj.solicitante.nombres} {obj.solicitante.apellidos}"
+
+    def get_paso_aprobacion_nombre(self, obj):
+        from usuarios.jerarquia import nombre_nivel
+        return nombre_nivel(obj.paso_aprobacion)
+
+    def get_aprobaciones(self, obj):
+        registros = obj.aprobaciones.select_related("usuario").all()
+        return [
+            {
+                "id": r.id,
+                "nivel": r.nivel,
+                "accion": r.accion,
+                "usuario": r.usuario_id,
+                "usuario_nombre": (
+                    f"{r.usuario.nombres} {r.usuario.apellidos}"
+                    if r.usuario
+                    else None
+                ),
+                "motivo": r.motivo,
+                "fecha": r.fecha.isoformat() if r.fecha else None,
+            }
+            for r in registros
+        ]
+
+    def get_puedo_aprobar(self, obj):
+        request = self.context.get("request")
+        if request is None:
+            return False
+        if obj.estado != Tarea.Estado.EN_ESPERA:
+            return False
+        from .permissions import es_aprobador_de_tarea
+        return es_aprobador_de_tarea(request.user, obj)
 
     def get_subtareas(self, obj):
         request = self.context.get("request")

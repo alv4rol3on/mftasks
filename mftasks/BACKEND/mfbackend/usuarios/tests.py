@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .azure import AzureTokenValidationError
-from .models import Rol, User, UserRol
+from .models import Equipo, EquipoMiembro, Rol, User, UserRol
 
 
 class UsuarioSSOTestCase(APITestCase):
@@ -209,3 +209,32 @@ class UsuarioSSOTestCase(APITestCase):
             "jose@empresa.com",
         )
         self.assertIn("Administrador", respuesta.data["roles"])
+
+
+class EquipoVisibilidadTestCase(APITestCase):
+
+    def setUp(self):
+        self.lider_a = User.objects.create_user(
+            email="lidera@empresa.com", nombres="Líder", apellidos="A", password="x"
+        )
+        self.lider_b = User.objects.create_user(
+            email="liderb@empresa.com", nombres="Líder", apellidos="B", password="x"
+        )
+        self.miembro = User.objects.create_user(
+            email="miembro@empresa.com", nombres="Miem", apellidos="Bro", password="x"
+        )
+
+        self.equipo_a = Equipo.objects.create(nombre="Equipo A", lider=self.lider_a)
+        self.equipo_b = Equipo.objects.create(nombre="Equipo B", lider=self.lider_b)
+
+        EquipoMiembro.objects.create(equipo=self.equipo_a, usuario=self.miembro)
+
+    def test_miembro_ve_todos_los_equipos(self):
+        self.client.force_authenticate(user=self.miembro)
+
+        res = self.client.get(reverse("equipo-list"))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.data if isinstance(res.data, list) else res.data.get("results", [])
+        ids = {e["id"] for e in data}
+        self.assertEqual(ids, {self.equipo_a.id, self.equipo_b.id})

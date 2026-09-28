@@ -6,6 +6,9 @@ export interface PreferenciasNotificacion {
   cliente_solicitud_resuelta: boolean;
   cliente_solicitud_standby: boolean;
   cliente_solicitud_solucionada: boolean;
+  cliente_resumen_diario: boolean;
+  aprobador_nueva_solicitud: boolean;
+  aprobador_pendiente_revision: boolean;
   equipo_nueva_solicitud: boolean;
   equipo_pendiente_revision: boolean;
   equipo_alerta_diaria: boolean;

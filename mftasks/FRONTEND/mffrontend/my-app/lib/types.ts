@@ -30,6 +30,16 @@ export interface ArchivoTarea {
   url: string;
 }
 
+export interface AprobacionTarea {
+  id: number;
+  nivel: string;
+  accion: "APROBADO" | "RECHAZADO" | string;
+  usuario: number | null;
+  usuario_nombre: string | null;
+  motivo: string;
+  fecha: string;
+}
+
 export interface Task {
     id: number;
     ticket?: string | null;
@@ -47,6 +57,10 @@ export interface Task {
     solicitante: number | null;
     solicitante_nombre: string | null;
     estado: string;
+    paso_aprobacion?: string | null;
+    paso_aprobacion_nombre?: string | null;
+    aprobaciones?: AprobacionTarea[];
+    puedo_aprobar?: boolean;
     motivo_rechazo: string;
     motivo_standby?: string | null;
     fecha_standby?: string | null;
@@ -121,6 +135,15 @@ export interface ResumenAsistente {
     tipo: "asistente";
     pendientes: number;
     tareas_pendientes: number;
+    tareas_con_pendientes?: TareaConPendientes[];
+}
+
+export interface ResumenAprobador {
+    tipo: "aprobador";
+    nivel: string;
+    por_aprobar: number;
+    pendientes?: number;
+    tareas_pendientes?: number;
     tareas_con_pendientes?: TareaConPendientes[];
 }
 

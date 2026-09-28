@@ -1,0 +1,43 @@
+{% extends "emails/notificacion_base.html" %}
+
+{% block titulo_documento %}Solicitudes pendientes de revisión{% endblock %}
+{% block encabezado %}Solicitudes pendientes de revisión{% endblock %}
+
+{% block contenido %}
+<p>{{ mensaje }}</p>
+
+{% if tareas %}
+<table
+    role="presentation"
+    width="100%"
+    cellpadding="0"
+    cellspacing="0"
+    style="
+        margin: 24px 0;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+    "
+>
+    <tr>
+        <td style="padding: 10px 14px; background-color: #f8f8f8;"><strong>Código</strong></td>
+        <td style="padding: 10px 14px; background-color: #f8f8f8;"><strong>Asunto</strong></td>
+        <td style="padding: 10px 14px; background-color: #f8f8f8;"><strong>Estado</strong></td>
+    </tr>
+    {% for t in tareas %}
+    <tr>
+        <td style="padding: 10px 14px; border-top: 1px solid #f0f0f0;">{{ t.codigo }}</td>
+        <td style="padding: 10px 14px; border-top: 1px solid #f0f0f0;">{{ t.titulo }}</td>
+        <td style="padding: 10px 14px; border-top: 1px solid #f0f0f0;">{{ t.estado }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<p style="color: #616161; font-size: 13px;">
+    No hay solicitudes pendientes de revisión.
+</p>
+{% endif %}
+
+<p style="color: #616161; font-size: 13px;">
+    Ingresa al Centro de solicitudes para aprobar o rechazar.
+</p>
+{% endblock %}

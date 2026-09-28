@@ -7,7 +7,8 @@ import AdminSolicitudesTable from "@/components/solicitudes/AdminSolicitudesTabl
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { useToast } from "@/components/ui/Toast";
-import { getUsuarioActual } from "@/lib/auth";
+import { getUsuarioActual, nivelJerarquico } from "@/lib/auth";
+import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
 import type { EquipoInfo } from "@/lib/types";
 
 const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
@@ -27,12 +28,23 @@ export default function SolicitudesPage() {
   const { showToast } = useToast();
   const [sinPermiso, setSinPermiso] = useState(false);
   const [esSoloLectura, setEsSoloLectura] = useState(false);
-  // admin filtros
-  const [filtroEstado, setFiltroEstado] = useState<string>("EN_PROCESO");
-  const [busqueda, setBusqueda] = useState("");
 
   const user = getUsuarioActual();
-  const isAdmin = (user?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
+  const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
+  const isAdmin = rolesLower.includes("administrador");
+  // Solo GERENTE/SUBGERENTE/COORDINADOR ven todo (seguimiento).
+  // El líder del equipo ve solo su equipo (rama por defecto).
+  const esAprobador =
+    !isAdmin &&
+    (rolesLower.includes("gerente") || rolesLower.includes("subgerente") || rolesLower.includes("coordinador"));
+
+  // filtros (admin y aprobadores de la cadena)
+  const [filtroEstado, setFiltroEstado] = useState<string>(esAprobador ? "TODOS" : "EN_PROCESO");
+  const [busqueda, setBusqueda] = useState("");
+  const [campoFecha, setCampoFecha] = useState<"solicitud" | "entrega">("solicitud");
+  const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
+  const [desde, setDesde] = useState(rangoInicial.desde);
+  const [hasta, setHasta] = useState(rangoInicial.hasta);
 
   // Guard: CLIENTE puro no debe entrar. ADMIN pasa directo (ahora unificada, no aprobar)
   useEffect(() => {
@@ -44,6 +56,7 @@ export default function SolicitudesPage() {
     const isAsistente = roles.includes("asistente");
     const isAsignador = roles.includes("asignador");
     if (isAd) return; // admin unificada
+    if (nivelJerarquico()) return; // GERENTE/SUBGERENTE/COORDINADOR
     if (isAsignador) return;
     if (isAsistente) { setEsSoloLectura(true); return; }
     if (isCliente && !isAsistente && !isAsignador) {
@@ -76,8 +89,8 @@ export default function SolicitudesPage() {
     apiFetch<Task[]>("/api/tasks/tasks/")
       .then((data) => {
         setError(null);
-        if (isAdmin) {
-          // admin ve todas, orden más reciente primero
+        if (isAdmin || esAprobador) {
+          // admin y aprobadores de la cadena ven todas (seguimiento), orden más reciente primero
           const ordenadas = [...data].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime());
           setTareas(ordenadas);
         } else {
@@ -86,7 +99,7 @@ export default function SolicitudesPage() {
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setCargando(false));
-  }, [isAdmin]);
+  }, [isAdmin, esAprobador]);
 
   useEffect(() => {
     cargar();
@@ -126,24 +139,22 @@ export default function SolicitudesPage() {
     }
   };
 
-  const tareasFiltradasAdmin = useMemo(() => {
+  const hayFiltros =
+    filtroEstado !== "TODOS" ||
+    Boolean(busqueda) ||
+    desde !== rangoInicial.desde ||
+    hasta !== rangoInicial.hasta;
 
-    {/*if (!isAdmin) return tareas;
-    let out = tareas;
-    if (filtroEstado !== "TODOS") out = out.filter((t) => t.estado === filtroEstado);
-    const q = busqueda.trim().toLowerCase();
-    if (q) {
-      out = out.filter(
-        (t) =>
-          (t.ticket ?? "").toLowerCase().includes(q) ||
-          t.asunto.toLowerCase().includes(q) ||
-          t.descripcion.toLowerCase().includes(q) ||
-          (t.campana_nombre ?? "").toLowerCase().includes(q) ||
-          (t.solicitante_nombre ?? "").toLowerCase().includes(q)
-      );
-    }
-    return out;*/}
+  const limpiarFiltros = () => {
+    setFiltroEstado("TODOS");
+    setBusqueda("");
+    setCampoFecha("solicitud");
+    const r = rangoFechasPorDefecto();
+    setDesde(r.desde);
+    setHasta(r.hasta);
+  };
 
+  const tareasFiltradas = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
 
     return tareas.filter((t) => {
@@ -154,6 +165,16 @@ export default function SolicitudesPage() {
             ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
             : t.estado === filtroEstado;
       if (!coincideEstado) return false;
+
+      const fecha = campoFecha === "entrega" ? t.fecha_entrega_aproximada : t.fecha_creacion;
+      const fechaIso = fechaEnLima(fecha);
+      if (!fechaIso) {
+        if (desde || hasta) return false;
+      } else {
+        if (desde && fechaIso < desde) return false;
+        if (hasta && fechaIso > hasta) return false;
+      }
+
       if (!texto) return true;
       return (
         (t.ticket ?? "").toLowerCase().includes(texto) ||
@@ -164,9 +185,65 @@ export default function SolicitudesPage() {
         String(t.solicitante_nombre ?? "").toLowerCase().includes(texto) ||
         String(t.equipo_nombre ?? "").toLowerCase().includes(texto)
       );
-    }
-    )
-  }, [tareas, filtroEstado, busqueda]);
+    });
+  }, [tareas, filtroEstado, busqueda, campoFecha, desde, hasta]);
+
+  const filtrosUI = (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+      <select
+        value={filtroEstado}
+        onChange={(e) => setFiltroEstado(e.target.value)}
+        style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+      >
+        {ESTADOS.map((s) => (
+          <option key={s} value={s}>{etiquetaEstado(s)}</option>
+        ))}
+      </select>
+      <select
+        value={campoFecha}
+        onChange={(e) => setCampoFecha(e.target.value as "solicitud" | "entrega")}
+        title="Campo de fecha a filtrar"
+        style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+      >
+        <option value="solicitud">Fecha de solicitud</option>
+        <option value="entrega">Fecha de entrega</option>
+      </select>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
+        Desde
+        <input
+          type="date"
+          value={desde}
+          max={hasta || undefined}
+          onChange={(e) => setDesde(e.target.value)}
+          style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+        />
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
+        Hasta
+        <input
+          type="date"
+          value={hasta}
+          min={desde || undefined}
+          onChange={(e) => setHasta(e.target.value)}
+          style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+        />
+      </label>
+      <input
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
+        placeholder="Buscar por ticket, asunto, descripción..."
+        style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240, flex: 1 }}
+      />
+      {hayFiltros && (
+        <button
+          onClick={limpiarFiltros}
+          style={{ border: "1px solid #d1d5db", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
+        >
+          Limpiar
+        </button>
+      )}
+    </div>
+  );
 
 
   if (sinPermiso) {
@@ -186,34 +263,23 @@ export default function SolicitudesPage() {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
           <h2 className="text-lg font-medium" style={{ margin: 0 }}>Solicitudes</h2>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradasAdmin.length} de {tareas.length} · Solo lectura</span>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradas.length} de {tareas.length} · Solo lectura</span>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          <select
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value)}
-            style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
-          >
-            {ESTADOS.map((s) => (
-              <option key={s} value={s}>{etiquetaEstado(s)}</option>
-            ))}
-          </select>
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por ticket, asunto, descripción..."
-            style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240, flex: 1 }}
-          />
-          {(busqueda || filtroEstado !== "TODOS") && (
-            <button
-              onClick={() => { setBusqueda(""); setFiltroEstado("TODOS"); }}
-              style={{ border: "1px solid #d1d5db", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
-            >
-              Limpiar
-            </button>
-          )}
+        {filtrosUI}
+        <AdminSolicitudesTable tareas={tareasFiltradas} onReload={cargar} />
+      </div>
+    );
+  }
+
+  if (esAprobador) {
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+          <h2 className="text-lg font-medium" style={{ margin: 0 }}>Centro de solicitudes</h2>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradas.length} de {tareas.length} · Seguimiento</span>
         </div>
-        <AdminSolicitudesTable tareas={tareasFiltradasAdmin} onReload={cargar} />
+        {filtrosUI}
+        <TaskTableSolicitudes tareas={tareasFiltradas} accionando={accionando} onAprobar={aprobar} onRechazar={rechazar} />
       </div>
     );
   }

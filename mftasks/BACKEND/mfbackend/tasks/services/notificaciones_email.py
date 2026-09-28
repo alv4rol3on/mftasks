@@ -19,6 +19,9 @@ EVENTO_A_PREFERENCIA = {
     "EQUIPO_NUEVA_SOLICITUD": "equipo_nueva_solicitud",
     "EQUIPO_PENDIENTE_REVISION": "equipo_pendiente_revision",
     "EQUIPO_ALERTA_DIARIA": "equipo_alerta_diaria",
+    "SOLICITUD_PENDIENTE_NIVEL": "aprobador_nueva_solicitud",
+    "APROBADOR_PENDIENTE_REVISION_DIARIA": "aprobador_pendiente_revision",
+    "CLIENTE_RESUMEN_DIARIO": "cliente_resumen_diario",
 }
 
 
@@ -265,6 +268,80 @@ def destinatarios_equipo(equipo, evento):
 
         correo = obtener_correo_usuario(usuario)
 
+        if correo:
+            correos.append(correo)
+
+    return list(dict.fromkeys(correos))
+
+
+def correos_por_rol(rol, evento=None):
+    """Correos de los usuarios activos que poseen el rol indicado.
+
+    Se usa para notificar a los responsables de un nivel GLOBAL de la cadena
+    de aprobación (GERENTE, SUBGERENTE, COORDINADOR).
+    """
+
+    if not rol:
+        return []
+
+    from usuarios.models import User
+
+    usuarios = User.objects.filter(
+        is_active=True,
+        roles__rol__nombre__iexact=rol,
+    ).distinct()
+
+    vistos = set()
+    correos = []
+
+    for usuario in usuarios:
+        if usuario.id in vistos:
+            continue
+        vistos.add(usuario.id)
+
+        if evento and not usuario_quiere_recibir(usuario, evento):
+            continue
+
+        correo = obtener_correo_usuario(usuario)
+        if correo:
+            correos.append(correo)
+
+    return list(dict.fromkeys(correos))
+
+
+def correos_lideres(equipo, evento=None):
+    """Correos del líder (FK) y líderes/as activos de un equipo."""
+
+    if equipo is None:
+        return []
+
+    from usuarios.models import EquipoMiembro
+
+    usuarios = []
+
+    if getattr(equipo, "lider", None) is not None:
+        usuarios.append(equipo.lider)
+
+    lideres = equipo.miembros.select_related("usuario").filter(
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER,
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+    )
+
+    for miembro in lideres:
+        usuarios.append(miembro.usuario)
+
+    vistos = set()
+    correos = []
+
+    for usuario in usuarios:
+        if usuario is None or usuario.id in vistos:
+            continue
+        vistos.add(usuario.id)
+
+        if evento and not usuario_quiere_recibir(usuario, evento):
+            continue
+
+        correo = obtener_correo_usuario(usuario)
         if correo:
             correos.append(correo)
 

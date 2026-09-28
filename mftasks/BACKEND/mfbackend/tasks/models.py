@@ -14,6 +14,13 @@ class Tarea(models.Model):
         SOLUCIONADO = "SOLUCIONADO", "Solucionado"
         STAND_BY = "STAND_BY", "En pausa"
 
+    class PasoAprobacion(models.TextChoices):
+        GERENTE = "GERENTE", "Gerente"
+        SUBGERENTE = "SUBGERENTE", "Subgerente"
+        COORDINADOR = "COORDINADOR", "Coordinador"
+        LIDER = "LIDER", "Líder"
+        COMPLETADO = "COMPLETADO", "Completado"
+
     ticket = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
 
     asunto = models.CharField(max_length=200)
@@ -23,6 +30,14 @@ class Tarea(models.Model):
         max_length=20,
         choices=Estado.choices,
         default=Estado.EN_ESPERA
+    )
+
+    paso_aprobacion = models.CharField(
+        max_length=20,
+        choices=PasoAprobacion.choices,
+        default=PasoAprobacion.GERENTE,
+        db_index=True,
+        help_text="Nivel de la cadena de aprobación que debe resolver la solicitud.",
     )
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -110,6 +125,7 @@ class Tarea(models.Model):
             models.Index(fields=["fecha_creacion"]),
             models.Index(fields=["ticket"]),
             models.Index(fields=["activo"]),
+            models.Index(fields=["paso_aprobacion", "estado"], name="tasks_tarea_paso_estado_idx"),
         ]
         constraints = [
             CheckConstraint(check=Q(progreso__gte=0, progreso__lte=100), name="chk_tarea_progreso_0_100"),
@@ -421,3 +437,49 @@ class DependenciaTarea(models.Model):
 
     def __str__(self):
         return f"Tarea {self.bloqueada_id} depende de {self.bloqueadora_id}"
+
+
+class AprobacionTarea(models.Model):
+    """Historial de acciones de la cadena de aprobación de una solicitud."""
+
+    class Accion(models.TextChoices):
+        APROBADO = "APROBADO", "Aprobado"
+        RECHAZADO = "RECHAZADO", "Rechazado"
+
+    tarea = models.ForeignKey(
+        Tarea,
+        on_delete=models.CASCADE,
+        related_name="aprobaciones",
+    )
+
+    nivel = models.CharField(
+        max_length=20,
+        choices=Tarea.PasoAprobacion.choices,
+    )
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="aprobaciones_realizadas",
+    )
+
+    accion = models.CharField(
+        max_length=20,
+        choices=Accion.choices,
+    )
+
+    motivo = models.TextField(blank=True)
+
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["fecha", "id"]
+        indexes = [
+            models.Index(fields=["tarea", "fecha"], name="tasks_aprob_tarea_fecha_idx"),
+            models.Index(fields=["nivel"], name="tasks_aprob_nivel_idx"),
+        ]
+
+    def __str__(self):
+        return f"[{self.tarea_id}] {self.nivel} - {self.accion}"

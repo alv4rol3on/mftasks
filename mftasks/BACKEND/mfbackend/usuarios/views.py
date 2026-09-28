@@ -1,7 +1,6 @@
 import logging
 
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.decorators import action
@@ -256,10 +255,8 @@ class EquipoViewSet(ModelViewSet):
         # CLIENTE nunca es miembro de equipo: solo ve equipos activos para elegir destino al solicitar (no ve miembros)
         if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
             return Equipo.objects.filter(activo=True).select_related("lider").prefetch_related("miembros__usuario")
-        # Miembro/lider: solo equipos donde es líder o miembro
-        return Equipo.objects.filter(
-            Q(lider=user) | Q(miembros__usuario=user)
-        ).distinct().select_related("lider").prefetch_related("miembros__usuario")
+        # Usuarios internos: ven todos los equipos (el frontend ofrece el filtro "solo mis equipos")
+        return Equipo.objects.all().select_related("lider").prefetch_related("miembros__usuario")
 
     def get_serializer_class(self):
         if self.action == "create":
