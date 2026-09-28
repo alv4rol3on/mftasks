@@ -467,8 +467,12 @@ export default function TaskModal({
                                     {tarea.subcampana_nombre && (<tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre}</td></tr>)}
                                     <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
                                     <tr><td><strong>Fecha solicitud</strong></td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
-                                    <tr><td><strong>Inicio</strong></td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>
-                                    <tr><td><strong>Entrega</strong></td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
+                                    {tarea.estado !== "RECHAZADO" && tarea.estado !== "APROBADO" &&
+                                        <>
+                                            <tr><td><strong>Inicio</strong></td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>
+                                            <tr><td><strong>Entrega</strong></td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
+                                        </>
+                                    }
                                 </tbody>
                             </table>
                         </div>
@@ -506,7 +510,7 @@ export default function TaskModal({
                             <div className={styles.tabsHeader}>
                                 <button onClick={() => setTab("progreso")} className={tab === "progreso" ? styles.tabBtnActive : styles.tabBtn}>Progreso</button>
                                 {puedeVerHistorial && <button onClick={() => setTab("historial")} className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}>Historial</button>}
-                                {puedeVerAsignaciones && tarea.estado !== "SOLUCIONADO" && <button onClick={() => setTab("asignaciones")} className={tab === "asignaciones" ? styles.tabBtnActive : styles.tabBtn}>Asignaciones</button>}
+                                {puedeVerAsignaciones && tarea.estado !== "SOLUCIONADO" && tarea.estado !== "APROBADO" && <button onClick={() => setTab("asignaciones")} className={tab === "asignaciones" ? styles.tabBtnActive : styles.tabBtn}>Asignaciones</button>}
                             </div>
                             {tab === "progreso" ? (
                                 <>

@@ -43,8 +43,10 @@ export default function TaskModal({
             setSeguimiento(null);
             return;
         }
+
         let cancel = false;
         setSeguimiento(null);
+
         apiFetch<EventoSeguimiento[]>(`/api/tasks/tasks/${tareaId}/logs/`)
             .then((data) => {
                 if (!cancel) setSeguimiento(Array.isArray(data) ? data : []);
@@ -52,6 +54,7 @@ export default function TaskModal({
             .catch(() => {
                 if (!cancel) setSeguimiento([]);
             });
+
         return () => {
             cancel = true;
         };
@@ -59,11 +62,21 @@ export default function TaskModal({
 
     if (!tarea) return null;
 
-    const puedeOperar = Boolean(tarea.puedo_aprobar) && tarea.estado === "EN_ESPERA";
+    const puedeOperar =
+        Boolean(tarea.puedo_aprobar) &&
+        tarea.estado === "EN_ESPERA";
 
     const ocupado = accionando === tarea.id;
 
-    const CADENA = ["GERENTE", "SUBGERENTE", "SUPERVISOR", "LIDER"];
+    // Los tres primeros niveles son alternativas.
+    // Cualquiera de ellos que apruebe pasa directamente al LÍDER.
+    const NIVELES_GLOBALES = [
+        "GERENTE",
+        "SUBGERENTE",
+        "SUPERVISOR",
+    ];
+
+    const PASO_FINAL = "LIDER";
 
     const nombreNivelLocal = (nivel?: string | null): string => {
         const nombres: Record<string, string> = {
@@ -73,22 +86,98 @@ export default function TaskModal({
             LIDER: "Líder",
             COMPLETADO: "Completado",
         };
+
         return nivel ? nombres[nivel] ?? nivel : "";
     };
 
-    const estadoNivel = (nivel: string, indice: number): "aprobado" | "rechazado" | "actual" | "pendiente" | "omitido" => {
-        const registro = (tarea.aprobaciones ?? []).find((a) => a.nivel === nivel);
-        if (registro) return registro.accion === "APROBADO" ? "aprobado" : "rechazado";
-        if (tarea.estado === "RECHAZADO") return "omitido";
-        if (tarea.paso_aprobacion === "COMPLETADO") return "aprobado";
-        if (tarea.paso_aprobacion === nivel) return "actual";
-        const actual = CADENA.indexOf(tarea.paso_aprobacion ?? "");
-        if (actual === -1) return "pendiente";
-        return indice < actual ? "aprobado" : "pendiente";
+    /**
+     * Determina el estado visual del bloque de aprobación global.
+     *
+     * Regla:
+     * - Si alguno de GERENTE/SUBGERENTE/SUPERVISOR aprobó:
+     *   el bloque global está aprobado.
+     * - Si ninguno aprobó y el paso actual es uno de ellos:
+     *   está pendiente.
+     * - Si el paso actual es LIDER:
+     *   el bloque global ya fue superado.
+     * - Si la tarea fue rechazada:
+     *   se muestra como omitido.
+     */
+    const estadoNivelGlobal = (): "aprobado" | "rechazado" | "actual" | "pendiente" | "omitido" => {
+        const aprobacionGlobal = (tarea.aprobaciones ?? []).find(
+            (a) =>
+                NIVELES_GLOBALES.includes(a.nivel) &&
+                a.accion === "APROBADO"
+        );
+
+        const rechazoGlobal = (tarea.aprobaciones ?? []).find(
+            (a) =>
+                NIVELES_GLOBALES.includes(a.nivel) &&
+                a.accion !== "APROBADO"
+        );
+
+        if (aprobacionGlobal) {
+            return "aprobado";
+        }
+
+        if (rechazoGlobal) {
+            return "rechazado";
+        }
+
+        if (tarea.estado === "RECHAZADO") {
+            return "omitido";
+        }
+
+        if (
+            tarea.paso_aprobacion === "GERENTE" ||
+            tarea.paso_aprobacion === "SUBGERENTE" ||
+            tarea.paso_aprobacion === "SUPERVISOR"
+        ) {
+            return "actual";
+        }
+
+        if (
+            tarea.paso_aprobacion === PASO_FINAL ||
+            tarea.paso_aprobacion === "COMPLETADO"
+        ) {
+            return "aprobado";
+        }
+
+        return "pendiente";
+    };
+
+    /**
+     * Estado del LÍDER.
+     */
+    const estadoLider = (): "aprobado" | "rechazado" | "actual" | "pendiente" | "omitido" => {
+        const registro = (tarea.aprobaciones ?? []).find(
+            (a) => a.nivel === PASO_FINAL
+        );
+
+        if (registro) {
+            return registro.accion === "APROBADO"
+                ? "aprobado"
+                : "rechazado";
+        }
+
+        if (tarea.estado === "RECHAZADO") {
+            return "omitido";
+        }
+
+        if (tarea.paso_aprobacion === "COMPLETADO") {
+            return "aprobado";
+        }
+
+        if (tarea.paso_aprobacion === PASO_FINAL) {
+            return "actual";
+        }
+
+        return "pendiente";
     };
 
     const cerrar = () => {
         if (ocupado) return;
+
         setRechazando(false);
         setMotivo("");
         onClose();
@@ -96,13 +185,52 @@ export default function TaskModal({
 
     const confirmarRechazo = async () => {
         if (!motivo.trim() || ocupado) return;
+
         try {
             await onRechazar(tarea, motivo.trim());
         } catch {
             return;
         }
+
         setRechazando(false);
         setMotivo("");
+    };
+
+    const estadoGlobal = estadoNivelGlobal();
+    const estadoFinal = estadoLider();
+
+    const colores: Record<
+        string,
+        { bg: string; fg: string }
+    > = {
+        aprobado: {
+            bg: "#dcfce7",
+            fg: "#166534",
+        },
+        rechazado: {
+            bg: "#fee2e2",
+            fg: "#991b1b",
+        },
+        actual: {
+            bg: "#fef3c7",
+            fg: "#92400e",
+        },
+        pendiente: {
+            bg: "#f3f4f6",
+            fg: "#6b7280",
+        },
+        omitido: {
+            bg: "#f3f4f6",
+            fg: "#9ca3af",
+        },
+    };
+
+    const etiquetas: Record<string, string> = {
+        aprobado: "Aprobado",
+        rechazado: "Rechazado",
+        actual: "Pendiente",
+        pendiente: "Pendiente",
+        omitido: "—",
     };
 
     return (
@@ -118,7 +246,19 @@ export default function TaskModal({
                         <p>{tarea.asunto}</p>
                     </div>
 
-                    <button className={styles.close} onClick={cerrar} disabled={ocupado} style={ocupado ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
+                    <button
+                        className={styles.close}
+                        onClick={cerrar}
+                        disabled={ocupado}
+                        style={
+                            ocupado
+                                ? {
+                                      opacity: 0.5,
+                                      cursor: "not-allowed",
+                                  }
+                                : undefined
+                        }
+                    >
                         ✕
                     </button>
                 </div>
@@ -131,28 +271,41 @@ export default function TaskModal({
                         <table className={styles.infoTable}>
                             <tbody>
                                 <tr>
-                                    <td><strong>Solicitante</strong></td>
+                                    <td>
+                                        <strong>Solicitante</strong>
+                                    </td>
                                     <td>{tarea.solicitante_nombre}</td>
                                 </tr>
+
                                 <tr>
-                                    <td><strong>Campaña</strong></td>
+                                    <td>
+                                        <strong>Campaña</strong>
+                                    </td>
                                     <td>{tarea.cliente_nombre}</td>
                                 </tr>
 
                                 <tr>
-                                    <td><strong>Equipo</strong></td>
+                                    <td>
+                                        <strong>Equipo</strong>
+                                    </td>
                                     <td>{tarea.equipo_nombre}</td>
                                 </tr>
 
                                 <tr>
-                                    <td><strong>Estado</strong></td>
+                                    <td>
+                                        <strong>Estado</strong>
+                                    </td>
                                     <td>{tarea.estado}</td>
                                 </tr>
 
                                 <tr>
-                                    <td><strong>Fecha de solicitud</strong></td>
                                     <td>
-                                        {new Date(tarea.fecha_creacion).toLocaleString("es-PE", {
+                                        <strong>Fecha de solicitud</strong>
+                                    </td>
+                                    <td>
+                                        {new Date(
+                                            tarea.fecha_creacion
+                                        ).toLocaleString("es-PE", {
                                             day: "2-digit",
                                             month: "2-digit",
                                             year: "numeric",
@@ -173,61 +326,126 @@ export default function TaskModal({
                         </div>
                     </div>
 
+                    {/* Flujo de aprobación */}
                     <div style={{ gridColumn: "1 / -1" }}>
                         <h3>Flujo de aprobación</h3>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            {CADENA.map((nivel, indice) => {
-                                const estado = estadoNivel(nivel, indice);
-                                const colores: Record<string, { bg: string; fg: string }> = {
-                                    aprobado: { bg: "#dcfce7", fg: "#166534" },
-                                    rechazado: { bg: "#fee2e2", fg: "#991b1b" },
-                                    actual: { bg: "#fef3c7", fg: "#92400e" },
-                                    pendiente: { bg: "#f3f4f6", fg: "#6b7280" },
-                                    omitido: { bg: "#f3f4f6", fg: "#9ca3af" },
-                                };
-                                const etiquetas: Record<string, string> = {
-                                    aprobado: "Aprobado",
-                                    rechazado: "Rechazado",
-                                    actual: "Pendiente",
-                                    pendiente: "Pendiente",
-                                    omitido: "—",
-                                };
-                                const color = colores[estado];
-                                return (
-                                    <div
-                                        key={nivel}
-                                        style={{
-                                            background: color.bg,
-                                            color: color.fg,
-                                            borderRadius: 8,
-                                            padding: "8px 12px",
-                                            fontSize: 12,
-                                            minWidth: 120,
-                                        }}
-                                    >
-                                        <div style={{ fontWeight: 700 }}>{nombreNivelLocal(nivel)}</div>
-                                        <div>{etiquetas[estado]}</div>
-                                    </div>
-                                );
-                            })}
+
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            {/* APROBACIÓN GLOBAL */}
+                            <div
+                                style={{
+                                    background: colores[estadoGlobal].bg,
+                                    color: colores[estadoGlobal].fg,
+                                    borderRadius: 8,
+                                    padding: "10px 14px",
+                                    fontSize: 12,
+                                    minWidth: 230,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontWeight: 700,
+                                        marginBottom: 4,
+                                    }}
+                                >
+                                    Aprobación global
+                                </div>
+
+                                <div>
+                                    {etiquetas[estadoGlobal]}
+                                </div>
+
+                                <div
+                                    style={{
+                                        marginTop: 6,
+                                        fontSize: 11,
+                                        opacity: 0.8,
+                                    }}
+                                >
+                                    Gerente / Subgerente / Supervisor
+                                </div>
+                            </div>
+
+                            {/* FLECHA */}
+                            <div
+                                style={{
+                                    fontSize: 20,
+                                    fontWeight: 700,
+                                    color: "#6b7280",
+                                }}
+                            >
+                                →
+                            </div>
+
+                            {/* LÍDER */}
+                            <div
+                                style={{
+                                    background: colores[estadoFinal].bg,
+                                    color: colores[estadoFinal].fg,
+                                    borderRadius: 8,
+                                    padding: "10px 14px",
+                                    fontSize: 12,
+                                    minWidth: 140,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontWeight: 700,
+                                        marginBottom: 4,
+                                    }}
+                                >
+                                    {nombreNivelLocal(PASO_FINAL)}
+                                </div>
+
+                                <div>
+                                    {etiquetas[estadoFinal]}
+                                </div>
+                            </div>
                         </div>
 
+                        {/* Historial */}
                         {(tarea.aprobaciones ?? []).length > 0 && (
-                            <ul style={{ marginTop: 10, paddingLeft: 18, fontSize: 12, color: "#374151" }}>
+                            <ul
+                                style={{
+                                    marginTop: 10,
+                                    paddingLeft: 18,
+                                    fontSize: 12,
+                                    color: "#374151",
+                                }}
+                            >
                                 {(tarea.aprobaciones ?? []).map((a) => (
                                     <li key={a.id}>
-                                        <strong>{nombreNivelLocal(a.nivel)}</strong>:{" "}
-                                        {a.accion === "APROBADO" ? "Aprobó" : "Rechazó"} —{" "}
-                                        {a.usuario_nombre ?? "—"}
-                                        {a.motivo ? ` (${a.motivo})` : ""}
+                                        <strong>
+                                            {nombreNivelLocal(a.nivel)}
+                                        </strong>
+                                        :{" "}
+                                        {a.accion === "APROBADO"
+                                            ? "Aprobó"
+                                            : "Rechazó"}{" "}
+                                        — {a.usuario_nombre ?? "—"}
+                                        {a.motivo
+                                            ? ` (${a.motivo})`
+                                            : ""}
                                     </li>
                                 ))}
                             </ul>
                         )}
                     </div>
 
+                    {/* Adjuntos */}
                     <div style={{ gridColumn: "1 / -1" }}>
-                        <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} />
+                        <AdjuntosTarea
+                            archivos={tarea.archivos}
+                            tareaId={tarea.id}
+                            ticket={tarea.ticket}
+                        />
                     </div>
                 </div>
 
@@ -239,7 +457,9 @@ export default function TaskModal({
                                 <textarea
                                     placeholder="Motivo del rechazo (obligatorio)"
                                     value={motivo}
-                                    onChange={(e) => setMotivo(e.target.value)}
+                                    onChange={(e) =>
+                                        setMotivo(e.target.value)
+                                    }
                                     rows={3}
                                     disabled={ocupado}
                                     style={{
@@ -254,18 +474,37 @@ export default function TaskModal({
                                 <button
                                     className={`${styles.btn} ${styles.btnNo}`}
                                     onClick={confirmarRechazo}
-                                    disabled={ocupado || !motivo.trim()}
-                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                                    disabled={
+                                        ocupado || !motivo.trim()
+                                    }
+                                    style={
+                                        ocupado
+                                            ? {
+                                                  opacity: 0.6,
+                                                  cursor: "not-allowed",
+                                              }
+                                            : undefined
+                                    }
                                 >
-                                    {ocupado ? "Procesando…" : "Confirmar rechazo"}
+                                    {ocupado
+                                        ? "Procesando…"
+                                        : "Confirmar rechazo"}
                                 </button>
 
                                 <button
                                     className={`${styles.btn} ${styles.btnSecondary}`}
                                     disabled={ocupado}
-                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                                    style={
+                                        ocupado
+                                            ? {
+                                                  opacity: 0.6,
+                                                  cursor: "not-allowed",
+                                              }
+                                            : undefined
+                                    }
                                     onClick={() => {
                                         if (ocupado) return;
+
                                         setRechazando(false);
                                         setMotivo("");
                                     }}
@@ -278,19 +517,39 @@ export default function TaskModal({
                                 <button
                                     className={`${styles.btn} ${styles.btnYes}`}
                                     onClick={async () => {
-                                        try { await onAprobar(tarea); } catch {}
+                                        try {
+                                            await onAprobar(tarea);
+                                        } catch {}
                                     }}
                                     disabled={ocupado}
-                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                                    style={
+                                        ocupado
+                                            ? {
+                                                  opacity: 0.6,
+                                                  cursor: "not-allowed",
+                                              }
+                                            : undefined
+                                    }
                                 >
-                                    {ocupado ? "Procesando…" : "Aprobar"}
+                                    {ocupado
+                                        ? "Procesando…"
+                                        : "Aprobar"}
                                 </button>
 
                                 <button
                                     className={`${styles.btn} ${styles.btnNo}`}
-                                    onClick={() => setRechazando(true)}
+                                    onClick={() =>
+                                        setRechazando(true)
+                                    }
                                     disabled={ocupado}
-                                    style={ocupado ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                                    style={
+                                        ocupado
+                                            ? {
+                                                  opacity: 0.6,
+                                                  cursor: "not-allowed",
+                                              }
+                                            : undefined
+                                    }
                                 >
                                     Rechazar solicitud
                                 </button>
@@ -302,3 +561,4 @@ export default function TaskModal({
         </div>
     );
 }
+
