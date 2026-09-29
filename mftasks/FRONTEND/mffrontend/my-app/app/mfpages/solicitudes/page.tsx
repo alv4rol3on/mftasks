@@ -10,11 +10,11 @@ import { getUsuarioActual } from "@/lib/auth";
 import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
 import type { EquipoInfo } from "@/lib/types";
 
-const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
+const ESTADOS = ["EN_ESPERA"] as const;
 
 function etiquetaEstado(estado: string): string {
-  if (estado === "TODOS") return "Todos los estados";
-  if (estado === "EN_PROCESO") return "EN PROCESO";
+  if (estado === "EN_ESPERA") return "EN_ESPERA";
+  if (estado === "EN_ESPERA") return "EN_ESPERA";
   return estado;
 }
 
@@ -30,7 +30,7 @@ export default function SolicitudesPage() {
   const isAdmin = rolesLower.includes("administrador");
 
   // filtros
-  const [filtroEstado, setFiltroEstado] = useState<string>("TODOS");
+  const [filtroEstado, setFiltroEstado] = useState<string>("EN_ESPERA");
   const [busqueda, setBusqueda] = useState("");
   const [campoFecha, setCampoFecha] = useState<"solicitud" | "entrega">("solicitud");
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
@@ -111,13 +111,13 @@ export default function SolicitudesPage() {
   }, [cargar]);
 
   const hayFiltros =
-    filtroEstado !== "TODOS" ||
+    filtroEstado !== "EN_ESPERA" ||
     Boolean(busqueda) ||
     desde !== rangoInicial.desde ||
     hasta !== rangoInicial.hasta;
 
   const limpiarFiltros = () => {
-    setFiltroEstado("TODOS");
+    setFiltroEstado("EN_ESPERA");
     setBusqueda("");
     setCampoFecha("solicitud");
     const r = rangoFechasPorDefecto();
@@ -130,7 +130,7 @@ export default function SolicitudesPage() {
 
     return tareas.filter((t) => {
       const coincideEstado =
-        filtroEstado === "TODOS"
+        filtroEstado === "EN_ESPERA"
           ? true
           : filtroEstado === "EN_PROCESO"
             ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
@@ -161,7 +161,7 @@ export default function SolicitudesPage() {
 
   const filtrosUI = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-      <select
+      {/*<select
         value={filtroEstado}
         onChange={(e) => setFiltroEstado(e.target.value)}
         style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
@@ -169,8 +169,8 @@ export default function SolicitudesPage() {
         {ESTADOS.map((s) => (
           <option key={s} value={s}>{etiquetaEstado(s)}</option>
         ))}
-      </select>
-      <select
+      </select>*/}
+      {/*<select
         value={campoFecha}
         onChange={(e) => setCampoFecha(e.target.value as "solicitud" | "entrega")}
         title="Campo de fecha a filtrar"
@@ -178,7 +178,7 @@ export default function SolicitudesPage() {
       >
         <option value="solicitud">Fecha de solicitud</option>
         <option value="entrega">Fecha de entrega</option>
-      </select>
+      </select>*/}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
         Desde
         <input
@@ -221,7 +221,7 @@ export default function SolicitudesPage() {
     return (
       <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
         <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
-        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. El Centro de solicitudes de aprobación es solo para GTR / ASISTENTE (solo lectura).</p>
+        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. La bandeja de solicitudes de aprobación es solo para GTR / ASISTENTE (solo lectura).</p>
       </div>
     );
   }

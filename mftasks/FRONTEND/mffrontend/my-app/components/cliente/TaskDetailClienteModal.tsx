@@ -5,6 +5,8 @@ import { fetchLogs, LogItem } from "@/lib/services/tareasService";
 import Pagination from "@/components/ui/Pagination";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
+import { apiFetch } from "@/lib/api";
+
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -39,6 +41,38 @@ const estadoLabel: Record<string, string> = {
   RECHAZADO: "Rechazado",
 };
 
+//PARA EL HISTORIAL
+const formatterSec = new Intl.DateTimeFormat("es-PE", {
+  timeZone: "America/Lima",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+const formatearFechaSec = (fecha: string | null | undefined) => {
+  if (!fecha) return "-";
+  const date = new Date(fecha);
+  if (isNaN(date.getTime())) return "-";
+  return formatterSec.format(date);
+};
+
+const ETIQUETAS_EVENTO: Record<string, string> = {
+  CREACION: "Creación",
+  INICIO: "Inicio",
+  CAMBIO_ESTADO: "Cambio de estado",
+  STANDBY_INICIO: "Inicio de pausa",
+  STANDBY_FIN: "Fin de pausa",
+  FIN: "Fin",
+  CAMBIO_ASIGNADO: "Reasignación",
+  CAMBIO_PROGRESO: "Cambio de progreso",
+};
+
+
+
+
 function etiquetaLog(l: LogItem): string {
   switch (l.tipo_evento) {
     case "CREACION":
@@ -71,9 +105,24 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
   const [paginaHist, setPaginaHist] = useState(1);
+  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const histPageSize = 15;
 
   const tareaId = tarea?.id;
+
+  const cargarLogs = async () => {
+    if (!tarea) return;
+    setLogsLoading(true);
+    setLogsError(null);
+    try {
+      const data = await apiFetch<LogItem[]>(`/api/tasks/tasks/${tarea.id}/logs/`);
+      setLogs(data);
+    } catch (e) {
+      setLogsError((e as Error).message);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
 
   // Cargar historial al abrir la pestaña
   useEffect(() => {
@@ -141,7 +190,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                     <tr><td><strong>Campaña</strong></td><td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td></tr>
                     <tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre ?? "-"}</td></tr>
                     <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
-                    <tr><td><strong>Estado</strong></td><td><span style={{ background: estadoColor[tarea.estado] ?? "#6b7280", padding:"2px 8px", borderRadius:6, color:"white", fontSize:11}}>{tarea.estado}</span></td></tr>
+                    <tr><td><strong>Estado</strong></td><td><span style={{ background: estadoColor[tarea.estado] ?? "#6b7280", padding: "2px 8px", borderRadius: 6, color: "white", fontSize: 11 }}>{tarea.estado}</span></td></tr>
 
                     <tr><td><strong>Fecha solicitud</strong></td><td>{fmt(tarea.fecha_creacion)}</td></tr>
 
@@ -174,7 +223,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                 {tarea.estado === "STAND_BY" && (
                   <>
                     <h3>Motivo pausa</h3>
-                    <div  className={styles.descriptionBox}>{tarea.motivo_standby}</div>
+                    <div className={styles.descriptionBox}>{tarea.motivo_standby}</div>
                   </>
                 )}
 
@@ -217,7 +266,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                             title={s.motivo_standby || ""}
                           >
                             <td data-label="Subtarea">{s.descripcion}</td>
-                            <td data-label="Estado"><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding:"2px 6px", borderRadius:6, fontSize:11, color:"white"}}>{s.estado}</span></td>
+                            <td data-label="Estado"><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding: "2px 6px", borderRadius: 6, fontSize: 11, color: "white" }}>{s.estado}</span></td>
                             <td data-label="Peso">{s.peso}</td>
                             <td data-label="Asignado">{s.asignado_nombre}</td>
                           </tr>
@@ -229,31 +278,60 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
               </div>
             </>
           ) : (
-            <div className={styles.progresoSection} style={{ gridColumn: "1 / -1" }}>
-              <h3>Historial de la solicitud</h3>
-              {logsLoading && !logs && <p style={{ fontSize: 12 }}>Cargando historial…</p>}
-              {logsError && <p style={{ color: "#991b1b", fontSize: 12, background: "#fee2e2", padding: "6px 8px", borderRadius: 6 }}>{logsError}</p>}
+            <div>
+              {/* HISTORIAL */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <button onClick={cargarLogs} disabled={logsLoading} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{logsLoading ? "Cargando..." : "Recargar"}</button>
+              </div>
+              {logsError && <p style={{ color: "#991b1b", fontSize: 12 }}>{logsError}</p>}
+              {logsLoading && !logs && <p style={{ fontSize: 12 }}>Cargando logs...</p>}
               {logs && logs.length === 0 && <p style={{ fontSize: 12, color: "#6b7280" }}>Sin registros.</p>}
               {logs && logs.length > 0 && (
-                <>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflowY: "auto" }}>
-                    {logsPaginados.map((l) => (
-                      <div key={l.id} style={{ borderLeft: "3px solid #c7d2fe", paddingLeft: 10 }}>
-                        <div style={{ fontSize: 11, color: "#6b7280" }}>{fmt(l.fecha)}</div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{etiquetaLog(l)}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {logs.length > histPageSize && (
-                    <Pagination
-                      page={paginaHistClamped}
-                      totalPages={totalHistPages}
-                      totalItems={logs.length}
-                      pageSize={histPageSize}
-                      onPageChange={setPaginaHist}
-                    />
-                  )}
-                </>
+                <div className={styles.historialContainer}>
+                  <table className={`${styles.subtareasTable} ${styles.historialTable}`}>
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Evento</th>
+                        <th>Detalle</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logsPaginados.map((l) => {
+                        const expanded = expandedLogs.has(l.id);
+                        const detalle = l.detalle || `${l.estado_anterior ?? ""} → ${l.estado_nuevo ?? ""}`;
+                        const necesitaClamp = detalle.length > 120;
+                        return (
+                          <tr key={l.id}>
+                            <td data-label="Fecha">{formatearFechaSec(l.fecha)}</td>
+                            <td data-label="Usuario">{l.usuario ?? "-"}</td>
+                            <td data-label="Evento"><span title={l.tipo_evento} style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{ETIQUETAS_EVENTO[l.tipo_evento] ?? l.tipo_evento}</span>{l.subtarea_id ? <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>{l.subtarea_codigo ?? `Sub #${l.subtarea_id}`}</div> : null}</td>
+                            <td data-label="Detalle">
+                              <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>{detalle}</div>
+                              {necesitaClamp && (
+                                <button
+                                  type="button"
+                                  className={styles.historialToggle}
+                                  onClick={() => setExpandedLogs(prev => {
+                                    const n = new Set(prev);
+                                    if (n.has(l.id)) n.delete(l.id); else n.add(l.id);
+                                    return n;
+                                  })}
+                                >
+                                  {expanded ? "Ver menos" : "Ver más"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {logs && logs.length > histPageSize && (
+                <Pagination page={paginaHist} totalPages={totalHistPages} totalItems={logs.length} pageSize={histPageSize} onPageChange={setPaginaHist} />
               )}
             </div>
           )}

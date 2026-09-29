@@ -207,6 +207,7 @@ export interface EquipoInfo {
     miembros: EquipoMiembroDetallado[];
     aprobadores?: EquipoAprobador[];
     puedo_gestionar?: boolean;
+    eres_Aprobador?: boolean;
     puedo_asignar_aprobadores?: boolean;
     mi_rol_en_equipo?: string | null;
     mi_estado?: string | null;

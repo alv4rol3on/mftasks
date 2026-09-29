@@ -265,6 +265,62 @@ export default function TaskModal({
                                 ))}
                             </ul>
                         )}
+                        {/* OPCIONES */}
+                        {puedeOperar && (
+                            <div className={styles.modalFooter}>
+                                {rechazando ? (
+                                    <>
+                                        <textarea
+                                            placeholder="Motivo del rechazo (obligatorio)"
+                                            value={motivo}
+                                            onChange={(e) => setMotivo(e.target.value)}
+                                            rows={3}
+                                            style={{
+                                                flex: 1,
+                                                padding: "8px",
+                                                borderRadius: "6px",
+                                                border: "1px solid #ccc",
+                                            }}
+                                        />
+                                        <button
+                                            className={`${styles.btn} ${styles.btnNo}`}
+                                            onClick={confirmarRechazo}
+                                            disabled={!motivo.trim()}
+                                        >
+                                            Confirmar rechazo
+                                        </button>
+                                        <button
+                                            className={`${styles.btn} ${styles.btnSecondary}`}
+                                            onClick={() => {
+                                                setRechazando(false);
+                                                setMotivo("");
+                                            }}
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            className={`${styles.btn} ${styles.btnYes}`}
+                                            onClick={async () => {
+                                                try {
+                                                    await onAprobar(tarea);
+                                                } catch { }
+                                            }}
+                                        >
+                                            Aprobar
+                                        </button>
+                                        <button
+                                            className={`${styles.btn} ${styles.btnNo}`}
+                                            onClick={() => setRechazando(true)}
+                                        >
+                                            Rechazar solicitud
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Adjuntos */}
@@ -277,62 +333,7 @@ export default function TaskModal({
                     </div>
                 </div>
 
-                {/* Pie */}
-                {puedeOperar && (
-                    <div className={styles.modalFooter}>
-                        {rechazando ? (
-                            <>
-                                <textarea
-                                    placeholder="Motivo del rechazo (obligatorio)"
-                                    value={motivo}
-                                    onChange={(e) => setMotivo(e.target.value)}
-                                    rows={3}
-                                    style={{
-                                        flex: 1,
-                                        padding: "8px",
-                                        borderRadius: "6px",
-                                        border: "1px solid #ccc",
-                                    }}
-                                />
-                                <button
-                                    className={`${styles.btn} ${styles.btnNo}`}
-                                    onClick={confirmarRechazo}
-                                    disabled={!motivo.trim()}
-                                >
-                                    Confirmar rechazo
-                                </button>
-                                <button
-                                    className={`${styles.btn} ${styles.btnSecondary}`}
-                                    onClick={() => {
-                                        setRechazando(false);
-                                        setMotivo("");
-                                    }}
-                                >
-                                    Cancelar
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button
-                                    className={`${styles.btn} ${styles.btnYes}`}
-                                    onClick={async () => {
-                                        try {
-                                            await onAprobar(tarea);
-                                        } catch {}
-                                    }}
-                                >
-                                    Aprobar
-                                </button>
-                                <button
-                                    className={`${styles.btn} ${styles.btnNo}`}
-                                    onClick={() => setRechazando(true)}
-                                >
-                                    Rechazar solicitud
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
+
             </div>
         </div>
     );

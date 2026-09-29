@@ -1,11 +1,2 @@
-pirámide de tipos de usuarios:
-- GERENTE(puede aprobar a cualquiera de abajo)
-- SUBGERENTE(aprobador el de arriba, puede aprobar a los de abajo)
-- JEFE(aprobadores por lo menos uno de los de arriba, puede aprobar a los de abajo)
-- GTR(anteriormente llamado LIDER, aprobadores por lo menos uno de los de arriba)
-- miembros(integrantes de grupo de EQUIPO GTR)
-
-- Se deberia poder crear grupos donde todos(menos usuarios del tipo MIEMBRO) puedan ser lideres
-Si JEFE es lider de grupo:
-    - el tipo de equipo es ahora EQUIPO DE JEFE
-    - los GTR pueden ser sus integrantes de grupo y por ende puede ver las solicitudes que llegan a los grupos de estos
+- cambiar la posicion de crear dependencias
+- gerentes/subgerentes y jefes deberian aprobar pero ver todo desde una sola interfaz

@@ -19,47 +19,71 @@ def es_miembro_del_equipo(user, equipo):
 
 
 def es_sub_lider(user, equipo):
-    # Compat: SUB_LIDER deprecado, ahora GTR
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or equipo is None:
         return False
+
     from usuarios.models import EquipoMiembro
-    return equipo.miembros.filter(
+
+    return EquipoMiembro.objects.filter(
+        equipo=equipo,
         usuario=user,
-        rol_en_equipo__in=[EquipoMiembro.RolEnEquipo.SUB_LIDER, EquipoMiembro.RolEnEquipo.LIDER],
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+    ).exists()
+
+def es_lider_por_miembro(user, equipo):
+    if not user or not user.is_authenticated or equipo is None:
+        return False
+
+    if equipo.lider_id == user.id:
+        return True
+
+    from usuarios.models import EquipoMiembro
+
+    return EquipoMiembro.objects.filter(
+        equipo=equipo,
+        usuario=user,
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER,
         estado=EquipoMiembro.EstadoMiembro.ACTIVO,
     ).exists()
 
 
-def es_lider_por_miembro(user, equipo):
-    if not user or not user.is_authenticated:
+def es_asignador_del_equipo(user, equipo):
+    """
+    Determina si el usuario puede gestionar tareas dentro de ESTE equipo.
+
+    Permisos:
+    - Administrador: cualquier equipo.
+    - Líder del equipo: su equipo.
+    - Sub-líder activo: su equipo.
+    - Miembro: no puede gestionar.
+
+    El rol global (GERENTE, SUBGERENTE, JEFE, GTR, ASIGNADOR)
+    no concede permisos de gestión por sí solo.
+    """
+
+    if not user or not user.is_authenticated or equipo is None:
         return False
-    if user.roles.filter(rol__nombre__iexact="GTR").exists():
+
+    # Administrador puede gestionar cualquier equipo
+    if user.roles.filter(
+        rol__nombre__iexact="Administrador"
+    ).exists():
         return True
-    from usuarios.models import EquipoMiembro
+
+    # Líder real de ESTE equipo
     if equipo.lider_id == user.id:
         return True
-    return equipo.miembros.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists()
 
+    # Sub-líder de ESTE equipo
+    from usuarios.models import EquipoMiembro
 
-def es_asignador_del_equipo(user, equipo):
-    # Fase 1: lider por-equipo = asignador. Mantiene compat ASIGNADOR global.
-    if not user or not user.is_authenticated:
-        return False
-
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-        return True
-
-    if not es_miembro_del_equipo(user, equipo):
-        return False
-
-    if es_lider_por_miembro(user, equipo):
-        return True
-
-    if es_sub_lider(user, equipo):
-        return True
-
-    # compat: viejo rol ASIGNADOR
-    return user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists()
+    return EquipoMiembro.objects.filter(
+        equipo=equipo,
+        usuario=user,
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+    ).exists()
 
 
 def puede_gestionar_roles_equipo(user, equipo):

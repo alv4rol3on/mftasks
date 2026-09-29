@@ -249,7 +249,7 @@ export default function MisSolicitudesPage() {
           }}
         >
           Esta sección es solo para CLIENTE. Si eres ASISTENTE / GTR usa
-          &quot;Centro de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.
+          &quot;Bandeja de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.
         </p>
       </div>
     );

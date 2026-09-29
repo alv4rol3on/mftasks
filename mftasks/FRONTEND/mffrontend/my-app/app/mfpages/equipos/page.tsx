@@ -581,6 +581,8 @@ export default function EquiposPage() {
             const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
             const liderActivo = liderMiembro?.estado === "ACTIVO";
             const puedoGestionar = Boolean(equipo.puedo_gestionar) && liderActivo;
+            const eresAprobador = Boolean(equipo.eres_Aprobador) && liderActivo;
+
 
 
             return (
@@ -608,12 +610,14 @@ export default function EquiposPage() {
                         <span className={`${styles.badge} ${styles.badgeGestionar}`}>Puedes gestionar</span>
                       ) : equipo.mi_rol_en_equipo === "SUB_LIDER" ? (
                         <span className={`${styles.badge} ${styles.badgeSubLider}`}>Eres Sub-líder</span>
+                      ) : eresAprobador ? (
+                        <span className={`${styles.badge} ${styles.badgeGestionar}`}>Eres aprobador</span>
                       ) : null}
                     </div>
                     <div className={styles.cardMeta}>
                       <span>Líder: <strong>{liderNombre}</strong></span>
                       <span>Miembros: {equipo.miembros.length} (activos {totalActivos}{totalIndisponibles ? `, indisponibles ${totalIndisponibles}` : ""})</span>
-                      {!esClientePuro && (
+                      {!esClientePuro && miRolLabel !== "—" && (
 
                         <span>Tu rol: <strong>{miRolLabel}</strong></span>
 
@@ -686,7 +690,7 @@ export default function EquiposPage() {
                             Asignar aprobadores
                           </button>
                         )}
-                        {puedoGestionar && (
+                        {soyLider && (
                           <button
                             onClick={() => abrirModalAgregar(equipo)}
                             disabled={!!accionando || !liderActivo}
@@ -897,11 +901,6 @@ export default function EquiposPage() {
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 560, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Agregar integrante</h3>
-            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#6b7280" }}>
-              Busca y selecciona un usuario para agregarlo al equipo <strong>{modalAgregar.nombre}</strong>.
-              {" "}Solo se listan usuarios con rol <strong>{modalAgregar.rol_integrante_requerido ?? "MIEMBRO"}</strong>.
-            </p>
-
             <input
               value={busquedaUsuario}
               onChange={(e) => setBusquedaUsuario(e.target.value)}
@@ -1043,10 +1042,6 @@ export default function EquiposPage() {
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Asignar aprobadores</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
-              Equipo <strong>{modalAprobadores.nombre}</strong>: asigna exactamente un gerente, un subgerente y un jefe.
-              Cualquiera de ellos podrá aprobar las solicitudes del equipo antes de la revisión del líder.
-            </p>
 
             {(["GERENTE", "SUBGERENTE", "JEFE"] as const).map((rol) => (
               <label key={rol} style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151", marginTop: 12 }}>

@@ -11,6 +11,7 @@ import Pagination from "../ui/Pagination";
 import AdjuntosTarea from "../adjuntos/AdjuntosTarea";
 import { useContador } from "./ContadoresProvider";
 import { formatearTiempo } from "@/lib/tiempoLaboral";
+import TaskStateSection from "./TaskModalComponents/TaskStateSection";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima",
@@ -436,6 +437,7 @@ export default function TaskModal({
                     className={styles.modal}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/*ENCABEZADO*/}
                     <div className={styles.modalHeader}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <h2>{tarea.ticket ?? `Tarea #${tarea.id}`}</h2>
@@ -457,6 +459,7 @@ export default function TaskModal({
                         <button className={styles.close} onClick={onClose}>✕</button>
                     </div>
 
+                    {/*DETALLES*/}
                     <div className={styles.modalBody}>
                         <div className={styles.infoCard}>
                             <h3 className={styles.cardTitle}>Resumen</h3>
@@ -506,6 +509,7 @@ export default function TaskModal({
                             )}
                         </div>
 
+                        {/*SECCION PROGRESO*/}
                         <div className={styles.progresoSection}>
                             <div className={styles.tabsHeader}>
                                 <button onClick={() => setTab("progreso")} className={tab === "progreso" ? styles.tabBtnActive : styles.tabBtn}>Progreso</button>
@@ -529,8 +533,6 @@ export default function TaskModal({
                                                     <tr>
                                                         <th>Descripción</th>
                                                         <th>Asignado</th>
-                                                        <th>Peso</th>
-                                                        <th>Contador / Tiempo</th>
                                                         <th>Cambiar Estado</th>
                                                     </tr>
                                                 </thead>
@@ -569,17 +571,6 @@ export default function TaskModal({
                                                                     {subtarea.estado === "SOLUCIONADO" && subtarea.tiempo_tomado_formateado && <div style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>Tomado: {subtarea.tiempo_tomado_formateado} ({subtarea.tiempo_tomado_horas}h)</div>}
                                                                 </td>
                                                                 <td data-label="Asignado">{subtarea.asignado_nombre}</td>
-                                                                <td data-label="Peso">{subtarea.peso}</td>
-                                                                <td data-label="Contador / Tiempo">
-                                                                    <SubtaskCountdown
-                                                                        tareaId={tarea.id}
-                                                                        subtareaId={subtarea.id}
-                                                                        estado={subtarea.estado}
-                                                                        fallbackTiempoTomado={subtarea.tiempo_tomado_segundos}
-                                                                        fallbackFormateado={subtarea.tiempo_tomado_formateado ?? undefined}
-                                                                    />
-                                                                    {subtarea.fecha_inicio && !subtarea.fecha_fin && <div style={{ fontSize: 10, color: "#6b7280" }}>Iniciada {formatearFecha(subtarea.fecha_inicio)}</div>}
-                                                                </td>
                                                                 <td data-label="Cambiar Estado">
                                                                     {esMiSubtarea && onCambiarEstadoSubtarea ? (
                                                                         subtarea.estado === "SOLUCIONADO" ? (
@@ -854,11 +845,11 @@ export default function TaskModal({
                             )
                             }
                         </div>
-
                     </div>
                 </div>
             </div>
 
+            {/*MODAL REANUDAR*/}
             {reanudarSubId !== null && (
                 <div
                     style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}

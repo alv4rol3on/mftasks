@@ -32,7 +32,7 @@ const menuAll: MenuItem[] = [
   // Para admin: una sola vista unificada "Solicitudes" (todos los estados, solo lectura + inactivar)
   { nombre: "Solicitudes", ruta: "/mfpages/solicitudes", show: (c) => c.isAdmin },
   // Personal interno no-admin
-  { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Bandeja de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
   { nombre: "Administración de usuarios/campañas", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
@@ -104,7 +104,7 @@ export default function Sidebar({
     const isClientePuro = isCliente && !isAdmin && !isLider && !isSubLider && !isMiembro;
     const caps: Caps = { isAdmin, isCliente, isClientePuro, isAsistente, isAsignador, isLider, isSubLider, isMiembro };
 
-    // Deduplicar por nombre/ruta: hay dos entradas "Centro de solicitudes" con rutas distintas
+    // Deduplicar por nombre/ruta: hay dos entradas "Bandeja de solicitudes" con rutas distintas
     // Filtramos por show y luego por unicidad de ruta
     const filtrado = menuAll.filter((m) => m.show(caps));
     // Si es admin, mostrar ambas variantes de centro (mis solicitudes no tiene sentido para admin sin cliente, pero lo mostramos si es cliente también)

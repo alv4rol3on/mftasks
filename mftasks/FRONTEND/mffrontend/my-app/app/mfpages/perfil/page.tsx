@@ -108,7 +108,7 @@ export default function PerfilPage() {
 
   const esCliente = roles.map((r) => r.toLowerCase()).includes("cliente");
   const esEquipo = misEquipos.length > 0 || roles.some((r) =>
-    ["miembro", "gtr", "gerente", "subgerente", "jefe", "administrador"].includes(r.toLowerCase())
+    ["miembro", "gtr", "gerente", "subgerente", "jefe"].includes(r.toLowerCase())
   );
   const prefsSucias =
     prefs != null && prefsGuardadas != null &&
@@ -242,41 +242,6 @@ export default function PerfilPage() {
           </div>
         </section>
       )}
-
-      <section className={styles.card}>
-        <h3 className={styles.cardTitle}>Mis equipos</h3>
-        {cargando ? (
-          <div className={styles.empty}>Cargando equipos…</div>
-        ) : misEquipos.length === 0 ? (
-          <div className={styles.empty}>No perteneces a ningún equipo.</div>
-        ) : (
-          <div className={styles.equiposList}>
-            {misEquipos.map((e) => {
-              const esLider = uid != null && e.lider?.id === uid;
-              const rol = esLider ? "LÍDER" : (e.mi_rol_en_equipo ?? "MIEMBRO");
-              const estado = e.mi_estado ?? "ACTIVO";
-              return (
-                <div key={e.id} className={styles.equipoCard}>
-                  <div className={styles.equipoInfo}>
-                    <span className={styles.equipoName}>{e.nombre}</span>
-                    {e.lider && (
-                      <span className={styles.equipoLeader}>
-                        Líder: {e.lider.nombres} {e.lider.apellidos}
-                      </span>
-                    )}
-                  </div>
-                  <div className={styles.equipoBadges}>
-                    <span className={styles.badgeRol}>{rol}</span>
-                    <span className={`${styles.badgeEstado} ${estado === "ACTIVO" ? styles.estadoActivo : estado === "INDISPONIBLE" ? styles.estadoIndisponible : styles.estadoInactivo}`}>
-                      {estado}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

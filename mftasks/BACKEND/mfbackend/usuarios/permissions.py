@@ -1,6 +1,11 @@
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
 from .jerarquia import nivel_efectivo
+from usuarios.models import (
+    Equipo,
+    EquipoAprobador,
+    EquipoMiembro
+)
 
 
 class IsAuthenticatedActivo(IsAuthenticated):
@@ -44,7 +49,6 @@ def es_lider_del_equipo(user, equipo):
         return False
     if equipo.lider_id == user.id:
         return True
-    from .models import EquipoMiembro
     return EquipoMiembro.objects.filter(
         equipo=equipo,
         usuario=user,
@@ -60,14 +64,13 @@ def es_lider_de_equipo(user, equipo):
 
 
 def es_sub_lider_de_equipo(user, equipo):
-    # Compatibilidad: SUB_LIDER deprecado; GTR es el único rol de gestión.
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or equipo is None:
         return False
-    from .models import EquipoMiembro
+
     return EquipoMiembro.objects.filter(
         equipo=equipo,
         usuario=user,
-        rol_en_equipo__in=[EquipoMiembro.RolEnEquipo.SUB_LIDER, EquipoMiembro.RolEnEquipo.LIDER],
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
         estado=EquipoMiembro.EstadoMiembro.ACTIVO,
     ).exists()
 
@@ -79,14 +82,12 @@ def es_lider_global(user):
 
 
 def es_lider_miembro(user, equipo):
-    """Líder por EquipoMiembro GTR activo (no solo FK lider_id) o rol global GTR"""
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or equipo is None:
         return False
-    if user.roles.filter(rol__nombre__iexact="GTR").exists():
-        return True
-    from .models import EquipoMiembro
+
     if equipo.lider_id == user.id:
         return True
+
     return EquipoMiembro.objects.filter(
         equipo=equipo,
         usuario=user,
@@ -96,17 +97,26 @@ def es_lider_miembro(user, equipo):
 
 
 def puede_operar_como_lider(user, equipo):
-    """GTR (FK o miembro GTR) puede operar como líder."""
-    if es_administrador(user):
+    if not user or not user.is_authenticated or equipo is None:
+        return False
+
+    # Administrador
+    if user.roles.filter(
+        rol__nombre__iexact="Administrador"
+    ).exists():
         return True
-    if es_lider_miembro(user, equipo):
+
+    # Líder de ESTE equipo
+    if equipo.lider_id == user.id:
         return True
-    # compat: viejo SUB_LIDER o rol global ASIGNADOR todavía permitido
-    if es_sub_lider_de_equipo(user, equipo):
-        return True
-    if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists() and es_miembro_activo(user, equipo):
-        return True
-    return False
+
+    # Sub-líder de ESTE equipo
+    return EquipoMiembro.objects.filter(
+        equipo=equipo,
+        usuario=user,
+        rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+    ).exists()
 
 
 def es_miembro_activo(user, equipo):
@@ -115,7 +125,6 @@ def es_miembro_activo(user, equipo):
     # CLIENTE nunca cuenta como miembro de equipo (incluso si es admin+cliente, admin ya gestiona aparte)
     if user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="Administrador").exists():
         return False
-    from .models import EquipoMiembro
     if equipo.lider_id == user.id:
         return True
     return equipo.miembros.filter(usuario=user).exclude(estado=EquipoMiembro.EstadoMiembro.INACTIVO).exists()
@@ -144,10 +153,9 @@ def ids_equipos_visibles(user):
     if not user or not user.is_authenticated:
         return set()
     if es_administrador(user):
-        from .models import Equipo
         return set(Equipo.objects.values_list("id", flat=True))
 
-    from .models import Equipo, EquipoAprobador, EquipoMiembro
+
     propios = set(
         Equipo.objects.filter(lider=user).values_list("id", flat=True)
     )
@@ -170,7 +178,6 @@ def es_aprobador_asignado(user, equipo):
     """True si el usuario es un aprobador asignado del equipo."""
     if not user or not user.is_authenticated or equipo is None:
         return False
-    from .models import EquipoAprobador
     return EquipoAprobador.objects.filter(
         equipo=equipo,
         usuario=user,
@@ -194,7 +201,6 @@ class EsLiderDeEquipo(BasePermission):
         return request.user and request.user.is_authenticated and request.user.is_active
 
     def has_object_permission(self, request, view, obj):
-        from .models import Equipo
         equipo = obj if isinstance(obj, Equipo) else getattr(obj, "equipo", None)
         if equipo is None:
             return False

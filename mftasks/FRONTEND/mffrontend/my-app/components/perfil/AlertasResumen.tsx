@@ -126,7 +126,7 @@ export default function AlertasResumen() {
                 Tienes {porAprobar} {porAprobar === 1 ? "solicitud por aprobar" : "solicitudes por aprobar"}
               </p>
               <Link href="/mfpages/solicitudes" style={{ color: "#b45309", textDecoration: "underline", fontSize: 14 }}>
-                Ir a centro de solicitudes →
+                Ir a Bandeja de solicitudes →
               </Link>
             </div>
           ) : null}
