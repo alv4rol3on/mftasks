@@ -24,11 +24,6 @@ const CAMPOS_CLIENTE: { key: CampoBooleano; label: string }[] = [
   { key: "cliente_resumen_diario", label: "Resumen diario de mis solicitudes (9:00 a.m.)" },
 ];
 
-const CAMPOS_APROBADOR: { key: CampoBooleano; label: string; descripcion?: string }[] = [
-  { key: "aprobador_nueva_solicitud", label: "Nuevas solicitudes" },
-  { key: "aprobador_pendiente_revision", label: "Solicitudes en espera de revisión (diaria)" },
-];
-
 const CAMPOS_EQUIPO: { key: CampoBooleano; label: string; descripcion?: string }[] = [
   { key: "equipo_nueva_solicitud", label: "Nueva solicitud en mi equipo" },
   { key: "equipo_pendiente_revision", label: "Solicitudes pendientes de revisión (aprobar o rechazar)" },
@@ -113,14 +108,8 @@ export default function PerfilPage() {
 
   const esCliente = roles.map((r) => r.toLowerCase()).includes("cliente");
   const esEquipo = misEquipos.length > 0 || roles.some((r) =>
-    ["miembro", "lider", "líder", "administrador"].includes(r.toLowerCase())
+    ["miembro", "gtr", "gerente", "subgerente", "jefe", "administrador"].includes(r.toLowerCase())
   );
-  const esAprobador = roles.some((r) =>
-    ["gerente", "subgerente", "supervisor"].includes(r.toLowerCase())
-  );
-  // Gerente/Subgerente/supervisor: solo ven las 2 opciones de aprobador.
-  const soloAprobador = esAprobador && !esAdmin;
-
   const prefsSucias =
     prefs != null && prefsGuardadas != null &&
     JSON.stringify(prefs) !== JSON.stringify(prefsGuardadas);
@@ -199,7 +188,7 @@ export default function PerfilPage() {
         </div>
       </section>
 
-      {prefs && (esCliente || esEquipo || esAprobador) && (
+      {prefs && (esCliente || esEquipo) && (
         <section className={styles.card}>
           <h3 className={styles.cardTitle}>Notificaciones por correo</h3>
 
@@ -210,10 +199,25 @@ export default function PerfilPage() {
             onChange={(v) => actualizarPref("recibir_correos", v)}
           />
 
-          {soloAprobador ? (
+          {esCliente && (
             <div className={styles.notifGroup}>
-              <h4 className={styles.notifGroupTitle}>Como aprobador</h4>
-              {CAMPOS_APROBADOR.map((campo) => (
+              <h4 className={styles.notifGroupTitle}>Como cliente</h4>
+              {CAMPOS_CLIENTE.map((campo) => (
+                <CampoNotificacion
+                  key={campo.key}
+                  titulo={campo.label}
+                  checked={Boolean(prefs[campo.key])}
+                  disabled={!prefs.recibir_correos}
+                  onChange={(v) => actualizarPref(campo.key, v)}
+                />
+              ))}
+            </div>
+          )}
+
+          {esEquipo && (
+            <div className={styles.notifGroup}>
+              <h4 className={styles.notifGroupTitle}>Como líder / miembro</h4>
+              {CAMPOS_EQUIPO.map((campo) => (
                 <CampoNotificacion
                   key={campo.key}
                   titulo={campo.label}
@@ -224,39 +228,6 @@ export default function PerfilPage() {
                 />
               ))}
             </div>
-          ) : (
-            <>
-              {esCliente && (
-                <div className={styles.notifGroup}>
-                  <h4 className={styles.notifGroupTitle}>Como cliente</h4>
-                  {CAMPOS_CLIENTE.map((campo) => (
-                    <CampoNotificacion
-                      key={campo.key}
-                      titulo={campo.label}
-                      checked={Boolean(prefs[campo.key])}
-                      disabled={!prefs.recibir_correos}
-                      onChange={(v) => actualizarPref(campo.key, v)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {esEquipo && (
-                <div className={styles.notifGroup}>
-                  <h4 className={styles.notifGroupTitle}>Como líder / miembro</h4>
-                  {CAMPOS_EQUIPO.map((campo) => (
-                    <CampoNotificacion
-                      key={campo.key}
-                      titulo={campo.label}
-                      descripcion={campo.descripcion}
-                      checked={Boolean(prefs[campo.key])}
-                      disabled={!prefs.recibir_correos}
-                      onChange={(v) => actualizarPref(campo.key, v)}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
           )}
 
           <div className={styles.notifActions}>

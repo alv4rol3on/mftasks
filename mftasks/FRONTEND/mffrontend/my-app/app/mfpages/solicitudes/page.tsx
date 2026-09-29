@@ -6,8 +6,7 @@ import TaskTableSolicitudes from "@/components/solicitudes/TaskTableSolicitudes"
 import AdminSolicitudesTable from "@/components/solicitudes/AdminSolicitudesTable";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
-import { useToast } from "@/components/ui/Toast";
-import { getUsuarioActual, nivelJerarquico } from "@/lib/auth";
+import { getUsuarioActual } from "@/lib/auth";
 import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
 import type { EquipoInfo } from "@/lib/types";
 
@@ -24,22 +23,14 @@ export default function SolicitudesPage() {
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [accionando, setAccionando] = useState<number | null>(null);
-  const { showToast } = useToast();
   const [sinPermiso, setSinPermiso] = useState(false);
-  const [esSoloLectura, setEsSoloLectura] = useState(false);
 
   const user = getUsuarioActual();
   const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
   const isAdmin = rolesLower.includes("administrador");
-  // Solo GERENTE/SUBGERENTE/SUPERVISOR ven todo (seguimiento).
-  // El líder del equipo ve solo su equipo (rama por defecto).
-  const esAprobador =
-    !isAdmin &&
-    (rolesLower.includes("gerente") || rolesLower.includes("subgerente") || rolesLower.includes("supervisor"));
 
-  // filtros (admin y aprobadores de la cadena)
-  const [filtroEstado, setFiltroEstado] = useState<string>(esAprobador ? "TODOS" : "EN_PROCESO");
+  // filtros
+  const [filtroEstado, setFiltroEstado] = useState<string>("TODOS");
   const [busqueda, setBusqueda] = useState("");
   const [campoFecha, setCampoFecha] = useState<"solicitud" | "entrega">("solicitud");
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
@@ -56,31 +47,21 @@ export default function SolicitudesPage() {
     const isAsistente = roles.includes("asistente");
     const isAsignador = roles.includes("asignador");
     if (isAd) return; // admin unificada
-    if (nivelJerarquico()) return; // GERENTE/SUBGERENTE/SUPERVISOR
     if (isAsignador) return;
-    if (isAsistente) { setEsSoloLectura(true); return; }
+    if (isAsistente) return;
     if (isCliente && !isAsistente && !isAsignador) {
       apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
         .then((data) => {
           const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
           const uid = u.id;
-          const esSubLider = arr.some((eq) => eq.miembros?.some((m) => m.id_usuario === uid && m.rol_en_equipo === "SUB_LIDER" && m.estado === "ACTIVO"));
+          const esGtr = arr.some((eq) => eq.miembros?.some((m) => m.id_usuario === uid && (m.rol_en_equipo === "LIDER" || m.rol_en_equipo === "SUB_LIDER") && m.estado === "ACTIVO"));
           const esLider = arr.some((eq) => eq.lider?.id === uid);
           const esMiembro = arr.some((eq) => eq.miembros?.some((m) => m.id_usuario === uid));
-          if (esLider || esSubLider) return;
-          if (esMiembro) { setEsSoloLectura(true); return; }
+          if (esLider || esGtr) return;
+          if (esMiembro) return;
           setSinPermiso(true);
         })
         .catch(() => setSinPermiso(true));
-    } else if (!isCliente) {
-      apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
-        .then((data) => {
-          const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
-          const uid = u.id;
-          const esMiembro = arr.some((eq) => eq.lider?.id === uid || eq.miembros?.some((m) => m.id_usuario === uid));
-          if (esMiembro && !isAsignador && !isAd) setEsSoloLectura(true);
-        })
-        .catch(() => { });
     }
   }, [router]);
 
@@ -89,55 +70,45 @@ export default function SolicitudesPage() {
     apiFetch<Task[]>("/api/tasks/tasks/")
       .then((data) => {
         setError(null);
-        if (isAdmin || esAprobador) {
-          // admin y aprobadores de la cadena ven todas (seguimiento), orden más reciente primero
-          const ordenadas = [...data].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime());
-          setTareas(ordenadas);
-        } else {
-          setTareas(data.filter((tarea) => tarea.estado === "EN_ESPERA"));
-        }
+        // Todas las solicitudes visibles (el backend ya limita por alcance),
+        // orden más reciente primero.
+        const ordenadas = [...data].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime());
+        setTareas(ordenadas);
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setCargando(false));
-  }, [isAdmin, esAprobador]);
-
-  useEffect(() => {
-    cargar();
-  }, [cargar]);
+  }, []);
 
   const aprobar = async (tarea: Task) => {
-    setAccionando(tarea.id);
     setError(null);
     try {
       await apiFetch(`/api/tasks/tasks/${tarea.id}/aprobar/`, { method: "POST" });
-      showToast("tarea aceptada", "success");
       await cargar();
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
-      showToast(msg, "error");
       throw e;
-    } finally {
-      setAccionando(null);
     }
   };
 
   const rechazar = async (tarea: Task, motivo: string) => {
-    setAccionando(tarea.id);
     setError(null);
     try {
-      await apiFetch(`/api/tasks/tasks/${tarea.id}/rechazar/`, { method: "POST", body: JSON.stringify({ motivo_rechazo: motivo }) });
-      showToast("Solicitud rechazada", "error");
+      await apiFetch(`/api/tasks/tasks/${tarea.id}/rechazar/`, {
+        method: "POST",
+        body: JSON.stringify({ motivo_rechazo: motivo }),
+      });
       await cargar();
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
-      showToast(msg, "error");
       throw e;
-    } finally {
-      setAccionando(null);
     }
   };
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
 
   const hayFiltros =
     filtroEstado !== "TODOS" ||
@@ -250,7 +221,7 @@ export default function SolicitudesPage() {
     return (
       <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
         <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
-        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. El Centro de solicitudes de aprobación es solo para LIDER / SUB-LIDER / ASISTENTE (solo lectura).</p>
+        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. El Centro de solicitudes de aprobación es solo para GTR / ASISTENTE (solo lectura).</p>
       </div>
     );
   }
@@ -271,23 +242,11 @@ export default function SolicitudesPage() {
     );
   }
 
-  if (esAprobador) {
-    return (
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
-          <h2 className="text-lg font-medium" style={{ margin: 0 }}>Centro de solicitudes</h2>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradas.length} de {tareas.length} · Seguimiento</span>
-        </div>
-        {filtrosUI}
-        <TaskTableSolicitudes tareas={tareasFiltradas} accionando={accionando} onAprobar={aprobar} onRechazar={rechazar} />
-      </div>
-    );
-  }
-
   return (
     <div>
       <h2 className="mb-4 text-lg font-medium">Solicitudes recibidas</h2>
-      <TaskTableSolicitudes tareas={tareas} accionando={accionando} onAprobar={aprobar} onRechazar={rechazar} />
+      {filtrosUI}
+      <TaskTableSolicitudes tareas={tareasFiltradas} onAprobar={aprobar} onRechazar={rechazar} />
     </div>
   );
 }

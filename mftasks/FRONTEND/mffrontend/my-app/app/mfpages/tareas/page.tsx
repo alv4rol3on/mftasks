@@ -259,8 +259,7 @@ export default function TareasPage() {
   if (typeof window !== "undefined") {
     const u = (() => { try { const g = localStorage.getItem("user"); return g ? JSON.parse(g) : null; } catch { return null; } })();
     const rolesU = u ? (u.roles ?? []).map((r: string) => r.toLowerCase()) : [];
-    const esRestringido = rolesU.includes("gerente") || rolesU.includes("subgerente") || rolesU.includes("supervisor");
-    if (u && (rolesU.includes("administrador") || esRestringido)) {
+    if (u && rolesU.includes("administrador")) {
       return <div style={{ padding: 16, color: "#6b7280" }}>Redirigiendo a Solicitudes...</div>;
     }
   }

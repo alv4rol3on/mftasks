@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import "../components/Sidebar.css";
-import { esAprobadorRestringido, getUsuarioActual } from "@/lib/auth";
+import { getUsuarioActual } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import type { EquipoInfo } from "@/lib/types";
 
@@ -23,7 +23,6 @@ type Caps = {
   isLider: boolean;
   isSubLider: boolean;
   isMiembro: boolean;
-  isAprobadorRestringido: boolean;
 };
 
 const menuAll: MenuItem[] = [
@@ -34,8 +33,8 @@ const menuAll: MenuItem[] = [
   { nombre: "Solicitudes", ruta: "/mfpages/solicitudes", show: (c) => c.isAdmin },
   // Personal interno no-admin
   { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
-  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAprobadorRestringido && !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
-  { nombre: "Equipos", ruta: "/mfpages/equipos", show: (c) => !c.isAprobadorRestringido },
+  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
   { nombre: "Administración de usuarios/campañas", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
 ];
 
@@ -52,7 +51,7 @@ export default function Sidebar({
   const [equipos, setEquipos] = useState<EquipoInfo[] | null>(null);
 
   useEffect(() => {
-    // Cargar equipos para detectar LIDER / SUB-LIDER / Miembro (necesario cuando el usuario no tiene rol global ASIGNADOR)
+    // Cargar equipos para detectar GTR / SUB-LIDER / Miembro (necesario cuando el usuario no tiene rol global ASIGNADOR)
     let cancel = false;
     const user = getUsuarioActual();
     if (!user) return;
@@ -77,7 +76,7 @@ export default function Sidebar({
     // compat: viejo asignador/asistente mapean a miembro
     const isAsistenteExplicit = roles.includes("asistente");
     const isAsignadorLegacy = roles.includes("asignador");
-    const isAprobador = ["gerente", "subgerente", "supervisor"].some((r) => roles.includes(r));
+    const isAprobador = ["gerente", "subgerente", "jefe"].some((r) => roles.includes(r));
     const isAsistente = false; // deprecado
     const isAsignador = isAdmin || isAsignadorLegacy || isAprobador;
 
@@ -103,7 +102,7 @@ export default function Sidebar({
     }
 
     const isClientePuro = isCliente && !isAdmin && !isLider && !isSubLider && !isMiembro;
-    const caps: Caps = { isAdmin, isCliente, isClientePuro, isAsistente, isAsignador, isLider, isSubLider, isMiembro, isAprobadorRestringido: esAprobadorRestringido() };
+    const caps: Caps = { isAdmin, isCliente, isClientePuro, isAsistente, isAsignador, isLider, isSubLider, isMiembro };
 
     // Deduplicar por nombre/ruta: hay dos entradas "Centro de solicitudes" con rutas distintas
     // Filtramos por show y luego por unicidad de ruta

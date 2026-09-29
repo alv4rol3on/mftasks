@@ -6,6 +6,7 @@ from .models import (
     Rol,
     UserRol,
     Equipo,
+    EquipoAprobador,
     EquipoMiembro,
     PreferenciaNotificacion,
 )
@@ -16,6 +17,11 @@ class UserRolInline(admin.TabularInline):
 
 class EquipoMiembroInline(admin.TabularInline):
     model = EquipoMiembro
+    extra = 1
+    autocomplete_fields = ("usuario",)
+
+class EquipoAprobadorInline(admin.TabularInline):
+    model = EquipoAprobador
     extra = 1
     autocomplete_fields = ("usuario",)
 
@@ -203,6 +209,7 @@ class EquipoAdmin(admin.ModelAdmin):
 
     list_display = (
         "nombre",
+        "tipo_equipo",
         "lider",
         "activo",
         "fecha_creacion",
@@ -210,6 +217,7 @@ class EquipoAdmin(admin.ModelAdmin):
 
     list_filter = (
         "activo",
+        "tipo_equipo",
     )
 
     search_fields = (
@@ -225,7 +233,40 @@ class EquipoAdmin(admin.ModelAdmin):
 
     inlines = [
         EquipoMiembroInline,
+        EquipoAprobadorInline,
     ]
+
+@admin.register(EquipoAprobador)
+class EquipoAprobadorAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "equipo",
+        "rol_aprobador",
+        "usuario",
+        "fecha_asignacion",
+    )
+
+    list_filter = (
+        "rol_aprobador",
+        "equipo",
+    )
+
+    search_fields = (
+        "equipo__nombre",
+        "usuario__nombres",
+        "usuario__apellidos",
+        "usuario__email",
+    )
+
+    autocomplete_fields = (
+        "equipo",
+        "usuario",
+    )
+
+    list_select_related = (
+        "equipo",
+        "usuario",
+    )
 
 @admin.register(EquipoMiembro)
 class EquipoMiembroAdmin(admin.ModelAdmin):

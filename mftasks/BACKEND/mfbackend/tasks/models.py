@@ -15,10 +15,8 @@ class Tarea(models.Model):
         STAND_BY = "STAND_BY", "En pausa"
 
     class PasoAprobacion(models.TextChoices):
-        GERENTE = "GERENTE", "Gerente"
-        SUBGERENTE = "SUBGERENTE", "Subgerente"
-        SUPERVISOR = "SUPERVISOR", "Supervisor"
-        LIDER = "LIDER", "Líder"
+        APROBADORES = "APROBADORES", "Aprobadores"
+        LIDER = "LIDER", "Revisión del líder"
         COMPLETADO = "COMPLETADO", "Completado"
 
     ticket = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
@@ -35,15 +33,10 @@ class Tarea(models.Model):
     paso_aprobacion = models.CharField(
         max_length=20,
         choices=PasoAprobacion.choices,
-        default=PasoAprobacion.GERENTE,
+        default=PasoAprobacion.APROBADORES,
         db_index=True,
-        help_text="Nivel de la cadena de aprobación que debe resolver la solicitud.",
+        help_text="Fase de aprobación que debe resolverse: aprobadores del equipo o su líder.",
     )
-
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_respuesta = models.DateTimeField(null=True, blank=True)
-    fecha_inicio = models.DateTimeField(null=True, blank=True)
-    fecha_entrega_aproximada = models.DateTimeField(null=True, blank=True)
 
     aprobador = models.ForeignKey(
         User,
@@ -52,6 +45,11 @@ class Tarea(models.Model):
         null=True,
         blank=True,
     )
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_respuesta = models.DateTimeField(null=True, blank=True)
+    fecha_inicio = models.DateTimeField(null=True, blank=True)
+    fecha_entrega_aproximada = models.DateTimeField(null=True, blank=True)
 
     solicitante = models.ForeignKey(
         User,
@@ -125,7 +123,6 @@ class Tarea(models.Model):
             models.Index(fields=["fecha_creacion"]),
             models.Index(fields=["ticket"]),
             models.Index(fields=["activo"]),
-            models.Index(fields=["paso_aprobacion", "estado"], name="tasks_tarea_paso_estado_idx"),
         ]
         constraints = [
             CheckConstraint(check=Q(progreso__gte=0, progreso__lte=100), name="chk_tarea_progreso_0_100"),
@@ -477,8 +474,8 @@ class AprobacionTarea(models.Model):
     class Meta:
         ordering = ["fecha", "id"]
         indexes = [
-            models.Index(fields=["tarea", "fecha"], name="tasks_aprob_tarea_fecha_idx"),
-            models.Index(fields=["nivel"], name="tasks_aprob_nivel_idx"),
+            models.Index(fields=["tarea", "fecha"]),
+            models.Index(fields=["nivel"]),
         ]
 
     def __str__(self):

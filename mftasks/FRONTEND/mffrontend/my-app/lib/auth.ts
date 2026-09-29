@@ -78,54 +78,16 @@ export function esCliente(): boolean {
     return rolesLower(usuario.roles).includes("cliente");
 }
 
-/** Niveles globales de la cadena (roles a nivel organización). */
-export const PASOS_GLOBALES = ["GERENTE", "SUBGERENTE", "SUPERVISOR"] as const;
+/** Roles que pueden ser líderes de un equipo (todos menos MIEMBRO/CLIENTE). */
+export const ROLES_LIDER = ["GERENTE", "SUBGERENTE", "JEFE", "GTR"] as const;
 
-/** Paso final de la cadena: lo resuelve el líder del equipo de la solicitud. */
-export const PASO_FINAL = "LIDER";
-
-export const CADENA_APROBACION = [...PASOS_GLOBALES, PASO_FINAL] as const;
-
-export function nivelJerarquico(): string | null {
-    const usuario = getUsuarioActual();
-    if (!usuario) return null;
-    const roles = rolesLower(usuario.roles);
-    for (const nivel of PASOS_GLOBALES) {
-        if (roles.includes(nivel.toLowerCase())) return nivel;
-    }
-    return null;
-}
-
-export function esRolAprobacion(): boolean {
-    return nivelJerarquico() !== null;
-}
-
-/**
- * GERENTE / SUBGERENTE / SUPERVISOR: solo acceden a aprobar/rechazar y al
- * seguimiento de solicitudes (sin Equipos ni Tareas en desarrollo).
- * El Administrador queda fuera de la restricción.
- */
-export function esAprobadorRestringido(): boolean {
+/** True si el usuario puede liderar/crear un equipo. */
+export function esLiderElegible(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
+    if (esAdmin()) return true;
     const roles = rolesLower(usuario.roles);
-    if (roles.includes("administrador")) return false;
-    return (
-        roles.includes("gerente") ||
-        roles.includes("subgerente") ||
-        roles.includes("supervisor")
-    );
-}
-
-export function nombreNivel(nivel?: string | null): string {
-    const nombres: Record<string, string> = {
-        GERENTE: "Gerente",
-        SUBGERENTE: "Subgerente",
-        SUPERVISOR: "Supervisor",
-        LIDER: "Líder",
-        COMPLETADO: "Completado",
-    };
-    return nivel ? nombres[nivel] ?? nivel : "";
+    return ROLES_LIDER.some((r) => roles.includes(r.toLowerCase()));
 }
 
 export function isAutenticado(): boolean {

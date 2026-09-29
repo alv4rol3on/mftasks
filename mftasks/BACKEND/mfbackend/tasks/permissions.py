@@ -3,31 +3,23 @@ from rest_framework.permissions import BasePermission
 
 def es_miembro_del_equipo(user, equipo):
 
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or equipo is None:
         return False
 
     if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-        return True
-
-    # Roles de la cadena de aprobación: pueden ver cualquier equipo
-    from usuarios.permissions import nivel_jerarquico
-    if nivel_jerarquico(user):
         return True
 
     # CLIENTE nunca es miembro de equipo
     if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
         return False
 
-    if equipo.lider_id == user.id:
-        return True
-
-    # solo miembros no inactivos cuentan como miembros activos
-    from usuarios.models import EquipoMiembro
-    return equipo.miembros.filter(usuario=user).exclude(estado=EquipoMiembro.EstadoMiembro.INACTIVO).exists()
+    # Visibilidad jerárquica directa: propios + equipos de sus integrantes directos.
+    from usuarios.permissions import ids_equipos_visibles
+    return equipo.id in ids_equipos_visibles(user)
 
 
 def es_sub_lider(user, equipo):
-    # Compat: SUB_LIDER deprecado, ahora LIDER
+    # Compat: SUB_LIDER deprecado, ahora GTR
     if not user or not user.is_authenticated:
         return False
     from usuarios.models import EquipoMiembro
@@ -41,7 +33,7 @@ def es_sub_lider(user, equipo):
 def es_lider_por_miembro(user, equipo):
     if not user or not user.is_authenticated:
         return False
-    if user.roles.filter(rol__nombre__iexact="lider").exists():
+    if user.roles.filter(rol__nombre__iexact="GTR").exists():
         return True
     from usuarios.models import EquipoMiembro
     if equipo.lider_id == user.id:
@@ -120,20 +112,12 @@ def puede_observar_tarea(user, tarea):
     if user.roles.filter(rol__nombre__iexact="Administrador").exists():
         return True
 
-    # Roles de la cadena de aprobación: alcance global
-    from usuarios.permissions import nivel_jerarquico
-    if nivel_jerarquico(user):
-        return True
-
     # CLIENTE: solo sus propias solicitudes
     if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
         return tarea.solicitante_id == user.id
 
-    equipo = tarea.equipo
-    return (
-        equipo.lider_id == user.id
-        or equipo.miembros.filter(usuario=user).exists()
-    )
+    from usuarios.permissions import ids_equipos_visibles
+    return tarea.equipo_id in ids_equipos_visibles(user)
 
 
 def tiene_permiso_subcampana(user, subcampana):
@@ -187,27 +171,29 @@ class EsSolicitanteDeTarea(BasePermission):
 
 
 def es_aprobador_de_tarea(user, tarea):
-    """True si el usuario puede resolver el paso de aprobación actual.
+    """True si el usuario puede resolver la fase de aprobación actual.
 
-    El paso final (LIDER) lo resuelve el líder del equipo de la tarea.
-    No valida el estado de la tarea: eso se reporta con un 400 en la vista.
+    - Fase APROBADORES: cualquier aprobador asignado del equipo de la tarea.
+    - Fase LIDER: el líder del equipo de la tarea.
+    El Administrador puede actuar como override.
     """
     if not user or not user.is_authenticated or tarea is None:
         return False
     from usuarios.permissions import (
         es_administrador,
-        es_aprobador_de_paso,
+        es_aprobador_asignado,
         es_lider_del_equipo,
     )
-    from usuarios.jerarquia import PASO_FINAL
 
     if es_administrador(user):
         return True
 
     paso = getattr(tarea, "paso_aprobacion", None)
-    if paso == PASO_FINAL:
+    if paso == "LIDER":
         return es_lider_del_equipo(user, getattr(tarea, "equipo", None))
-    return es_aprobador_de_paso(user, paso)
+    if paso == "APROBADORES":
+        return es_aprobador_asignado(user, getattr(tarea, "equipo", None))
+    return False
 
 
 class PuedeAprobarPasoDeTarea(BasePermission):

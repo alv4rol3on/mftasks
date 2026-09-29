@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { esAprobadorRestringido, getUsuarioActual } from "@/lib/auth";
+import { getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo, EquipoMiembroDetallado } from "@/lib/types";
 import styles from "./Equipos.module.css";
 
@@ -16,6 +15,8 @@ function extraerEquipos(data: EquipoApiResponse): EquipoInfo[] {
 }
 
 type Pendiente = { subtarea_id: number; descripcion: string; tarea_id: number; tarea_asunto: string; estado: string };
+
+type UsuarioLista = { id: number; codigo?: string; email: string; nombres: string; apellidos: string; roles?: string[]; is_active?: boolean; activo?: boolean };
 
 export default function EquiposPage() {
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
@@ -40,35 +41,37 @@ export default function EquiposPage() {
     extra: { fechaInicio: string; fechaFin: string; motivo: string; esBaja: boolean };
   } | null>(null);
   const [reassignments, setReassignments] = useState<Record<number, number>>({});
-  // modal agregar miembro por codigo MFS- (solo MIEMBRO activo pre-asignado)
+  // modal agregar miembro
   const [modalAgregar, setModalAgregar] = useState<EquipoInfo | null>(null);
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; codigo?: string; email: string; nombres: string; apellidos: string; is_active?: boolean; activo?: boolean }[]>([]);
+  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; codigo?: string; email: string; nombres: string; apellidos: string; is_active?: boolean; activo?: boolean; roles?: string[] }[]>([]);
   const [agregarUsuarioId, setAgregarUsuarioId] = useState<string>("");
+  const [busquedaUsuario, setBusquedaUsuario] = useState<string>("");
+  // modal crear equipo
+  const [modalCrear, setModalCrear] = useState(false);
+  // modal asignar aprobadores
+  const [modalAprobadores, setModalAprobadores] = useState<EquipoInfo | null>(null);
+  const [usuariosTodos, setUsuariosTodos] = useState<UsuarioLista[]>([]);
+  const [aprobadoresSel, setAprobadoresSel] = useState<{ GERENTE: string; SUBGERENTE: string; JEFE: string }>({ GERENTE: "", SUBGERENTE: "", JEFE: "" });
 
-  const router = useRouter();
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
   const esAdmin = roles.includes("administrador");
   const esClientePuro = roles.includes("cliente") && !esAdmin && !roles.includes("miembro") && !roles.includes("asignador") && !roles.includes("asistente");
-  const esAprobadorRestringidoFlag = esAprobadorRestringido();
+  const puedeCrearEquipo = esAdmin;
   const [soloMios, setSoloMios] = useState(false);
-
-  useEffect(() => {
-    if (esAprobadorRestringidoFlag) {
-      router.replace("/mfpages/solicitudes");
-    }
-  }, [esAprobadorRestringidoFlag, router]);
+  const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
 
   const esMiEquipo = (equipo: EquipoInfo) =>
     equipo.lider?.id === usuario?.id ||
     (equipo.miembros ?? []).some((m) => m.id_usuario === usuario?.id);
 
-  const equiposVisibles = soloMios ? equipos.filter(esMiEquipo) : equipos;
+  const equiposVisibles = equipos
+    .filter((e) => !soloMios || esMiEquipo(e))
+    .filter((e) => filtroTipo === "TODOS" || (e.tipo_equipo ?? "GTR") === filtroTipo);
   const [nuevo, setNuevo] = useState({
     nombre: "",
     lider: "",
   });
-  const [msg, setMsg] = useState<string | null>(null);
 
 
   const cargar = async () => {
@@ -112,7 +115,6 @@ export default function EquiposPage() {
 
   const handleCambiarEstado = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string; reassignments?: { subtarea_id: number; nuevo_asignado: number }[] }) => {
     const key = `${equipo.id}-estado-${miembro.id_usuario}-${estado}`;
-    if (estado === "INACTIVO" && !confirm(`¿Dar de baja a ${miembro.nombres} ${miembro.apellidos}? Ya no pertenecerá al equipo hasta que lo vuelvas a agregar (forzosamente como MIEMBRO). Si tiene subtareas en desarrollo/en espera, deberás reasignarlas.`)) return;
     setAccionando(key);
     setMensaje(null);
     try {
@@ -203,7 +205,11 @@ export default function EquiposPage() {
           motivo_indisponibilidad: extra?.motivo || undefined,
         }),
       });
-      setMensaje(`Estado de ${miembro.nombres} cambiado a ${estado}`);
+      setMensaje(
+        estado === "INACTIVO"
+          ? `${miembro.nombres} ${miembro.apellidos} fue eliminado del equipo.`
+          : `Estado de ${miembro.nombres} cambiado a ${estado}`
+      );
       await recargar();
     } catch (e: any) {
       const raw = (e as Error).message;
@@ -285,14 +291,20 @@ export default function EquiposPage() {
   const abrirModalAgregar = async (equipo: EquipoInfo) => {
     setMensaje(null);
     setAgregarUsuarioId("");
+    setBusquedaUsuario("");
     setModalAgregar(equipo);
     try {
       const data = await apiFetch<any>("/api/usuarios/usuarios/");
       const lista = Array.isArray(data) ? data : (data.results ?? data);
-      // filtrar los que ya son miembros o líder
+      // filtrar los que ya son miembros o líder, y exigir el rol requerido por el tipo de equipo
       const miembrosIds = new Set(equipo.miembros.map((m) => m.id_usuario));
       miembrosIds.add(equipo.lider?.id as number);
-      const disponibles = (lista as any[]).filter((u) => !miembrosIds.has(u.id) && (u.is_active ?? u.activo) !== false);
+      const requerido = (equipo.rol_integrante_requerido ?? "MIEMBRO").toUpperCase();
+      const disponibles = (lista as any[]).filter((u) =>
+        !miembrosIds.has(u.id) &&
+        (u.is_active ?? u.activo) !== false &&
+        ((u.roles ?? []) as string[]).map((r) => r.toUpperCase()).includes(requerido)
+      );
       setUsuariosDisponibles(disponibles);
     } catch (e) {
       setMensaje(`Error cargando usuarios: ${(e as Error).message}`);
@@ -317,7 +329,60 @@ export default function EquiposPage() {
       setModalAgregar(null);
       await recargar();
     } catch (e) {
-      setMensaje(`Error: ${(e as Error).message} (solo MIEMBRO activo pre-asignado por admin)`);
+      setMensaje(`Error: ${(e as Error).message}`);
+    } finally {
+      setAccionando(null);
+    }
+  };
+
+  const abrirModalAprobadores = async (equipo: EquipoInfo) => {
+    setMensaje(null);
+    const inicial = { GERENTE: "", SUBGERENTE: "", JEFE: "" } as { GERENTE: string; SUBGERENTE: string; JEFE: string };
+    for (const a of equipo.aprobadores ?? []) {
+      const rol = a.rol_aprobador.toUpperCase() as keyof typeof inicial;
+      if (rol in inicial) inicial[rol] = a.usuario.codigo ?? String(a.usuario.id);
+    }
+    setAprobadoresSel(inicial);
+    setModalAprobadores(equipo);
+    try {
+      const data = await apiFetch<UsuarioLista[] | { results: UsuarioLista[] }>("/api/usuarios/usuarios/");
+      const lista = Array.isArray(data) ? data : data.results ?? [];
+      setUsuariosTodos(lista.filter((u) => (u.is_active ?? u.activo) !== false));
+    } catch (e) {
+      setMensaje(`Error cargando usuarios: ${(e as Error).message}`);
+      setUsuariosTodos([]);
+    }
+  };
+
+  const usuariosPorRol = (rol: string) =>
+    usuariosTodos.filter((u) =>
+      ((u.roles ?? []) as string[]).map((r) => r.toUpperCase()).includes(rol)
+    );
+
+  const confirmarAprobadores = async () => {
+    if (!modalAprobadores) return;
+    const faltan = (["GERENTE", "SUBGERENTE", "JEFE"] as const).filter((r) => !aprobadoresSel[r]);
+    if (faltan.length > 0) {
+      setMensaje(`Error: debes asignar un aprobador por rol. Faltan: ${faltan.join(", ")}.`);
+      return;
+    }
+    setAccionando(`aprobadores-${modalAprobadores.id}`);
+    setMensaje(null);
+    try {
+      await apiFetch(`/api/usuarios/equipos/${modalAprobadores.id}/aprobadores/`, {
+        method: "POST",
+        body: JSON.stringify({
+          aprobadores: (["GERENTE", "SUBGERENTE", "JEFE"] as const).map((rol) => ({
+            rol,
+            codigo: aprobadoresSel[rol],
+          })),
+        }),
+      });
+      setMensaje("Aprobadores actualizados correctamente.");
+      setModalAprobadores(null);
+      await recargar();
+    } catch (e) {
+      setMensaje(`Error: ${(e as Error).message}`);
     } finally {
       setAccionando(null);
     }
@@ -342,28 +407,43 @@ export default function EquiposPage() {
 
   const esLiderDeEquipo = (equipo: EquipoInfo) => equipo.lider?.id === usuario?.id || esAdmin;
 
-  {/* SOLO PARA ADMINISTRADOR*/ }
+  const claseTipo = (tipo?: string | null) => {
+    if (tipo === "GERENTE") return styles.tipoGerente;
+    if (tipo === "SUBGERENTE") return styles.tipoSubgerente;
+    if (tipo === "JEFE") return styles.tipoJefe;
+    return styles.tipoGtr;
+  };
+
   const crearEquipo = async () => {
     const nombre = nuevo.nombre.trim();
     const codigoLider = nuevo.lider.trim().toUpperCase();
 
-    if (!nombre || !codigoLider) {
-      setMsg("Nombre de equipo y código del líder son obligatorios.");
+    if (!nombre) {
+      setMensaje("El nombre del equipo es obligatorio.");
+      return;
+    }
+
+    // El admin puede designar cualquier líder elegible; el resto crea su propio equipo.
+    if (esAdmin && !codigoLider) {
+      setMensaje("El código del líder es obligatorio.");
       return;
     }
 
     try {
-      setMsg(null);
+      setMensaje(null);
+
+      const body: { nombre: string; lider?: string } = { nombre };
+      if (esAdmin) {
+        body.lider = codigoLider;
+      }
 
       await apiFetch("/api/usuarios/equipos/", {
         method: "POST",
-        body: JSON.stringify({
-          nombre,
-          lider: codigoLider,
-        }),
+        body: JSON.stringify(body),
       });
 
-      setMsg(`Equipo "${nombre}" creado correctamente.`);
+      setMensaje(`Equipo "${nombre}" creado correctamente.`);
+      setModalCrear(false);
 
       setNuevo({
         nombre: "",
@@ -373,9 +453,20 @@ export default function EquiposPage() {
       await recargar();
 
     } catch (e) {
-      setMsg(`Error al crear el equipo: ${(e as Error).message}`);
+      setMensaje(`Error al crear el equipo: ${(e as Error).message}`);
     }
   };
+
+  const usuariosFiltrados = usuariosDisponibles.filter((u) => {
+    const q = busquedaUsuario.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      u.nombres.toLowerCase().includes(q) ||
+      u.apellidos.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.codigo ?? "").toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -390,9 +481,19 @@ export default function EquiposPage() {
                 : "Ves todos los equipos del sistema; usa el filtro para ver solo aquellos a los que perteneces."}
           </p>
         </div>
-        <button onClick={recargar} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
-          Recargar
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {puedeCrearEquipo && !esClientePuro && (
+            <button
+              onClick={() => { setNuevo({ nombre: "", lider: "" }); setMensaje(null); setModalCrear(true); }}
+              style={{ background: "#7c3aed", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+            >
+              Crear equipo
+            </button>
+          )}
+          <button onClick={recargar} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
+            Recargar
+          </button>
+        </div>
       </div>
 
       {!esClientePuro && (
@@ -413,6 +514,26 @@ export default function EquiposPage() {
           >
             {soloMios ? "Filtro: solo mis equipos" : "Filtro: todos los equipos"}
           </button>
+          <select
+            value={filtroTipo}
+            onChange={(e) => setFiltroTipo(e.target.value)}
+            style={{
+              border: "1px solid #d1d5db",
+              background: "white",
+              color: "#374151",
+              borderRadius: 8,
+              padding: "8px 10px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <option value="TODOS">Todos los tipos</option>
+            <option value="GERENTE">Equipo de Gerente</option>
+            <option value="SUBGERENTE">Equipo de Subgerente</option>
+            <option value="JEFE">Equipo de Jefe</option>
+            <option value="GTR">Equipo GTR</option>
+          </select>
           <span style={{ fontSize: 12, color: "#6b7280" }}>
             {equiposVisibles.length} de {equipos.length} equipo(s)
           </span>
@@ -422,115 +543,6 @@ export default function EquiposPage() {
       {mensaje && (
         <div className={`${styles.alert} ${mensaje.startsWith("Error") ? styles.alertError : styles.alertSuccess}`}>
           {mensaje}
-        </div>
-      )}
-
-      {/* SOLO PARA ADMINISTRADOR*/}
-      {esAdmin && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              background: "white",
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 16,
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 12px",
-                fontSize: 14,
-                fontWeight: 700,
-              }}
-            >
-              Crear nuevo equipo
-            </h3>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
-            >
-              {/* Nombre del equipo */}
-              <input
-                value={nuevo.nombre}
-                onChange={(e) =>
-                  setNuevo((prev) => ({
-                    ...prev,
-                    nombre: e.target.value,
-                  }))
-                }
-                placeholder="Nombre del equipo"
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  padding: "8px 10px",
-                  fontSize: 13,
-                }}
-              />
-
-              {/* Código del líder */}
-              <input
-                value={nuevo.lider}
-                onChange={(e) =>
-                  setNuevo((prev) => ({
-                    ...prev,
-                    lider: e.target.value.toUpperCase(),
-                  }))
-                }
-                placeholder="Código del líder (Ej. MFS-20260831-88981)"
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  padding: "8px 10px",
-                  fontSize: 13,
-                  fontFamily: "monospace",
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 11,
-                color: "#6b7280",
-              }}
-            >
-              Ingresa el código MFS del usuario que será el líder del equipo.
-            </div>
-
-            <button
-              onClick={crearEquipo}
-              disabled={!nuevo.nombre.trim() || !nuevo.lider.trim()}
-              style={{
-                marginTop: 12,
-                background:
-                  !nuevo.nombre.trim() || !nuevo.lider.trim()
-                    ? "#9ca3af"
-                    : "#111827",
-                color: "white",
-                border: "none",
-                padding: "8px 14px",
-                borderRadius: 8,
-                cursor:
-                  !nuevo.nombre.trim() || !nuevo.lider.trim()
-                    ? "not-allowed"
-                    : "pointer",
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              Crear equipo
-            </button>
-          </div>
         </div>
       )}
 
@@ -548,9 +560,11 @@ export default function EquiposPage() {
           <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>
             {soloMios
               ? "No perteneces a ningún equipo aún."
-              : esClientePuro
-                ? "No hay equipos activos disponibles por el momento."
-                : "No hay equipos disponibles."}
+              : filtroTipo !== "TODOS"
+                ? "No hay equipos de ese tipo."
+                : esClientePuro
+                  ? "No hay equipos activos disponibles por el momento."
+                  : "No hay equipos disponibles."}
           </p>
           {!esClientePuro && !soloMios && <p style={{ color: "#9ca3af", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
         </div>
@@ -573,11 +587,22 @@ export default function EquiposPage() {
               <div key={equipo.id} className={styles.card}>
                 <div
                   onClick={() => setEquipoExpandido(expandido ? null : equipo.id)}
-                  className={styles.cardHeader}
+                  className={`${styles.cardHeader} ${claseTipo(equipo.tipo_equipo)}`}
                 >
                   <div className={styles.cardHeaderLeft}>
                     <div className={styles.cardTitleRow}>
                       <h3 className={styles.cardTitle}>{equipo.nombre}</h3>
+                      {equipo.tipo_equipo && (
+                        <span className={`${styles.badge} ${styles.badgeTipo}`}>
+                          {equipo.tipo_equipo === "GERENTE"
+                            ? "Equipo de Gerente"
+                            : equipo.tipo_equipo === "SUBGERENTE"
+                              ? "Equipo de Subgerente"
+                              : equipo.tipo_equipo === "JEFE"
+                                ? "Equipo de Jefe"
+                                : "Equipo GTR"}
+                        </span>
+                      )}
                       {!equipo.activo && <span className={`${styles.badge} ${styles.badgeInactivo}`}>Inactivo</span>}
                       {puedoGestionar ? (
                         <span className={`${styles.badge} ${styles.badgeGestionar}`}>Puedes gestionar</span>
@@ -651,6 +676,16 @@ export default function EquiposPage() {
                     <div className={styles.expandToolbar}>
                       <h4 className={styles.expandToolbarTitle}>Integrantes — {equipo.miembros.length} miembros</h4>
                       <div className={styles.expandToolbarActions}>
+                        {(soyLider || esAdmin) && (
+                          <button
+                            onClick={() => abrirModalAprobadores(equipo)}
+                            disabled={!!accionando}
+                            title="Asignar un gerente, un subgerente y un jefe como aprobadores del equipo"
+                            style={{ background: "#1d4ed8", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                          >
+                            Asignar aprobadores
+                          </button>
+                        )}
                         {puedoGestionar && (
                           <button
                             onClick={() => abrirModalAgregar(equipo)}
@@ -854,27 +889,81 @@ export default function EquiposPage() {
         </div>
       )}
 
-      {/* Modal agregar integrante (re-agregar tras baja hard-delete) */}
+      {/* Modal agregar integrante */}
       {modalAgregar && (
         <div
           onClick={() => setModalAgregar(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 560, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Agregar integrante</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
-              Selecciona el nuevo miembro para que forme parte del equipo
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#6b7280" }}>
+              Busca y selecciona un usuario para agregarlo al equipo <strong>{modalAgregar.nombre}</strong>.
+              {" "}Solo se listan usuarios con rol <strong>{modalAgregar.rol_integrante_requerido ?? "MIEMBRO"}</strong>.
             </p>
-            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151" }}>
-              ID usuario (MFS-YYYYMMDD-XXXXX)
+
+            <input
+              value={busquedaUsuario}
+              onChange={(e) => setBusquedaUsuario(e.target.value)}
+              placeholder="Buscar por nombre, email o código"
+              style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
+            />
+
+            <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid #f3f4f6", borderRadius: 8, padding: 6 }}>
+              {usuariosFiltrados.length === 0 ? (
+                <div style={{ padding: 12, fontSize: 13, color: "#9ca3af", textAlign: "center" }}>
+                  No hay usuarios disponibles para agregar.
+                </div>
+              ) : (
+                usuariosFiltrados.map((u) => {
+                  const valor = u.codigo ?? String(u.id);
+                  const seleccionado = agregarUsuarioId === valor;
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setAgregarUsuarioId(valor)}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        textAlign: "left",
+                        background: seleccionado ? "#ede9fe" : "white",
+                        border: `1px solid ${seleccionado ? "#7c3aed" : "#e5e7eb"}`,
+                        borderRadius: 8,
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                          {u.nombres} {u.apellidos}
+                        </span>
+                        <span style={{ display: "block", fontSize: 11, color: "#6b7280" }}>
+                          {u.email} • {u.codigo ?? "—"}
+                        </span>
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "#5b21b6" : "#9ca3af" }}>
+                        {seleccionado ? "Seleccionado" : "Elegir"}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "#374151" }}>
+              o ingresa el código MFS manualmente
               <input
-                value={agregarUsuarioId}
+                value={agregarUsuarioId.toUpperCase().startsWith("MFS-") ? agregarUsuarioId : ""}
                 onChange={(e) => setAgregarUsuarioId(e.target.value.toUpperCase())}
                 placeholder="Ej. MFS-20250830-12345"
-                style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace" }}
+                style={{ width: "100%", marginTop: 4, border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace", fontWeight: 400 }}
               />
-              <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 400 }}>Ingresa el código único del usuario (visible bajo su nombre). Debe ser MIEMBRO activo.</span>
-            </label>
+            </div>
+
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
               <button onClick={() => setModalAgregar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
               <button
@@ -882,7 +971,109 @@ export default function EquiposPage() {
                 disabled={!agregarUsuarioId || !!accionando}
                 style={{ background: agregarUsuarioId ? "#111827" : "#9ca3af", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
               >
-                Agregar como MIEMBRO
+                Agregar al equipo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal crear equipo */}
+      {modalCrear && (
+        <div
+          onClick={() => setModalCrear(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Crear equipo</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
+              Designa un líder elegible (GERENTE, SUBGERENTE, JEFE o GTR).
+            </p>
+
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              Nombre del equipo
+              <input
+                value={nuevo.nombre}
+                onChange={(e) => setNuevo((prev) => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Nombre del equipo"
+                style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+              />
+            </label>
+
+            {esAdmin && (
+              <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151", marginTop: 12 }}>
+                Código del líder
+                <input
+                  value={nuevo.lider}
+                  onChange={(e) => setNuevo((prev) => ({ ...prev, lider: e.target.value.toUpperCase() }))}
+                  placeholder="Ej. MFS-20260831-88981"
+                  style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace", fontWeight: 400 }}
+                />
+              </label>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button onClick={() => setModalCrear(false)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button
+                onClick={crearEquipo}
+                disabled={!nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim())}
+                style={{
+                  background: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "#9ca3af" : "#7c3aed",
+                  color: "white",
+                  border: "none",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  cursor: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Crear equipo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal asignar aprobadores */}
+      {modalAprobadores && (
+        <div
+          onClick={() => setModalAprobadores(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Asignar aprobadores</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
+              Equipo <strong>{modalAprobadores.nombre}</strong>: asigna exactamente un gerente, un subgerente y un jefe.
+              Cualquiera de ellos podrá aprobar las solicitudes del equipo antes de la revisión del líder.
+            </p>
+
+            {(["GERENTE", "SUBGERENTE", "JEFE"] as const).map((rol) => (
+              <label key={rol} style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151", marginTop: 12 }}>
+                {rol === "GERENTE" ? "Gerente" : rol === "SUBGERENTE" ? "Subgerente" : "Jefe"}
+                <select
+                  value={aprobadoresSel[rol]}
+                  onChange={(e) => setAprobadoresSel((prev) => ({ ...prev, [rol]: e.target.value }))}
+                  style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                >
+                  <option value="">— seleccionar —</option>
+                  {usuariosPorRol(rol).map((u) => (
+                    <option key={u.id} value={u.codigo ?? String(u.id)}>
+                      {u.nombres} {u.apellidos} ({u.codigo ?? u.email})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button onClick={() => setModalAprobadores(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button
+                onClick={confirmarAprobadores}
+                disabled={!!accionando}
+                style={{ background: "#1d4ed8", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+              >
+                Guardar aprobadores
               </button>
             </div>
           </div>

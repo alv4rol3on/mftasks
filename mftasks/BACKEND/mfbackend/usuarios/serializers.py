@@ -46,8 +46,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def validate_roles(self, value):
         allowed = {
-            "administrador", "miembro", "cliente", "lider",
-            "gerente", "subgerente", "supervisor", "asistente",
+            "administrador", "miembro", "cliente", "gtr",
+            "gerente", "subgerente", "jefe", "asistente",
         }
         normalized = [v.lower().strip() for v in value]
         for r in normalized:
@@ -187,16 +187,26 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     mi_estado = serializers.SerializerMethodField()
 
+    rol_integrante_requerido = serializers.SerializerMethodField()
+
+    aprobadores = serializers.SerializerMethodField()
+
+    puedo_asignar_aprobadores = serializers.SerializerMethodField()
+
     class Meta:
         model = Equipo
         fields = [
             "id",
             "nombre",
             "lider",
+            "tipo_equipo",
+            "rol_integrante_requerido",
             "activo",
             "fecha_creacion",
             "miembros",
+            "aprobadores",
             "puedo_gestionar",
+            "puedo_asignar_aprobadores",
             "mi_rol_en_equipo",
             "mi_estado",
         ]
@@ -256,13 +266,34 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
                 return EquipoMiembro.EstadoMiembro.ACTIVO
             return None
 
+    def get_rol_integrante_requerido(self, obj):
+        from .jerarquia import rol_integrante_requerido
+        return rol_integrante_requerido(obj.tipo_equipo)
+
+    def get_aprobadores(self, obj):
+        return [
+            {
+                "id": a.id,
+                "usuario": UserSerializer(a.usuario).data,
+                "rol_aprobador": a.rol_aprobador,
+            }
+            for a in obj.aprobadores.select_related("usuario").all()
+        ]
+
+    def get_puedo_asignar_aprobadores(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+        from .permissions import puede_gestionar_miembros
+        return puede_gestionar_miembros(request.user, obj)
+
 class EquipoCreateSerializer(serializers.ModelSerializer):
     lider = serializers.CharField(write_only=True)
 
     class Meta:
         model = Equipo
-        fields = ["id", "nombre", "lider", "activo", "fecha_creacion"]
-        read_only_fields = ["id", "activo", "fecha_creacion"]
+        fields = ["id", "nombre", "lider", "tipo_equipo", "activo", "fecha_creacion"]
+        read_only_fields = ["id", "tipo_equipo", "activo", "fecha_creacion"]
 
     def validate_nombre(self, value):
         nombre = value.strip()
@@ -294,6 +325,13 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
                 "No se puede asignar como líder a un usuario inactivo."
             )
 
+        from .jerarquia import puede_ser_lider
+        if not puede_ser_lider(usuario):
+            raise serializers.ValidationError(
+                "El usuario debe tener un rol de la jerarquía "
+                "(GERENTE, SUBGERENTE, JEFE o GTR) para ser líder."
+            )
+
         return usuario
 
     def create(self, validated_data):
@@ -317,8 +355,6 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
             "cliente_solicitud_standby",
             "cliente_solicitud_solucionada",
             "cliente_resumen_diario",
-            "aprobador_nueva_solicitud",
-            "aprobador_pendiente_revision",
             "equipo_nueva_solicitud",
             "equipo_pendiente_revision",
             "equipo_alerta_diaria",

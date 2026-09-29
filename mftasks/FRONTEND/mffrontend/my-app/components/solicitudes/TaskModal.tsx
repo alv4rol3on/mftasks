@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import styles from "./TaskModalSolicitudes.module.css";
 import { Task } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
@@ -20,7 +20,6 @@ type EventoSeguimiento = {
 type Props = {
     tarea: Task | null;
     onClose: () => void;
-    accionando?: number | null;
     onAprobar: (tarea: Task) => Promise<void>;
     onRechazar: (tarea: Task, motivo: string) => Promise<void>;
 };
@@ -28,13 +27,12 @@ type Props = {
 export default function TaskModal({
     tarea,
     onClose,
-    accionando,
     onAprobar,
     onRechazar,
 }: Props) {
+    const [seguimiento, setSeguimiento] = useState<EventoSeguimiento[] | null>(null);
     const [rechazando, setRechazando] = useState(false);
     const [motivo, setMotivo] = useState("");
-    const [seguimiento, setSeguimiento] = useState<EventoSeguimiento[] | null>(null);
 
     const tareaId = tarea?.id ?? null;
 
@@ -63,166 +61,41 @@ export default function TaskModal({
     if (!tarea) return null;
 
     const puedeOperar =
-        Boolean(tarea.puedo_aprobar) &&
-        tarea.estado === "EN_ESPERA";
+        Boolean(tarea.puedo_aprobar) && tarea.estado === "EN_ESPERA";
 
-    const ocupado = accionando === tarea.id;
-
-    // Los tres primeros niveles son alternativas.
-    // Cualquiera de ellos que apruebe pasa directamente al LÍDER.
-    const NIVELES_GLOBALES = [
-        "GERENTE",
-        "SUBGERENTE",
-        "SUPERVISOR",
-    ];
-
-    const PASO_FINAL = "LIDER";
-
-    const nombreNivelLocal = (nivel?: string | null): string => {
-        const nombres: Record<string, string> = {
-            GERENTE: "Gerente",
-            SUBGERENTE: "Subgerente",
-            SUPERVISOR: "Supervisor",
-            LIDER: "Líder",
-            COMPLETADO: "Completado",
-        };
-
-        return nivel ? nombres[nivel] ?? nivel : "";
+    const NOMBRES: Record<string, string> = {
+        APROBADORES: "Aprobadores del equipo",
+        LIDER: "Revisión del líder",
+        COMPLETADO: "Completado",
     };
+    const nombreNivel = (n?: string | null) => (n ? NOMBRES[n] ?? n : "");
 
-    /**
-     * Determina el estado visual del bloque de aprobación global.
-     *
-     * Regla:
-     * - Si alguno de GERENTE/SUBGERENTE/SUPERVISOR aprobó:
-     *   el bloque global está aprobado.
-     * - Si ninguno aprobó y el paso actual es uno de ellos:
-     *   está pendiente.
-     * - Si el paso actual es LIDER:
-     *   el bloque global ya fue superado.
-     * - Si la tarea fue rechazada:
-     *   se muestra como omitido.
-     */
-    const estadoNivelGlobal = (): "aprobado" | "rechazado" | "actual" | "pendiente" | "omitido" => {
-        const aprobacionGlobal = (tarea.aprobaciones ?? []).find(
-            (a) =>
-                NIVELES_GLOBALES.includes(a.nivel) &&
-                a.accion === "APROBADO"
-        );
+    const ORDEN = ["APROBADORES", "LIDER", "COMPLETADO"];
 
-        const rechazoGlobal = (tarea.aprobaciones ?? []).find(
-            (a) =>
-                NIVELES_GLOBALES.includes(a.nivel) &&
-                a.accion !== "APROBADO"
-        );
-
-        if (aprobacionGlobal) {
-            return "aprobado";
-        }
-
-        if (rechazoGlobal) {
-            return "rechazado";
-        }
-
-        if (tarea.estado === "RECHAZADO") {
-            return "omitido";
-        }
-
-        if (
-            tarea.paso_aprobacion === "GERENTE" ||
-            tarea.paso_aprobacion === "SUBGERENTE" ||
-            tarea.paso_aprobacion === "SUPERVISOR"
-        ) {
-            return "actual";
-        }
-
-        if (
-            tarea.paso_aprobacion === PASO_FINAL ||
-            tarea.paso_aprobacion === "COMPLETADO"
-        ) {
-            return "aprobado";
-        }
-
-        return "pendiente";
-    };
-
-    /**
-     * Estado del LÍDER.
-     */
-    const estadoLider = (): "aprobado" | "rechazado" | "actual" | "pendiente" | "omitido" => {
-        const registro = (tarea.aprobaciones ?? []).find(
-            (a) => a.nivel === PASO_FINAL
-        );
-
+    const estadoPaso = (
+        paso: string
+    ): "aprobado" | "rechazado" | "actual" | "pendiente" | "omitido" => {
+        const registro = (tarea.aprobaciones ?? []).find((a) => a.nivel === paso);
         if (registro) {
-            return registro.accion === "APROBADO"
-                ? "aprobado"
-                : "rechazado";
+            return registro.accion === "APROBADO" ? "aprobado" : "rechazado";
         }
-
-        if (tarea.estado === "RECHAZADO") {
-            return "omitido";
-        }
-
-        if (tarea.paso_aprobacion === "COMPLETADO") {
+        if (tarea.estado === "RECHAZADO") return "omitido";
+        if (tarea.paso_aprobacion === paso) return "actual";
+        if (tarea.paso_aprobacion === "COMPLETADO") return "aprobado";
+        if (
+            ORDEN.indexOf(tarea.paso_aprobacion ?? "") > ORDEN.indexOf(paso)
+        ) {
             return "aprobado";
         }
-
-        if (tarea.paso_aprobacion === PASO_FINAL) {
-            return "actual";
-        }
-
         return "pendiente";
     };
 
-    const cerrar = () => {
-        if (ocupado) return;
-
-        setRechazando(false);
-        setMotivo("");
-        onClose();
-    };
-
-    const confirmarRechazo = async () => {
-        if (!motivo.trim() || ocupado) return;
-
-        try {
-            await onRechazar(tarea, motivo.trim());
-        } catch {
-            return;
-        }
-
-        setRechazando(false);
-        setMotivo("");
-    };
-
-    const estadoGlobal = estadoNivelGlobal();
-    const estadoFinal = estadoLider();
-
-    const colores: Record<
-        string,
-        { bg: string; fg: string }
-    > = {
-        aprobado: {
-            bg: "#dcfce7",
-            fg: "#166534",
-        },
-        rechazado: {
-            bg: "#fee2e2",
-            fg: "#991b1b",
-        },
-        actual: {
-            bg: "#fef3c7",
-            fg: "#92400e",
-        },
-        pendiente: {
-            bg: "#f3f4f6",
-            fg: "#6b7280",
-        },
-        omitido: {
-            bg: "#f3f4f6",
-            fg: "#9ca3af",
-        },
+    const colores: Record<string, { bg: string; fg: string }> = {
+        aprobado: { bg: "#dcfce7", fg: "#166534" },
+        rechazado: { bg: "#fee2e2", fg: "#991b1b" },
+        actual: { bg: "#fef3c7", fg: "#92400e" },
+        pendiente: { bg: "#f3f4f6", fg: "#6b7280" },
+        omitido: { bg: "#f3f4f6", fg: "#9ca3af" },
     };
 
     const etiquetas: Record<string, string> = {
@@ -231,6 +104,21 @@ export default function TaskModal({
         actual: "Pendiente",
         pendiente: "Pendiente",
         omitido: "—",
+    };
+
+    const cerrar = () => {
+        onClose();
+    };
+
+    const confirmarRechazo = async () => {
+        if (!motivo.trim()) return;
+        try {
+            await onRechazar(tarea, motivo.trim());
+        } catch {
+            return;
+        }
+        setRechazando(false);
+        setMotivo("");
     };
 
     return (
@@ -249,15 +137,6 @@ export default function TaskModal({
                     <button
                         className={styles.close}
                         onClick={cerrar}
-                        disabled={ocupado}
-                        style={
-                            ocupado
-                                ? {
-                                      opacity: 0.5,
-                                      cursor: "not-allowed",
-                                  }
-                                : undefined
-                        }
                     >
                         ✕
                     </button>
@@ -338,79 +217,35 @@ export default function TaskModal({
                                 flexWrap: "wrap",
                             }}
                         >
-                            {/* APROBACIÓN GLOBAL */}
-                            <div
-                                style={{
-                                    background: colores[estadoGlobal].bg,
-                                    color: colores[estadoGlobal].fg,
-                                    borderRadius: 8,
-                                    padding: "10px 14px",
-                                    fontSize: 12,
-                                    minWidth: 230,
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontWeight: 700,
-                                        marginBottom: 4,
-                                    }}
-                                >
-                                    Aprobación global
-                                </div>
-
-                                <div>
-                                    {etiquetas[estadoGlobal]}
-                                </div>
-
-                                <div
-                                    style={{
-                                        marginTop: 6,
-                                        fontSize: 11,
-                                        opacity: 0.8,
-                                    }}
-                                >
-                                    Gerente / Subgerente / Supervisor
-                                </div>
-                            </div>
-
-                            {/* FLECHA */}
-                            <div
-                                style={{
-                                    fontSize: 20,
-                                    fontWeight: 700,
-                                    color: "#6b7280",
-                                }}
-                            >
-                                →
-                            </div>
-
-                            {/* LÍDER */}
-                            <div
-                                style={{
-                                    background: colores[estadoFinal].bg,
-                                    color: colores[estadoFinal].fg,
-                                    borderRadius: 8,
-                                    padding: "10px 14px",
-                                    fontSize: 12,
-                                    minWidth: 140,
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontWeight: 700,
-                                        marginBottom: 4,
-                                    }}
-                                >
-                                    {nombreNivelLocal(PASO_FINAL)}
-                                </div>
-
-                                <div>
-                                    {etiquetas[estadoFinal]}
-                                </div>
-                            </div>
+                            {["APROBADORES", "LIDER"].map((paso, idx) => {
+                                const est = estadoPaso(paso);
+                                return (
+                                    <Fragment key={paso}>
+                                        {idx > 0 && (
+                                            <div style={{ fontSize: 20, fontWeight: 700, color: "#6b7280" }}>
+                                                →
+                                            </div>
+                                        )}
+                                        <div
+                                            style={{
+                                                background: colores[est].bg,
+                                                color: colores[est].fg,
+                                                borderRadius: 8,
+                                                padding: "10px 14px",
+                                                fontSize: 12,
+                                                minWidth: 160,
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                                                {nombreNivel(paso)}
+                                            </div>
+                                            <div>{etiquetas[est]}</div>
+                                        </div>
+                                    </Fragment>
+                                );
+                            })}
                         </div>
 
-                        {/* Historial */}
                         {(tarea.aprobaciones ?? []).length > 0 && (
                             <ul
                                 style={{
@@ -422,17 +257,10 @@ export default function TaskModal({
                             >
                                 {(tarea.aprobaciones ?? []).map((a) => (
                                     <li key={a.id}>
-                                        <strong>
-                                            {nombreNivelLocal(a.nivel)}
-                                        </strong>
-                                        :{" "}
-                                        {a.accion === "APROBADO"
-                                            ? "Aprobó"
-                                            : "Rechazó"}{" "}
-                                        — {a.usuario_nombre ?? "—"}
-                                        {a.motivo
-                                            ? ` (${a.motivo})`
-                                            : ""}
+                                        <strong>{nombreNivel(a.nivel)}</strong>:{" "}
+                                        {a.accion === "APROBADO" ? "Aprobó" : "Rechazó"} —{" "}
+                                        {a.usuario_nombre ?? "—"}
+                                        {a.motivo ? ` (${a.motivo})` : ""}
                                     </li>
                                 ))}
                             </ul>
@@ -457,54 +285,25 @@ export default function TaskModal({
                                 <textarea
                                     placeholder="Motivo del rechazo (obligatorio)"
                                     value={motivo}
-                                    onChange={(e) =>
-                                        setMotivo(e.target.value)
-                                    }
+                                    onChange={(e) => setMotivo(e.target.value)}
                                     rows={3}
-                                    disabled={ocupado}
                                     style={{
                                         flex: 1,
                                         padding: "8px",
                                         borderRadius: "6px",
                                         border: "1px solid #ccc",
-                                        opacity: ocupado ? 0.6 : 1,
                                     }}
                                 />
-
                                 <button
                                     className={`${styles.btn} ${styles.btnNo}`}
                                     onClick={confirmarRechazo}
-                                    disabled={
-                                        ocupado || !motivo.trim()
-                                    }
-                                    style={
-                                        ocupado
-                                            ? {
-                                                  opacity: 0.6,
-                                                  cursor: "not-allowed",
-                                              }
-                                            : undefined
-                                    }
+                                    disabled={!motivo.trim()}
                                 >
-                                    {ocupado
-                                        ? "Procesando…"
-                                        : "Confirmar rechazo"}
+                                    Confirmar rechazo
                                 </button>
-
                                 <button
                                     className={`${styles.btn} ${styles.btnSecondary}`}
-                                    disabled={ocupado}
-                                    style={
-                                        ocupado
-                                            ? {
-                                                  opacity: 0.6,
-                                                  cursor: "not-allowed",
-                                              }
-                                            : undefined
-                                    }
                                     onClick={() => {
-                                        if (ocupado) return;
-
                                         setRechazando(false);
                                         setMotivo("");
                                     }}
@@ -521,35 +320,12 @@ export default function TaskModal({
                                             await onAprobar(tarea);
                                         } catch {}
                                     }}
-                                    disabled={ocupado}
-                                    style={
-                                        ocupado
-                                            ? {
-                                                  opacity: 0.6,
-                                                  cursor: "not-allowed",
-                                              }
-                                            : undefined
-                                    }
                                 >
-                                    {ocupado
-                                        ? "Procesando…"
-                                        : "Aprobar"}
+                                    Aprobar
                                 </button>
-
                                 <button
                                     className={`${styles.btn} ${styles.btnNo}`}
-                                    onClick={() =>
-                                        setRechazando(true)
-                                    }
-                                    disabled={ocupado}
-                                    style={
-                                        ocupado
-                                            ? {
-                                                  opacity: 0.6,
-                                                  cursor: "not-allowed",
-                                              }
-                                            : undefined
-                                    }
+                                    onClick={() => setRechazando(true)}
                                 >
                                     Rechazar solicitud
                                 </button>

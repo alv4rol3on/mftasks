@@ -13,6 +13,7 @@ from rest_framework.test import APITestCase
 from campanas.models import Campana, PermisoCampana, SubCampana
 from usuarios.models import (
     Equipo,
+    EquipoAprobador,
     EquipoMiembro,
     PreferenciaNotificacion,
     Rol,
@@ -52,14 +53,6 @@ class TareaFlujoTestCase(APITestCase):
 
         self.lider2 = _crear_usuario("lider2@empresa.com")
 
-        # Cadena de aprobación (roles globales)
-        self.gerente = _crear_usuario("gerente@empresa.com")
-        _asignar_rol(self.gerente, "GERENTE")
-        self.subgerente = _crear_usuario("subgerente@empresa.com")
-        _asignar_rol(self.subgerente, "SUBGERENTE")
-        self.supervisor = _crear_usuario("supervisor@empresa.com")
-        _asignar_rol(self.supervisor, "SUPERVISOR")
-
         self.campana = Campana.objects.create(nombre="Campana Test", codigo="CAMP_TEST")
         self.subcampana = SubCampana.objects.create(campana=self.campana, nombre="Sub Test", codigo="SUB_TEST")
 
@@ -88,7 +81,6 @@ class TareaFlujoTestCase(APITestCase):
             descripcion="d1",
             subcampana=self.subcampana,
             estado=Tarea.Estado.EN_ESPERA,
-            aprobador=self.admin,
             equipo=self.equipo1,
         )
 
@@ -97,7 +89,6 @@ class TareaFlujoTestCase(APITestCase):
             descripcion="d2",
             subcampana=self.subcampana,
             estado=Tarea.Estado.EN_ESPERA,
-            aprobador=self.admin,
             equipo=self.equipo2,
         )
 
@@ -129,180 +120,6 @@ class TareaFlujoTestCase(APITestCase):
         )
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_miembro_sin_rol_no_puede_aprobar(self):
-
-        self.client.force_authenticate(user=self.miembro1)
-
-        res = self.client.post(
-            reverse("task-aprobar", args=[self.tarea1.id])
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_aprobador_de_equipo_ya_no_aprueba(self):
-
-        # El flujo exige la cadena GERENTE -> SUBGERENTE -> SUPERVISOR -> LIDER.
-        self.client.force_authenticate(user=self.asignador1)
-
-        res = self.client.post(
-            reverse("task-aprobar", args=[self.tarea1.id])
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_lider_no_aprueba_paso_global(self):
-
-        # El líder solo resuelve el paso final, no los pasos globales.
-        self.client.force_authenticate(user=self.lider1)
-
-        res = self.client.post(
-            reverse("task-aprobar", args=[self.tarea1.id])
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-
-    def _avanzar_hasta_lider(self, url):
-        for usuario, siguiente in [
-            (self.gerente, "SUBGERENTE"),
-            (self.subgerente, "SUPERVISOR"),
-            (self.supervisor, "LIDER"),
-        ]:
-            self.client.force_authenticate(user=usuario)
-            res = self.client.post(url)
-            self.assertEqual(res.status_code, status.HTTP_200_OK)
-            self.tarea1.refresh_from_db()
-            self.assertEqual(self.tarea1.estado, Tarea.Estado.EN_ESPERA)
-            self.assertEqual(self.tarea1.paso_aprobacion, siguiente)
-
-    def test_cadena_aprobacion_completa(self):
-
-        url = reverse("task-aprobar", args=[self.tarea1.id])
-        self._avanzar_hasta_lider(url)
-
-        # El paso final lo resuelve el líder del equipo de la solicitud.
-        self.client.force_authenticate(user=self.lider1)
-        res = self.client.post(url)
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-        self.tarea1.refresh_from_db()
-        self.assertEqual(self.tarea1.estado, Tarea.Estado.APROBADO)
-        self.assertEqual(self.tarea1.paso_aprobacion, "COMPLETADO")
-        self.assertEqual(self.tarea1.aprobador, self.lider1)
-        self.assertEqual(
-            AprobacionTarea.objects.filter(
-                tarea=self.tarea1,
-                accion=AprobacionTarea.Accion.APROBADO,
-            ).count(),
-            4,
-        )
-
-    def test_paso_final_solo_lider_del_equipo(self):
-
-        url = reverse("task-aprobar", args=[self.tarea1.id])
-        self._avanzar_hasta_lider(url)
-
-        # Líder de otro equipo no puede resolver el paso final (solo ve su equipo).
-        self.client.force_authenticate(user=self.lider2)
-        res = self.client.post(url)
-        self.assertIn(
-            res.status_code,
-            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
-        )
-
-    def test_no_puede_aprobar_fuera_de_turno(self):
-
-        # SUBGERENTE intentando aprobar cuando todavía toca GERENTE.
-        self.client.force_authenticate(user=self.subgerente)
-
-        res = self.client.post(
-            reverse("task-aprobar", args=[self.tarea1.id])
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-        self.tarea1.refresh_from_db()
-        self.assertEqual(self.tarea1.paso_aprobacion, "GERENTE")
-
-    def test_rechazo_en_nivel_intermedio(self):
-
-        self.client.force_authenticate(user=self.gerente)
-        self.client.post(reverse("task-aprobar", args=[self.tarea1.id]))
-        self.tarea1.refresh_from_db()
-        self.assertEqual(self.tarea1.paso_aprobacion, "SUBGERENTE")
-
-        self.client.force_authenticate(user=self.subgerente)
-        res = self.client.post(
-            reverse("task-rechazar", args=[self.tarea1.id]),
-            {"motivo_rechazo": "No aplica"},
-            format="json",
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.tarea1.refresh_from_db()
-        self.assertEqual(self.tarea1.estado, Tarea.Estado.RECHAZADO)
-        self.assertEqual(self.tarea1.paso_aprobacion, "COMPLETADO")
-        self.assertEqual(self.tarea1.motivo_rechazo, "No aplica")
-        self.assertEqual(
-            AprobacionTarea.objects.filter(
-                tarea=self.tarea1,
-                accion=AprobacionTarea.Accion.RECHAZADO,
-            ).count(),
-            1,
-        )
-
-    def test_admin_puede_aprobar_como_override(self):
-
-        self.client.force_authenticate(user=self.admin)
-
-        res = self.client.post(
-            reverse("task-aprobar", args=[self.tarea1.id])
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.tarea1.refresh_from_db()
-        self.assertEqual(self.tarea1.paso_aprobacion, "SUBGERENTE")
-
-    def test_rechazo_requiere_motivo(self):
-
-        self.client.force_authenticate(user=self.gerente)
-
-        res = self.client.post(
-            reverse("task-rechazar", args=[self.tarea1.id]),
-            {},
-            format="json",
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_rechazo_ok(self):
-
-        self.client.force_authenticate(user=self.gerente)
-
-        res = self.client.post(
-            reverse("task-rechazar", args=[self.tarea1.id]),
-            {"motivo_rechazo": "Duplicada"},
-            format="json",
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-
-        self.tarea1.refresh_from_db()
-
-        self.assertEqual(self.tarea1.estado, Tarea.Estado.RECHAZADO)
-        self.assertEqual(self.tarea1.motivo_rechazo, "Duplicada")
-
-    def test_aprobar_solo_en_espera(self):
-
-        self.tarea1.estado = Tarea.Estado.APROBADO
-        self.tarea1.save()
-
-        self.client.force_authenticate(user=self.admin)
-
-        res = self.client.post(
-            reverse("task-aprobar", args=[self.tarea1.id])
-        )
-
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_iniciar_requiere_subtareas_del_equipo(self):
 
@@ -433,7 +250,6 @@ class TareaFlujoTestCase(APITestCase):
                 "descripcion": "x",
                 "subcampana": self.subcampana.id,
                 "equipo": self.equipo1.id,
-                "aprobador": self.admin.id,
             },
             format="json",
         )
@@ -915,59 +731,13 @@ class NotificacionesDiariasTestCase(APITestCase):
         self.sub = SubCampana.objects.create(campana=self.campana, nombre="Sub N", codigo="SUB_N")
         self.lider = _crear_usuario("lidern@empresa.com")
         self.equipo = Equipo.objects.create(nombre="Equipo N", lider=self.lider)
-        self.gerente = _crear_usuario("gerenten@empresa.com")
-        _asignar_rol(self.gerente, "GERENTE")
         self.tarea = Tarea.objects.create(
             asunto="Pendiente",
             descripcion="d",
             subcampana=self.sub,
             estado=Tarea.Estado.EN_ESPERA,
-            paso_aprobacion="GERENTE",
             equipo=self.equipo,
         )
-
-    def test_correos_por_rol_respeta_preferencia(self):
-        from tasks.services.notificaciones_email import correos_por_rol
-
-        self.assertEqual(
-            correos_por_rol("GERENTE", "SOLICITUD_PENDIENTE_NIVEL"),
-            ["gerenten@empresa.com"],
-        )
-
-        prefs = PreferenciaNotificacion.objects.get(usuario=self.gerente)
-        prefs.aprobador_nueva_solicitud = False
-        prefs.save(update_fields=["aprobador_nueva_solicitud"])
-
-        self.assertEqual(
-            correos_por_rol("GERENTE", "SOLICITUD_PENDIENTE_NIVEL"),
-            [],
-        )
-
-    def test_correos_lideres_incluye_lider_y_excluye_miembro(self):
-        from tasks.services.notificaciones_email import correos_lideres
-
-        miembro = _crear_usuario("miembron@empresa.com")
-        EquipoMiembro.objects.create(
-            equipo=self.equipo,
-            usuario=miembro,
-            rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO,
-            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
-        )
-
-        correos = correos_lideres(self.equipo, "EQUIPO_PENDIENTE_REVISION")
-
-        self.assertIn("lidern@empresa.com", correos)
-        self.assertNotIn("miembron@empresa.com", correos)
-
-    @patch("tasks.services.notificaciones_email.programar_correo_tarea")
-    def test_digest_aprobadores_por_nivel(self, mock_envio):
-        mock_envio.return_value = True
-        from tasks.scheduler import enviar_digest_aprobadores
-
-        enviar_digest_aprobadores(["GERENTE"])
-
-        eventos = [c.kwargs.get("evento") for c in mock_envio.call_args_list]
-        self.assertIn("APROBADOR_PENDIENTE_REVISION_DIARIA", eventos)
 
     @patch("tasks.services.notificaciones_email.programar_correo_tarea")
     def test_resumen_clientes_cuenta_estados(self, mock_envio):
@@ -999,3 +769,182 @@ class NotificacionesDiariasTestCase(APITestCase):
                 break
         else:
             self.fail("No se programó el resumen para el cliente")
+
+
+class VisibilidadEquiposTestCase(APITestCase):
+    """Visibilidad: cada usuario ve solo los equipos donde es líder o integrante."""
+
+    def setUp(self):
+        self.campana = Campana.objects.create(nombre="Camp V", codigo="CAMP_V")
+        self.sub = SubCampana.objects.create(campana=self.campana, nombre="Sub V", codigo="SUB_V")
+
+        self.gerente = _crear_usuario("gervert@empresa.com")
+        _asignar_rol(self.gerente, "GERENTE")
+        self.subgerente = _crear_usuario("subvert@empresa.com")
+        _asignar_rol(self.subgerente, "SUBGERENTE")
+        self.jefe = _crear_usuario("jefvert@empresa.com")
+        _asignar_rol(self.jefe, "JEFE")
+        self.gtr = _crear_usuario("gtrvert@empresa.com")
+        _asignar_rol(self.gtr, "GTR")
+        self.miembro = _crear_usuario("miemvert@empresa.com")
+
+        # Cadena: equipo del gerente -> subgerente -> jefe -> gtr
+        self.eq_gerente = Equipo.objects.create(nombre="Eq Vert Ger", lider=self.gerente)
+        self.eq_sub = Equipo.objects.create(nombre="Eq Vert Sub", lider=self.subgerente)
+        self.eq_jefe = Equipo.objects.create(nombre="Eq Vert Jefe", lider=self.jefe)
+        self.eq_gtr = Equipo.objects.create(nombre="Eq Vert Gtr", lider=self.gtr)
+
+        EquipoMiembro.objects.create(equipo=self.eq_gerente, usuario=self.subgerente)
+        EquipoMiembro.objects.create(equipo=self.eq_sub, usuario=self.jefe)
+        EquipoMiembro.objects.create(equipo=self.eq_jefe, usuario=self.gtr)
+        EquipoMiembro.objects.create(equipo=self.eq_gtr, usuario=self.miembro)
+
+        def tarea(nombre, equipo):
+            return Tarea.objects.create(
+                asunto=nombre,
+                descripcion="d",
+                subcampana=self.sub,
+                estado=Tarea.Estado.EN_ESPERA,
+                equipo=equipo,
+            )
+
+        self.t_gerente = tarea("t gerente", self.eq_gerente)
+        self.t_sub = tarea("t sub", self.eq_sub)
+        self.t_jefe = tarea("t jefe", self.eq_jefe)
+        self.t_gtr = tarea("t gtr", self.eq_gtr)
+
+    def _ids_visibles(self, user):
+        self.client.force_authenticate(user=user)
+        res = self.client.get(reverse("task-list"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        return {t["id"] for t in res.data}
+
+    def test_gerente_ve_solo_su_equipo(self):
+        # Lidera el equipo del gerente; no ve los equipos de los subgerentes.
+        ids = self._ids_visibles(self.gerente)
+        self.assertEqual(ids, {self.t_gerente.id})
+
+    def test_subgerente_ve_sus_equipos(self):
+        # Lidera su equipo y es integrante del equipo del gerente.
+        ids = self._ids_visibles(self.subgerente)
+        self.assertEqual(ids, {self.t_gerente.id, self.t_sub.id})
+
+    def test_jefe_ve_sus_equipos(self):
+        # Lidera su equipo y es integrante del equipo del subgerente.
+        ids = self._ids_visibles(self.jefe)
+        self.assertEqual(ids, {self.t_sub.id, self.t_jefe.id})
+
+    def test_gtr_ve_sus_equipos(self):
+        # Lidera su equipo y es integrante del equipo del jefe.
+        ids = self._ids_visibles(self.gtr)
+        self.assertEqual(ids, {self.t_gtr.id, self.t_jefe.id})
+
+    def test_miembro_ve_solo_su_equipo(self):
+        ids = self._ids_visibles(self.miembro)
+        self.assertEqual(ids, {self.t_gtr.id})
+
+
+class AprobacionPorEquipoTestCase(APITestCase):
+    """Fase de aprobadores del equipo -> revisión del líder."""
+
+    def setUp(self):
+        self.campana = Campana.objects.create(nombre="Camp AE", codigo="CAMP_AE")
+        self.sub = SubCampana.objects.create(campana=self.campana, nombre="Sub AE", codigo="SUB_AE")
+
+        self.lider = _crear_usuario("liderae@empresa.com")
+        _asignar_rol(self.lider, "GTR")
+        self.gerente = _crear_usuario("gerae@empresa.com")
+        _asignar_rol(self.gerente, "GERENTE")
+        self.subgerente = _crear_usuario("subae@empresa.com")
+        _asignar_rol(self.subgerente, "SUBGERENTE")
+        self.jefe = _crear_usuario("jefeae@empresa.com")
+        _asignar_rol(self.jefe, "JEFE")
+        self.otro_gerente = _crear_usuario("otrogerae@empresa.com")
+        _asignar_rol(self.otro_gerente, "GERENTE")
+
+        self.equipo = Equipo.objects.create(nombre="Equipo AE", lider=self.lider)
+        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.gerente, rol_aprobador="GERENTE")
+        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.subgerente, rol_aprobador="SUBGERENTE")
+        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.jefe, rol_aprobador="JEFE")
+
+        self.tarea = Tarea.objects.create(
+            asunto="Solicitud AE",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_ESPERA,
+            equipo=self.equipo,
+        )
+
+    def _url(self, accion):
+        return reverse(f"task-{accion}", args=[self.tarea.id])
+
+    def test_flujo_aprobador_y_lider(self):
+        # Un aprobador (cualquiera) aprueba -> pasa a revisión del líder.
+        self.client.force_authenticate(user=self.jefe)
+        res = self.client.post(self._url("aprobar"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.estado, Tarea.Estado.EN_ESPERA)
+        self.assertEqual(self.tarea.paso_aprobacion, "LIDER")
+
+        # El líder finaliza.
+        self.client.force_authenticate(user=self.lider)
+        res = self.client.post(self._url("aprobar"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.estado, Tarea.Estado.APROBADO)
+        self.assertEqual(self.tarea.paso_aprobacion, "COMPLETADO")
+        self.assertEqual(self.tarea.aprobador, self.lider)
+        self.assertEqual(
+            AprobacionTarea.objects.filter(tarea=self.tarea, accion="APROBADO").count(),
+            2,
+        )
+
+    def test_aprobador_no_asignado_no_puede(self):
+        self.client.force_authenticate(user=self.otro_gerente)
+        res = self.client.post(self._url("aprobar"))
+        # No está asignado al equipo: no lo ve (404) y/o no puede aprobar (403).
+        self.assertIn(res.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+
+    def test_lider_no_aprueba_fase_aprobadores(self):
+        self.client.force_authenticate(user=self.lider)
+        res = self.client.post(self._url("aprobar"))
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_rechazo_por_aprobador(self):
+        self.client.force_authenticate(user=self.subgerente)
+        res = self.client.post(
+            self._url("rechazar"),
+            {"motivo_rechazo": "No aplica"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.estado, Tarea.Estado.RECHAZADO)
+
+    def test_sin_aprobadores_bloquea(self):
+        equipo2 = Equipo.objects.create(
+            nombre="Equipo sin aprobadores", lider=self.lider
+        )
+        tarea2 = Tarea.objects.create(
+            asunto="Sin aprobadores",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_ESPERA,
+            equipo=equipo2,
+        )
+        self.client.force_authenticate(user=self.lider)
+        # El líder está en fase APROBADORES; aún sin permisos (no es aprobador),
+        # así que probamos con un aprobador ficticio no asignado => 403.
+        # Para el caso de equipo sin aprobadores usamos un admin (override).
+        admin = _crear_usuario("adminae@empresa.com")
+        _asignar_rol(admin, "Administrador")
+        self.client.force_authenticate(user=admin)
+        res = self.client.post(reverse("task-aprobar", args=[tarea2.id]))
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_aprobador_ve_solicitudes_del_equipo(self):
+        self.client.force_authenticate(user=self.gerente)
+        res = self.client.get(reverse("task-list"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(self.tarea.id, {t["id"] for t in res.data})

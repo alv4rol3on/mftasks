@@ -4,8 +4,24 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from campanas.models import Campana, SubCampana
+
 from .azure import AzureTokenValidationError
 from .models import Equipo, EquipoMiembro, Rol, User, UserRol
+
+
+def _crear_usuario(email, nombres="X", apellidos="Y"):
+    return User.objects.create_user(
+        email=email,
+        nombres=nombres,
+        apellidos=apellidos,
+        password="segura-123",
+    )
+
+
+def _asignar_rol(user, nombre):
+    rol, _ = Rol.objects.get_or_create(nombre=nombre)
+    return UserRol.objects.get_or_create(usuario=user, rol=rol)
 
 
 class UsuarioSSOTestCase(APITestCase):
@@ -238,3 +254,327 @@ class EquipoVisibilidadTestCase(APITestCase):
         data = res.data if isinstance(res.data, list) else res.data.get("results", [])
         ids = {e["id"] for e in data}
         self.assertEqual(ids, {self.equipo_a.id, self.equipo_b.id})
+
+
+class EquipoTipoTestCase(APITestCase):
+
+    def test_tipo_equipo_se_deriva_del_rol(self):
+        gerente = _crear_usuario("g@empresa.com")
+        _asignar_rol(gerente, "GERENTE")
+        jefe = _crear_usuario("j@empresa.com")
+        _asignar_rol(jefe, "JEFE")
+        gtr = _crear_usuario("t@empresa.com")
+        _asignar_rol(gtr, "GTR")
+
+        self.assertEqual(
+            Equipo.objects.create(nombre="Eq G", lider=gerente).tipo_equipo,
+            "GERENTE",
+        )
+        self.assertEqual(
+            Equipo.objects.create(nombre="Eq J", lider=jefe).tipo_equipo,
+            "JEFE",
+        )
+        self.assertEqual(
+            Equipo.objects.create(nombre="Eq T", lider=gtr).tipo_equipo,
+            "GTR",
+        )
+
+    def test_lider_no_ve_equipos_de_sus_integrantes(self):
+        """Se eliminó la visibilidad hacia abajo: el líder solo ve sus equipos."""
+        from .permissions import ids_equipos_visibles
+
+        jefe = _crear_usuario("jefe@empresa.com")
+        _asignar_rol(jefe, "JEFE")
+        gtr = _crear_usuario("gtr@empresa.com")
+        _asignar_rol(gtr, "GTR")
+
+        equipo_jefe = Equipo.objects.create(nombre="Eq Jefe", lider=jefe)
+        equipo_gtr = Equipo.objects.create(nombre="Eq GTR", lider=gtr)
+
+        EquipoMiembro.objects.create(equipo=equipo_jefe, usuario=gtr)
+
+        visibles = ids_equipos_visibles(jefe)
+        self.assertIn(equipo_jefe.id, visibles)
+        self.assertNotIn(equipo_gtr.id, visibles)
+
+
+class EquipoCreacionPermisosTestCase(APITestCase):
+
+    def setUp(self):
+        self.admin = _crear_usuario("adminc@empresa.com")
+        _asignar_rol(self.admin, "Administrador")
+        self.gtr = _crear_usuario("gtrc@empresa.com")
+        _asignar_rol(self.gtr, "GTR")
+        self.miembro = _crear_usuario("miembroc@empresa.com")
+        _asignar_rol(self.miembro, "miembro")
+
+    def test_no_admin_no_puede_crear_equipo(self):
+        self.client.force_authenticate(user=self.gtr)
+
+        res = self.client.post(
+            reverse("equipo-list"),
+            {"nombre": "Equipo propio", "lider": self.gtr.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_miembro_no_puede_crear_equipo(self):
+        self.client.force_authenticate(user=self.miembro)
+
+        res = self.client.post(
+            reverse("equipo-list"),
+            {"nombre": "No permitido", "lider": self.miembro.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_crea_con_lider_elegible(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            reverse("equipo-list"),
+            {"nombre": "Equipo admin", "lider": self.gtr.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        equipo = Equipo.objects.get(nombre="Equipo admin")
+        self.assertEqual(equipo.lider_id, self.gtr.id)
+
+    def test_admin_requiere_lider(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            reverse("equipo-list"),
+            {"nombre": "Sin lider"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_admin_rechaza_lider_no_elegible(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            reverse("equipo-list"),
+            {"nombre": "Equipo invalido", "lider": self.miembro.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class AsignarAprobadoresTestCase(APITestCase):
+
+    def setUp(self):
+        self.admin = _crear_usuario("adminap@empresa.com")
+        _asignar_rol(self.admin, "Administrador")
+        self.lider = _crear_usuario("liderap@empresa.com")
+        _asignar_rol(self.lider, "GTR")
+        self.equipo = Equipo.objects.create(nombre="Equipo AP", lider=self.lider)
+
+        self.gerente = _crear_usuario("gerap@empresa.com")
+        _asignar_rol(self.gerente, "GERENTE")
+        self.subgerente = _crear_usuario("subap@empresa.com")
+        _asignar_rol(self.subgerente, "SUBGERENTE")
+        self.jefe = _crear_usuario("jefeap@empresa.com")
+        _asignar_rol(self.jefe, "JEFE")
+        self.miembro = _crear_usuario("miempap@empresa.com")
+        _asignar_rol(self.miembro, "miembro")
+
+    def _payload(self, gerente=None, subgerente=None, jefe=None):
+        return {
+            "aprobadores": [
+                {"rol": "GERENTE", "codigo": (gerente or self.gerente).codigo},
+                {"rol": "SUBGERENTE", "codigo": (subgerente or self.subgerente).codigo},
+                {"rol": "JEFE", "codigo": (jefe or self.jefe).codigo},
+            ]
+        }
+
+    def test_lider_asigna_los_tres_roles(self):
+        self.client.force_authenticate(user=self.lider)
+
+        res = self.client.post(
+            reverse("equipo-asignar-aprobadores", args=[self.equipo.id]),
+            self._payload(),
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(self.equipo.aprobadores.count(), 3)
+        roles = set(self.equipo.aprobadores.values_list("rol_aprobador", flat=True))
+        self.assertEqual(roles, {"GERENTE", "SUBGERENTE", "JEFE"})
+
+    def test_faltan_roles(self):
+        self.client.force_authenticate(user=self.lider)
+
+        res = self.client.post(
+            reverse("equipo-asignar-aprobadores", args=[self.equipo.id]),
+            {"aprobadores": [{"rol": "GERENTE", "codigo": self.gerente.codigo}]},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.equipo.aprobadores.count(), 0)
+
+    def test_usuario_sin_rol_correcto(self):
+        self.client.force_authenticate(user=self.lider)
+
+        res = self.client.post(
+            reverse("equipo-asignar-aprobadores", args=[self.equipo.id]),
+            self._payload(jefe=self.miembro),
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_miembro_no_puede_asignar(self):
+        self.client.force_authenticate(user=self.miembro)
+
+        res = self.client.post(
+            reverse("equipo-asignar-aprobadores", args=[self.equipo.id]),
+            self._payload(),
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class EquipoBajaMiembroTestCase(APITestCase):
+
+    def setUp(self):
+        from tasks.models import Tarea
+
+        self.lider = _crear_usuario("liderbaja@empresa.com")
+        _asignar_rol(self.lider, "GTR")
+        self.miembro = _crear_usuario("miembrobaja@empresa.com")
+        _asignar_rol(self.miembro, "miembro")
+
+        self.equipo = Equipo.objects.create(nombre="Equipo Baja", lider=self.lider)
+        self.membresia = EquipoMiembro.objects.create(
+            equipo=self.equipo,
+            usuario=self.miembro,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO,
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        )
+
+        self.campana = Campana.objects.create(nombre="Camp Baja", codigo="CAMP_BAJA")
+        self.sub = SubCampana.objects.create(campana=self.campana, nombre="Sub Baja", codigo="SUB_BAJA")
+        self.tarea = Tarea.objects.create(
+            asunto="Tarea baja",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_DESARROLLO,
+            equipo=self.equipo,
+        )
+
+    def _url_estado(self):
+        return reverse("equipo-gestionar-estado", args=[self.equipo.id, self.miembro.id])
+
+    def test_baja_elimina_la_membresia(self):
+        self.client.force_authenticate(user=self.lider)
+
+        res = self.client.post(self._url_estado(), {"estado": "INACTIVO"}, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertTrue(res.data.get("deleted"))
+        self.assertFalse(
+            EquipoMiembro.objects.filter(equipo=self.equipo, usuario=self.miembro).exists()
+        )
+
+    def test_baja_con_subtareas_pendientes_no_elimina(self):
+        from tasks.models import Subtarea
+
+        Subtarea.objects.create(
+            tarea=self.tarea,
+            descripcion="pendiente",
+            asignado=self.miembro,
+            peso=1,
+            estado=Subtarea.Estado.EN_ESPERA,
+        )
+
+        self.client.force_authenticate(user=self.lider)
+        res = self.client.post(self._url_estado(), {"estado": "INACTIVO"}, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+        self.assertTrue(
+            EquipoMiembro.objects.filter(equipo=self.equipo, usuario=self.miembro).exists()
+        )
+
+
+class AgregarMiembroRolesTestCase(APITestCase):
+
+    def setUp(self):
+        self.jefe = _crear_usuario("jefeeq@empresa.com")
+        _asignar_rol(self.jefe, "JEFE")
+        self.equipo = Equipo.objects.create(nombre="Equipo Jefe", lider=self.jefe)
+
+        self.gtr = _crear_usuario("gtrmiembro@empresa.com")
+        _asignar_rol(self.gtr, "GTR")
+        self.equipo_gtr = Equipo.objects.create(nombre="Equipo GTR X", lider=self.gtr)
+
+        self.miembro = _crear_usuario("miembroeq@empresa.com")
+        _asignar_rol(self.miembro, "miembro")
+
+        self.cliente = _crear_usuario("clienteeq@empresa.com")
+        _asignar_rol(self.cliente, "CLIENTE")
+
+    def test_agregar_gtr_como_miembro(self):
+        self.client.force_authenticate(user=self.jefe)
+
+        res = self.client.post(
+            reverse("equipo-agregar-miembro", args=[self.equipo.id]),
+            {"codigo": self.gtr.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        self.assertTrue(
+            EquipoMiembro.objects.filter(equipo=self.equipo, usuario=self.gtr).exists()
+        )
+
+    def test_no_agregar_cliente(self):
+        self.client.force_authenticate(user=self.jefe)
+
+        res = self.client.post(
+            reverse("equipo-agregar-miembro", args=[self.equipo.id]),
+            {"codigo": self.cliente.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_no_agregar_miembro_a_equipo_de_jefe(self):
+        self.client.force_authenticate(user=self.jefe)
+
+        res = self.client.post(
+            reverse("equipo-agregar-miembro", args=[self.equipo.id]),
+            {"codigo": self.miembro.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_agregar_miembro_a_equipo_gtr(self):
+        self.client.force_authenticate(user=self.gtr)
+
+        res = self.client.post(
+            reverse("equipo-agregar-miembro", args=[self.equipo_gtr.id]),
+            {"codigo": self.miembro.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+
+    def test_no_agregar_jefe_a_equipo_gtr(self):
+        self.client.force_authenticate(user=self.gtr)
+
+        res = self.client.post(
+            reverse("equipo-agregar-miembro", args=[self.equipo_gtr.id]),
+            {"codigo": self.jefe.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)

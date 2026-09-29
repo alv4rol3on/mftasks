@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
-from .jerarquia import PASOS_GLOBALES, PASO_FINAL
+from .jerarquia import nivel_efectivo
 
 
 class IsAuthenticatedActivo(IsAuthenticated):
@@ -38,18 +38,6 @@ def tiene_rol(user, nombre):
     return user.roles.filter(rol__nombre__iexact=nombre).exists()
 
 
-def nivel_jerarquico(user):
-    """Devuelve el nivel global de la cadena que posee el usuario, o None.
-
-    El paso final (LIDER) no es un rol global: se resuelve por equipo en
-    `tasks.permissions.es_aprobador_de_tarea`.
-    """
-    for nombre in PASOS_GLOBALES:
-        if tiene_rol(user, nombre):
-            return nombre
-    return None
-
-
 def es_lider_del_equipo(user, equipo):
     """True si el usuario es líder de ESE equipo (FK o miembro LIDER activo)."""
     if not user or not user.is_authenticated or equipo is None:
@@ -65,20 +53,6 @@ def es_lider_del_equipo(user, equipo):
     ).exists()
 
 
-def es_aprobador_de_paso(user, paso):
-    """True si el usuario puede actuar en un paso GLOBAL de aprobación.
-
-    Se exige el rol exacto del paso. El Administrador puede actuar como
-    override. El paso final (LIDER) se valida con el equipo en
-    `tasks.permissions.es_aprobador_de_tarea`.
-    """
-    if es_administrador(user):
-        return True
-    if not paso or paso == "COMPLETADO" or paso == PASO_FINAL:
-        return False
-    return tiene_rol(user, paso)
-
-
 def es_lider_de_equipo(user, equipo):
     if not user or not user.is_authenticated:
         return False
@@ -86,7 +60,7 @@ def es_lider_de_equipo(user, equipo):
 
 
 def es_sub_lider_de_equipo(user, equipo):
-    # Compatibilidad Fase 0: SUB_LIDER deprecado, ahora LIDER es único rol de gestión
+    # Compatibilidad: SUB_LIDER deprecado; GTR es el único rol de gestión.
     if not user or not user.is_authenticated:
         return False
     from .models import EquipoMiembro
@@ -101,14 +75,14 @@ def es_sub_lider_de_equipo(user, equipo):
 def es_lider_global(user):
     if not user or not user.is_authenticated:
         return False
-    return user.roles.filter(rol__nombre__iexact="lider").exists()
+    return user.roles.filter(rol__nombre__iexact="GTR").exists()
 
 
 def es_lider_miembro(user, equipo):
-    """Lider por EquipoMiembro LIDER activo (no solo FK lider_id) o rol global lider"""
+    """Líder por EquipoMiembro GTR activo (no solo FK lider_id) o rol global GTR"""
     if not user or not user.is_authenticated:
         return False
-    if user.roles.filter(rol__nombre__iexact="lider").exists():
+    if user.roles.filter(rol__nombre__iexact="GTR").exists():
         return True
     from .models import EquipoMiembro
     if equipo.lider_id == user.id:
@@ -122,12 +96,12 @@ def es_lider_miembro(user, equipo):
 
 
 def puede_operar_como_lider(user, equipo):
-    """Lider (FK o miembro LIDER) puede operar como lider. Fase 1: solo 4 roles."""
+    """GTR (FK o miembro GTR) puede operar como líder."""
     if es_administrador(user):
         return True
     if es_lider_miembro(user, equipo):
         return True
-    # compat: viejo SUB_LIDER o rol global ASIGNADOR todavía permitido hasta migración 0012
+    # compat: viejo SUB_LIDER o rol global ASIGNADOR todavía permitido
     if es_sub_lider_de_equipo(user, equipo):
         return True
     if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists() and es_miembro_activo(user, equipo):
@@ -148,12 +122,70 @@ def es_miembro_activo(user, equipo):
 
 
 def puede_gestionar_miembros(user, equipo):
-    """Solo líder (FK) y administrador pueden administrar roles/estados. Miembro LIDER también."""
+    """Solo líder (FK) y administrador pueden administrar roles/estados. Miembro GTR también."""
     if es_administrador(user):
         return True
     if es_lider_miembro(user, equipo):
         return True
     return False
+
+
+def puede_ser_lider(user):
+    """True si el usuario puede liderar un equipo (rol elegible o admin)."""
+    return es_administrador(user) or nivel_efectivo(user) is not None
+
+
+def ids_equipos_visibles(user):
+    """IDs de equipos visibles para el usuario.
+
+    - Admin: todos los equipos.
+    - Resto: solo los equipos donde es líder o miembro activo.
+    """
+    if not user or not user.is_authenticated:
+        return set()
+    if es_administrador(user):
+        from .models import Equipo
+        return set(Equipo.objects.values_list("id", flat=True))
+
+    from .models import Equipo, EquipoAprobador, EquipoMiembro
+    propios = set(
+        Equipo.objects.filter(lider=user).values_list("id", flat=True)
+    )
+    propios |= set(
+        EquipoMiembro.objects.filter(
+            usuario=user,
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        ).values_list("equipo_id", flat=True)
+    )
+    # Aprobadores asignados: ven todo el proceso de las solicitudes del equipo.
+    propios |= set(
+        EquipoAprobador.objects.filter(
+            usuario=user,
+        ).values_list("equipo_id", flat=True)
+    )
+    return propios
+
+
+def es_aprobador_asignado(user, equipo):
+    """True si el usuario es un aprobador asignado del equipo."""
+    if not user or not user.is_authenticated or equipo is None:
+        return False
+    from .models import EquipoAprobador
+    return EquipoAprobador.objects.filter(
+        equipo=equipo,
+        usuario=user,
+    ).exists()
+
+
+class PuedeCrearEquipo(BasePermission):
+    """Administrador o usuario con rol elegible (no MIEMBRO/CLIENTE)."""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if not request.user.is_active:
+            return False
+        return puede_ser_lider(request.user)
 
 
 class EsLiderDeEquipo(BasePermission):

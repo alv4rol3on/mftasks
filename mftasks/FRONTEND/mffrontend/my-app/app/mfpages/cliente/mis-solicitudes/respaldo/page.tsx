@@ -59,7 +59,7 @@ export default function MisSolicitudesPage() {
     return (
       <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
         <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
-        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Esta sección es solo para CLIENTE. Si eres ASISTENTE / SUB-LIDER / LIDER usa &quot;Centro de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.</p>
+        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Esta sección es solo para CLIENTE. Si eres ASISTENTE / GTR usa &quot;Centro de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.</p>
       </div>
     );
   }

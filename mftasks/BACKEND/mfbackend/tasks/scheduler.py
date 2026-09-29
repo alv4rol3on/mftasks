@@ -81,105 +81,6 @@ def check_inicios_programados():
         logger.info(f"APScheduler: {count} tareas iniciadas automáticamente.")
 
 
-def enviar_digest_aprobadores(niveles):
-    """07:00/08:00 -> roles globales: solicitudes EN_ESPERA en su paso.
-
-    Se envía a los usuarios del rol indicado que tengan habilitado
-    `aprobador_pendiente_revision`.
-    """
-    from .models import Tarea
-    from usuarios.jerarquia import nombre_nivel
-    from .services.notificaciones_email import correos_por_rol, programar_correo_tarea
-
-    enviados = 0
-
-    for nivel in niveles:
-        tareas = Tarea.objects.filter(
-            estado=Tarea.Estado.EN_ESPERA,
-            paso_aprobacion=nivel,
-            activo=True,
-        ).order_by("fecha_creacion")
-
-        if not tareas.exists():
-            continue
-
-        correos = correos_por_rol(nivel, evento="APROBADOR_PENDIENTE_REVISION_DIARIA")
-        if not correos:
-            continue
-
-        detalle = _detalle_tareas(tareas)
-        programado = programar_correo_tarea(
-            evento="APROBADOR_PENDIENTE_REVISION_DIARIA",
-            tarea=tareas.first(),
-            destinatarios=correos,
-            mensaje=(
-                f"Tienes {len(detalle)} solicitud(es) pendiente(s) de revisión "
-                f"como {nombre_nivel(nivel)}."
-            ),
-            contexto_adicional={
-                "tareas": detalle,
-                "nivel_nombre": nombre_nivel(nivel),
-                "nombre_destinatario": f"equipo {nombre_nivel(nivel)}",
-            },
-        )
-        if programado:
-            enviados += 1
-
-    if enviados:
-        logger.info(
-            "APScheduler: digests de aprobadores enviados a %s nivel(es).",
-            enviados,
-        )
-
-
-def enviar_digest_lideres():
-    """08:00 -> a cada líder del equipo: solicitudes EN_ESPERA en paso LIDER de su equipo."""
-    from .models import Tarea
-    from usuarios.models import Equipo
-    from .services.notificaciones_email import correos_lideres, programar_correo_tarea
-
-    enviados = 0
-
-    for equipo in Equipo.objects.filter(activo=True):
-        tareas = Tarea.objects.filter(
-            equipo=equipo,
-            estado=Tarea.Estado.EN_ESPERA,
-            paso_aprobacion="LIDER",
-            activo=True,
-        ).order_by("fecha_creacion")
-
-        if not tareas.exists():
-            continue
-
-        correos = correos_lideres(equipo, evento="EQUIPO_PENDIENTE_REVISION")
-        if not correos:
-            continue
-
-        detalle = _detalle_tareas(tareas)
-        programado = programar_correo_tarea(
-            evento="EQUIPO_PENDIENTE_REVISION",
-            tarea=tareas.first(),
-            destinatarios=correos,
-            mensaje=(
-                f"Tienes {len(detalle)} solicitud(es) pendiente(s) de tu "
-                f"aprobación final en el equipo {equipo.nombre}."
-            ),
-            contexto_adicional={
-                "tareas": detalle,
-                "equipo_nombre": equipo.nombre,
-                "nombre_destinatario": f"equipo {equipo.nombre}",
-            },
-        )
-        if programado:
-            enviados += 1
-
-    if enviados:
-        logger.info(
-            "APScheduler: digests de líderes enviados a %s equipo(s).",
-            enviados,
-        )
-
-
 def enviar_digest_miembros():
     """09:00 -> a miembros activos (no líderes): solicitudes sin solucionar."""
     from .models import Tarea
@@ -313,35 +214,6 @@ def start_scheduler():
             coalesce=True,
             replace_existing=True,
         )
-        # 07:00 Gerente / Subgerente
-        _scheduler.add_job(
-            enviar_digest_aprobadores,
-            args=[["GERENTE", "SUBGERENTE"]],
-            trigger=CronTrigger(hour=7, minute=0),
-            id="digest_aprobadores_0700",
-            max_instances=1,
-            coalesce=True,
-            replace_existing=True,
-        )
-        # 08:00 Supervisor
-        _scheduler.add_job(
-            enviar_digest_aprobadores,
-            args=[["SUPERVISOR"]],
-            trigger=CronTrigger(hour=8, minute=0),
-            id="digest_aprobadores_0800",
-            max_instances=1,
-            coalesce=True,
-            replace_existing=True,
-        )
-        # 08:00 Líderes de equipo
-        _scheduler.add_job(
-            enviar_digest_lideres,
-            trigger=CronTrigger(hour=8, minute=0),
-            id="digest_lideres_0800",
-            max_instances=1,
-            coalesce=True,
-            replace_existing=True,
-        )
         # 09:00 Miembros de equipo
         _scheduler.add_job(
             enviar_digest_miembros,
@@ -362,7 +234,7 @@ def start_scheduler():
         )
         _scheduler.start()
         logger.info(
-            "APScheduler iniciado (auto-inicio cada 60s; digests 07/08/09)."
+            "APScheduler iniciado (auto-inicio cada 60s; digests 09:00)."
         )
     except Exception as e:
         logger.exception(f"No se pudo iniciar APScheduler: {e}")

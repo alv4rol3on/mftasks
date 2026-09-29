@@ -16,8 +16,7 @@ interface TareaConPendientes {
 }
 
 interface Resumen {
-  tipo: "asignador" | "asistente" | "admin" | "cliente" | "aprobador";
-  nivel?: string;
+  tipo: "asignador" | "asistente" | "admin" | "cliente";
   por_aprobar?: number;
   pendientes?: number;
   tareas_pendientes?: number;
@@ -61,7 +60,7 @@ export default function AlertasResumen() {
   if (cargando) return <div style={{ fontSize: 13, color: "#6b7280" }}>Cargando alertas…</div>;
   if (error) return <div className="rounded p-4 text-sm text-red-600">Error al cargar alertas: {error}</div>;
 
-  const esAsignador = resumen?.tipo === "asignador" || resumen?.tipo === "admin" || resumen?.tipo === "aprobador";
+  const esAsignador = resumen?.tipo === "asignador" || resumen?.tipo === "admin";
   const esCliente = resumen?.tipo === "cliente";
   const porAprobar = resumen?.por_aprobar ?? 0;
   const pendientes = resumen?.pendientes ?? 0;
@@ -124,15 +123,13 @@ export default function AlertasResumen() {
           {porAprobar > 0 ? (
             <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: 16 }}>
               <p style={{ color: "#92400e", fontWeight: 600 }}>
-                Tienes {porAprobar} {porAprobar === 1 ? "tarea por aprobar" : "tareas por aprobar"}
+                Tienes {porAprobar} {porAprobar === 1 ? "solicitud por aprobar" : "solicitudes por aprobar"}
               </p>
               <Link href="/mfpages/solicitudes" style={{ color: "#b45309", textDecoration: "underline", fontSize: 14 }}>
                 Ir a centro de solicitudes →
               </Link>
             </div>
-          ) : (
-            <div className="rounded p-4 text-sm" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>No hay tareas por aprobar.</div>
-          )}
+          ) : null}
           {pendientes > 0 && renderPendientesDetalle()}
           {pendientes === 0 && porAprobar === 0 && <div className="rounded p-4 text-sm">No hay alertas pendientes.</div>}
         </div>

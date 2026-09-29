@@ -14,8 +14,13 @@ from rest_framework.generics import RetrieveUpdateAPIView
 
 from .azure import AzureTokenValidationError, AzureTokenValidator
 
-from .models import Equipo, EquipoMiembro, PreferenciaNotificacion, Rol, User
-from .permissions import EsAdministrador, IsAuthenticatedActivo, puede_gestionar_miembros
+from .models import Equipo, EquipoAprobador, EquipoMiembro, PreferenciaNotificacion, Rol, User
+from .jerarquia import ROLES_APROBADOR, rol_integrante_requerido
+from .permissions import (
+    EsAdministrador,
+    IsAuthenticatedActivo,
+    puede_gestionar_miembros,
+)
 from .serializers import (
     EquipoDetailSerializer,
     PreferenciaNotificacionSerializer,
@@ -241,6 +246,7 @@ class EquipoViewSet(ModelViewSet):
         permisos = super().get_permissions()
 
         if self.action in ("create", "update", "partial_update", "destroy"):
+            # Solo el Administrador crea/gestiona equipos.
             permisos += [EsAdministrador()]
 
         return permisos
@@ -421,7 +427,7 @@ class EquipoViewSet(ModelViewSet):
                         status=status.HTTP_409_CONFLICT,
                     )
 
-        # Manejo INACTIVO = soft (Fase 0 corrección) — ya no hard-delete
+        # INACTIVO = baja definitiva: se elimina la membresía (hard delete)
         if estado == EquipoMiembro.EstadoMiembro.INACTIVO:
             if es_lider_objetivo:
                 return Response({"detail": "No se puede inactivar al líder del equipo. Transfiera el liderazgo primero."}, status=status.HTTP_400_BAD_REQUEST)
@@ -485,15 +491,13 @@ class EquipoViewSet(ModelViewSet):
                 else:
                     detalle = [{"subtarea_id": p.id, "descripcion": p.descripcion, "tarea_id": p.tarea_id, "tarea_asunto": p.tarea.asunto, "estado": p.estado} for p in pendientes]
                     return Response({"detail": "el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse", "usuario": {"id": miembro.usuario_id, "nombre": f"{miembro.usuario.nombres} {miembro.usuario.apellidos}"}, "pendientes": detalle}, status=status.HTTP_409_CONFLICT)
-            # Soft: marcar INACTIVO en vez de delete
-            from django.utils import timezone as _tz
-            miembro.estado = EquipoMiembro.EstadoMiembro.INACTIVO
-            miembro.fecha_baja = _tz.now()
-            # degradar rol si era SUB_LIDER
-            if miembro.rol_en_equipo == EquipoMiembro.RolEnEquipo.SUB_LIDER:
-                miembro.rol_en_equipo = EquipoMiembro.RolEnEquipo.MIEMBRO
-            miembro.save(update_fields=["estado", "rol_en_equipo", "fecha_baja"])
-            return Response({"detail": f"Miembro {miembro.usuario.nombres} marcado INACTIVO (soft).", "deleted": False, "estado": miembro.estado}, status=status.HTTP_200_OK)
+            # Baja definitiva: eliminar la fila de membresía.
+            nombre = f"{miembro.usuario.nombres} {miembro.usuario.apellidos}"
+            miembro.delete()
+            return Response(
+                {"detail": f"Miembro {nombre} eliminado del equipo.", "deleted": True},
+                status=status.HTTP_200_OK,
+            )
 
         # Aplicar cambio de estado para ACTIVO / INDISPONIBLE
         miembro.estado = estado
@@ -550,9 +554,24 @@ class EquipoViewSet(ModelViewSet):
             return Response({"detail": "El líder ya pertenece al equipo."}, status=status.HTTP_400_BAD_REQUEST)
         if not user_obj.is_active:
             return Response({"detail": "No se puede agregar un usuario inactivo del sistema."}, status=status.HTTP_400_BAD_REQUEST)
-        # Debe ser solo MIEMBRO pre-asignado por admin
-        if not user_obj.roles.filter(rol__nombre__iexact="miembro").exists():
-            return Response({"detail": "Solo usuarios con rol MIEMBRO (asignado por administrador) y activos pueden agregarse."}, status=status.HTTP_400_BAD_REQUEST)
+        # El rol del integrante depende del tipo de equipo del líder:
+        #   EQUIPO DE GERENTE -> SUBGERENTE, DE SUBGERENTE -> JEFE,
+        #   DE JEFE -> GTR, EQUIPO GTR -> MIEMBRO.
+        requerido = rol_integrante_requerido(equipo.tipo_equipo)
+        roles_usuario = {
+            (r or "").upper()
+            for r in user_obj.roles.values_list("rol__nombre", flat=True)
+        }
+        if requerido not in roles_usuario:
+            return Response(
+                {
+                    "detail": (
+                        f"Este equipo ({equipo.tipo_equipo}) solo admite "
+                        f"integrantes con rol {requerido}."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if EquipoMiembro.objects.filter(equipo=equipo, usuario_id=usuario_id).exists():
             return Response({"detail": "El usuario ya es miembro del equipo."}, status=status.HTTP_400_BAD_REQUEST)
         # Forzar MIEMBRO (requisito 4)
@@ -564,6 +583,76 @@ class EquipoViewSet(ModelViewSet):
         )
         from .serializers import EquipoMiembroDetailSerializer
         return Response(EquipoMiembroDetailSerializer(miembro).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="aprobadores")
+    def asignar_aprobadores(self, request, pk=None):
+        """Asigna exactamente un aprobador por rol (GERENTE, SUBGERENTE, JEFE)."""
+        equipo = self.get_object()
+        if not puede_gestionar_miembros(request.user, equipo):
+            return Response(
+                {"detail": "Solo el líder del equipo (o administrador) puede asignar aprobadores."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        aprobadores = request.data.get("aprobadores")
+        if not isinstance(aprobadores, list):
+            return Response({"detail": "Debe enviar la lista 'aprobadores'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        por_rol = {}
+        usuarios_usados = set()
+        for item in aprobadores:
+            if not isinstance(item, dict):
+                return Response({"detail": "Formato de aprobador inválido."}, status=status.HTTP_400_BAD_REQUEST)
+            rol = (item.get("rol") or item.get("rol_aprobador") or "").upper().strip()
+            if rol not in ROLES_APROBADOR:
+                return Response(
+                    {"detail": f"Rol inválido '{rol}'. Use: {', '.join(ROLES_APROBADOR)}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if rol in por_rol:
+                return Response({"detail": f"El rol {rol} está repetido."}, status=status.HTTP_400_BAD_REQUEST)
+
+            codigo = (item.get("codigo") or "").strip()
+            usuario_id = item.get("usuario_id") or item.get("usuario") or item.get("id_usuario")
+            user_obj = None
+            if codigo:
+                try:
+                    user_obj = User.objects.get(codigo__iexact=codigo)
+                except User.DoesNotExist:
+                    return Response({"detail": f"Usuario con código {codigo} no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            elif usuario_id:
+                try:
+                    user_obj = User.objects.get(id=int(usuario_id))
+                except (User.DoesNotExist, ValueError, TypeError):
+                    return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({"detail": "Cada aprobador debe indicar 'codigo' o 'usuario_id'."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not user_obj.is_active:
+                return Response({"detail": f"El usuario {user_obj.codigo} está inactivo."}, status=status.HTTP_400_BAD_REQUEST)
+            roles_usuario = {(r or "").upper() for r in user_obj.roles.values_list("rol__nombre", flat=True)}
+            if rol not in roles_usuario:
+                return Response({"detail": f"El usuario {user_obj.codigo} no tiene el rol {rol}."}, status=status.HTTP_400_BAD_REQUEST)
+            if user_obj.id in usuarios_usados:
+                return Response({"detail": "Un usuario no puede ocupar dos roles de aprobador."}, status=status.HTTP_400_BAD_REQUEST)
+            usuarios_usados.add(user_obj.id)
+            por_rol[rol] = user_obj
+
+        faltantes = [r for r in ROLES_APROBADOR if r not in por_rol]
+        if faltantes:
+            return Response(
+                {"detail": f"Debe asignar un aprobador por rol. Faltan: {', '.join(faltantes)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            EquipoAprobador.objects.filter(equipo=equipo).delete()
+            for rol, user_obj in por_rol.items():
+                EquipoAprobador.objects.create(equipo=equipo, usuario=user_obj, rol_aprobador=rol)
+
+        return Response(
+            EquipoDetailSerializer(equipo, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["get"], url_path="miembros/(?P<usuario_id>[^/.]+)/subtareas-pendientes")
     def subtareas_pendientes(self, request, pk=None, usuario_id=None):

@@ -119,6 +119,20 @@ class Equipo(models.Model):
         related_name="equipos_liderados"
     )
 
+    class TipoEquipo(models.TextChoices):
+        GERENTE = "GERENTE", "Equipo de Gerente"
+        SUBGERENTE = "SUBGERENTE", "Equipo de Subgerente"
+        JEFE = "JEFE", "Equipo de Jefe"
+        GTR = "GTR", "Equipo GTR"
+
+    tipo_equipo = models.CharField(
+        max_length=20,
+        choices=TipoEquipo.choices,
+        default=TipoEquipo.GTR,
+        db_index=True,
+        help_text="Derivado del rol del líder del equipo.",
+    )
+
     activo = models.BooleanField(default=True)
 
     fecha_creacion = models.DateTimeField(
@@ -136,6 +150,7 @@ class Equipo(models.Model):
 
     def save(self, *args, **kwargs):
         from django.db import transaction
+        from .jerarquia import nivel_efectivo
 
         is_new = self._state.adding
         old_lider_id = None
@@ -145,6 +160,16 @@ class Equipo(models.Model):
                 old_lider_id = old.lider_id
             except Equipo.DoesNotExist:
                 old_lider_id = None
+
+        # tipo_equipo derivado del rol del líder
+        if self.lider_id:
+            try:
+                nivel = nivel_efectivo(self.lider)
+            except Exception:
+                nivel = None
+            if nivel in self.TipoEquipo.values:
+                self.tipo_equipo = nivel
+
         with transaction.atomic():
             super().save(*args, **kwargs)
             # Sincronizar EquipoMiembro LIDER de forma atómica
@@ -173,6 +198,7 @@ class EquipoMiembro(models.Model):
     class RolEnEquipo(models.TextChoices):
         LIDER = "LIDER", "Líder"
         MIEMBRO = "MIEMBRO", "Miembro"
+        # Deprecado: se conserva por compatibilidad de datos, no se ofrece en UI.
         SUB_LIDER = "SUB_LIDER", "Sub-líder"
 
     class EstadoMiembro(models.TextChoices):
@@ -246,6 +272,57 @@ class EquipoMiembro(models.Model):
         return f"{self.usuario} - {self.equipo} ({self.rol_en_equipo}/{self.estado})"
 
 
+class EquipoAprobador(models.Model):
+    """Aprobadores asignados a un equipo: exactamente uno por rol global.
+
+    Cualquiera de ellos puede resolver la fase de aprobación de una solicitud;
+    luego pasa a revisión del líder del equipo.
+    """
+
+    class RolAprobador(models.TextChoices):
+        GERENTE = "GERENTE", "Gerente"
+        SUBGERENTE = "SUBGERENTE", "Subgerente"
+        JEFE = "JEFE", "Jefe"
+
+    equipo = models.ForeignKey(
+        Equipo,
+        on_delete=models.CASCADE,
+        related_name="aprobadores",
+    )
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="equipos_como_aprobador",
+    )
+
+    rol_aprobador = models.CharField(
+        max_length=20,
+        choices=RolAprobador.choices,
+    )
+
+    fecha_asignacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["equipo", "rol_aprobador"],
+                name="unico_aprobador_por_rol",
+            ),
+            UniqueConstraint(
+                fields=["equipo", "usuario"],
+                name="unico_usuario_aprobador_por_equipo",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["equipo"]),
+            models.Index(fields=["usuario"]),
+        ]
+
+    def __str__(self):
+        return f"{self.equipo} - {self.rol_aprobador}: {self.usuario}"
+
+
 class PreferenciaNotificacion(models.Model):
     """Preferencias de correo por usuario."""
 
@@ -263,10 +340,6 @@ class PreferenciaNotificacion(models.Model):
     cliente_solicitud_standby = models.BooleanField(default=True)
     cliente_solicitud_solucionada = models.BooleanField(default=True)
     cliente_resumen_diario = models.BooleanField(default=True)
-
-    # Aprobador global (GERENTE / SUBGERENTE / SUPERVISOR)
-    aprobador_nueva_solicitud = models.BooleanField(default=True)
-    aprobador_pendiente_revision = models.BooleanField(default=True)
 
     # Líder / Miembro del equipo
     equipo_nueva_solicitud = models.BooleanField(default=True)

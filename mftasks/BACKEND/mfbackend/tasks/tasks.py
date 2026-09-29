@@ -16,14 +16,6 @@ EVENTOS_EMAIL = {
         "asunto": "Solicitud {codigo} registrada correctamente",
         "template": "emails/solicitud_creada.html",
     },
-    "SOLICITUD_PENDIENTE_NIVEL": {
-        "asunto": "Solicitud {codigo} pendiente de {nivel_nombre}",
-        "template": "emails/solicitud_pendiente_nivel.html",
-    },
-    "APROBADOR_PENDIENTE_REVISION_DIARIA": {
-        "asunto": "Solicitudes pendientes de revisión - {nivel_nombre}",
-        "template": "emails/aprobador_pendiente_revision.html",
-    },
     "CLIENTE_RESUMEN_DIARIO": {
         "asunto": "Resumen de tus solicitudes",
         "template": "emails/cliente_resumen_diario.html",
@@ -48,14 +40,18 @@ EVENTOS_EMAIL = {
         "asunto": "Nueva solicitud en tu equipo: {codigo}",
         "template": "emails/equipo_nueva_solicitud.html",
     },
-    "EQUIPO_PENDIENTE_REVISION": {
-        "asunto": "Solicitud pendiente de revisión: {codigo}",
-        "template": "emails/equipo_pendiente_revision.html",
-    },
     "EQUIPO_ALERTA_DIARIA": {
         "asunto": "Alerta diaria - {equipo_nombre}",
         "template": "emails/equipo_alerta_diaria.html",
         "texto": "emails/equipo_alerta_diaria.txt",
+    },
+    "SOLICITUD_PENDIENTE_APROBADORES": {
+        "asunto": "Solicitud {codigo} pendiente de aprobación",
+        "template": "emails/solicitud_pendiente_nivel.html",
+    },
+    "SOLICITUD_PENDIENTE_LIDER": {
+        "asunto": "Solicitud {codigo} pendiente de tu revisión",
+        "template": "emails/equipo_pendiente_revision.html",
     },
 }
 

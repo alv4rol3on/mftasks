@@ -88,7 +88,7 @@ export default function AdminPage() {
       setMsg("Error: No se puede modificar rol de administradores");
       return;
     }
-    if (!["miembro", "lider", "cliente", "gerente", "subgerente", "supervisor", "asistente"].includes(nuevoRol.toLowerCase())) {
+    if (!["miembro", "gtr", "cliente", "gerente", "subgerente", "jefe", "asistente"].includes(nuevoRol.toLowerCase())) {
       setMsg("Rol no permitido");
       return;
     }
@@ -304,11 +304,11 @@ export default function AdminPage() {
               <input placeholder="Password" type="password" value={nuevo.password} onChange={e => setNuevo({ ...nuevo, password: e.target.value })} className={styles.input} />
               <select value={nuevo.rol} onChange={e => setNuevo({ ...nuevo, rol: e.target.value })} className={styles.select}>
                 <option value="miembro">miembro</option>
-                <option value="lider">lider</option>
+                <option value="gtr">gtr</option>
                 <option value="cliente">cliente</option>
                 <option value="gerente">gerente</option>
                 <option value="subgerente">subgerente</option>
-                <option value="supervisor">supervisor</option>
+                <option value="jefe">jefe</option>
                 <option value="asistente">asistente</option>
                 <option value="administrador">administrador</option>
               </select>
@@ -324,11 +324,11 @@ export default function AdminPage() {
                   <option value="todos">Todos los roles</option>
                   <option value="administrador">administrador</option>
                   <option value="miembro">miembro</option>
-                  <option value="lider">lider</option>
+                  <option value="gtr">gtr</option>
                   <option value="cliente">cliente</option>
                   <option value="gerente">gerente</option>
                   <option value="subgerente">subgerente</option>
-                  <option value="supervisor">supervisor</option>
+                  <option value="jefe">jefe</option>
                   <option value="asistente">asistente</option>
                 </select>
                 <input placeholder="Buscar por email, nombre o codigo MFS-" value={filtro} onChange={e => setFiltro(e.target.value)} className={styles.searchInput} />
@@ -354,11 +354,11 @@ export default function AdminPage() {
                               {esAdmin ? <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: 6, fontSize: 11 }}>Administrador</span> : (
                                 <select value={rolActual.toLowerCase()} onChange={e => cambiarRol(u, e.target.value)} className={styles.select} style={{ padding: "4px 6px", fontSize: 12 }}>
                                   <option value="miembro">miembro</option>
-                                  <option value="lider">lider</option>
+                                  <option value="gtr">gtr</option>
                                   <option value="cliente">cliente</option>
                                   <option value="gerente">gerente</option>
                                   <option value="subgerente">subgerente</option>
-                                  <option value="supervisor">supervisor</option>
+                                  <option value="jefe">jefe</option>
                                   <option value="asistente">asistente</option>
                                 </select>
                               )}

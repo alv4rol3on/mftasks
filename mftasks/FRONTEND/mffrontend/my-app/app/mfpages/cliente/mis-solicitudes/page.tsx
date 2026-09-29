@@ -248,9 +248,8 @@ export default function MisSolicitudesPage() {
             marginTop: 4,
           }}
         >
-          Esta sección es solo para CLIENTE. Si eres ASISTENTE /
-          SUB-LIDER / LIDER usa &quot;Centro de solicitudes&quot; y
-          &quot;Tareas en desarrollo&quot;.
+          Esta sección es solo para CLIENTE. Si eres ASISTENTE / GTR usa
+          &quot;Centro de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.
         </p>
       </div>
     );

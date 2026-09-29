@@ -125,7 +125,7 @@ export interface TareaConPendientes {
 
 export interface ResumenAsignador {
     tipo: "asignador";
-    por_aprobar: number;
+    por_aprobar?: number;
     pendientes?: number;
     tareas_pendientes?: number;
     tareas_con_pendientes?: TareaConPendientes[];
@@ -138,18 +138,9 @@ export interface ResumenAsistente {
     tareas_con_pendientes?: TareaConPendientes[];
 }
 
-export interface ResumenAprobador {
-    tipo: "aprobador";
-    nivel: string;
-    por_aprobar: number;
-    pendientes?: number;
-    tareas_pendientes?: number;
-    tareas_con_pendientes?: TareaConPendientes[];
-}
-
 export interface ResumenAdmin {
     tipo: "admin";
-    por_aprobar: number;
+    por_aprobar?: number;
     pendientes?: number;
     tareas_pendientes?: number;
     tareas_con_pendientes?: TareaConPendientes[];
@@ -165,6 +156,7 @@ export interface ClienteInfo {
 
 export interface EquipoMiembro {
     id: number;
+    codigo?: string | null;
     email: string;
     nombres: string;
     apellidos: string;
@@ -198,14 +190,24 @@ export interface UsuarioListItem {
     activo?: boolean; // alias compat
 }
 
+export interface EquipoAprobador {
+    id: number;
+    usuario: EquipoMiembro;
+    rol_aprobador: "GERENTE" | "SUBGERENTE" | "JEFE" | string;
+}
+
 export interface EquipoInfo {
     id: number;
     nombre: string;
     lider: EquipoMiembro | null;
+    tipo_equipo?: "GERENTE" | "SUBGERENTE" | "JEFE" | "GTR" | string;
+    rol_integrante_requerido?: "MIEMBRO" | "GTR" | "JEFE" | "SUBGERENTE" | string;
     activo: boolean;
     fecha_creacion?: string;
     miembros: EquipoMiembroDetallado[];
+    aprobadores?: EquipoAprobador[];
     puedo_gestionar?: boolean;
+    puedo_asignar_aprobadores?: boolean;
     mi_rol_en_equipo?: string | null;
     mi_estado?: string | null;
 }

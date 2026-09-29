@@ -36,6 +36,55 @@
   background: #1a1a1a;
 }
 
+/* Color del encabezado según el tipo de equipo.
+   Deben ir después de .cardHeader:hover para ganar en especificidad. */
+.tipoGerente,
+.tipoGerente:hover {
+  background: #6d28d9;
+  border-bottom-color: #4c1d95;
+}
+
+.tipoGerente:hover {
+  background: #5b21b6;
+}
+
+.tipoSubgerente,
+.tipoSubgerente:hover {
+  background: #1d4ed8;
+  border-bottom-color: #1e3a8a;
+}
+
+.tipoSubgerente:hover {
+  background: #1e40af;
+}
+
+.tipoJefe,
+.tipoJefe:hover {
+  background: #0f766e;
+  border-bottom-color: #134e4a;
+}
+
+.tipoJefe:hover {
+  background: #115e59;
+}
+
+.tipoGtr,
+.tipoGtr:hover {
+  background: #b45309;
+  border-bottom-color: #78350f;
+}
+
+.tipoGtr:hover {
+  background: #92400e;
+}
+
+/* Badge de tipo sobre encabezados de color */
+.badgeTipo {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+}
+
 .cardHeaderLeft {
   flex: 1;
   min-width: 0;

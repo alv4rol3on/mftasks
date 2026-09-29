@@ -26,14 +26,12 @@ const formatearFecha = (fecha: string | null | undefined) => {
 
 interface TaskTableSolicitudesProps {
   tareas: Task[];
-  accionando?: number | null;
   onAprobar: (tarea: Task) => Promise<void>;
   onRechazar: (tarea: Task, motivo: string) => Promise<void>;
 }
 
 export default function TaskTableSolicitudes({
   tareas,
-  accionando,
   onAprobar,
   onRechazar,
 }: TaskTableSolicitudesProps) {
@@ -98,7 +96,6 @@ export default function TaskTableSolicitudes({
       <TaskModal
         tarea={selectedTask}
         onClose={() => setSelectedTask(null)}
-        accionando={accionando}
         onAprobar={handleAprobar}
         onRechazar={handleRechazar}
       />
