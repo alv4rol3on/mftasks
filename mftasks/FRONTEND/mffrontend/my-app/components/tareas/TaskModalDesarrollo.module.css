@@ -954,3 +954,9 @@
     background: #16a34a;
     margin-left: 8px;
 }
+
+.historialTabContent {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}

@@ -278,7 +278,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
               </div>
             </>
           ) : (
-            <div>
+            <div className={styles.historialTabContent}>
               {/* HISTORIAL */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <button onClick={cargarLogs} disabled={logsLoading} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{logsLoading ? "Cargando..." : "Recargar"}</button>
@@ -287,7 +287,10 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
               {logsLoading && !logs && <p style={{ fontSize: 12 }}>Cargando logs...</p>}
               {logs && logs.length === 0 && <p style={{ fontSize: 12, color: "#6b7280" }}>Sin registros.</p>}
               {logs && logs.length > 0 && (
-                <div className={styles.historialContainer}>
+                <div
+                  className={styles.historialContainer}
+                  style={{ width: "100%" }}
+                >
                   <table className={`${styles.subtareasTable} ${styles.historialTable}`}>
                     <thead>
                       <tr>

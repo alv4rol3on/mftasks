@@ -581,7 +581,10 @@ export default function EquiposPage() {
             const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
             const liderActivo = liderMiembro?.estado === "ACTIVO";
             const puedoGestionar = Boolean(equipo.puedo_gestionar) && liderActivo;
-            const eresAprobador = Boolean(equipo.eres_Aprobador) && liderActivo;
+            const eresAprobador =
+              (equipo.aprobadores ?? []).some(
+                (a) => a.usuario?.id === usuario?.id
+              );
 
 
 
@@ -605,13 +608,18 @@ export default function EquiposPage() {
                                 : "Equipo GTR"}
                         </span>
                       )}
-                      {!equipo.activo && <span className={`${styles.badge} ${styles.badgeInactivo}`}>Inactivo</span>}
                       {puedoGestionar ? (
-                        <span className={`${styles.badge} ${styles.badgeGestionar}`}>Puedes gestionar</span>
+                        <span className={`${styles.badge} ${styles.badgeGestionar}`}>
+                          Puedes gestionar
+                        </span>
                       ) : equipo.mi_rol_en_equipo === "SUB_LIDER" ? (
-                        <span className={`${styles.badge} ${styles.badgeSubLider}`}>Eres Sub-líder</span>
+                        <span className={`${styles.badge} ${styles.badgeSubLider}`}>
+                          Eres Sub-líder
+                        </span>
                       ) : eresAprobador ? (
-                        <span className={`${styles.badge} ${styles.badgeGestionar}`}>Eres aprobador</span>
+                        <span className={`${styles.badge} ${styles.badgeAprobador}`}>
+                          Eres aprobador
+                        </span>
                       ) : null}
                     </div>
                     <div className={styles.cardMeta}>

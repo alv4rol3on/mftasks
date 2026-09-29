@@ -1,2 +1,6 @@
 - cambiar la posicion de crear dependencias
-- gerentes/subgerentes y jefes deberian aprobar pero ver todo desde una sola interfaz
+- al equipo le basta con tener por lo menos uno de los aprobadores, este debe ser colocado por el administrador
+- El historial para el modal cliente debe ser el mismo que el historial del modal miembro
+- que los integrantes de equipos tambien tengan su modal para hacer los ajustes
+- bandeja de solicitudes solo los que estan EN_ESPERA
+- la tabla de bandeja de solicitudes debe tener la misma forma de visualizacion que el de tareas en desarrollo(osea basta con un clic en la fila para acceder en lugar de un boton de detalles)
