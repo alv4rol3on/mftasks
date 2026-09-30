@@ -500,13 +500,6 @@ export default function EquiposPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h2 className={styles.pageTitle}>Equipos</h2>
-          <p className={styles.pageSubtitle}>
-            {esClientePuro
-              ? "Ves los equipos a los que puedes solicitar servicios."
-              : esAdmin
-                ? "Vista administrador: ves todos los equipos del sistema."
-                : "Ves todos los equipos del sistema; usa el filtro para ver solo aquellos a los que perteneces."}
-          </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {puedeCrearEquipo && !esClientePuro && (
@@ -517,8 +510,8 @@ export default function EquiposPage() {
               Crear equipo
             </button>
           )}
-          <button onClick={recargar} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
-            Recargar
+          <button onClick={recargar} disabled={cargando} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
+            🔄 {cargando ? "Recargando..." : "Recargar"}
           </button>
         </div>
       </div>
@@ -692,7 +685,7 @@ export default function EquiposPage() {
                                   abrirModalIndisponible(equipo.id, liderMiembro);
                                 }}
                                 disabled={!!accionando || !tieneSubLiderActivo}
-                                title={!tieneSubLiderActivo ? "CONDICION: Debe haber un sub-líder asignado en el equipo para que el líder pueda marcarse indisponible" : "Inactivar cuenta"}
+                                title={!tieneSubLiderActivo ? "CONDICION: Debe haber un sub-líder asignado en el equipo" : "Inactivar cuenta"}
                                 style={{ background: tieneSubLiderActivo ? "white" : "#f3f4f6", color: tieneSubLiderActivo ? "#92400e" : "#9ca3af", border: "1px solid #fde68a", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
                               >
                                 Inactivar cuenta
@@ -706,7 +699,6 @@ export default function EquiposPage() {
                                 Volver a estado activo
                               </button>
                             ) : null}
-                            <span style={{ fontSize: 11, color: "#6b7280" }}>Condición: debe haber sub-líder</span>
                           </div>
                         </>
                       }
@@ -727,7 +719,7 @@ export default function EquiposPage() {
                         )}
                         {(equipo.tipo_equipo ?? "GTR") === "GERENTE" && (
                           <span style={{ fontSize: 12, color: "#6b7280" }}>
-                            Sin aprobadores (equipo de gerente)
+                            -
                           </span>
                         )}
                         {soyLider && (

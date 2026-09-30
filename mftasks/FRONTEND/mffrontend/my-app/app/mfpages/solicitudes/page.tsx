@@ -236,9 +236,34 @@ export default function SolicitudesPage() {
 
   return (
     <div>
-      <h2 className="mb-4 text-lg font-medium">Solicitudes recibidas</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
+        }}
+      >
+        <h2 className="mb-4 text-lg font-medium" style={{ margin: 0 }}>
+          Solicitudes recibidas
+        </h2>
+
+        <button
+          onClick={cargar}
+          disabled={cargando}
+          style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+        >
+          🔄 {cargando ? "Recargando..." : "Recargar"}
+        </button>
+      </div>
+
       {filtrosUI}
-      <TaskTableSolicitudes tareas={tareasFiltradas} onAprobar={aprobar} onRechazar={rechazar} />
+
+      <TaskTableSolicitudes
+        tareas={tareasFiltradas}
+        onAprobar={aprobar}
+        onRechazar={rechazar}
+      />
     </div>
   );
 }

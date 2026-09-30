@@ -332,6 +332,7 @@ export default function TaskModal({
 
     const subtareasProgreso = tarea.subtareas.filter(s => s.activo !== false);
     const subtareasInactivasCount = tarea.subtareas.length - subtareasProgreso.length;
+    const noEstaEnDesarrollo = tarea.estado === "RECHAZADO" || tarea.estado === "APROBADO"
 
     const minNuevaFecha = (() => {
         if (!tarea.fecha_entrega_aproximada) return undefined;
@@ -392,11 +393,15 @@ export default function TaskModal({
                                     {tarea.subcampana_nombre && (<tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre}</td></tr>)}
                                     <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
                                     <tr><td><strong>Fecha solicitud</strong></td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
-                                    {tarea.estado !== "RECHAZADO" && tarea.estado !== "APROBADO" &&
+                                    {noEstaEnDesarrollo ? (
+                                        null
+                                    ) : (
                                         <>
                                             <tr><td><strong>Inicio</strong></td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>
                                             <tr><td><strong>Entrega</strong></td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
                                         </>
+                                    )
+
                                     }
                                 </tbody>
                             </table>
@@ -406,26 +411,30 @@ export default function TaskModal({
                             <h3 className={styles.cardTitle}>Descripción</h3>
                             <div className={styles.descriptionBox} style={{ marginBottom: 12 }}>{tarea.descripcion}</div>
                             <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} />
-                            <div className={styles.infoCard} style={{ padding: 12 }}>
-                                <h4 className={styles.cardTitle} style={{ fontSize: 12, marginBottom: 8 }}>Tiempos</h4>
-                                <table className={styles.infoTable} style={{ fontSize: 13 }}>
-                                    <tbody>
-                                        {tarea.tiempo_planificado_segundos !== null && tarea.tiempo_planificado_segundos !== undefined && (
-                                            <tr><td><strong>Planificado</strong></td><td>{Math.floor(tarea.tiempo_planificado_segundos / 3600)}h {Math.floor((tarea.tiempo_planificado_segundos % 3600) / 60)}m</td></tr>
-                                        )}
-                                        {(tarea as any).tiempo_planificado_efectivo_segundos && (tarea as any).segundos_extra > 0 && (
-                                            <tr><td><strong>Plan efectivo</strong></td><td style={{ color: "#CF3215", fontWeight: 700 }}>{Math.floor((tarea as any).tiempo_planificado_efectivo_segundos / 3600)}h {Math.floor(((tarea as any).tiempo_planificado_efectivo_segundos % 3600) / 60)}m <span style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "1px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6, color: "#991b1b" }}>+{Math.floor((tarea as any).segundos_extra / 3600)}h {Math.floor(((tarea as any).segundos_extra % 3600) / 60)}m anticipado</span></td></tr>
-                                        )}
-                                        {(tarea as any).fecha_inicio_efectiva && (tarea as any).inicio_anticipado && (
-                                            <tr><td><strong>Inicio efectivo</strong></td><td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td></tr>
-                                        )}
-                                        {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
-                                            <tr><td><strong>Solucionado en:</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
-                                        )}
+                            {noEstaEnDesarrollo ? (null):(
+                                <div className={styles.infoCard} style={{ padding: 12 }}>
+                                    <h4 className={styles.cardTitle} style={{ fontSize: 12, marginBottom: 8 }}>Tiempos</h4>
+                                    <table className={styles.infoTable} style={{ fontSize: 13 }}>
+                                        <tbody>
+                                            {tarea.tiempo_planificado_segundos !== null && tarea.tiempo_planificado_segundos !== undefined && (
+                                                <tr><td><strong>Planificado</strong></td><td>{Math.floor(tarea.tiempo_planificado_segundos / 3600)}h {Math.floor((tarea.tiempo_planificado_segundos % 3600) / 60)}m</td></tr>
+                                            )}
+                                            {(tarea as any).tiempo_planificado_efectivo_segundos && (tarea as any).segundos_extra > 0 && (
+                                                <tr><td><strong>Plan efectivo</strong></td><td style={{ color: "#CF3215", fontWeight: 700 }}>{Math.floor((tarea as any).tiempo_planificado_efectivo_segundos / 3600)}h {Math.floor(((tarea as any).tiempo_planificado_efectivo_segundos % 3600) / 60)}m <span style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "1px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6, color: "#991b1b" }}>+{Math.floor((tarea as any).segundos_extra / 3600)}h {Math.floor(((tarea as any).segundos_extra % 3600) / 60)}m anticipado</span></td></tr>
+                                            )}
+                                            {(tarea as any).fecha_inicio_efectiva && (tarea as any).inicio_anticipado && (
+                                                <tr><td><strong>Inicio efectivo</strong></td><td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td></tr>
+                                            )}
+                                            {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
+                                                <tr><td><strong>Solucionado en:</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
+                                            )}
 
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+
                             {subtareasInactivasCount > 0 && (
                                 <p style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>{subtareasInactivasCount} subtarea(s) inactivada(s) — ver Asignaciones</p>
                             )}

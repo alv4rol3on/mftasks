@@ -38,6 +38,8 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
   if (!tarea) return null;
   const progresoNum = parseFloat(String(tarea.progreso ?? 0)) || 0;
 
+  const sinAprobar = tarea.estado === "EN_ESPERA" || tarea.estado === "RECHAZADO"
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -77,7 +79,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
 
                     <tr><td><strong>Fecha solicitud</strong></td><td>{fmt(tarea.fecha_creacion)}</td></tr>
 
-                    {tarea.estado !== "RECHAZADO" && (
+                    {!sinAprobar && (
                       <>
                         <tr>
                           <td><strong>Fecha inicio</strong></td>
@@ -113,13 +115,23 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                 <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} titulo="Adjuntos" />
               </div>
               <div className={styles.progresoSection} style={{ gridColumn: "1 / -1" }}>
-                <h3>Progreso — {progresoNum.toFixed(2)}%</h3>
-                <div style={{ background: "#e5e7eb", borderRadius: 8, height: 14, overflow: "hidden", marginBottom: 12 }}>
-                  <div style={{ width: `${Math.min(100, progresoNum)}%`, background: progresoNum === 100 ? "#16a34a" : "#2563eb", height: "100%", transition: "width .3s" }} />
-                </div>
+                {sinAprobar ?
+                  (
+                    null
+                  ) : (
+                    <>
+                    <h3>Progreso — {progresoNum.toFixed(2)}%</h3>
+                    <div style={{ background: "#e5e7eb", borderRadius: 8, height: 14, overflow: "hidden", marginBottom: 12 }}>
+                      <div style={{ width: `${Math.min(100, progresoNum)}%`, background: progresoNum === 100 ? "#16a34a" : "#2563eb", height: "100%", transition: "width .3s" }} />
+                    </div>
+                  </>
+                  )
+
+                }
+
                 {tarea.subtareas.length === 0 ? (
                   <p className={styles.sinSubtareas}>
-                    {tarea.estado === "EN_ESPERA" ? "Tu solicitud está en espera de una respuesta por parte del equipo asignado" : tarea.estado === "RECHAZADO" ? "Solicitud rechazada." : tarea.estado === "SOLUCIONADO" ? "Solicitud completada." : "Aprobada, en proceso de asignación de tareas."}
+                    {tarea.estado === "EN_ESPERA" ? null : tarea.estado === "RECHAZADO" ? "Solicitud rechazada." : tarea.estado === "SOLUCIONADO" ? "Solicitud completada." : "Aprobada, en proceso de asignación de tareas."}
                   </p>
                 ) : (
                   <div className={styles.subtareasContainer}>
@@ -163,9 +175,6 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
           ) : (
             <HistorialTarea key={tarea.id} tareaId={tarea.id} />
           )}
-        </div>
-        <div className={styles.modalFooter}>
-          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={onClose}>Cerrar</button>
         </div>
       </div>
     </div >

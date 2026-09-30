@@ -57,27 +57,25 @@ export default function TaskTableSolicitudes({
         ) : (
           <div className={styles.taskTable}>
             <div className={styles.taskHeader}>
-              <div>ID</div>
+              <div>Fecha de solicitud</div>
               <div>Asunto</div>
               <div>Cliente</div>
               <div>Equipo</div>
-              <div>Fecha de solicitud</div>
               <div>Acciones</div>
             </div>
 
             {tareas.map((tarea) => (
               <div className={styles.taskRow} key={tarea.id}>
-                <div>{tarea.id}</div>
+                <div>{formatearFecha(tarea.fecha_creacion)}</div>
 
                 <div className={styles.taskSubject}>
-                  {tarea.asunto}
+                  {tarea.subcampana_nombre} - {tarea.asunto}
                 </div>
 
                 <div>{tarea.cliente_nombre}</div>
 
                 <div>{tarea.equipo_nombre}</div>
 
-                <div>{formatearFecha(tarea.fecha_creacion)}</div>
 
                 <div>
                   <button

@@ -16,7 +16,7 @@
 .taskHeader,
 .taskRow {
     display: grid;
-    grid-template-columns: 70px 3fr 2fr 180px 180px 120px;
+    grid-template-columns: 3fr 2fr 180px 180px 120px;
     align-items: center;
 }
 

@@ -130,7 +130,7 @@ export default function TaskModal({
                 {/* Cabecera */}
                 <div className={styles.modalHeader}>
                     <div>
-                        <h2>Solicitud #{tarea.id}</h2>
+                        <h2>Solicitud #{tarea.ticket}</h2>
                         <p>{tarea.asunto}</p>
                     </div>
 
