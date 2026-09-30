@@ -15,10 +15,11 @@ from rest_framework.generics import RetrieveUpdateAPIView
 from .azure import AzureTokenValidationError, AzureTokenValidator
 
 from .models import Equipo, EquipoAprobador, EquipoMiembro, PreferenciaNotificacion, Rol, User
-from .jerarquia import ROLES_APROBADOR, rol_integrante_requerido
+from .jerarquia import roles_aprobador_para, rol_integrante_requerido
 from .permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
+    es_administrador,
     puede_gestionar_miembros,
 )
 from .serializers import (
@@ -586,16 +587,30 @@ class EquipoViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="aprobadores")
     def asignar_aprobadores(self, request, pk=None):
-        """Asigna exactamente un aprobador por rol (GERENTE, SUBGERENTE, JEFE)."""
+        """Asigna los aprobadores del equipo (solo Administrador).
+
+        Roles permitidos según el tipo de equipo:
+          - GTR: gerente, subgerente y/o jefe (al menos uno).
+          - JEFE: gerente y/o subgerente (al menos uno).
+          - SUBGERENTE: solo gerente.
+          - GERENTE: sin aprobadores.
+        """
         equipo = self.get_object()
-        if not puede_gestionar_miembros(request.user, equipo):
+        if not es_administrador(request.user):
             return Response(
-                {"detail": "Solo el líder del equipo (o administrador) puede asignar aprobadores."},
+                {"detail": "Solo el administrador puede asignar aprobadores."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         aprobadores = request.data.get("aprobadores")
         if not isinstance(aprobadores, list):
             return Response({"detail": "Debe enviar la lista 'aprobadores'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        permitidos = roles_aprobador_para(equipo.tipo_equipo)
+        if not permitidos:
+            return Response(
+                {"detail": "Un equipo de gerente no requiere aprobadores."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         por_rol = {}
         usuarios_usados = set()
@@ -603,9 +618,9 @@ class EquipoViewSet(ModelViewSet):
             if not isinstance(item, dict):
                 return Response({"detail": "Formato de aprobador inválido."}, status=status.HTTP_400_BAD_REQUEST)
             rol = (item.get("rol") or item.get("rol_aprobador") or "").upper().strip()
-            if rol not in ROLES_APROBADOR:
+            if rol not in permitidos:
                 return Response(
-                    {"detail": f"Rol inválido '{rol}'. Use: {', '.join(ROLES_APROBADOR)}."},
+                    {"detail": f"Rol '{rol}' no permitido para este equipo. Use: {', '.join(permitidos)}."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if rol in por_rol:
@@ -637,10 +652,9 @@ class EquipoViewSet(ModelViewSet):
             usuarios_usados.add(user_obj.id)
             por_rol[rol] = user_obj
 
-        faltantes = [r for r in ROLES_APROBADOR if r not in por_rol]
-        if faltantes:
+        if not por_rol:
             return Response(
-                {"detail": f"Debe asignar un aprobador por rol. Faltan: {', '.join(faltantes)}."},
+                {"detail": f"Debe asignar al menos un aprobador. Permitidos: {', '.join(permitidos)}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

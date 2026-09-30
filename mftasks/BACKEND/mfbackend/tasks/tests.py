@@ -948,3 +948,23 @@ class AprobacionPorEquipoTestCase(APITestCase):
         res = self.client.get(reverse("task-list"))
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn(self.tarea.id, {t["id"] for t in res.data})
+
+    def test_equipo_gerente_pasa_directo_a_revision_del_lider(self):
+        # Un equipo de gerente no tiene aprobadores: la tarea nace en fase LIDER.
+        equipo_ger = Equipo.objects.create(nombre="Equipo Ger AE", lider=self.gerente)
+        tarea_ger = Tarea.objects.create(
+            asunto="Solicitud gerente",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_ESPERA,
+            equipo=equipo_ger,
+        )
+        tarea_ger.refresh_from_db()
+        self.assertEqual(tarea_ger.paso_aprobacion, "LIDER")
+
+        self.client.force_authenticate(user=self.gerente)
+        res = self.client.post(reverse("task-aprobar", args=[tarea_ger.id]))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        tarea_ger.refresh_from_db()
+        self.assertEqual(tarea_ger.estado, Tarea.Estado.APROBADO)
+        self.assertEqual(tarea_ger.paso_aprobacion, "COMPLETADO")

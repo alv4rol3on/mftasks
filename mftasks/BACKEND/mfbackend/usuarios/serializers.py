@@ -284,8 +284,8 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user or not request.user.is_authenticated:
             return False
-        from .permissions import puede_gestionar_miembros
-        return puede_gestionar_miembros(request.user, obj)
+        from .permissions import es_administrador
+        return es_administrador(request.user)
 
 class EquipoCreateSerializer(serializers.ModelSerializer):
     lider = serializers.CharField(write_only=True)

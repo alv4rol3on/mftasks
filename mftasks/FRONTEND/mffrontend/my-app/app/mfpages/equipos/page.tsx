@@ -18,6 +18,22 @@ type Pendiente = { subtarea_id: number; descripcion: string; tarea_id: number; t
 
 type UsuarioLista = { id: number; codigo?: string; email: string; nombres: string; apellidos: string; roles?: string[]; is_active?: boolean; activo?: boolean };
 
+type RolAprobador = "GERENTE" | "SUBGERENTE" | "JEFE";
+
+// Roles de aprobador permitidos según el tipo de equipo (espejo de usuarios/jerarquia.py).
+const ROLES_APROBADOR_POR_TIPO: Record<string, RolAprobador[]> = {
+  GERENTE: [],
+  SUBGERENTE: ["GERENTE"],
+  JEFE: ["GERENTE", "SUBGERENTE"],
+  GTR: ["GERENTE", "SUBGERENTE", "JEFE"],
+};
+
+const rolesAprobadorPermitidos = (tipo?: string | null): RolAprobador[] =>
+  ROLES_APROBADOR_POR_TIPO[tipo ?? "GTR"] ?? ROLES_APROBADOR_POR_TIPO.GTR;
+
+const nombreRolAprobador = (rol: RolAprobador) =>
+  rol === "GERENTE" ? "Gerente" : rol === "SUBGERENTE" ? "Subgerente" : "Jefe";
+
 export default function EquiposPage() {
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -50,8 +66,10 @@ export default function EquiposPage() {
   const [modalCrear, setModalCrear] = useState(false);
   // modal asignar aprobadores
   const [modalAprobadores, setModalAprobadores] = useState<EquipoInfo | null>(null);
+  // modal de integrante (ajustes: sub-líder, inactivar, eliminar)
+  const [modalMiembro, setModalMiembro] = useState<{ equipo: EquipoInfo; miembro: EquipoMiembroDetallado } | null>(null);
   const [usuariosTodos, setUsuariosTodos] = useState<UsuarioLista[]>([]);
-  const [aprobadoresSel, setAprobadoresSel] = useState<{ GERENTE: string; SUBGERENTE: string; JEFE: string }>({ GERENTE: "", SUBGERENTE: "", JEFE: "" });
+  const [aprobadoresSel, setAprobadoresSel] = useState<Partial<Record<RolAprobador, string>>>({});
 
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
@@ -337,9 +355,11 @@ export default function EquiposPage() {
 
   const abrirModalAprobadores = async (equipo: EquipoInfo) => {
     setMensaje(null);
-    const inicial = { GERENTE: "", SUBGERENTE: "", JEFE: "" } as { GERENTE: string; SUBGERENTE: string; JEFE: string };
+    const permitidos = rolesAprobadorPermitidos(equipo.tipo_equipo);
+    const inicial: Partial<Record<RolAprobador, string>> = {};
+    for (const rol of permitidos) inicial[rol] = "";
     for (const a of equipo.aprobadores ?? []) {
-      const rol = a.rol_aprobador.toUpperCase() as keyof typeof inicial;
+      const rol = a.rol_aprobador.toUpperCase() as RolAprobador;
       if (rol in inicial) inicial[rol] = a.usuario.codigo ?? String(a.usuario.id);
     }
     setAprobadoresSel(inicial);
@@ -361,9 +381,10 @@ export default function EquiposPage() {
 
   const confirmarAprobadores = async () => {
     if (!modalAprobadores) return;
-    const faltan = (["GERENTE", "SUBGERENTE", "JEFE"] as const).filter((r) => !aprobadoresSel[r]);
-    if (faltan.length > 0) {
-      setMensaje(`Error: debes asignar un aprobador por rol. Faltan: ${faltan.join(", ")}.`);
+    const permitidos = rolesAprobadorPermitidos(modalAprobadores.tipo_equipo);
+    const seleccionados = permitidos.filter((r) => aprobadoresSel[r]);
+    if (seleccionados.length === 0) {
+      setMensaje(`Error: debes asignar al menos un aprobador (${permitidos.map(nombreRolAprobador).join(" o ")}).`);
       return;
     }
     setAccionando(`aprobadores-${modalAprobadores.id}`);
@@ -372,7 +393,7 @@ export default function EquiposPage() {
       await apiFetch(`/api/usuarios/equipos/${modalAprobadores.id}/aprobadores/`, {
         method: "POST",
         body: JSON.stringify({
-          aprobadores: (["GERENTE", "SUBGERENTE", "JEFE"] as const).map((rol) => ({
+          aprobadores: seleccionados.map((rol) => ({
             rol,
             codigo: aprobadoresSel[rol],
           })),
@@ -406,6 +427,12 @@ export default function EquiposPage() {
   };
 
   const esLiderDeEquipo = (equipo: EquipoInfo) => equipo.lider?.id === usuario?.id || esAdmin;
+
+  const liderActivoModal = (() => {
+    if (!modalMiembro) return false;
+    const lider = modalMiembro.equipo.miembros.find((m) => m.id_usuario === modalMiembro.equipo.lider?.id);
+    return lider?.estado === "ACTIVO";
+  })();
 
   const claseTipo = (tipo?: string | null) => {
     if (tipo === "GERENTE") return styles.tipoGerente;
@@ -688,15 +715,20 @@ export default function EquiposPage() {
                     <div className={styles.expandToolbar}>
                       <h4 className={styles.expandToolbarTitle}>Integrantes — {equipo.miembros.length} miembros</h4>
                       <div className={styles.expandToolbarActions}>
-                        {(soyLider || esAdmin) && (
+                        {esAdmin && (equipo.tipo_equipo ?? "GTR") !== "GERENTE" && (
                           <button
                             onClick={() => abrirModalAprobadores(equipo)}
                             disabled={!!accionando}
-                            title="Asignar un gerente, un subgerente y un jefe como aprobadores del equipo"
+                            title="Asignar los aprobadores del equipo según su tipo"
                             style={{ background: "#1d4ed8", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
                           >
                             Asignar aprobadores
                           </button>
+                        )}
+                        {(equipo.tipo_equipo ?? "GTR") === "GERENTE" && (
+                          <span style={{ fontSize: 12, color: "#6b7280" }}>
+                            Sin aprobadores (equipo de gerente)
+                          </span>
                         )}
                         {soyLider && (
                           <button
@@ -718,13 +750,12 @@ export default function EquiposPage() {
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Email</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Estado</th>
-                            {puedoGestionar && <th style={{ padding: "10px 12px", fontWeight: 600, minWidth: 260 }}>Acciones (solo líder)</th>}
                           </tr>
                         </thead>
                         <tbody>
                           {equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").length === 0 ? (
                             <tr>
-                              <td colSpan={puedoGestionar ? 5 : 4} style={{ padding: 16, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+                              <td colSpan={4} style={{ padding: 16, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
                                 Sin integrantes adicionales (solo líder)
                               </td>
                             </tr>
@@ -732,7 +763,12 @@ export default function EquiposPage() {
                             equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").map((m) => {
                               const esYo = m.id_usuario === usuario?.id;
                               return (
-                                <tr key={m.id} style={{ borderTop: "1px solid #f3f4f6", fontSize: 13, background: m.estado === "INACTIVO" ? "#fef2f2" : m.estado === "INDISPONIBLE" ? "#fffbeb" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1 }}>
+                                <tr
+                                  key={m.id}
+                                  onClick={() => { if (puedoGestionar) setModalMiembro({ equipo, miembro: m }); }}
+                                  title={puedoGestionar ? "Clic para gestionar al integrante" : undefined}
+                                  style={{ borderTop: "1px solid #f3f4f6", fontSize: 13, background: m.estado === "INACTIVO" ? "#fef2f2" : m.estado === "INDISPONIBLE" ? "#fffbeb" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1, cursor: puedoGestionar ? "pointer" : "default" }}
+                                >
                                   <td style={{ padding: "10px 12px" }}>
                                     <div style={{ fontWeight: 600, color: "#111827" }}>
                                       {m.nombres} {m.apellidos} {esYo && <span style={{ background: "#dbeafe", color: "#1e40af", padding: "1px 6px", borderRadius: 999, fontSize: 11, marginLeft: 6 }}>Tú</span>}
@@ -749,62 +785,6 @@ export default function EquiposPage() {
                                   <td style={{ padding: "10px 12px", color: "#374151", fontSize: 12 }}>{m.email}</td>
                                   <td style={{ padding: "10px 12px" }}>{badgeRol(m.rol_en_equipo)}</td>
                                   <td style={{ padding: "10px 12px" }}>{badgeEstado(m.estado)}</td>
-                                  {puedoGestionar && (
-                                    <td style={{ padding: "8px 12px" }}>
-                                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                        <button
-                                          onClick={() => handleToggleSubLider(equipo, m)}
-                                          disabled={!!accionando || !liderActivo || m.estado !== "ACTIVO"}
-                                          title={
-                                            !liderActivo
-                                              ? "No puedes gestionar el equipo porque el líder está inactivo"
-                                              : m.estado !== "ACTIVO"
-                                                ? "Solo miembros activos pueden ser sub-líder"
-                                                : "Otorgar/revocar SUB-LÍDER"
-                                          } style={{
-                                            background: m.rol_en_equipo === "SUB_LIDER" ? "#fef3c7" : "white",
-                                            color: m.rol_en_equipo === "SUB_LIDER" ? "#92400e" : "#374151",
-                                            border: `1px solid ${m.rol_en_equipo === "SUB_LIDER" ? "#f59e0b" : "#d1d5db"}`,
-                                            padding: "4px 8px",
-                                            borderRadius: 6,
-                                            cursor: m.estado !== "ACTIVO" ? "not-allowed" : "pointer",
-                                            fontSize: 11,
-                                            fontWeight: 600,
-                                            opacity: m.estado !== "ACTIVO" ? 0.5 : 1,
-                                          }}
-                                        >
-                                          {accionando === `${equipo.id}-rol-${m.id_usuario}` ? "…" : m.rol_en_equipo === "SUB_LIDER" ? "Revocar sub-líder" : "Hacer sub-líder"}
-                                        </button>
-
-                                        <button
-                                          onClick={() => handleCambiarEstadoConReasignacion(equipo, m, "INACTIVO")}
-                                          disabled={!!accionando || !liderActivo}
-                                          title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
-                                          style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
-                                        >
-                                          Eliminar del grupo
-                                        </button>
-
-                                        {m.estado !== "INDISPONIBLE" ? (
-                                          <button
-                                            onClick={() => abrirModalIndisponible(equipo.id, m)}
-                                            disabled={!!accionando || !liderActivo || m.estado === "INACTIVO"}
-                                            style={{ background: "white", color: "#92400e", border: "1px solid #fde68a", padding: "4px 8px", borderRadius: 6, cursor: m.estado === "INACTIVO" ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 600, opacity: m.estado === "INACTIVO" ? 0.5 : 1 }}
-                                          >
-                                            Inactivar
-                                          </button>
-                                        ) : (
-                                          <button
-                                            onClick={() => handleCambiarEstado(equipo, m, "ACTIVO")}
-                                            disabled={!!accionando}
-                                            style={{ background: "white", color: "#166534", border: "1px solid #86efac", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
-                                          >
-                                            Volver a activo
-                                          </button>
-                                        )}
-                                      </div>
-                                    </td>
-                                  )}
                                 </tr>
                               );
                             })
@@ -817,6 +797,115 @@ export default function EquiposPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de integrante */}
+      {modalMiembro && (
+        <div
+          onClick={() => setModalMiembro(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>
+                  {modalMiembro.miembro.nombres} {modalMiembro.miembro.apellidos}
+                </h3>
+                <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
+                  {modalMiembro.miembro.email} · {modalMiembro.miembro.cargo || "—"}
+                </p>
+              </div>
+              <button onClick={() => setModalMiembro(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#6b7280", lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              {badgeRol(modalMiembro.miembro.rol_en_equipo)}
+              {badgeEstado(modalMiembro.miembro.estado)}
+            </div>
+
+            {modalMiembro.miembro.estado === "INDISPONIBLE" && (modalMiembro.miembro.fecha_inicio_indisponibilidad || modalMiembro.miembro.motivo_indisponibilidad) && (
+              <div style={{ fontSize: 12, color: "#92400e", marginTop: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: 8 }}>
+                {modalMiembro.miembro.motivo_indisponibilidad ? `Motivo: ${modalMiembro.miembro.motivo_indisponibilidad}` : ""}
+                {modalMiembro.miembro.fecha_inicio_indisponibilidad ? ` • ${modalMiembro.miembro.fecha_inicio_indisponibilidad}` : ""}
+                {modalMiembro.miembro.fecha_fin_indisponibilidad ? ` → ${modalMiembro.miembro.fecha_fin_indisponibilidad}` : ""}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+              <button
+                onClick={() => {
+                  const { equipo, miembro } = modalMiembro;
+                  setModalMiembro(null);
+                  handleToggleSubLider(equipo, miembro);
+                }}
+                disabled={!!accionando || !liderActivoModal || modalMiembro.miembro.estado !== "ACTIVO"}
+                title={
+                  !liderActivoModal
+                    ? "No puedes gestionar el equipo porque el líder está inactivo"
+                    : modalMiembro.miembro.estado !== "ACTIVO"
+                      ? "Solo miembros activos pueden ser sub-líder"
+                      : "Otorgar/revocar SUB-LÍDER"
+                }
+                style={{
+                  background: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "#fef3c7" : "white",
+                  color: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "#92400e" : "#374151",
+                  border: `1px solid ${modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "#f59e0b" : "#d1d5db"}`,
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  cursor: modalMiembro.miembro.estado !== "ACTIVO" ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  opacity: modalMiembro.miembro.estado !== "ACTIVO" ? 0.5 : 1,
+                }}
+              >
+                {modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "Revocar sub-líder" : "Hacer sub-líder"}
+              </button>
+
+              {modalMiembro.miembro.estado === "INDISPONIBLE" || modalMiembro.miembro.estado === "INACTIVO" ? (
+                <button
+                  onClick={() => {
+                    const { equipo, miembro } = modalMiembro;
+                    setModalMiembro(null);
+                    handleCambiarEstado(equipo, miembro, "ACTIVO");
+                  }}
+                  disabled={!!accionando || !liderActivoModal}
+                  style={{ background: "white", color: "#166534", border: "1px solid #86efac", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                >
+                  Volver a activo
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    const { equipo, miembro } = modalMiembro;
+                    setModalMiembro(null);
+                    abrirModalIndisponible(equipo.id, miembro);
+                  }}
+                  disabled={!!accionando || !liderActivoModal}
+                  style={{ background: "white", color: "#92400e", border: "1px solid #fde68a", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                >
+                  Inactivar (indisponible)
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  const { equipo, miembro } = modalMiembro;
+                  setModalMiembro(null);
+                  handleCambiarEstadoConReasignacion(equipo, miembro, "INACTIVO");
+                }}
+                disabled={!!accionando || !liderActivoModal}
+                title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
+                style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+              >
+                Eliminar del grupo
+              </button>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+              <button onClick={() => setModalMiembro(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1050,12 +1139,17 @@ export default function EquiposPage() {
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Asignar aprobadores</h3>
+            <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
+              {rolesAprobadorPermitidos(modalAprobadores.tipo_equipo).length === 1
+                ? "Solo se permite un aprobador para este tipo de equipo."
+                : "Asigna al menos uno de los roles permitidos."}
+            </p>
 
-            {(["GERENTE", "SUBGERENTE", "JEFE"] as const).map((rol) => (
+            {rolesAprobadorPermitidos(modalAprobadores.tipo_equipo).map((rol) => (
               <label key={rol} style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151", marginTop: 12 }}>
-                {rol === "GERENTE" ? "Gerente" : rol === "SUBGERENTE" ? "Subgerente" : "Jefe"}
+                {nombreRolAprobador(rol)}
                 <select
-                  value={aprobadoresSel[rol]}
+                  value={aprobadoresSel[rol] ?? ""}
                   onChange={(e) => setAprobadoresSel((prev) => ({ ...prev, [rol]: e.target.value }))}
                   style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
                 >

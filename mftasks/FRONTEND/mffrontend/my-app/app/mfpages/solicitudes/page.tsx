@@ -10,14 +10,6 @@ import { getUsuarioActual } from "@/lib/auth";
 import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
 import type { EquipoInfo } from "@/lib/types";
 
-const ESTADOS = ["EN_ESPERA"] as const;
-
-function etiquetaEstado(estado: string): string {
-  if (estado === "EN_ESPERA") return "EN_ESPERA";
-  if (estado === "EN_ESPERA") return "EN_ESPERA";
-  return estado;
-}
-
 export default function SolicitudesPage() {
   const router = useRouter();
   const [tareas, setTareas] = useState<Task[]>([]);
@@ -67,11 +59,11 @@ export default function SolicitudesPage() {
 
   const cargar = useCallback(() => {
     setCargando(true);
-    apiFetch<Task[]>("/api/tasks/tasks/")
+    apiFetch<Task[]>("/api/tasks/tasks/?estado=EN_ESPERA")
       .then((data) => {
         setError(null);
-        // Todas las solicitudes visibles (el backend ya limita por alcance),
-        // orden más reciente primero.
+        // La bandeja de solicitudes solo muestra las que están EN_ESPERA
+        // (el backend ya filtra por estado; orden más reciente primero).
         const ordenadas = [...data].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime());
         setTareas(ordenadas);
       })
@@ -131,7 +123,7 @@ export default function SolicitudesPage() {
     return tareas.filter((t) => {
       const coincideEstado =
         filtroEstado === "EN_ESPERA"
-          ? true
+          ? t.estado === "EN_ESPERA"
           : filtroEstado === "EN_PROCESO"
             ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
             : t.estado === filtroEstado;

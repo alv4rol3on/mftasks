@@ -7,11 +7,11 @@ import { getUsuarioActual } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import SubtaskCountdown from "./SubtaskCountdown";
 import TaskIniciarModal from "./TaskIniciarModal";
-import Pagination from "../ui/Pagination";
 import AdjuntosTarea from "../adjuntos/AdjuntosTarea";
 import { useContador } from "./ContadoresProvider";
 import { formatearTiempo } from "@/lib/tiempoLaboral";
 import TaskStateSection from "./TaskModalComponents/TaskStateSection";
+import HistorialTarea from "./HistorialTarea";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima",
@@ -22,39 +22,11 @@ const formatter = new Intl.DateTimeFormat("es-PE", {
     minute: "2-digit",
 });
 
-const formatterSec = new Intl.DateTimeFormat("es-PE", {
-    timeZone: "America/Lima",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-});
-
 const formatearFecha = (fecha: string | null | undefined) => {
     if (!fecha) return "-";
     const date = new Date(fecha);
     if (isNaN(date.getTime())) return "-";
     return formatter.format(date);
-};
-
-const formatearFechaSec = (fecha: string | null | undefined) => {
-    if (!fecha) return "-";
-    const date = new Date(fecha);
-    if (isNaN(date.getTime())) return "-";
-    return formatterSec.format(date);
-};
-
-const ETIQUETAS_EVENTO: Record<string, string> = {
-    CREACION: "Creación",
-    INICIO: "Inicio",
-    CAMBIO_ESTADO: "Cambio de estado",
-    STANDBY_INICIO: "Inicio de pausa",
-    STANDBY_FIN: "Fin de pausa",
-    FIN: "Fin",
-    CAMBIO_ASIGNADO: "Reasignación",
-    CAMBIO_PROGRESO: "Cambio de progreso",
 };
 
 type Props = {
@@ -86,19 +58,6 @@ type Props = {
     onTareaMutated?: () => void | Promise<void>;
 };
 
-interface LogItem {
-    id: number;
-    tipo_evento: string;
-    estado_anterior: string | null;
-    estado_nuevo: string | null;
-    fecha: string;
-    detalle: string;
-    usuario: string | null;
-    subtarea_id: number | null;
-    subtarea_codigo: string | null;
-    subtarea_descripcion: string | null;
-}
-
 type TabKey = "progreso" | "historial" | "asignaciones";
 
 export default function TaskModal({
@@ -121,14 +80,10 @@ export default function TaskModal({
     const [depBloqueadora, setDepBloqueadora] = useState<number | "">("");
     const [depMsg, setDepMsg] = useState<string | null>(null);
     const [tab, setTab] = useState<TabKey>("progreso");
-    const [logs, setLogs] = useState<LogItem[] | null>(null);
-    const [logsError, setLogsError] = useState<string | null>(null);
-    const [logsLoading, setLogsLoading] = useState(false);
     const [mostrarIniciar, setMostrarIniciar] = useState(false);
     const contadorTarea = useContador(tarea?.id ?? -1);
-    const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
-    const [paginaHist, setPaginaHist] = useState(1);
-    const histPageSize = 10;
+    // Se incrementa para forzar recarga del historial tras cambios en asignaciones.
+    const [histVersion, setHistVersion] = useState(0);
 
     // Asignaciones tab state
     const [miembros, setMiembros] = useState<EquipoMiembroDetallado[]>([]);
@@ -158,20 +113,6 @@ export default function TaskModal({
 
     const usuario = getUsuarioActual();
 
-    const cargarLogs = async () => {
-        if (!tarea) return;
-        setLogsLoading(true);
-        setLogsError(null);
-        try {
-            const data = await apiFetch<LogItem[]>(`/api/tasks/tasks/${tarea.id}/logs/`);
-            setLogs(data);
-        } catch (e) {
-            setLogsError((e as Error).message);
-        } finally {
-            setLogsLoading(false);
-        }
-    };
-
     const cargarMiembros = async () => {
         if (!tarea) return;
         setMiembrosLoading(true);
@@ -190,21 +131,14 @@ export default function TaskModal({
     };
 
     useEffect(() => {
-        if (tab === "historial" && tarea && logs === null && !logsLoading) {
-            cargarLogs();
-        }
         if (tab === "asignaciones" && tarea && miembros.length === 0 && !miembrosLoading && !miembrosError) {
             cargarMiembros();
         }
     }, [tab, tarea?.id]);
 
-    // reset logs cuando cambia tarea
+    // reset al cambiar de tarea
     useEffect(() => {
-        setLogs(null);
-        setLogsError(null);
         setTab("progreso");
-        setExpandedLogs(new Set());
-        setPaginaHist(1);
         setMiembros([]);
         setLiderInfo(null);
         setMiembrosError(null);
@@ -215,18 +149,6 @@ export default function TaskModal({
         setReanudarErr(null);
         setResumeMode("continuar");
     }, [tarea?.id]);
-
-    useEffect(() => {
-        setPaginaHist(1);
-    }, [tab]);
-
-    const logsPaginados = useMemo(() => {
-        if (!logs) return [];
-        const start = (paginaHist - 1) * histPageSize;
-        return logs.slice(start, start + histPageSize);
-    }, [logs, paginaHist]);
-
-    const totalHistPages = logs ? Math.max(1, Math.ceil(logs.length / histPageSize)) : 1;
 
     const agregarDependencia = async () => {
         if (!tarea || depBloqueada === "" || depBloqueadora === "") { setDepMsg("Selecciona ambas subtareas"); return; }
@@ -276,7 +198,7 @@ export default function TaskModal({
                 return n;
             });
             setAsigMsg(`${guardadas.size} subtarea(s) reasignada(s)`);
-            setLogs(null);
+            setHistVersion(v => v + 1);
         }
         if (fallos.length > 0) setAsigErr(fallos.join(" | "));
         try {
@@ -300,7 +222,7 @@ export default function TaskModal({
                 await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/inactivar/`, { method: "POST" });
             }
             setAsigMsg(`Subtarea #${subtareaId} inactivada`);
-            setLogs(null);
+            setHistVersion(v => v + 1);
             if (onTareaMutated) await onTareaMutated();
             else window.location.reload();
         } catch (e) {
@@ -321,7 +243,7 @@ export default function TaskModal({
                 await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${subtareaId}/reactivar/`, { method: "POST" });
             }
             setAsigMsg(`Subtarea #${subtareaId} reactivada`);
-            setLogs(null);
+            setHistVersion(v => v + 1);
             if (onTareaMutated) await onTareaMutated();
             else window.location.reload();
         } catch (e) {
@@ -663,89 +585,9 @@ export default function TaskModal({
                                         </div>
                                     )}
 
-                                    {tarea.estado !== "SOLUCIONADO" ? (
-                                        <>
-                                            {subtareasProgreso.length > 1 && tarea.puedo_operar && (
-                                                <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
-                                                    <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Crear dependencia</h4>
-                                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
-                                                        <select value={depBloqueada} onChange={e => { const v = e.target.value ? Number(e.target.value) : ""; setDepBloqueada(v); if (v !== "" && v === depBloqueadora) setDepBloqueadora(""); }} className={styles.inputField} style={{ minWidth: 160 }}>
-                                                            <option value="">-- subtarea --</option>
-                                                            {subtareasProgreso.filter(s => s.id !== depBloqueadora).map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
-                                                        </select>
-                                                        <span style={{ paddingBottom: 8 }}>depende de</span>
-                                                        <select value={depBloqueadora} onChange={e => { const v = e.target.value ? Number(e.target.value) : ""; setDepBloqueadora(v); if (v !== "" && v === depBloqueada) setDepBloqueada(""); }} className={styles.inputField} style={{ minWidth: 160 }}>
-                                                            <option value="">-- subtarea --</option>
-                                                            {subtareasProgreso.filter(s => s.id !== depBloqueada).map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
-                                                        </select>
-                                                        <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize: 12 }}>Agregar</button>
-                                                    </div>
-                                                    {depMsg && <p style={{ fontSize: 12, color: depMsg.includes("creada") ? "#166534" : "#991b1b", margin: "8px 0 0" }}>{depMsg}</p>}
-                                                </div>
-                                            )}
-                                        </>
-
-                                    ) : (
-                                        <div></div>
-                                    )}
                                 </>
                             ) : tab === "historial" ? (
-                                <div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                                        <h3 style={{ margin: 0 }}>Historial de la tarea</h3>
-                                        <button onClick={cargarLogs} disabled={logsLoading} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{logsLoading ? "Cargando..." : "Recargar"}</button>
-                                    </div>
-                                    {logsError && <p style={{ color: "#991b1b", fontSize: 12 }}>{logsError}</p>}
-                                    {logsLoading && !logs && <p style={{ fontSize: 12 }}>Cargando logs...</p>}
-                                    {logs && logs.length === 0 && <p style={{ fontSize: 12, color: "#6b7280" }}>Sin registros.</p>}
-                                    {logs && logs.length > 0 && (
-                                        <div className={styles.historialContainer}>
-                                            <table className={`${styles.subtareasTable} ${styles.historialTable}`}>
-                                                <thead>
-                                                    <tr>
-                                                        <th>Fecha</th>
-                                                        <th>Usuario</th>
-                                                        <th>Evento</th>
-                                                        <th>Detalle</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {logsPaginados.map((l) => {
-                                                        const expanded = expandedLogs.has(l.id);
-                                                        const detalle = l.detalle || `${l.estado_anterior ?? ""} → ${l.estado_nuevo ?? ""}`;
-                                                        const necesitaClamp = detalle.length > 120;
-                                                        return (
-                                                            <tr key={l.id}>
-                                                                <td data-label="Fecha">{formatearFechaSec(l.fecha)}</td>
-                                                                <td data-label="Usuario">{l.usuario ?? "-"}</td>
-                                                                <td data-label="Evento"><span title={l.tipo_evento} style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{ETIQUETAS_EVENTO[l.tipo_evento] ?? l.tipo_evento}</span>{l.subtarea_id ? <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>{l.subtarea_codigo ?? `Sub #${l.subtarea_id}`}</div> : null}</td>
-                                                                <td data-label="Detalle">
-                                                                    <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>{detalle}</div>
-                                                                    {necesitaClamp && (
-                                                                        <button
-                                                                            type="button"
-                                                                            className={styles.historialToggle}
-                                                                            onClick={() => setExpandedLogs(prev => {
-                                                                                const n = new Set(prev);
-                                                                                if (n.has(l.id)) n.delete(l.id); else n.add(l.id);
-                                                                                return n;
-                                                                            })}
-                                                                        >
-                                                                            {expanded ? "Ver menos" : "Ver más"}
-                                                                        </button>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                    {logs && logs.length > histPageSize && (
-                                        <Pagination page={paginaHist} totalPages={totalHistPages} totalItems={logs.length} pageSize={histPageSize} onPageChange={setPaginaHist} />
-                                    )}
-                                </div>
+                                <HistorialTarea key={`${tarea.id}-${histVersion}`} tareaId={tarea.id} />
                             ) : (
                                 <div>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -762,7 +604,7 @@ export default function TaskModal({
                                             </button>
                                         </div>
                                     </div>
-                                    <p style={{ fontSize: 11, color: "#6b7280", marginTop: -4, marginBottom: 8 }}>Cambia el asignado o inactiva subtareas. Solo líder / asignador / admin. Las inactivas no cuentan en progreso.</p>
+                                    <p style={{ fontSize: 11, color: "#6b7280", marginTop: -4, marginBottom: 8 }}>Cambia el asignado, inactiva subtareas o crea dependencias entre ellas. Solo líder / asignador / admin. Las inactivas no cuentan en progreso.</p>
                                     {miembrosError && <p style={{ color: "#991b1b", fontSize: 12 }}>{miembrosError}</p>}
                                     {asigErr && <p style={{ color: "#991b1b", fontSize: 12, background: "#fee2e2", padding: "6px 8px", borderRadius: 6 }}>{asigErr}</p>}
                                     {asigMsg && <p style={{ color: "#166534", fontSize: 12, background: "#dcfce7", padding: "6px 8px", borderRadius: 6 }}>{asigMsg}</p>}
@@ -839,6 +681,25 @@ export default function TaskModal({
                                                     })}
                                                 </tbody>
                                             </table>
+                                        </div>
+                                    )}
+
+                                    {subtareasProgreso.length > 1 && tarea.puedo_operar && (
+                                        <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
+                                            <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Crear dependencia</h4>
+                                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
+                                                <select value={depBloqueada} onChange={e => { const v = e.target.value ? Number(e.target.value) : ""; setDepBloqueada(v); if (v !== "" && v === depBloqueadora) setDepBloqueadora(""); }} className={styles.inputField} style={{ minWidth: 160 }}>
+                                                    <option value="">-- subtarea --</option>
+                                                    {subtareasProgreso.filter(s => s.id !== depBloqueadora).map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                                </select>
+                                                <span style={{ paddingBottom: 8 }}>depende de</span>
+                                                <select value={depBloqueadora} onChange={e => { const v = e.target.value ? Number(e.target.value) : ""; setDepBloqueadora(v); if (v !== "" && v === depBloqueada) setDepBloqueada(""); }} className={styles.inputField} style={{ minWidth: 160 }}>
+                                                    <option value="">-- subtarea --</option>
+                                                    {subtareasProgreso.filter(s => s.id !== depBloqueada).map(s => <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>)}
+                                                </select>
+                                                <button onClick={agregarDependencia} className={`${styles.btn} ${styles.btnYes}`} style={{ fontSize: 12 }}>Agregar</button>
+                                            </div>
+                                            {depMsg && <p style={{ fontSize: 12, color: depMsg.includes("creada") ? "#166534" : "#991b1b", margin: "8px 0 0" }}>{depMsg}</p>}
                                         </div>
                                     )}
                                 </div>

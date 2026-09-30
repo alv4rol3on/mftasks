@@ -273,10 +273,14 @@ class EquipoMiembro(models.Model):
 
 
 class EquipoAprobador(models.Model):
-    """Aprobadores asignados a un equipo: exactamente uno por rol global.
+    """Aprobadores asignados a un equipo: máximo uno por rol global.
 
     Cualquiera de ellos puede resolver la fase de aprobación de una solicitud;
     luego pasa a revisión del líder del equipo.
+
+    Los roles permitidos dependen del tipo de equipo (ver jerarquia.py):
+    el equipo GTR admite gerente/subgerente/jefe; el de jefe, gerente/subgerente;
+    el de subgerente, solo gerente; y el de gerente no requiere aprobadores.
     """
 
     class RolAprobador(models.TextChoices):
@@ -318,6 +322,24 @@ class EquipoAprobador(models.Model):
             models.Index(fields=["equipo"]),
             models.Index(fields=["usuario"]),
         ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        from .jerarquia import roles_aprobador_para
+
+        super().clean()
+        if self.equipo_id and self.rol_aprobador:
+            permitidos = roles_aprobador_para(getattr(self.equipo, "tipo_equipo", None))
+            if self.rol_aprobador not in permitidos:
+                raise ValidationError(
+                    {
+                        "rol_aprobador": (
+                            f"El rol {self.rol_aprobador} no está permitido para un "
+                            f"{self.equipo.get_tipo_equipo_display()}. "
+                            f"Permitidos: {', '.join(permitidos) or 'ninguno'}."
+                        )
+                    }
+                )
 
     def __str__(self):
         return f"{self.equipo} - {self.rol_aprobador}: {self.usuario}"

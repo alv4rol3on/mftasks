@@ -129,6 +129,12 @@ class Tarea(models.Model):
         ]
 
     def save(self, *args, **kwargs):
+        # Un equipo de gerente no tiene aprobadores: la solicitud nace directamente
+        # en revisión del líder (el propio gerente).
+        if self._state.adding and self.equipo_id:
+            tipo = getattr(self.equipo, "tipo_equipo", None)
+            if tipo == "GERENTE" and self.estado == self.Estado.EN_ESPERA:
+                self.paso_aprobacion = self.PasoAprobacion.LIDER
         if not self.ticket:
             from django.utils import timezone
             from django.db import transaction

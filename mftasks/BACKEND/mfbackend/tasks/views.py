@@ -411,16 +411,17 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Fase de aprobadores: se exige que el equipo tenga los 3 roles asignados.
+        # Fase de aprobadores: el equipo debe tener al menos un aprobador de
+        # los roles permitidos para su tipo de equipo.
         if paso_actual == Tarea.PasoAprobacion.APROBADORES:
-            from usuarios.jerarquia import ROLES_APROBADOR
+            from usuarios.jerarquia import roles_aprobador_para
+            permitidos = roles_aprobador_para(tarea.equipo.tipo_equipo)
             roles_asignados = set(
                 tarea.equipo.aprobadores.values_list("rol_aprobador", flat=True)
             )
-            faltantes = [r for r in ROLES_APROBADOR if r not in roles_asignados]
-            if faltantes:
+            if not permitidos or not (roles_asignados & set(permitidos)):
                 return Response(
-                    {"detail": "El equipo no tiene aprobadores configurados. El líder debe asignar un gerente, un subgerente y un jefe."},
+                    {"detail": "El equipo no tiene aprobadores configurados. El administrador debe asignar un aprobador válido para este equipo."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

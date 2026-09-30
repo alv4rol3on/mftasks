@@ -45,6 +45,26 @@ ROL_INTEGRANTE_POR_TIPO = {
 # Roles que un equipo debe tener asignados como aprobadores (uno de cada).
 ROLES_APROBADOR = ("GERENTE", "SUBGERENTE", "JEFE")
 
+# Roles de aprobador permitidos según el tipo de equipo (el líder del equipo).
+#   EQUIPO GTR        -> cualquiera (gerente, subgerente o jefe), mínimo uno.
+#   EQUIPO DE JEFE    -> gerente y/o subgerente.
+#   EQUIPO DE SUBGTE. -> solo gerente.
+#   EQUIPO DE GERENTE -> sin aprobadores.
+ROLES_APROBADOR_POR_TIPO = {
+    "GERENTE": (),
+    "SUBGERENTE": ("GERENTE",),
+    "JEFE": ("GERENTE", "SUBGERENTE"),
+    "GTR": ("GERENTE", "SUBGERENTE", "JEFE"),
+}
+
+
+def roles_aprobador_para(tipo_equipo):
+    """Roles de aprobador permitidos para un tipo de equipo.
+
+    Devuelve una tupla vacía si el tipo no requiere aprobadores (equipo de gerente).
+    """
+    return ROLES_APROBADOR_POR_TIPO.get(tipo_equipo, ROLES_APROBADOR_POR_TIPO["GTR"])
+
 
 def nombre_nivel(nivel):
     """Etiqueta legible de un rol de la jerarquía."""
