@@ -2,5 +2,5 @@
 - Nueva pestaña exclusiva de administrador "Centro de solicitudes" donde puede buscar cualquier solicitud previa
 - Borrar el rol ASISTENTE, se desconoce su uso
 - el miembro de equipo que es sublider no esta recibiendo correos
-- boton recargar para bandeja de solicitudes
 - los equipos en los que "Eres aprobador" tambien deberia aparecer bajo el filtro "solo mis equipos"
+- reestructurar los roles para ser administrables: poder crear roles y poder ordenarlo jerarquicamente

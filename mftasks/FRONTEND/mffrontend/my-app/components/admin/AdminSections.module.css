@@ -12,48 +12,32 @@
 
 .tabs {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 20px;
+  gap: 8px;
   border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .tabBtn {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: #6b7280;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 8px 8px 0 0;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  position: relative;
-}
-
-.tabBtn:hover {
-  background: #f3f4f6;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
   color: #374151;
+  cursor: pointer;
+  text-transform: capitalize;
+  font-size: 13px;
 }
 
 .tabBtnActive {
-  color: #111827;
-  font-weight: 600;
-  background: #f3f4f6;
-}
-
-.tabBtnActive::after {
-  content: "";
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -1px;
-  height: 2px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #111827;
   background: #111827;
-  border-radius: 2px 2px 0 0;
+  color: white;
+  cursor: pointer;
+  text-transform: capitalize;
+  font-size: 13px;
 }
 
 .msg {
