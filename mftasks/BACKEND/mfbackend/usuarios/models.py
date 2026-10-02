@@ -9,10 +9,28 @@ from datetime import time
 from .managers import UserManager
 
 
+class TipoUsuario(models.TextChoices):
+    """Comportamiento general y navegación del usuario.
+
+    Independiente del rol jerárquico: solo COLABORADOR requiere un Rol.
+    """
+
+    COLABORADOR = "COLABORADOR", "Colaborador"
+    CLIENTE = "CLIENTE", "Cliente"
+    ADMINISTRADOR = "ADMINISTRADOR", "Administrador"
+
+
 class User(AbstractUser):
     username = None
 
     email = models.EmailField(unique=True)
+
+    tipo_usuario = models.CharField(
+        max_length=20,
+        choices=TipoUsuario.choices,
+        default=TipoUsuario.COLABORADOR,
+        db_index=True,
+    )
 
     nombres = models.CharField(max_length=150)
     apellidos = models.CharField(max_length=150)
@@ -72,6 +90,23 @@ class Rol(models.Model):
 
     activo = models.BooleanField(default=True)
 
+    superior = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="subordinados",
+        null=True,
+        blank=True,
+        help_text=(
+            "Rol superior directo que aprueba las solicitudes de este rol. "
+            "Vacío en el rol raíz de la organización."
+        ),
+    )
+
+    puede_liderar = models.BooleanField(
+        default=False,
+        help_text="Si está activo, los usuarios con este rol pueden ser líderes de un equipo.",
+    )
+
     class Meta:
         constraints = [
             UniqueConstraint(Lower("nombre"), name="rol_nombre_unique_lower"),
@@ -79,6 +114,31 @@ class Rol(models.Model):
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.pk and self.superior_id == self.pk:
+            raise ValidationError(
+                {"superior": "Un rol no puede ser su propio superior."}
+            )
+        # Detectar ciclos recorriendo la cadena de superiores.
+        visitados = set()
+        actual = self.superior
+        while actual is not None:
+            if actual.pk == self.pk:
+                raise ValidationError(
+                    {
+                        "superior": (
+                            "La relación de aprobación no puede contener ciclos."
+                        )
+                    }
+                )
+            if actual.pk in visitados:
+                break
+            visitados.add(actual.pk)
+            actual = actual.superior
 
 
 class UserRol(models.Model):
@@ -130,7 +190,19 @@ class Equipo(models.Model):
         choices=TipoEquipo.choices,
         default=TipoEquipo.GTR,
         db_index=True,
-        help_text="Derivado del rol del líder del equipo.",
+        help_text=(
+            "[DEPRECADO] Espejo del nombre del rol del líder. "
+            "La fuente de verdad es rol_equipo."
+        ),
+    )
+
+    rol_equipo = models.ForeignKey(
+        Rol,
+        on_delete=models.PROTECT,
+        related_name="equipos",
+        null=True,
+        blank=True,
+        help_text="Rol del líder que determina la cadena de aprobación del equipo.",
     )
 
     activo = models.BooleanField(default=True)
@@ -150,7 +222,7 @@ class Equipo(models.Model):
 
     def save(self, *args, **kwargs):
         from django.db import transaction
-        from .jerarquia import nivel_efectivo
+        from .jerarquia import rol_efectivo
 
         is_new = self._state.adding
         old_lider_id = None
@@ -161,14 +233,15 @@ class Equipo(models.Model):
             except Equipo.DoesNotExist:
                 old_lider_id = None
 
-        # tipo_equipo derivado del rol del líder
+        # rol_equipo (fuente de verdad) y tipo_equipo (espejo) derivados del líder
         if self.lider_id:
             try:
-                nivel = nivel_efectivo(self.lider)
+                rol = rol_efectivo(self.lider)
             except Exception:
-                nivel = None
-            if nivel in self.TipoEquipo.values:
-                self.tipo_equipo = nivel
+                rol = None
+            if rol is not None:
+                self.rol_equipo = rol
+                self.tipo_equipo = rol.nombre
 
         with transaction.atomic():
             super().save(*args, **kwargs)
@@ -283,11 +356,6 @@ class EquipoAprobador(models.Model):
     el de subgerente, solo gerente; y el de gerente no requiere aprobadores.
     """
 
-    class RolAprobador(models.TextChoices):
-        GERENTE = "GERENTE", "Gerente"
-        SUBGERENTE = "SUBGERENTE", "Subgerente"
-        JEFE = "JEFE", "Jefe"
-
     equipo = models.ForeignKey(
         Equipo,
         on_delete=models.CASCADE,
@@ -300,19 +368,20 @@ class EquipoAprobador(models.Model):
         related_name="equipos_como_aprobador",
     )
 
-    rol_aprobador = models.CharField(
-        max_length=20,
-        choices=RolAprobador.choices,
+    rol_aprobador = models.ForeignKey(
+        Rol,
+        on_delete=models.PROTECT,
+        related_name="equipos_aprobador",
+        null=True,
+        help_text="Rol de la cadena de aprobación que ocupa este usuario en el equipo.",
     )
 
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
-            UniqueConstraint(
-                fields=["equipo", "rol_aprobador"],
-                name="unico_aprobador_por_rol",
-            ),
+            # Se permite más de un aprobador por rol; solo se impide repetir
+            # el mismo usuario en el equipo.
             UniqueConstraint(
                 fields=["equipo", "usuario"],
                 name="unico_usuario_aprobador_por_equipo",
@@ -325,18 +394,19 @@ class EquipoAprobador(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        from .jerarquia import roles_aprobador_para
+        from .jerarquia import roles_aprobador_de_equipo
 
         super().clean()
-        if self.equipo_id and self.rol_aprobador:
-            permitidos = roles_aprobador_para(getattr(self.equipo, "tipo_equipo", None))
-            if self.rol_aprobador not in permitidos:
+        if self.equipo_id and self.rol_aprobador_id:
+            permitidos = roles_aprobador_de_equipo(self.equipo)
+            ids_permitidos = {r.pk for r in permitidos}
+            if self.rol_aprobador_id not in ids_permitidos:
+                nombres = ", ".join(r.nombre for r in permitidos) or "ninguno"
                 raise ValidationError(
                     {
                         "rol_aprobador": (
-                            f"El rol {self.rol_aprobador} no está permitido para un "
-                            f"{self.equipo.get_tipo_equipo_display()}. "
-                            f"Permitidos: {', '.join(permitidos) or 'ninguno'}."
+                            f"El rol {self.rol_aprobador} no está permitido para este "
+                            f"equipo. Permitidos: {nombres}."
                         )
                     }
                 )

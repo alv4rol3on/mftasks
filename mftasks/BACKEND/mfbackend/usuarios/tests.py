@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
+from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -20,7 +22,9 @@ def _crear_usuario(email, nombres="X", apellidos="Y"):
 
 
 def _asignar_rol(user, nombre):
-    rol, _ = Rol.objects.get_or_create(nombre=nombre)
+    rol = Rol.objects.filter(nombre__iexact=nombre).first()
+    if rol is None:
+        rol = Rol.objects.create(nombre=nombre)
     return UserRol.objects.get_or_create(usuario=user, rol=rol)
 
 
@@ -418,9 +422,27 @@ class AsignarAprobadoresTestCase(APITestCase):
         ])
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(
-            set(self.equipo.aprobadores.values_list("rol_aprobador", flat=True)),
+            set(self.equipo.aprobadores.values_list("rol_aprobador__nombre", flat=True)),
             {"GERENTE", "SUBGERENTE", "JEFE"},
         )
+
+    def test_permite_varios_aprobadores_del_mismo_rol(self):
+        self.client.force_authenticate(user=self.admin)
+        otro_jefe = _crear_usuario("otrojefeap@empresa.com")
+        _asignar_rol(otro_jefe, "JEFE")
+        res = self._post(self.equipo, [
+            {"rol": "JEFE", "codigo": self.jefe.codigo},
+            {"rol": "JEFE", "codigo": otro_jefe.codigo},
+        ])
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(self.equipo.aprobadores.count(), 2)
+
+    def test_no_permite_administrador_como_aprobador(self):
+        self.client.force_authenticate(user=self.admin)
+        admin2 = _crear_usuario("admin2ap@empresa.com")
+        _asignar_rol(admin2, "Administrador")
+        res = self._post(self.equipo, [{"rol": "JEFE", "codigo": admin2.codigo}])
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_sin_aprobadores_rechaza(self):
         self.client.force_authenticate(user=self.admin)
@@ -458,7 +480,7 @@ class AsignarAprobadoresTestCase(APITestCase):
         res = self._post(self.equipo_sub, [{"rol": "GERENTE", "codigo": self.gerente.codigo}])
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(
-            set(self.equipo_sub.aprobadores.values_list("rol_aprobador", flat=True)),
+            set(self.equipo_sub.aprobadores.values_list("rol_aprobador__nombre", flat=True)),
             {"GERENTE"},
         )
 
@@ -605,3 +627,97 @@ class AgregarMiembroRolesTestCase(APITestCase):
         )
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class JerarquiaDinamicaTestCase(TestCase):
+    """La jerarquía se deriva de Rol.superior, sin niveles numéricos."""
+
+    def _rol(self, nombre):
+        return Rol.objects.get(nombre__iexact=nombre)
+
+    def test_cadena_aprobacion_gtr(self):
+        from .jerarquia import cadena_aprobacion
+
+        cadena = [r.nombre.upper() for r in cadena_aprobacion(self._rol("GTR"))]
+        self.assertEqual(cadena, ["JEFE", "SUBGERENTE", "GERENTE"])
+
+    def test_cadena_no_persiste_herencia(self):
+        # La herencia se calcula; solo se almacena la relación directa.
+        gtr = self._rol("GTR")
+        self.assertEqual(gtr.superior.nombre.upper(), "JEFE")
+        self.assertEqual(gtr.subordinados.count(), 1)
+        self.assertEqual(gtr.subordinados.first().nombre.upper(), "MIEMBRO")
+
+    def test_roles_al_mismo_nivel_heredan_misma_cadena(self):
+        from .jerarquia import cadena_aprobacion
+
+        jefe_chain = [r.nombre.upper() for r in cadena_aprobacion(self._rol("Jefe"))]
+        coordinador_chain = [
+            r.nombre.upper() for r in cadena_aprobacion(self._rol("Coordinador"))
+        ]
+        self.assertEqual(coordinador_chain, ["JEFE"] + jefe_chain)
+
+    def test_rol_no_puede_ser_su_propio_superior(self):
+        rol = self._rol("Jefe")
+        rol.superior = rol
+        with self.assertRaises(ValidationError):
+            rol.full_clean()
+
+    def test_no_se_permiten_ciclos(self):
+        gerente = self._rol("Gerente")
+        gerente.superior = self._rol("Jefe")
+        with self.assertRaises(ValidationError):
+            gerente.full_clean()
+
+    def test_rol_efectivo_y_liderazgo(self):
+        from .jerarquia import puede_ser_lider, rol_efectivo
+
+        usuario = _crear_usuario("liderdin@empresa.com")
+        _asignar_rol(usuario, "GTR")
+        _asignar_rol(usuario, "Gerente")
+        # El rol de mayor rango (menor profundidad) es Gerente.
+        self.assertEqual(rol_efectivo(usuario).nombre.upper(), "GERENTE")
+        self.assertTrue(puede_ser_lider(usuario))
+
+        cliente = _crear_usuario("clientedin@empresa.com")
+        cliente.tipo_usuario = "CLIENTE"
+        cliente.save(update_fields=["tipo_usuario"])
+        self.assertFalse(puede_ser_lider(cliente))
+
+    def test_equipo_deriva_rol_equipo_del_lider(self):
+        lider = _crear_usuario("liderrol@empresa.com")
+        _asignar_rol(lider, "GTR")
+        equipo = Equipo.objects.create(nombre="Equipo Dinamico", lider=lider)
+        self.assertIsNotNone(equipo.rol_equipo)
+        self.assertEqual(equipo.rol_equipo.nombre.upper(), "GTR")
+
+    def test_aprobadores_de_equipo_desde_cadena(self):
+        from .jerarquia import roles_aprobador_de_equipo
+
+        lider = _crear_usuario("lidercad@empresa.com")
+        _asignar_rol(lider, "GTR")
+        equipo = Equipo.objects.create(nombre="Equipo Cadena", lider=lider)
+        nombres = {r.nombre.upper() for r in roles_aprobador_de_equipo(equipo)}
+        self.assertEqual(nombres, {"JEFE", "SUBGERENTE", "GERENTE"})
+
+    def test_equipo_aprobador_rechaza_rol_fuera_de_cadena(self):
+        lider = _crear_usuario("liderval@empresa.com")
+        _asignar_rol(lider, "GTR")
+        equipo = Equipo.objects.create(nombre="Equipo Val", lider=lider)
+        aprobador = _crear_usuario("aprobval@empresa.com")
+        # Gerente SÍ pertenece a la cadena de un equipo GTR.
+        valido = EquipoAprobador(
+            equipo=equipo,
+            usuario=aprobador,
+            rol_aprobador=self._rol("Gerente"),
+        )
+        valido.full_clean()
+
+        # Miembro NO pertenece a la cadena de aprobación.
+        invalido = EquipoAprobador(
+            equipo=equipo,
+            usuario=aprobador,
+            rol_aprobador=self._rol("Miembro"),
+        )
+        with self.assertRaises(ValidationError):
+            invalido.full_clean()

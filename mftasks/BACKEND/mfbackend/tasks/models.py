@@ -129,11 +129,11 @@ class Tarea(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        # Un equipo de gerente no tiene aprobadores: la solicitud nace directamente
-        # en revisión del líder (el propio gerente).
-        if self._state.adding and self.equipo_id:
-            tipo = getattr(self.equipo, "tipo_equipo", None)
-            if tipo == "GERENTE" and self.estado == self.Estado.EN_ESPERA:
+        # Si el rol del equipo no tiene cadena de aprobación (es la raíz de la
+        # jerarquía), la solicitud nace directamente en revisión del líder.
+        if self._state.adding and self.equipo_id and self.estado == self.Estado.EN_ESPERA:
+            from usuarios.jerarquia import roles_aprobador_de_equipo
+            if not roles_aprobador_de_equipo(self.equipo):
                 self.paso_aprobacion = self.PasoAprobacion.LIDER
         if not self.ticket:
             from django.utils import timezone

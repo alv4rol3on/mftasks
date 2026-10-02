@@ -1,6 +1,11 @@
 from rest_framework.viewsets import ModelViewSet
 
-from usuarios.permissions import EsAdministrador, IsAuthenticatedActivo
+from usuarios.permissions import (
+    EsAdministrador,
+    IsAuthenticatedActivo,
+    es_administrador,
+    es_cliente,
+)
 
 from .models import Campana, SubCampana, PermisoCampana
 from .serializers import CampanaSerializer, SubCampanaSerializer, PermisoCampanaSerializer
@@ -22,10 +27,10 @@ class CampanaViewSet(ModelViewSet):
         qs = Campana.objects.all().prefetch_related("subcampanas")
         if not user or not user.is_authenticated:
             return Campana.objects.none()
-        if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        if es_administrador(user):
             return qs
         # cliente ve solo campañas activas donde tiene permiso puntual a subcampana activa
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        if es_cliente(user):
             campana_ids = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False, subcampana__activo=True, subcampana__campana__activo=True).values_list("subcampana__campana_id", flat=True)
             campana_ids = set(campana_ids)
             if campana_ids:

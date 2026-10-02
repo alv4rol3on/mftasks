@@ -36,12 +36,10 @@ export default function SolicitudesPage() {
     const roles = (u.roles ?? []).map((r) => r.toLowerCase());
     const isAd = roles.includes("administrador");
     const isCliente = roles.includes("cliente");
-    const isAsistente = roles.includes("asistente");
     const isAsignador = roles.includes("asignador");
     if (isAd) return; // admin unificada
     if (isAsignador) return;
-    if (isAsistente) return;
-    if (isCliente && !isAsistente && !isAsignador) {
+    if (isCliente && !isAsignador) {
       apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
         .then((data) => {
           const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
@@ -213,7 +211,7 @@ export default function SolicitudesPage() {
     return (
       <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
         <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
-        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. La bandeja de solicitudes de aprobación es solo para GTR / ASISTENTE (solo lectura).</p>
+        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. La bandeja de solicitudes de aprobación es solo para personal interno (solo lectura).</p>
       </div>
     );
   }

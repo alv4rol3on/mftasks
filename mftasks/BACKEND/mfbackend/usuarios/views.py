@@ -15,11 +15,12 @@ from rest_framework.generics import RetrieveUpdateAPIView
 from .azure import AzureTokenValidationError, AzureTokenValidator
 
 from .models import Equipo, EquipoAprobador, EquipoMiembro, PreferenciaNotificacion, Rol, User
-from .jerarquia import roles_aprobador_para, rol_integrante_requerido
+from .jerarquia import roles_aprobador_de_equipo, roles_integrante_requeridos
 from .permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
     es_administrador,
+    es_cliente,
     puede_gestionar_miembros,
 )
 from .serializers import (
@@ -189,7 +190,7 @@ class UserViewSet(ModelViewSet):
         obj = super().get_object()
         # Bloquear modificación de administradores
         if self.action in ("update", "partial_update", "destroy"):
-            if obj.roles.filter(rol__nombre__iexact="Administrador").exists():
+            if es_administrador(obj):
                 # permitir ver pero no modificar administradores
                 from rest_framework.exceptions import PermissionDenied
                 raise PermissionDenied("No se puede modificar usuarios administradores.")
@@ -198,22 +199,32 @@ class UserViewSet(ModelViewSet):
     def perform_update(self, serializer):
         # Manejar cambio de roles si viene en request
         roles = serializer.validated_data.pop("roles", None)
-        # compat activo -> is_active ya manejado en serializer
+        tipo_usuario_explicito = serializer.validated_data.get("tipo_usuario")
         serializer.save()
         if roles is not None:
-            from .models import Rol, UserRol
+            from .models import Rol, TipoUsuario, UserRol
             user = serializer.instance
-            # Normalizar y validar ya hecho en serializer
-            # Eliminar roles anteriores no admin y asignar nuevos (solo miembro/lider/cliente)
-            # No tocar Administrador si ya lo tenía (bloqueado arriba)
+            # Roles ya validados en el serializer (deben existir).
+            # No tocar Administrador si ya lo tenía (bloqueado arriba).
             UserRol.objects.filter(usuario=user).exclude(rol__nombre__iexact="Administrador").delete()
             for rname in roles:
-                # buscar rol exacto ya validado
-                try:
-                    rol_obj = Rol.objects.get(nombre__iexact=rname)
-                except Rol.DoesNotExist:
-                    rol_obj, _ = Rol.objects.get_or_create(nombre=rname, defaults={"descripcion": rname})
+                rol_obj = Rol.objects.get(nombre__iexact=rname)
                 UserRol.objects.get_or_create(usuario=user, rol=rol_obj)
+            # Derivar tipo_usuario de los roles si no se indicó explícitamente.
+            if not tipo_usuario_explicito:
+                nombres = {
+                    (ur.rol.nombre or "").lower()
+                    for ur in user.roles.select_related("rol")
+                }
+                if "administrador" in nombres:
+                    nuevo = TipoUsuario.ADMINISTRADOR
+                elif "cliente" in nombres:
+                    nuevo = TipoUsuario.CLIENTE
+                else:
+                    nuevo = TipoUsuario.COLABORADOR
+                if user.tipo_usuario != nuevo:
+                    user.tipo_usuario = nuevo
+                    user.save(update_fields=["tipo_usuario"])
 
 
 class RolViewSet(ModelViewSet):
@@ -232,6 +243,22 @@ class RolViewSet(ModelViewSet):
             permisos += [EsAdministrador()]
 
         return permisos
+
+    def destroy(self, request, *args, **kwargs):
+        from django.db.models import ProtectedError
+
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {
+                    "detail": (
+                        "El rol está en uso (como superior, en equipos o como "
+                        "aprobador). Desactívelo o reasigne sus dependencias."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class EquipoViewSet(ModelViewSet):
@@ -257,10 +284,10 @@ class EquipoViewSet(ModelViewSet):
         if not user or not user.is_authenticated:
             return Equipo.objects.none()
         # Administrador ve todos
-        if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        if es_administrador(user):
             return Equipo.objects.all().select_related("lider").prefetch_related("miembros__usuario")
         # CLIENTE nunca es miembro de equipo: solo ve equipos activos para elegir destino al solicitar (no ve miembros)
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        if es_cliente(user):
             return Equipo.objects.filter(activo=True).select_related("lider").prefetch_related("miembros__usuario")
         # Usuarios internos: ven todos los equipos (el frontend ofrece el filtro "solo mis equipos")
         return Equipo.objects.all().select_related("lider").prefetch_related("miembros__usuario")
@@ -303,7 +330,7 @@ class EquipoViewSet(ModelViewSet):
         equipo = self.get_object()
         # Validar permiso: solo líder (o admin) puede administrar estados; para líder auto-gestión también se permite
         es_request_lider = str(request.user.id) == str(equipo.lider_id)
-        es_request_admin = request.user.roles.filter(rol__nombre__iexact="Administrador").exists()
+        es_request_admin = es_administrador(request.user)
         if not (puede_gestionar_miembros(request.user, equipo) or (es_request_lider and str(usuario_id) == str(request.user.id))):
             return Response({"detail": "Solo el líder del equipo puede administrar estados."}, status=status.HTTP_403_FORBIDDEN)
         try:
@@ -555,20 +582,22 @@ class EquipoViewSet(ModelViewSet):
             return Response({"detail": "El líder ya pertenece al equipo."}, status=status.HTTP_400_BAD_REQUEST)
         if not user_obj.is_active:
             return Response({"detail": "No se puede agregar un usuario inactivo del sistema."}, status=status.HTTP_400_BAD_REQUEST)
-        # El rol del integrante depende del tipo de equipo del líder:
-        #   EQUIPO DE GERENTE -> SUBGERENTE, DE SUBGERENTE -> JEFE,
-        #   DE JEFE -> GTR, EQUIPO GTR -> MIEMBRO.
-        requerido = rol_integrante_requerido(equipo.tipo_equipo)
+        # El rol del integrante debe ser un hijo directo del rol del líder
+        # (se acepta cualquiera de los roles subordinados directos).
+        roles_requeridos = roles_integrante_requeridos(equipo)
+        nombres_requeridos = {(r.nombre or "").upper() for r in roles_requeridos}
         roles_usuario = {
             (r or "").upper()
             for r in user_obj.roles.values_list("rol__nombre", flat=True)
         }
-        if requerido not in roles_usuario:
+        if not (nombres_requeridos & roles_usuario):
+            etiqueta = ", ".join(
+                sorted(r.nombre for r in roles_requeridos)
+            ) or "MIEMBRO"
             return Response(
                 {
                     "detail": (
-                        f"Este equipo ({equipo.tipo_equipo}) solo admite "
-                        f"integrantes con rol {requerido}."
+                        f"Este equipo solo admite integrantes con rol: {etiqueta}."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -589,11 +618,8 @@ class EquipoViewSet(ModelViewSet):
     def asignar_aprobadores(self, request, pk=None):
         """Asigna los aprobadores del equipo (solo Administrador).
 
-        Roles permitidos según el tipo de equipo:
-          - GTR: gerente, subgerente y/o jefe (al menos uno).
-          - JEFE: gerente y/o subgerente (al menos uno).
-          - SUBGERENTE: solo gerente.
-          - GERENTE: sin aprobadores.
+        Los roles permitidos son la cadena de aprobación del rol del líder del
+        equipo (se calcula desde la jerarquía, no hay roles codificados).
         """
         equipo = self.get_object()
         if not es_administrador(request.user):
@@ -605,26 +631,24 @@ class EquipoViewSet(ModelViewSet):
         if not isinstance(aprobadores, list):
             return Response({"detail": "Debe enviar la lista 'aprobadores'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        permitidos = roles_aprobador_para(equipo.tipo_equipo)
-        if not permitidos:
+        roles_permitidos = roles_aprobador_de_equipo(equipo)
+        if not roles_permitidos:
             return Response(
-                {"detail": "Un equipo de gerente no requiere aprobadores."},
+                {"detail": "Este equipo no requiere aprobadores."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        mapa_permitidos = {r.nombre.upper(): r for r in roles_permitidos}
+        etiquetas = ", ".join(r.nombre for r in roles_permitidos)
 
-        por_rol = {}
+        from .jerarquia import profundidad
+        from .models import TipoUsuario
+
+        seleccionados = []  # [(rol_obj, user_obj)]
         usuarios_usados = set()
+
         for item in aprobadores:
             if not isinstance(item, dict):
                 return Response({"detail": "Formato de aprobador inválido."}, status=status.HTTP_400_BAD_REQUEST)
-            rol = (item.get("rol") or item.get("rol_aprobador") or "").upper().strip()
-            if rol not in permitidos:
-                return Response(
-                    {"detail": f"Rol '{rol}' no permitido para este equipo. Use: {', '.join(permitidos)}."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if rol in por_rol:
-                return Response({"detail": f"El rol {rol} está repetido."}, status=status.HTTP_400_BAD_REQUEST)
 
             codigo = (item.get("codigo") or "").strip()
             usuario_id = item.get("usuario_id") or item.get("usuario") or item.get("id_usuario")
@@ -644,24 +668,72 @@ class EquipoViewSet(ModelViewSet):
 
             if not user_obj.is_active:
                 return Response({"detail": f"El usuario {user_obj.codigo} está inactivo."}, status=status.HTTP_400_BAD_REQUEST)
-            roles_usuario = {(r or "").upper() for r in user_obj.roles.values_list("rol__nombre", flat=True)}
-            if rol not in roles_usuario:
-                return Response({"detail": f"El usuario {user_obj.codigo} no tiene el rol {rol}."}, status=status.HTTP_400_BAD_REQUEST)
-            if user_obj.id in usuarios_usados:
-                return Response({"detail": "Un usuario no puede ocupar dos roles de aprobador."}, status=status.HTTP_400_BAD_REQUEST)
-            usuarios_usados.add(user_obj.id)
-            por_rol[rol] = user_obj
 
-        if not por_rol:
+            # Solo colaboradores pueden ser aprobadores.
+            if getattr(user_obj, "tipo_usuario", None) == TipoUsuario.CLIENTE or es_cliente(user_obj):
+                return Response(
+                    {"detail": f"El usuario {user_obj.codigo} es cliente y no puede ser aprobador."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if getattr(user_obj, "tipo_usuario", None) == TipoUsuario.ADMINISTRADOR or es_administrador(user_obj):
+                return Response(
+                    {"detail": f"El usuario {user_obj.codigo} es administrador y no puede ser aprobador."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            roles_usuario = {
+                (r or "").upper()
+                for r in user_obj.roles.values_list("rol__nombre", flat=True)
+            }
+            coincidencias = [nombre for nombre in roles_usuario if nombre in mapa_permitidos]
+            if not coincidencias:
+                return Response(
+                    {
+                        "detail": (
+                            f"El usuario {user_obj.codigo} no tiene un rol superior "
+                            f"de la cadena. Permitidos: {etiquetas}."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            rol_solicitado = (item.get("rol") or item.get("rol_aprobador") or "").upper().strip()
+            if rol_solicitado:
+                if rol_solicitado not in mapa_permitidos:
+                    return Response(
+                        {"detail": f"Rol '{rol_solicitado}' no permitido. Use: {etiquetas}."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if rol_solicitado not in roles_usuario:
+                    return Response(
+                        {"detail": f"El usuario {user_obj.codigo} no tiene el rol {rol_solicitado}."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                rol_obj = mapa_permitidos[rol_solicitado]
+            else:
+                # Elegir el rol de mayor rango (menos ancestros) entre los coincidentes.
+                rol_obj = mapa_permitidos[
+                    sorted(coincidencias, key=lambda n: profundidad(mapa_permitidos[n]))[0]
+                ]
+
+            if user_obj.id in usuarios_usados:
+                return Response(
+                    {"detail": "Un usuario no puede aparecer dos veces como aprobador."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            usuarios_usados.add(user_obj.id)
+            seleccionados.append((rol_obj, user_obj))
+
+        if not seleccionados:
             return Response(
-                {"detail": f"Debe asignar al menos un aprobador. Permitidos: {', '.join(permitidos)}."},
+                {"detail": f"Debe asignar al menos un aprobador. Permitidos: {etiquetas}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         with transaction.atomic():
             EquipoAprobador.objects.filter(equipo=equipo).delete()
-            for rol, user_obj in por_rol.items():
-                EquipoAprobador.objects.create(equipo=equipo, usuario=user_obj, rol_aprobador=rol)
+            for rol_obj, user_obj in seleccionados:
+                EquipoAprobador.objects.create(equipo=equipo, usuario=user_obj, rol_aprobador=rol_obj)
 
         return Response(
             EquipoDetailSerializer(equipo, context={"request": request}).data,

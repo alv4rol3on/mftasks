@@ -154,9 +154,10 @@ def enviar_resumen_clientes():
     from .services.notificaciones_email import programar_correo_tarea
 
     ahora = timezone.localtime(timezone.now())
+    from django.db.models import Q
     usuarios = User.objects.filter(
+        Q(tipo_usuario="CLIENTE") | Q(roles__rol__nombre__iexact="CLIENTE"),
         is_active=True,
-        roles__rol__nombre__iexact="CLIENTE",
     ).distinct()
 
     enviados = 0

@@ -18,7 +18,6 @@ type Caps = {
   isAdmin: boolean;
   isCliente: boolean;
   isClientePuro: boolean;
-  isAsistente: boolean;
   isAsignador: boolean;
   isLider: boolean;
   isSubLider: boolean;
@@ -32,8 +31,8 @@ const menuAll: MenuItem[] = [
   // Para admin: una sola vista unificada "Solicitudes" (todos los estados, solo lectura + inactivar)
   { nombre: "Solicitudes", ruta: "/mfpages/solicitudes", show: (c) => c.isAdmin },
   // Personal interno no-admin
-  { nombre: "Bandeja de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
-  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsistente || c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Bandeja de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
   { nombre: "Administración de usuarios/campañas", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
 ];
@@ -70,14 +69,16 @@ export default function Sidebar({
   const menu = useMemo(() => {
     const user = getUsuarioActual();
     const roles = (user?.roles ?? []).map((r) => r.toLowerCase());
-    const isAdmin = roles.includes("administrador");
-    const isCliente = roles.includes("cliente");
-    const isMiembroGlobal = roles.includes("miembro");
-    // compat: viejo asignador/asistente mapean a miembro
-    const isAsistenteExplicit = roles.includes("asistente");
+    const tipo = user?.tipo_usuario;
+    const isAdmin = tipo === "ADMINISTRADOR" || roles.includes("administrador");
+    const isCliente = tipo === "CLIENTE" || roles.includes("cliente");
+    // Un colaborador es un usuario interno (con o sin equipo).
+    const isColaborador = tipo
+      ? tipo === "COLABORADOR"
+      : !isAdmin && !isCliente;
+    const isMiembroGlobal = isColaborador || roles.includes("miembro");
     const isAsignadorLegacy = roles.includes("asignador");
     const isAprobador = ["gerente", "subgerente", "jefe"].some((r) => roles.includes(r));
-    const isAsistente = false; // deprecado
     const isAsignador = isAdmin || isAsignadorLegacy || isAprobador;
 
     let isLider = false;
@@ -102,7 +103,7 @@ export default function Sidebar({
     }
 
     const isClientePuro = isCliente && !isAdmin && !isLider && !isSubLider && !isMiembro;
-    const caps: Caps = { isAdmin, isCliente, isClientePuro, isAsistente, isAsignador, isLider, isSubLider, isMiembro };
+    const caps: Caps = { isAdmin, isCliente, isClientePuro, isAsignador, isLider, isSubLider, isMiembro };
 
     // Deduplicar por nombre/ruta: hay dos entradas "Bandeja de solicitudes" con rutas distintas
     // Filtramos por show y luego por unicidad de ruta

@@ -5,7 +5,11 @@ import { apiFetch } from "@/lib/api";
 import Pagination from "@/components/ui/Pagination";
 import Switch from "@/components/ui/Switch";
 
+import type { RolInfo } from "@/lib/types";
+
 import styles from "./AdminSections.module.css";
+
+type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
 
 type Usuario = {
   id: number;
@@ -15,10 +19,20 @@ type Usuario = {
   apellidos: string;
   cargo?: string;
   is_active: boolean;
+  tipo_usuario?: TipoUsuario;
   roles?: string[];
 };
 
 const PAGE_SIZE_USUARIOS = 10;
+
+const TIPOS_USUARIO: { value: TipoUsuario; label: string }[] = [
+  { value: "COLABORADOR", label: "Colaborador" },
+  { value: "CLIENTE", label: "Cliente" },
+  { value: "ADMINISTRADOR", label: "Administrador" },
+];
+
+const ROL_CLIENTE = "Cliente";
+const ROL_ADMIN = "Administrador";
 
 type Props = {
   setMsg: (msg: string | null) => void;
@@ -27,20 +41,40 @@ type Props = {
 export default function UsuariosSection({ setMsg }: Props) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [roles, setRoles] = useState<RolInfo[]>([]);
 
   const [filtro, setFiltro] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState<string>("todos");
+  const [filtroUsuarioTipo, setFiltroUsuarioTipo] = useState<string>("todos");
+  const [filtroRol, setFiltroRol] = useState<string>("todos");
 
   const [pageUsuarios, setPageUsuarios] = useState(1);
 
-  const [nuevo, setNuevo] = useState({
+  const [nuevo, setNuevo] = useState<{
+    email: string;
+    nombres: string;
+    apellidos: string;
+    cargo: string;
+    password: string;
+    tipo_usuario: TipoUsuario;
+    rol: string;
+  }>({
     email: "",
     nombres: "",
     apellidos: "",
     cargo: "",
     password: "",
-    rol: "miembro",
+    tipo_usuario: "COLABORADOR",
+    rol: "",
   });
+
+  // Roles jerárquicos asignables a colaboradores (activos, sin los de sistema).
+  const rolesJerarquicos = roles
+    .filter(
+      (r) =>
+        r.activo &&
+        !["cliente", "administrador"].includes(r.nombre.toLowerCase())
+    )
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   // --------------------------------------------------
   // CARGAR USUARIOS
@@ -66,17 +100,43 @@ export default function UsuariosSection({ setMsg }: Props) {
     }
   };
 
+  const cargarRoles = async () => {
+    try {
+      const data = await apiFetch<RolInfo[] | { results: RolInfo[] }>(
+        "/api/usuarios/roles/"
+      );
+      setRoles(Array.isArray(data) ? data : data.results ?? []);
+    } catch {
+      setRoles([]);
+    }
+  };
+
   useEffect(() => {
     cargarUsuarios();
+    cargarRoles();
   }, []);
 
   // --------------------------------------------------
   // CREAR USUARIO
   // --------------------------------------------------
 
+  const rolesParaTipo = (tipo: TipoUsuario, rol: string): string[] | null => {
+    if (tipo === "CLIENTE") return [ROL_CLIENTE];
+    if (tipo === "ADMINISTRADOR") return [ROL_ADMIN];
+    if (!rol) return null;
+    return [rol];
+  };
+
   const crearUsuario = async () => {
     if (!nuevo.email || !nuevo.nombres || !nuevo.apellidos) {
       setMsg("Email, nombres y apellidos obligatorios");
+      return;
+    }
+
+    const rolesPayload = rolesParaTipo(nuevo.tipo_usuario, nuevo.rol);
+
+    if (rolesPayload === null) {
+      setMsg("Selecciona un rol para el colaborador.");
       return;
     }
 
@@ -89,12 +149,13 @@ export default function UsuariosSection({ setMsg }: Props) {
           apellidos: nuevo.apellidos,
           cargo: nuevo.cargo,
           password: nuevo.password || undefined,
-          roles: [nuevo.rol],
+          tipo_usuario: nuevo.tipo_usuario,
+          roles: rolesPayload,
         }),
       });
 
       setMsg(
-        `Usuario ${nuevo.email} creado con rol ${nuevo.rol} y codigo auto-generado`
+        `Usuario ${nuevo.email} creado (${nuevo.tipo_usuario.toLowerCase()})`
       );
 
       setNuevo({
@@ -103,7 +164,8 @@ export default function UsuariosSection({ setMsg }: Props) {
         apellidos: "",
         cargo: "",
         password: "",
-        rol: "miembro",
+        tipo_usuario: "COLABORADOR",
+        rol: "",
       });
 
       await cargarUsuarios();
@@ -153,55 +215,99 @@ export default function UsuariosSection({ setMsg }: Props) {
   };
 
   // --------------------------------------------------
-  // CAMBIAR ROL
+  // CAMBIAR TIPO / ROL
   // --------------------------------------------------
 
-  const cambiarRol = async (
-    u: Usuario,
-    nuevoRol: string
-  ) => {
-    const esAdmin = (u.roles ?? [])
-      .map(r => r.toLowerCase())
+  const esUsuarioAdmin = (u: Usuario) =>
+    u.tipo_usuario === "ADMINISTRADOR" ||
+    (u.roles ?? [])
+      .map((r) => r.toLowerCase())
       .includes("administrador");
 
-    if (esAdmin) {
-      setMsg(
-        "Error: No se puede modificar rol de administradores"
-      );
-      return;
-    }
-
-    const rolesPermitidos = [
-      "miembro",
-      "gtr",
-      "cliente",
-      "gerente",
-      "subgerente",
-      "jefe",
-      "asistente",
-    ];
-
-    if (!rolesPermitidos.includes(nuevoRol.toLowerCase())) {
-      setMsg("Rol no permitido");
-      return;
-    }
-
+  const actualizarUsuario = async (
+    u: Usuario,
+    payload: Record<string, unknown>,
+    etiqueta: string
+  ) => {
     try {
       await apiFetch(`/api/usuarios/usuarios/${u.id}/`, {
         method: "PATCH",
-        body: JSON.stringify({
-          roles: [nuevoRol],
-        }),
+        body: JSON.stringify(payload),
       });
 
-      setMsg(
-        `Rol de ${u.email} cambiado a ${nuevoRol}`
-      );
-
+      setMsg(`${u.email}: ${etiqueta}`);
       await cargarUsuarios();
     } catch (e) {
       setMsg(`Error: ${(e as Error).message}`);
     }
+  };
+
+  const cambiarTipo = async (
+    u: Usuario,
+    nuevoTipo: TipoUsuario
+  ) => {
+    if (esUsuarioAdmin(u)) {
+      setMsg("Error: No se puede modificar usuarios administradores");
+      return;
+    }
+
+    if (nuevoTipo === "CLIENTE") {
+      await actualizarUsuario(
+        u,
+        { tipo_usuario: "CLIENTE", roles: [ROL_CLIENTE] },
+        "tipo cambiado a Cliente"
+      );
+      return;
+    }
+
+    if (nuevoTipo === "ADMINISTRADOR") {
+      await actualizarUsuario(
+        u,
+        { tipo_usuario: "ADMINISTRADOR", roles: [ROL_ADMIN] },
+        "tipo cambiado a Administrador"
+      );
+      return;
+    }
+
+    // COLABORADOR: necesita un rol jerárquico. Conserva el actual si aplica;
+    // si no, asigna el primero disponible.
+    const actual = (u.roles ?? [])[0];
+    const esJerarquico =
+      actual != null &&
+      rolesJerarquicos.some(
+        (r) => r.nombre.toLowerCase() === actual.toLowerCase()
+      );
+    const rolAsignado = esJerarquico ? actual : rolesJerarquicos[0]?.nombre;
+
+    if (!rolAsignado) {
+      setMsg(
+        "No hay roles jerárquicos disponibles. Cree uno en la pestaña Roles."
+      );
+      return;
+    }
+
+    await actualizarUsuario(
+      u,
+      { tipo_usuario: "COLABORADOR", roles: [rolAsignado] },
+      `tipo cambiado a Colaborador (${rolAsignado})`
+    );
+  };
+
+  const cambiarRol = async (u: Usuario, nuevoRol: string) => {
+    if (esUsuarioAdmin(u)) {
+      setMsg("Error: No se puede modificar el rol de administradores");
+      return;
+    }
+    if (!nuevoRol) {
+      setMsg("Selecciona un rol válido");
+      return;
+    }
+
+    await actualizarUsuario(
+      u,
+      { tipo_usuario: "COLABORADOR", roles: [nuevoRol] },
+      `rol cambiado a ${nuevoRol}`
+    );
   };
 
   // --------------------------------------------------
@@ -223,14 +329,19 @@ export default function UsuariosSection({ setMsg }: Props) {
 
     if (!matchTexto) return false;
 
-    if (filtroTipo === "todos") return true;
+    if (
+      filtroUsuarioTipo !== "todos" &&
+      (u.tipo_usuario ?? "COLABORADOR") !== filtroUsuarioTipo
+    ) {
+      return false;
+    }
 
-    const rolesLow = (u.roles ?? [])
-      .map(r => r.toLowerCase());
+    if (filtroRol !== "todos") {
+      const rolesLow = (u.roles ?? []).map(r => r.toLowerCase());
+      if (!rolesLow.includes(filtroRol.toLowerCase())) return false;
+    }
 
-    return rolesLow.includes(
-      filtroTipo.toLowerCase()
-    );
+    return true;
   });
 
   // --------------------------------------------------
@@ -255,7 +366,7 @@ export default function UsuariosSection({ setMsg }: Props) {
 
   useEffect(() => {
     setPageUsuarios(1);
-  }, [filtro, filtroTipo]);
+  }, [filtro, filtroUsuarioTipo, filtroRol]);
 
   useEffect(() => {
     if (pageUsuarios > totalPagesUsuarios) {
@@ -343,40 +454,41 @@ export default function UsuariosSection({ setMsg }: Props) {
           />
 
           <select
-            value={nuevo.rol}
+            value={nuevo.tipo_usuario}
             onChange={e =>
               setNuevo({
                 ...nuevo,
-                rol: e.target.value,
+                tipo_usuario: e.target.value as TipoUsuario,
               })
             }
             className={styles.select}
           >
-            <option value="miembro">
-              miembro
-            </option>
-            <option value="gtr">
-              gtr
-            </option>
-            <option value="cliente">
-              cliente
-            </option>
-            <option value="gerente">
-              gerente
-            </option>
-            <option value="subgerente">
-              subgerente
-            </option>
-            <option value="jefe">
-              jefe
-            </option>
-            <option value="asistente">
-              asistente
-            </option>
-            <option value="administrador">
-              administrador
-            </option>
+            {TIPOS_USUARIO.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
           </select>
+
+          {nuevo.tipo_usuario === "COLABORADOR" && (
+            <select
+              value={nuevo.rol}
+              onChange={e =>
+                setNuevo({
+                  ...nuevo,
+                  rol: e.target.value,
+                })
+              }
+              className={styles.select}
+            >
+              <option value="">Selecciona un rol...</option>
+              {rolesJerarquicos.map((r) => (
+                <option key={r.id} value={r.nombre}>
+                  {r.nombre}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <button
@@ -404,13 +516,35 @@ export default function UsuariosSection({ setMsg }: Props) {
           <div className={styles.usersFilters}>
 
             <select
-              value={filtroTipo}
+              value={filtroUsuarioTipo}
               onChange={e =>
-                setFiltroTipo(e.target.value)
+                setFiltroUsuarioTipo(e.target.value)
               }
               className={styles.select}
               style={{
-                minWidth: 140,
+                minWidth: 150,
+                fontSize: 12,
+                padding: "6px 8px",
+              }}
+            >
+              <option value="todos">
+                Todos los tipos
+              </option>
+              {TIPOS_USUARIO.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filtroRol}
+              onChange={e =>
+                setFiltroRol(e.target.value)
+              }
+              className={styles.select}
+              style={{
+                minWidth: 150,
                 fontSize: 12,
                 padding: "6px 8px",
               }}
@@ -418,30 +552,11 @@ export default function UsuariosSection({ setMsg }: Props) {
               <option value="todos">
                 Todos los roles
               </option>
-              <option value="administrador">
-                administrador
-              </option>
-              <option value="miembro">
-                miembro
-              </option>
-              <option value="gtr">
-                gtr
-              </option>
-              <option value="cliente">
-                cliente
-              </option>
-              <option value="gerente">
-                gerente
-              </option>
-              <option value="subgerente">
-                subgerente
-              </option>
-              <option value="jefe">
-                jefe
-              </option>
-              <option value="asistente">
-                asistente
-              </option>
+              {rolesJerarquicos.map((r) => (
+                <option key={r.id} value={r.nombre}>
+                  {r.nombre}
+                </option>
+              ))}
             </select>
 
             <input
@@ -475,6 +590,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                     <th>Codigo</th>
                     <th>Email</th>
                     <th>Nombre</th>
+                    <th>Tipo</th>
                     <th>Rol</th>
                     <th>Activo</th>
                   </tr>
@@ -488,7 +604,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                   {usuariosPaginados.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         style={{
                           textAlign: "center",
                           padding: 16,
@@ -500,14 +616,34 @@ export default function UsuariosSection({ setMsg }: Props) {
                     </tr>
                   ) : (
                     usuariosPaginados.map(u => {
-                      const esAdmin =
-                        (u.roles ?? [])
-                          .map(r => r.toLowerCase())
-                          .includes("administrador");
+                      const esAdmin = esUsuarioAdmin(u);
 
-                      const rolActual =
-                        (u.roles ?? [])[0] ??
-                        "sin rol";
+                      const tipo: TipoUsuario =
+                        u.tipo_usuario ??
+                        (esAdmin ? "ADMINISTRADOR" : "COLABORADOR");
+
+                      const rolActual = (u.roles ?? [])[0] ?? "";
+                      const rolEnLista = rolesJerarquicos.some(
+                        r =>
+                          r.nombre.toLowerCase() ===
+                          rolActual.toLowerCase()
+                      );
+
+                      const badgeAdmin = {
+                        background: "#fee2e2",
+                        color: "#991b1b",
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        fontSize: 11,
+                      } as const;
+
+                      const badgeCliente = {
+                        background: "#e0e7ff",
+                        color: "#3730a3",
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        fontSize: 11,
+                      } as const;
 
                       return (
                         <tr
@@ -541,59 +677,68 @@ export default function UsuariosSection({ setMsg }: Props) {
 
                           <td>
                             {esAdmin ? (
-                              <span
-                                style={{
-                                  background:
-                                    "#fee2e2",
-                                  color:
-                                    "#991b1b",
-                                  padding:
-                                    "2px 6px",
-                                  borderRadius: 6,
-                                  fontSize: 11,
-                                }}
-                              >
+                              <span style={badgeAdmin}>
                                 Administrador
                               </span>
                             ) : (
                               <select
-                                value={rolActual.toLowerCase()}
+                                value={tipo}
                                 onChange={e =>
-                                  cambiarRol(
+                                  cambiarTipo(
                                     u,
-                                    e.target.value
+                                    e.target.value as TipoUsuario
                                   )
                                 }
-                                className={
-                                  styles.select
-                                }
+                                className={styles.select}
                                 style={{
-                                  padding:
-                                    "4px 6px",
+                                  padding: "4px 6px",
                                   fontSize: 12,
                                 }}
                               >
-                                <option value="miembro">
-                                  miembro
+                                {TIPOS_USUARIO.map(t => (
+                                  <option
+                                    key={t.value}
+                                    value={t.value}
+                                  >
+                                    {t.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </td>
+
+                          <td>
+                            {esAdmin || tipo === "ADMINISTRADOR" ? (
+                              <span style={badgeAdmin}>
+                                Administrador
+                              </span>
+                            ) : tipo === "CLIENTE" ? (
+                              <span style={badgeCliente}>
+                                Cliente
+                              </span>
+                            ) : (
+                              <select
+                                value={rolEnLista ? rolActual : ""}
+                                onChange={e =>
+                                  cambiarRol(u, e.target.value)
+                                }
+                                className={styles.select}
+                                style={{
+                                  padding: "4px 6px",
+                                  fontSize: 12,
+                                }}
+                              >
+                                <option value="">
+                                  Selecciona un rol...
                                 </option>
-                                <option value="gtr">
-                                  gtr
-                                </option>
-                                <option value="cliente">
-                                  cliente
-                                </option>
-                                <option value="gerente">
-                                  gerente
-                                </option>
-                                <option value="subgerente">
-                                  subgerente
-                                </option>
-                                <option value="jefe">
-                                  jefe
-                                </option>
-                                <option value="asistente">
-                                  asistente
-                                </option>
+                                {rolesJerarquicos.map(r => (
+                                  <option
+                                    key={r.id}
+                                    value={r.nombre}
+                                  >
+                                    {r.nombre}
+                                  </option>
+                                ))}
                               </select>
                             )}
                           </td>

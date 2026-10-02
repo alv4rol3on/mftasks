@@ -6,15 +6,16 @@ def es_miembro_del_equipo(user, equipo):
     if not user or not user.is_authenticated or equipo is None:
         return False
 
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+    from usuarios.permissions import es_administrador, es_cliente, ids_equipos_visibles
+
+    if es_administrador(user):
         return True
 
     # CLIENTE nunca es miembro de equipo
-    if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+    if es_cliente(user):
         return False
 
     # Visibilidad jerárquica directa: propios + equipos de sus integrantes directos.
-    from usuarios.permissions import ids_equipos_visibles
     return equipo.id in ids_equipos_visibles(user)
 
 
@@ -97,35 +98,9 @@ def puede_gestionar_roles_equipo(user, equipo):
     return False
 
 
-def es_asistente_puro(user):
-    """Retorna True si el usuario tiene rol ASISTENTE y NO es asignador/admin/lider."""
-    if not user or not user.is_authenticated:
-        return False
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-        return False
-    if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists():
-        return False
-    return user.roles.filter(rol__nombre__iexact="ASISTENTE").exists()
-
-
-def es_solo_asistente(user):
-    """Asistente = tiene ASISTENTE o es miembro sin rol ASIGNADOR/Admin y no es líder.
-    Se usa para filtrar visibilidad."""
-    if not user or not user.is_authenticated:
-        return False
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-        return False
-    if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists():
-        return False
-    # Si no es admin/asignador, y es miembro de algún equipo, se considera asistente
-    # Incluimos quienes tengan rol ASISTENTE explícitamente o simplemente miembros sin privilegios
-    return True
-
-
 def es_cliente(user):
-    if not user or not user.is_authenticated:
-        return False
-    return user.roles.filter(rol__nombre__iexact="CLIENTE").exists()
+    from usuarios.permissions import es_cliente as _es_cliente
+    return _es_cliente(user)
 
 
 def puede_observar_tarea(user, tarea):
@@ -133,14 +108,15 @@ def puede_observar_tarea(user, tarea):
     if not user or not user.is_authenticated:
         return False
 
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+    from usuarios.permissions import es_administrador, es_cliente, ids_equipos_visibles
+
+    if es_administrador(user):
         return True
 
     # CLIENTE: solo sus propias solicitudes
-    if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+    if es_cliente(user):
         return tarea.solicitante_id == user.id
 
-    from usuarios.permissions import ids_equipos_visibles
     return tarea.equipo_id in ids_equipos_visibles(user)
 
 
@@ -150,7 +126,8 @@ def tiene_permiso_subcampana(user, subcampana):
         return False
     if not subcampana.activo or not subcampana.campana.activo:
         return False
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+    from usuarios.permissions import es_administrador
+    if es_administrador(user):
         return True
     from campanas.models import PermisoCampana
     # solo permiso directo a subcampana puntual
@@ -189,7 +166,8 @@ class EsSolicitanteDeTarea(BasePermission):
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:
             return False
-        if request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        from usuarios.permissions import es_administrador
+        if es_administrador(request.user):
             return True
         return obj.solicitante_id == request.user.id
 
@@ -233,7 +211,8 @@ class EsAsignadoDeSubtarea(BasePermission):
         # Administrador nunca puede (según requerimiento corregido)
         if not request.user or not request.user.is_authenticated:
             return False
-        if request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        from usuarios.permissions import es_administrador
+        if es_administrador(request.user):
             return False
         if obj.asignado_id != request.user.id:
             return False

@@ -1,28 +1,7 @@
 from rest_framework import serializers
+from usuarios.permissions import es_administrador, es_cliente
 from .models import ArchivoTarea, Subtarea, Tarea
 from .permissions import es_asignador_del_equipo
-
-
-def _es_asistente_visibilidad_limitada(user):
-    if not user or not user.is_authenticated:
-        return False
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-        return False
-    # lider por-equipo se considera asignador (nuevo modelo 4 roles)
-    from usuarios.models import Equipo, EquipoMiembro
-    if Equipo.objects.filter(lider=user).exists():
-        return False
-    if EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists():
-        return False
-    # compat: viejo ASIGNADOR todavía considerado asignador
-    if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists():
-        return False
-    # cliente puro no es asistente
-    if user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="miembro").exists():
-        return False
-    # Solo miembros explícitos con visibilidad limitada: si tiene rol miembro pero no es lider, era asistente antes
-    # Fase 1: con 4 roles, asistente ya no existe, retornamos False para no filtrar
-    return False
 
 
 class SubtareaSerializer(serializers.ModelSerializer):
@@ -231,11 +210,7 @@ class TaskSerializer(serializers.ModelSerializer):
         return es_aprobador_de_tarea(request.user, obj)
 
     def get_subtareas(self, obj):
-        request = self.context.get("request")
-        qs = obj.subtareas.all()
-        if request and _es_asistente_visibilidad_limitada(request.user):
-            qs = qs.filter(asignado=request.user)
-        return SubtareaSerializer(qs, many=True).data
+        return SubtareaSerializer(obj.subtareas.all(), many=True).data
 
     def get_puedo_operar(self, obj):
         request = self.context.get("request")
@@ -322,7 +297,7 @@ class TaskSerializer(serializers.ModelSerializer):
             if subcampana_obj:
                 if not subcampana_obj.activo or not subcampana_obj.campana.activo:
                     raise serializers.ValidationError({"subcampana": "La campaña/subcampaña está inhabilitada por Administración y no está disponible para crear tareas."})
-            if subcampana_obj and request and request.user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
+            if subcampana_obj and request and es_cliente(request.user) and not es_administrador(request.user):
                 from .permissions import tiene_permiso_subcampana
                 if not tiene_permiso_subcampana(request.user, subcampana_obj):
                     raise serializers.ValidationError({"subcampana": f"No tienes permiso para {subcampana_obj.codigo}."})

@@ -248,7 +248,7 @@ export default function MisSolicitudesPage() {
             marginTop: 4,
           }}
         >
-          Esta sección es solo para CLIENTE. Si eres ASISTENTE / GTR usa
+          Esta sección es solo para CLIENTE. Si eres personal interno usa
           &quot;Bandeja de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.
         </p>
       </div>

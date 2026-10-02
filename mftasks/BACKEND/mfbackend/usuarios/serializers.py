@@ -7,6 +7,43 @@ class RolSerializer(serializers.ModelSerializer):
         model = Rol
         fields = "__all__"
 
+    def validate(self, attrs):
+        nombre = attrs.get("nombre", getattr(self.instance, "nombre", None))
+        if nombre:
+            existentes = Rol.objects.filter(nombre__iexact=nombre.strip())
+            if self.instance:
+                existentes = existentes.exclude(pk=self.instance.pk)
+            if existentes.exists():
+                raise serializers.ValidationError(
+                    {"nombre": "Ya existe un rol con ese nombre."}
+                )
+
+        superior = attrs.get(
+            "superior",
+            getattr(self.instance, "superior", None),
+        )
+        if self.instance and superior is not None and superior.pk == self.instance.pk:
+            raise serializers.ValidationError(
+                {"superior": "Un rol no puede ser su propio superior."}
+            )
+        # Detectar ciclos recorriendo la cadena de superiores.
+        visitados = set()
+        actual = superior
+        while actual is not None:
+            if self.instance and actual.pk == self.instance.pk:
+                raise serializers.ValidationError(
+                    {
+                        "superior": (
+                            "La relación de aprobación no puede contener ciclos."
+                        )
+                    }
+                )
+            if actual.pk in visitados:
+                break
+            visitados.add(actual.pk)
+            actual = actual.superior
+        return attrs
+
 class UserSerializer(serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
@@ -25,6 +62,7 @@ class UserSerializer(serializers.ModelSerializer):
             "cargo",
             "is_active",
             "activo",
+            "tipo_usuario",
             "roles",
         ]
 
@@ -41,25 +79,44 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "nombres", "apellidos", "cargo", "is_active", "activo", "password", "roles", "equipo_id", "permisos_campana"]
+        fields = ["id", "email", "nombres", "apellidos", "cargo", "is_active", "activo", "tipo_usuario", "password", "roles", "equipo_id", "permisos_campana"]
         read_only_fields = ["id"]
 
     def validate_roles(self, value):
-        allowed = {
-            "administrador", "miembro", "cliente", "gtr",
-            "gerente", "subgerente", "jefe", "asistente",
-        }
-        normalized = [v.lower().strip() for v in value]
-        for r in normalized:
-            if r not in allowed:
-                raise serializers.ValidationError(f"Rol '{r}' no permitido. Use: {allowed}")
+        """Valida que cada rol indicado exista (la lista es dinámica)."""
+        from .models import Rol
+
+        normalized = [v.strip() for v in value if v and v.strip()]
+        inexistentes = []
+        for rname in normalized:
+            if not Rol.objects.filter(nombre__iexact=rname).exists():
+                inexistentes.append(rname)
+        if inexistentes:
+            raise serializers.ValidationError(
+                "Roles no encontrados: "
+                + ", ".join(inexistentes)
+                + ". Créelos primero desde la administración de roles."
+            )
         return normalized
+
+    def _tipo_usuario_para_roles(self, roles):
+        from .models import TipoUsuario
+
+        nombres = {r.lower() for r in roles}
+        if "administrador" in nombres:
+            return TipoUsuario.ADMINISTRADOR
+        if "cliente" in nombres:
+            return TipoUsuario.CLIENTE
+        return TipoUsuario.COLABORADOR
 
     def create(self, validated_data):
         roles = validated_data.pop("roles", [])
         password = validated_data.pop("password", None)
         equipo_id = validated_data.pop("equipo_id", None)
         permisos = validated_data.pop("permisos_campana", [])
+        # tipo_usuario derivado de los roles si no se indica explícitamente
+        if not validated_data.get("tipo_usuario"):
+            validated_data["tipo_usuario"] = self._tipo_usuario_para_roles(roles)
         # compat activo -> is_active
         if "activo" in validated_data:
             activo_val = validated_data.pop("activo")
@@ -77,13 +134,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
         from .models import Rol, UserRol, Equipo, EquipoMiembro
         from campanas.models import PermisoCampana
         for rname in roles:
-            rol_obj, _ = Rol.objects.get_or_create(nombre__iexact=rname, defaults={"nombre": rname.capitalize()})
-            # fallback si iexact no encontró por case
-            if rol_obj.nombre.lower() != rname.lower():
-                try:
-                    rol_obj = Rol.objects.get(nombre__iexact=rname)
-                except Rol.DoesNotExist:
-                    rol_obj = Rol.objects.create(nombre=rname.capitalize())
+            rol_obj = Rol.objects.filter(nombre__iexact=rname).first()
+            if rol_obj is None:
+                # validate_roles ya garantiza existencia; salvaguarda defensiva.
+                continue
             UserRol.objects.get_or_create(usuario=user, rol=rol_obj)
         # CLIENTE nunca pertenece a equipo aunque venga equipo_id
         es_cliente = any(r.lower() == "cliente" for r in roles)
@@ -118,6 +172,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "nombres",
             "apellidos",
             "cargo",
+            "tipo_usuario",
             "roles"
         ]
 
@@ -268,16 +323,16 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     def get_rol_integrante_requerido(self, obj):
         from .jerarquia import rol_integrante_requerido
-        return rol_integrante_requerido(obj.tipo_equipo)
+        return rol_integrante_requerido(obj)
 
     def get_aprobadores(self, obj):
         return [
             {
                 "id": a.id,
                 "usuario": UserSerializer(a.usuario).data,
-                "rol_aprobador": a.rol_aprobador,
+                "rol_aprobador": a.rol_aprobador.nombre if a.rol_aprobador_id else None,
             }
-            for a in obj.aprobadores.select_related("usuario").all()
+            for a in obj.aprobadores.select_related("usuario", "rol_aprobador").all()
         ]
 
     def get_puedo_asignar_aprobadores(self, obj):

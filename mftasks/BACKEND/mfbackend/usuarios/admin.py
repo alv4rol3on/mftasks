@@ -80,6 +80,7 @@ class UserAdmin(BaseUserAdmin):
         "nombres",
         "apellidos",
         "cargo",
+        "tipo_usuario",
         "is_active",
         "is_staff",
     )
@@ -92,6 +93,7 @@ class UserAdmin(BaseUserAdmin):
         "is_active",
         "is_staff",
         "is_superuser",
+        "tipo_usuario",
     )
 
     search_fields = (
@@ -124,6 +126,7 @@ class UserAdmin(BaseUserAdmin):
             "Permisos",
             {
                 "fields": (
+                    "tipo_usuario",
                     "is_active",
                     "is_staff",
                     "is_superuser",
@@ -174,15 +177,26 @@ class RolAdmin(admin.ModelAdmin):
 
     list_display = (
         "nombre",
+        "superior",
+        "puede_liderar",
         "activo",
     )
 
     list_filter = (
         "activo",
+        "puede_liderar",
     )
 
     search_fields = (
         "nombre",
+    )
+
+    autocomplete_fields = (
+        "superior",
+    )
+
+    list_select_related = (
+        "superior",
     )
 
 
@@ -210,6 +224,7 @@ class EquipoAdmin(admin.ModelAdmin):
     list_display = (
         "nombre",
         "tipo_equipo",
+        "rol_equipo",
         "lider",
         "activo",
         "fecha_creacion",
@@ -218,6 +233,7 @@ class EquipoAdmin(admin.ModelAdmin):
     list_filter = (
         "activo",
         "tipo_equipo",
+        "rol_equipo",
     )
 
     search_fields = (
@@ -229,6 +245,12 @@ class EquipoAdmin(admin.ModelAdmin):
 
     autocomplete_fields = (
         "lider",
+        "rol_equipo",
+    )
+
+    list_select_related = (
+        "lider",
+        "rol_equipo",
     )
 
     inlines = [
@@ -261,11 +283,13 @@ class EquipoAprobadorAdmin(admin.ModelAdmin):
     autocomplete_fields = (
         "equipo",
         "usuario",
+        "rol_aprobador",
     )
 
     list_select_related = (
         "equipo",
         "usuario",
+        "rol_aprobador",
     )
 
 @admin.register(EquipoMiembro)

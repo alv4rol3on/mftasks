@@ -35,7 +35,9 @@ def _crear_usuario(email, nombres="X", apellidos="Y"):
 
 
 def _asignar_rol(user, nombre):
-    rol, _ = Rol.objects.get_or_create(nombre=nombre)
+    rol = Rol.objects.filter(nombre__iexact=nombre).first()
+    if rol is None:
+        rol = Rol.objects.create(nombre=nombre)
     return UserRol.objects.get_or_create(usuario=user, rol=rol)
 
 
@@ -863,9 +865,9 @@ class AprobacionPorEquipoTestCase(APITestCase):
         _asignar_rol(self.otro_gerente, "GERENTE")
 
         self.equipo = Equipo.objects.create(nombre="Equipo AE", lider=self.lider)
-        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.gerente, rol_aprobador="GERENTE")
-        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.subgerente, rol_aprobador="SUBGERENTE")
-        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.jefe, rol_aprobador="JEFE")
+        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.gerente, rol_aprobador=Rol.objects.get(nombre__iexact="GERENTE"))
+        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.subgerente, rol_aprobador=Rol.objects.get(nombre__iexact="SUBGERENTE"))
+        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.jefe, rol_aprobador=Rol.objects.get(nombre__iexact="JEFE"))
 
         self.tarea = Tarea.objects.create(
             asunto="Solicitud AE",

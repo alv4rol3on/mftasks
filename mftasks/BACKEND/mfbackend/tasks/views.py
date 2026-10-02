@@ -26,6 +26,8 @@ from tasks.services.notificaciones_email import (
 from usuarios.permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
+    es_administrador,
+    es_cliente,
 )
 
 from .models import AprobacionTarea, ArchivoTarea, Subtarea, Tarea, TareaLog
@@ -177,11 +179,11 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         user = self.request.user
 
-        if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        if es_administrador(user):
             return Tarea.objects.all().prefetch_related("subtareas", "equipo", "solicitante").order_by("-fecha_creacion")
 
         # CLIENTE nunca es miembro de equipo: solo ve sus propias solicitudes (no espía)
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        if es_cliente(user):
             return Tarea.objects.filter(solicitante=user).prefetch_related("subtareas", "equipo", "solicitante")
 
         # Solo los equipos donde el usuario es líder o miembro activo (+ Admin, ya cubierto arriba).
@@ -258,9 +260,9 @@ class TaskViewSet(viewsets.ModelViewSet):
                 def has_permission(self, request, view):
                     if not request.user or not request.user.is_authenticated:
                         return False
-                    if request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
+                    if es_administrador(request.user):
                         return True
-                    if request.user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+                    if es_cliente(request.user):
                         return True
                     # Admin ya cubre; asignador no debe crear solicitudes (según spec)
                     return False
@@ -326,9 +328,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                     })
 
         with transaction.atomic():
-            if user.roles.filter(
-                rol__nombre__iexact="CLIENTE"
-            ).exists():
+            if es_cliente(user):
                 tarea = serializer.save(
                     solicitante=user,
                     estado=Tarea.Estado.EN_ESPERA,
@@ -414,12 +414,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Fase de aprobadores: el equipo debe tener al menos un aprobador de
         # los roles permitidos para su tipo de equipo.
         if paso_actual == Tarea.PasoAprobacion.APROBADORES:
-            from usuarios.jerarquia import roles_aprobador_para
-            permitidos = roles_aprobador_para(tarea.equipo.tipo_equipo)
-            roles_asignados = set(
-                tarea.equipo.aprobadores.values_list("rol_aprobador", flat=True)
+            from usuarios.jerarquia import roles_aprobador_de_equipo
+            permitidos = roles_aprobador_de_equipo(tarea.equipo)
+            ids_permitidos = {r.pk for r in permitidos}
+            ids_asignados = set(
+                tarea.equipo.aprobadores.values_list("rol_aprobador_id", flat=True)
             )
-            if not permitidos or not (roles_asignados & set(permitidos)):
+            if not ids_permitidos or not (ids_asignados & ids_permitidos):
                 return Response(
                     {"detail": "El equipo no tiene aprobadores configurados. El administrador debe asignar un aprobador válido para este equipo."},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -930,7 +931,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         from usuarios.models import Equipo, EquipoMiembro
 
         # CLIENTE siempre ve solo sus solicitudes, sin importar otros roles/miembro
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        if es_cliente(user):
             qs = Tarea.objects.filter(solicitante=user)
             return Response({
                 "tipo": "cliente",
@@ -956,8 +957,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
             return qs.distinct().count()
 
-        # Administrador ve todo + detalle pendientes propios
-        if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        # Administrador ve todo + detalle pendientes propio
+        if es_administrador(user):
             por_aprobar = Tarea.objects.filter(estado=Tarea.Estado.EN_ESPERA).count()
             pendientes = Subtarea.objects.filter(
                 asignado=user,
@@ -1021,8 +1022,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             estado=Tarea.Estado.EN_DESARROLLO,
         ).distinct().count()
         detalle = self._tareas_con_pendientes(user)
-        # Si tiene rol ASISTENTE, tipo asistente, sino si tiene pendientes lo tratamos como asistente
-        tipo = "asistente" if user.roles.filter(rol__nombre__iexact="ASISTENTE").exists() or pendientes > 0 else "asistente"
+        # Colaborador sin privilegios de gestión: tipo "asistente" (por comportamiento).
+        tipo = "asistente"
         return Response({
             "tipo": tipo,
             "pendientes": pendientes,
@@ -1215,9 +1216,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
 
         # Administrador no puede empezar subtareas
-        if request.user.roles.filter(
-            rol__nombre__iexact="Administrador"
-        ).exists():
+        if es_administrador(request.user):
             return Response(
                 {
                     "detail": "Los administradores no pueden empezar subtareas."
@@ -1342,13 +1341,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
 
         # Administrador no puede completar subtareas (según requerimiento base)
-        if request.user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        if es_administrador(request.user):
             return Response(
                 {"detail": "Los administradores no pueden completar subtareas."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Asignador/ASISTENTE (y también CLIENTE) solo si es de su equipo y es el asignado
+        # Miembro/asignador (y también CLIENTE) solo si es de su equipo y es el asignado
         is_member = (
             tarea.equipo.lider_id == request.user.id
             or tarea.equipo.miembros.filter(usuario=request.user).exists()

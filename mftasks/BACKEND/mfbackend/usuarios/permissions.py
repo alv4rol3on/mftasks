@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
-from .jerarquia import nivel_efectivo
+from .jerarquia import puede_ser_lider as _puede_ser_lider
 from usuarios.models import (
     Equipo,
     EquipoAprobador,
@@ -21,19 +21,35 @@ class IsAuthenticatedActivo(IsAuthenticated):
 class EsAdministrador(BasePermission):
 
     def has_permission(self, request, view):
-
-        if not request.user or not request.user.is_authenticated:
-            return False
-
-        return request.user.roles.filter(
-            rol__nombre__iexact="Administrador"
-        ).exists()
+        return es_administrador(request.user)
 
 
 def es_administrador(user):
+    """True si el usuario es ADMINISTRADOR (tipo_usuario).
+
+    Compatibilidad temporal: también acepta el rol heredado "Administrador".
+    """
     if not user or not user.is_authenticated:
         return False
+    from .models import TipoUsuario
+
+    if getattr(user, "tipo_usuario", None) == TipoUsuario.ADMINISTRADOR:
+        return True
     return user.roles.filter(rol__nombre__iexact="Administrador").exists()
+
+
+def es_cliente(user):
+    """True si el usuario es CLIENTE (tipo_usuario).
+
+    Compatibilidad temporal: también acepta el rol heredado "Cliente".
+    """
+    if not user or not user.is_authenticated:
+        return False
+    from .models import TipoUsuario
+
+    if getattr(user, "tipo_usuario", None) == TipoUsuario.CLIENTE:
+        return True
+    return user.roles.filter(rol__nombre__iexact="Cliente").exists()
 
 
 def tiene_rol(user, nombre):
@@ -75,12 +91,6 @@ def es_sub_lider_de_equipo(user, equipo):
     ).exists()
 
 
-def es_lider_global(user):
-    if not user or not user.is_authenticated:
-        return False
-    return user.roles.filter(rol__nombre__iexact="GTR").exists()
-
-
 def es_lider_miembro(user, equipo):
     if not user or not user.is_authenticated or equipo is None:
         return False
@@ -101,9 +111,7 @@ def puede_operar_como_lider(user, equipo):
         return False
 
     # Administrador
-    if user.roles.filter(
-        rol__nombre__iexact="Administrador"
-    ).exists():
+    if es_administrador(user):
         return True
 
     # Líder de ESTE equipo
@@ -123,7 +131,7 @@ def es_miembro_activo(user, equipo):
     if not user or not user.is_authenticated:
         return False
     # CLIENTE nunca cuenta como miembro de equipo (incluso si es admin+cliente, admin ya gestiona aparte)
-    if user.roles.filter(rol__nombre__iexact="CLIENTE").exists() and not user.roles.filter(rol__nombre__iexact="Administrador").exists():
+    if es_cliente(user) and not es_administrador(user):
         return False
     if equipo.lider_id == user.id:
         return True
@@ -141,7 +149,7 @@ def puede_gestionar_miembros(user, equipo):
 
 def puede_ser_lider(user):
     """True si el usuario puede liderar un equipo (rol elegible o admin)."""
-    return es_administrador(user) or nivel_efectivo(user) is not None
+    return _puede_ser_lider(user)
 
 
 def ids_equipos_visibles(user):

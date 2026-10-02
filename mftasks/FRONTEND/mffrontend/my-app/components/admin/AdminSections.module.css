@@ -565,6 +565,14 @@
   flex-shrink: 0;
 }
 
+/* Roles: cadena de aprobación */
+.chain {
+  font-size: 11px;
+  color: #374151;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .subcampanasGrid {

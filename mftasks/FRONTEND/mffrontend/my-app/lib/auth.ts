@@ -3,6 +3,8 @@
 import { AccountInfo, IPublicClientApplication } from "@azure/msal-browser";
 import { apiBaseUrl, loginRequest } from "./authConfig";
 
+export type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+
 export interface DatosUsuario {
     id: number;
     codigo?: string | null;
@@ -10,6 +12,7 @@ export interface DatosUsuario {
     nombres: string;
     apellidos: string;
     cargo?: string;
+    tipo_usuario?: TipoUsuario;
     roles?: string[];
 }
 
@@ -46,7 +49,24 @@ function rolesLower(roles?: string[]) {
 export function esAdmin(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
+    if (usuario.tipo_usuario === "ADMINISTRADOR") return true;
     return rolesLower(usuario.roles).includes("administrador");
+}
+
+export function esCliente(): boolean {
+    const usuario = getUsuarioActual();
+    if (!usuario) return false;
+    if (usuario.tipo_usuario === "CLIENTE") return true;
+    return rolesLower(usuario.roles).includes("cliente");
+}
+
+export function esColaborador(): boolean {
+    const usuario = getUsuarioActual();
+    if (!usuario) return false;
+    if (usuario.tipo_usuario) return usuario.tipo_usuario === "COLABORADOR";
+    // Fallback para sesiones antiguas sin tipo_usuario en caché.
+    const roles = rolesLower(usuario.roles);
+    return !roles.includes("cliente") && !roles.includes("administrador");
 }
 
 export function esAsignador(): boolean {
@@ -61,21 +81,9 @@ export function esAsignador(): boolean {
     return roles.includes("miembro");
 }
 
-export function esAsistente(): boolean {
-    // Fase 1: asistente deprecado, todo miembro no lider/cliente/admin era asistente
-    return false;
-}
-
 export function esMiembro(): boolean {
-    const usuario = getUsuarioActual();
-    if (!usuario) return false;
-    return rolesLower(usuario.roles).includes("miembro");
-}
-
-export function esCliente(): boolean {
-    const usuario = getUsuarioActual();
-    if (!usuario) return false;
-    return rolesLower(usuario.roles).includes("cliente");
+    // Usuario interno por defecto (colaborador).
+    return esColaborador();
 }
 
 /** Roles que pueden ser líderes de un equipo (todos menos MIEMBRO/CLIENTE). */

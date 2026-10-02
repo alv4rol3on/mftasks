@@ -1,0 +1,346 @@
+OBJETIVO GENERAL
+
+Separar claramente:
+
+Tipo de usuario
+
+Rol jerárquico
+
+Relación de aprobación
+
+Equipo
+
+Permisos/navegación
+
+1. TIPO DE USUARIO
+
+Cada usuario debe tener un único tipo de usuario:
+
+COLABORADOR
+
+CLIENTE
+
+ADMINISTRADOR
+
+El tipo de usuario determina principalmente su comportamiento general y navegación dentro de la aplicación.
+
+Reglas:
+
+CLIENTE:
+
+No necesita un rol jerárquico.
+
+Puede gestionar sus solicitudes según los permisos existentes.
+
+ADMINISTRADOR:
+
+No necesita un rol jerárquico.
+
+Tiene acceso a la administración del sistema según los permisos existentes.
+
+COLABORADOR:
+
+Debe tener un rol jerárquico.
+
+Su rol determina su posición dentro de la estructura organizacional y su cadena de aprobación.
+
+No quiero que el sistema dependa de que los roles sean necesariamente "Gerente", "Subgerente", "Jefe", "GTR", etc. Esos deben ser simplemente roles existentes que puedan modificarse o complementarse.
+
+2. ROLES DINÁMICOS
+
+Los roles deben poder ser creados y administrados desde Django Admin/API.
+
+Ejemplos iniciales:
+
+Gerente
+
+Subgerente
+
+Jefe
+
+GTR
+
+Miembro
+
+Pero posteriormente un administrador debe poder crear roles como:
+
+Coordinador
+
+Supervisor
+
+Analista
+
+Especialista
+
+etc.
+
+No se deben agregar nuevos roles modificando código.
+
+3. RELACIÓN DE APROBACIÓN
+
+La jerarquía debe definirse mediante la relación de aprobación.
+
+Regla fundamental:
+
+Cada rol, excepto el rol más alto de la organización, tiene exactamente un rol superior directo que aprueba las solicitudes de ese rol.
+
+Por ejemplo:
+
+Gerente:
+
+No tiene aprobador superior.
+
+Subgerente:
+
+Aprobador directo: Gerente.
+
+Jefe:
+
+Aprobador directo: Subgerente.
+
+GTR:
+
+Aprobador directo: Jefe.
+
+Miembro:
+
+Aprobador directo: GTR.
+
+Esto produce:
+
+Gerente
+↑
+Subgerente
+↑
+Jefe
+↑
+GTR
+↑
+Miembro
+
+4. HERENCIA DE APROBADORES
+
+Los aprobadores del superior también son aprobadores indirectos del rol inferior.
+
+Ejemplo:
+
+GTR → Jefe
+
+Jefe → Subgerente
+
+Subgerente → Gerente
+
+Por lo tanto, para GTR:
+
+Aprobador directo: Jefe
+
+Aprobador heredado: Subgerente
+
+Aprobador heredado: Gerente
+
+La cadena es:
+
+GTR
+↑
+Jefe
+↑
+Subgerente
+↑
+Gerente
+
+NO quiero guardar todas estas relaciones heredadas físicamente en la base de datos.
+
+Solo debe almacenarse la relación directa:
+
+GTR → Jefe
+Jefe → Subgerente
+Subgerente → Gerente
+
+La cadena completa debe calcularse mediante código.
+
+5. ROLES AL MISMO NIVEL
+
+Debe ser posible tener varios roles que dependan del mismo superior.
+
+Por ejemplo:
+
+Jefe
+├── GTR
+├── Coordinador
+└── Supervisor
+
+Esto significa:
+
+GTR → Jefe
+Coordinador → Jefe
+Supervisor → Jefe
+
+Los tres están al mismo nivel relativo.
+
+Además, todos heredan:
+
+Jefe
+Subgerente
+Gerente
+
+como aprobadores superiores.
+
+No quiero utilizar niveles numéricos como:
+
+nivel = 1
+nivel = 2
+nivel = 3
+
+La posición debe derivarse de las relaciones de aprobación.
+
+6. REGLAS DE INTEGRIDAD
+
+El sistema debe impedir:
+
+Que un rol sea su propio superior.
+
+Que existan ciclos.
+
+Ejemplo inválido:
+
+A → B
+B → C
+C → A
+
+También debe impedir que un rol tenga más de un superior directo si estamos usando una estructura jerárquica de árbol.
+
+El rol raíz/superior no debe tener aprobador.
+
+Debe existir validación tanto en backend como, cuando corresponda, en frontend.
+
+7. EQUIPOS
+
+Los equipos deben dejar de depender de roles codificados de forma fija.
+
+Actualmente existen conceptos como:
+
+GERENTE
+
+SUBGERENTE
+
+JEFE
+
+GTR
+
+No quiero que para crear un nuevo rol sea necesario modificar funciones como:
+
+if rol == "GTR":
+...
+
+La lógica debe trabajar con los objetos Rol y sus relaciones de aprobación.
+
+El líder de un equipo tendrá un rol.
+
+El rol del líder determina su posición dentro de la jerarquía.
+
+8. APROBADORES DE EQUIPOS
+
+Los aprobadores no deberían configurarse manualmente para cada equipo si pueden derivarse de la jerarquía del rol.
+
+Ejemplo:
+
+Equipo X
+Líder: Juan
+Rol de Juan: GTR
+
+Cadena:
+
+GTR → Jefe → Subgerente → Gerente
+
+El sistema debe poder determinar automáticamente la cadena de aprobación correspondiente.
+
+Después debe resolver qué usuarios concretos corresponden a esos roles según las reglas existentes de equipos y organización.
+
+No mezclar:
+
+rol
+
+usuario
+
+equipo
+
+Un rol representa una posición.
+Un usuario ocupa un rol.
+Un equipo agrupa usuarios.
+La jerarquía determina la cadena de aprobación.
+
+9. MODELO CONCEPTUAL ESPERADO
+
+Quiero llegar aproximadamente a esta arquitectura:
+
+USUARIO
+│
+├── tipo_usuario
+│     ├── COLABORADOR
+│     ├── CLIENTE
+│     └── ADMINISTRADOR
+│
+└── rol
+│
+▼
+RELACIÓN DE APROBACIÓN
+│
+▼
+superior directo
+│
+▼
+cadena de aprobadores
+
+Y por separado:
+
+EQUIPO
+│
+├── líder
+├── miembros
+└── solicitudes
+
+10. MIGRACIÓN
+
+IMPORTANTE:
+
+No quiero que elimines inmediatamente la lógica existente.
+
+La aplicación actualmente funciona y contiene lógica relacionada con:
+
+User
+
+Rol
+
+UserRol
+
+Equipo
+
+EquipoMiembro
+
+EquipoAprobador
+
+jerarquia.py
+
+permisos
+
+flujo de aprobación
+
+solicitudes/tareas
+
+Primero analiza el código existente.
+
+Después propón una migración incremental para evitar romper funcionalidades.
+
+La migración inicial debe mantener la jerarquía actual:
+
+Gerente
+↑
+Subgerente
+↑
+Jefe
+↑
+GTR
+↑
+Miembro
+
+pero almacenándola mediante el nuevo sistema dinámico.

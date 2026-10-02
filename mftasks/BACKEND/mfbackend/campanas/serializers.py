@@ -87,8 +87,9 @@ class PermisoCampanaSerializer(serializers.ModelSerializer):
         # Si usuario es CLIENTE, solo permitir permiso puntual a subcampana
         if usuario:
             try:
+                from usuarios.permissions import es_cliente
                 u = usuario if isinstance(usuario, User) else User.objects.get(id=int(usuario))
-                if u.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+                if es_cliente(u):
                     if campana and not subcampana:
                         raise serializers.ValidationError({"campana": "Clientes solo pueden tener permiso puntual a subcampaña, no a campaña completa."})
                     if not subcampana:

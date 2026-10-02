@@ -196,6 +196,15 @@ export interface EquipoAprobador {
     rol_aprobador: "GERENTE" | "SUBGERENTE" | "JEFE" | string;
 }
 
+export interface RolInfo {
+    id: number;
+    nombre: string;
+    descripcion?: string;
+    activo: boolean;
+    superior: number | null;
+    puede_liderar: boolean;
+}
+
 export interface EquipoInfo {
     id: number;
     nombre: string;

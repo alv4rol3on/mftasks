@@ -11,6 +11,7 @@ import styles from "./Admin.module.css";
 import UsuariosSection from "@/components/admin/UsuariosSection";
 import CampanasSection from "@/components/admin/CampanasSection";
 import PermisosSection from "@/components/admin/PermisosSection";
+import RolesSection from "@/components/admin/RolesSection";
 
 type Tab = "usuarios" | "roles" | "permisos" | "campanas";
 
@@ -29,9 +30,11 @@ export default function AdminPage() {
       return;
     }
 
-    const esAdministrador = usuario.roles?.some(
-      (rol: string) => rol.toLowerCase() === "administrador"
-    );
+    const esAdministrador =
+      usuario.tipo_usuario === "ADMINISTRADOR" ||
+      usuario.roles?.some(
+        (rol: string) => rol.toLowerCase() === "administrador"
+      );
 
     if (!esAdministrador) {
       router.push("/mfpages/perfil");
@@ -104,6 +107,10 @@ export default function AdminPage() {
       <div className={styles.tabContent}>
         {tab === "usuarios" && (
           <UsuariosSection setMsg={setMsg} />
+        )}
+
+        {tab === "roles" && (
+          <RolesSection setMsg={setMsg} />
         )}
 
         {tab === "campanas" && (
