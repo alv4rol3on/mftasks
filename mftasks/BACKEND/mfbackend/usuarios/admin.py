@@ -79,6 +79,7 @@ class UserAdmin(BaseUserAdmin):
         "email",
         "nombres",
         "apellidos",
+        "dni",
         "cargo",
         "tipo_usuario",
         "is_active",
@@ -117,6 +118,7 @@ class UserAdmin(BaseUserAdmin):
                     "email",
                     "nombres",
                     "apellidos",
+                    "dni",
                     "cargo",
                     "azure_id",
                 )
@@ -157,6 +159,7 @@ class UserAdmin(BaseUserAdmin):
                     "email",
                     "nombres",
                     "apellidos",
+                    "dni",
                     "cargo",
                     "password1",
                     "password2",

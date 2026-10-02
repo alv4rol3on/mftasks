@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from usuarios.permissions import es_administrador, es_cliente
 from .models import ArchivoTarea, Subtarea, Tarea
-from .permissions import es_asignador_del_equipo
+from .permissions import es_asignador_del_equipo, tiene_permiso_subcampana
 
 
 class SubtareaSerializer(serializers.ModelSerializer):

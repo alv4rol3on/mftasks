@@ -4,6 +4,7 @@ from django.db.models import Q, UniqueConstraint, CheckConstraint
 from django.db.models.functions import Lower
 from django.conf import settings
 from datetime import time
+from django.core.validators import RegexValidator
 
 
 from .managers import UserManager
@@ -23,7 +24,22 @@ class TipoUsuario(models.TextChoices):
 class User(AbstractUser):
     username = None
 
+    dni = models.CharField(
+        max_length=8,
+        unique=True,
+        blank=False,
+        null=True,
+        validators=[
+            RegexValidator(
+                regex=r"^\d{8}$",
+                message="El DNI debe contener exactamente 8 números.",
+            )
+        ],
+    )
+
     email = models.EmailField(unique=True)
+
+    
 
     tipo_usuario = models.CharField(
         max_length=20,

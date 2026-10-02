@@ -21,6 +21,7 @@ type Usuario = {
   is_active: boolean;
   tipo_usuario?: TipoUsuario;
   roles?: string[];
+  dni: string
 };
 
 const PAGE_SIZE_USUARIOS = 10;
@@ -57,6 +58,7 @@ export default function UsuariosSection({ setMsg }: Props) {
     password: string;
     tipo_usuario: TipoUsuario;
     rol: string;
+    dni: string
   }>({
     email: "",
     nombres: "",
@@ -65,6 +67,7 @@ export default function UsuariosSection({ setMsg }: Props) {
     password: "",
     tipo_usuario: "COLABORADOR",
     rol: "",
+    dni: ""
   });
 
   // Roles jerárquicos asignables a colaboradores (activos, sin los de sistema).
@@ -127,9 +130,23 @@ export default function UsuariosSection({ setMsg }: Props) {
     return [rol];
   };
 
+  const handleDniChange = (value: string) => {
+    const dni = value.replace(/\D/g, "").slice(0, 8);
+
+    setNuevo({
+      ...nuevo,
+      dni,
+    });
+  };
+
   const crearUsuario = async () => {
     if (!nuevo.email || !nuevo.nombres || !nuevo.apellidos) {
       setMsg("Email, nombres y apellidos obligatorios");
+      return;
+    }
+
+    if (!/^\d{8}$/.test(nuevo.dni)) {
+      setMsg("El DNI debe contener exactamente 8 números.");
       return;
     }
 
@@ -147,6 +164,7 @@ export default function UsuariosSection({ setMsg }: Props) {
           email: nuevo.email,
           nombres: nuevo.nombres,
           apellidos: nuevo.apellidos,
+          dni: nuevo.dni,
           cargo: nuevo.cargo,
           password: nuevo.password || undefined,
           tipo_usuario: nuevo.tipo_usuario,
@@ -166,6 +184,7 @@ export default function UsuariosSection({ setMsg }: Props) {
         password: "",
         tipo_usuario: "COLABORADOR",
         rol: "",
+        dni: ""
       });
 
       await cargarUsuarios();
@@ -352,16 +371,16 @@ export default function UsuariosSection({ setMsg }: Props) {
     1,
     Math.ceil(
       usuariosFiltrados.length /
-        PAGE_SIZE_USUARIOS
+      PAGE_SIZE_USUARIOS
     )
   );
 
   const usuariosPaginados =
     usuariosFiltrados.slice(
       (pageUsuarios - 1) *
-        PAGE_SIZE_USUARIOS,
+      PAGE_SIZE_USUARIOS,
       pageUsuarios *
-        PAGE_SIZE_USUARIOS
+      PAGE_SIZE_USUARIOS
     );
 
   useEffect(() => {
@@ -391,6 +410,41 @@ export default function UsuariosSection({ setMsg }: Props) {
           Crear nuevo usuario
         </h3>
 
+        <input
+          placeholder="Nombres"
+          value={nuevo.nombres}
+          onChange={e =>
+            setNuevo({
+              ...nuevo,
+              nombres: e.target.value,
+            })
+          }
+          className={styles.input}
+        />
+
+        <input
+          placeholder="Apellidos"
+          value={nuevo.apellidos}
+          onChange={e =>
+            setNuevo({
+              ...nuevo,
+              apellidos: e.target.value,
+            })
+          }
+          className={styles.input}
+        />
+
+        <input
+          placeholder="DNI"
+          value={nuevo.dni}
+          onChange={e => handleDniChange(e.target.value)}
+          className={styles.input}
+          inputMode="numeric"
+          maxLength={8}
+          pattern="\d{8}"
+          required
+        />
+
         <div className={styles.formGrid}>
           <input
             placeholder="Email"
@@ -411,30 +465,6 @@ export default function UsuariosSection({ setMsg }: Props) {
               setNuevo({
                 ...nuevo,
                 cargo: e.target.value,
-              })
-            }
-            className={styles.input}
-          />
-
-          <input
-            placeholder="Nombres"
-            value={nuevo.nombres}
-            onChange={e =>
-              setNuevo({
-                ...nuevo,
-                nombres: e.target.value,
-              })
-            }
-            className={styles.input}
-          />
-
-          <input
-            placeholder="Apellidos"
-            value={nuevo.apellidos}
-            onChange={e =>
-              setNuevo({
-                ...nuevo,
-                apellidos: e.target.value,
               })
             }
             className={styles.input}
@@ -588,7 +618,6 @@ export default function UsuariosSection({ setMsg }: Props) {
                 <thead>
                   <tr>
                     <th>Codigo</th>
-                    <th>Email</th>
                     <th>Nombre</th>
                     <th>Tipo</th>
                     <th>Rol</th>
@@ -664,10 +693,6 @@ export default function UsuariosSection({ setMsg }: Props) {
                             }}
                           >
                             {u.codigo ?? "-"}
-                          </td>
-
-                          <td>
-                            {u.email}
                           </td>
 
                           <td>
@@ -759,8 +784,8 @@ export default function UsuariosSection({ setMsg }: Props) {
                                 esAdmin
                                   ? "No se puede modificar administradores"
                                   : u.is_active
-                                  ? "Desactivar"
-                                  : "Activar"
+                                    ? "Desactivar"
+                                    : "Activar"
                               }
                             />
                           </td>

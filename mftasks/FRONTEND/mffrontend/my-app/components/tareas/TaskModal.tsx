@@ -372,7 +372,7 @@ export default function TaskModal({
                                         ? <span style={{ marginLeft: 4, color: "#dc2626", fontWeight: 700 }}>⏱ +{formatearTiempo(segundosRetraso)} excedido</span>
                                         : <span style={{ marginLeft: 4 }}>⏱ {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" ? `Tomado ${tarea.tiempo_tomado_formateado}` : `Entrega ${formatearFecha(tarea.fecha_entrega_aproximada)}`}</span>}
                                 </span>
-                                {tarea.estado === "APROBADO" && tarea.puedo_operar && onIniciar && (
+                                {tarea.estado === "APROBADO" && tarea.puedo_operar && onIniciar && tarea.subtareas.length === 0 && (
                                     <button className={styles.btnIniciar} onClick={() => setMostrarIniciar(true)} disabled={accionando === tarea.id} style={{ marginLeft: 4 }}>
                                         Iniciar tarea
                                     </button>

@@ -1,12 +1,22 @@
 from rest_framework.permissions import BasePermission
 
+from usuarios.permissions import (
+    es_administrador,
+    es_cliente,
+    ids_equipos_visibles,
+    es_lider_del_equipo,
+)
+from usuarios.jerarquia import rol_efectivo, cadena_aprobacion
+from usuarios.models import EquipoMiembro
+from usuarios.permissions import es_cliente as _es_cliente
+from campanas.models import PermisoCampana
+
+
 
 def es_miembro_del_equipo(user, equipo):
 
     if not user or not user.is_authenticated or equipo is None:
         return False
-
-    from usuarios.permissions import es_administrador, es_cliente, ids_equipos_visibles
 
     if es_administrador(user):
         return True
@@ -23,7 +33,7 @@ def es_sub_lider(user, equipo):
     if not user or not user.is_authenticated or equipo is None:
         return False
 
-    from usuarios.models import EquipoMiembro
+    
 
     return EquipoMiembro.objects.filter(
         equipo=equipo,
@@ -38,8 +48,6 @@ def es_lider_por_miembro(user, equipo):
 
     if equipo.lider_id == user.id:
         return True
-
-    from usuarios.models import EquipoMiembro
 
     return EquipoMiembro.objects.filter(
         equipo=equipo,
@@ -77,8 +85,6 @@ def es_asignador_del_equipo(user, equipo):
         return True
 
     # Sub-líder de ESTE equipo
-    from usuarios.models import EquipoMiembro
-
     return EquipoMiembro.objects.filter(
         equipo=equipo,
         usuario=user,
@@ -99,7 +105,6 @@ def puede_gestionar_roles_equipo(user, equipo):
 
 
 def es_cliente(user):
-    from usuarios.permissions import es_cliente as _es_cliente
     return _es_cliente(user)
 
 
@@ -107,8 +112,6 @@ def puede_observar_tarea(user, tarea):
     """Mismos criterios de visibilidad que TaskViewSet.get_queryset."""
     if not user or not user.is_authenticated:
         return False
-
-    from usuarios.permissions import es_administrador, es_cliente, ids_equipos_visibles
 
     if es_administrador(user):
         return True
@@ -126,10 +129,8 @@ def tiene_permiso_subcampana(user, subcampana):
         return False
     if not subcampana.activo or not subcampana.campana.activo:
         return False
-    from usuarios.permissions import es_administrador
     if es_administrador(user):
         return True
-    from campanas.models import PermisoCampana
     # solo permiso directo a subcampana puntual
     if PermisoCampana.objects.filter(usuario=user, subcampana=subcampana).exists():
         return True
@@ -166,38 +167,92 @@ class EsSolicitanteDeTarea(BasePermission):
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:
             return False
-        from usuarios.permissions import es_administrador
         if es_administrador(request.user):
             return True
         return obj.solicitante_id == request.user.id
 
 
 def es_aprobador_de_tarea(user, tarea):
-    """True si el usuario puede resolver la fase de aprobación actual.
-
-    - Fase APROBADORES: cualquier aprobador asignado del equipo de la tarea.
-    - Fase LIDER: el líder del equipo de la tarea.
-    El Administrador puede actuar como override.
     """
+    Determina si el usuario puede aprobar la tarea según
+    la jerarquía organizacional.
+
+    APROBADORES:
+        Puede aprobar un usuario cuyo rol sea superior al
+        rol del equipo de la tarea.
+
+    LIDER:
+        Solo el líder del equipo.
+
+    Administrador:
+        Puede actuar como override.
+
+    EquipoAprobador NO participa en esta autorización.
+    """
+
     if not user or not user.is_authenticated or tarea is None:
         return False
-    from usuarios.permissions import (
-        es_administrador,
-        es_aprobador_asignado,
-        es_lider_del_equipo,
-    )
 
     if es_administrador(user):
         return True
 
+    equipo = getattr(tarea, "equipo", None)
+
+    if equipo is None:
+        return False
+
     paso = getattr(tarea, "paso_aprobacion", None)
+
+    # =========================================================
+    # FASE LÍDER
+    # =========================================================
     if paso == "LIDER":
-        return es_lider_del_equipo(user, getattr(tarea, "equipo", None))
+        return es_lider_del_equipo(user, equipo)
+
+    # =========================================================
+    # FASE APROBACIÓN JERÁRQUICA
+    # =========================================================
     if paso == "APROBADORES":
-        return es_aprobador_asignado(user, getattr(tarea, "equipo", None))
+
+        
+        rol_usuario = rol_efectivo(user)
+
+        if rol_usuario is None:
+            return False
+
+        rol_equipo = getattr(
+            equipo,
+            "rol_equipo",
+            None,
+        )
+
+        if rol_equipo is None:
+            return False
+
+        superiores = cadena_aprobacion(
+            rol_equipo
+        )
+
+        ids_superiores = {
+            rol.pk
+            for rol in superiores
+            if rol.activo
+        }
+
+        # El usuario debe ser superior al rol del equipo.
+        if rol_usuario.pk not in ids_superiores:
+            return False
+
+        # Debe tener acceso a la subcampaña.
+        if not tiene_permiso_subcampana(
+            user,
+            getattr(tarea, "subcampana", None),
+        ):
+            return False
+
+        return True
+
     return False
-
-
 class PuedeAprobarPasoDeTarea(BasePermission):
 
     def has_object_permission(self, request, view, obj):
@@ -211,7 +266,6 @@ class EsAsignadoDeSubtarea(BasePermission):
         # Administrador nunca puede (según requerimiento corregido)
         if not request.user or not request.user.is_authenticated:
             return False
-        from usuarios.permissions import es_administrador
         if es_administrador(request.user):
             return False
         if obj.asignado_id != request.user.id:

@@ -55,17 +55,15 @@ const PAGE_SIZE_CAMPANAS = 6;
 
 export default function PermisosSection({ setMsg }: Props) {
   // ---------------------------------------------------------
-  // USUARIOS / CLIENTES
+  // USUARIOS 
   // ---------------------------------------------------------
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false);
 
-  const [selectedClienteId, setSelectedClienteId] = useState<number | "">(
-    ""
-  );
+  const [selectedUsuarioId, setSelectedUsuarioId] = useState<number | "">("");
 
-  const [filtroClientePerm, setFiltroClientePerm] = useState("");
+  const [filtroUsuarioPerm, setFiltroUsuarioPerm] = useState("");
 
   // ---------------------------------------------------------
   // CAMPAÑAS
@@ -145,7 +143,7 @@ export default function PermisosSection({ setMsg }: Props) {
   };
 
   // ---------------------------------------------------------
-  // CARGAR PERMISOS DEL CLIENTE
+  // CARGAR PERMISOS DEL USUARIO
   // ---------------------------------------------------------
 
   const cargarPermisos = async (usuarioId: number) => {
@@ -180,34 +178,28 @@ export default function PermisosSection({ setMsg }: Props) {
   }, []);
 
   // ---------------------------------------------------------
-  // CAMBIO DE CLIENTE
+  // CAMBIO DE USUARIO
   // ---------------------------------------------------------
 
   useEffect(() => {
     setExpandidas(new Set());
     setPagePermisosCampanas(1);
 
-    if (selectedClienteId !== "") {
-      cargarPermisos(Number(selectedClienteId));
+    if (selectedUsuarioId !== "") {
+      cargarPermisos(Number(selectedUsuarioId));
     } else {
       setPermisos([]);
     }
-  }, [selectedClienteId]);
+  }, [selectedUsuarioId]);
 
   // ---------------------------------------------------------
-  // CLIENTES
+  // USUARIOS
   // ---------------------------------------------------------
 
-  const clientes = usuarios.filter((u) =>
-    (u.roles ?? [])
-      .map((r) => r.toLowerCase())
-      .includes("cliente")
-  );
+  const usuariosFiltrados = usuarios.filter((u) => {
+    if (!filtroUsuarioPerm) return true;
 
-  const clientesFiltrados = clientes.filter((u) => {
-    if (!filtroClientePerm) return true;
-
-    const q = filtroClientePerm.toLowerCase();
+    const q = filtroUsuarioPerm.toLowerCase();
 
     return (
       u.email.toLowerCase().includes(q) ||
@@ -218,8 +210,8 @@ export default function PermisosSection({ setMsg }: Props) {
     );
   });
 
-  const clienteSeleccionado = usuarios.find(
-    (u) => u.id === selectedClienteId
+  const usuarioSeleccionado = usuarios.find(
+    (u) => u.id === selectedUsuarioId
   );
 
   // ---------------------------------------------------------
@@ -282,9 +274,9 @@ export default function PermisosSection({ setMsg }: Props) {
   const campanasPaginadasPermisos =
     campanasFiltradas.slice(
       (pagePermisosCampanas - 1) *
-        PAGE_SIZE_CAMPANAS,
+      PAGE_SIZE_CAMPANAS,
       pagePermisosCampanas *
-        PAGE_SIZE_CAMPANAS
+      PAGE_SIZE_CAMPANAS
     );
 
   useEffect(() => {
@@ -292,7 +284,7 @@ export default function PermisosSection({ setMsg }: Props) {
   }, [
     filtroCampana,
     filtroActivoCampana,
-    selectedClienteId,
+    selectedUsuarioId,
   ]);
 
   useEffect(() => {
@@ -366,15 +358,15 @@ export default function PermisosSection({ setMsg }: Props) {
     subcampanaId: number,
     checked: boolean
   ) => {
-    if (selectedClienteId === "") {
+    if (selectedUsuarioId === "") {
       setMsg(
-        "Error: selecciona un cliente primero"
+        "Error: selecciona un usuario primero"
       );
       return;
     }
 
-    const clienteId = Number(
-      selectedClienteId
+    const usuarioId = Number(
+      selectedUsuarioId
     );
 
     setCargandoPermisos(true);
@@ -386,7 +378,7 @@ export default function PermisosSection({ setMsg }: Props) {
           {
             method: "POST",
             body: JSON.stringify({
-              usuario: clienteId,
+              usuario: usuarioId,
               subcampana: subcampanaId,
             }),
           }
@@ -420,7 +412,7 @@ export default function PermisosSection({ setMsg }: Props) {
         );
       }
 
-      await cargarPermisos(clienteId);
+      await cargarPermisos(usuarioId);
     } catch (e) {
       setMsg(
         `Error: ${(e as Error).message}`
@@ -438,34 +430,30 @@ export default function PermisosSection({ setMsg }: Props) {
     <div className={styles.container}>
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>
-          Permisos — Cliente → Subcampañas
+          Permisos — Usuario → Subcampañas
         </h3>
 
         <p className={styles.permisosDesc}>
-          Selecciona un usuario tipo{" "}
-          <strong>cliente</strong> y marca las
-          subcampañas a las que podrá solicitar
-          tareas. El permiso es puntual por
-          subcampaña (no hereda toda la campaña).
+          Selecciona un usuario y marca las
+          subcampañas a las que tendrà permiso de realizar, recibir o aprobar solicitudes
         </p>
 
         {/* ------------------------------------------------ */}
-        {/* SELECCIÓN DE CLIENTE                            */}
+        {/* SELECCIÓN DE USUARIO                            */}
         {/* ------------------------------------------------ */}
 
         <div className={styles.permisosHeader}>
           <label className={styles.permisosField}>
-            Cliente ({clientes.length} totales)
 
             <div
               className={styles.permisosFieldSmall}
               style={{ position: "relative" }}
             >
               <input
-                placeholder="Filtrar cliente por email/nombre/codigo"
-                value={filtroClientePerm}
+                placeholder="Filtrar usuario por email/nombre/codigo"
+                value={filtroUsuarioPerm}
                 onChange={(e) =>
-                  setFiltroClientePerm(
+                  setFiltroUsuarioPerm(
                     e.target.value
                   )
                 }
@@ -473,32 +461,31 @@ export default function PermisosSection({ setMsg }: Props) {
                 style={{ fontSize: 12 }}
               />
 
-              {filtroClientePerm &&
-                clientesFiltrados.length > 0 && (
+              {filtroUsuarioPerm &&
+                usuariosFiltrados.length > 0 && (
                   <div
                     className={
                       styles.clienteDropdown
                     }
                   >
-                    {clientesFiltrados
+                    {usuariosFiltrados
                       .slice(0, 8)
                       .map((c) => (
                         <div
                           key={c.id}
                           onClick={() => {
-                            setSelectedClienteId(
+                            setSelectedUsuarioId(
                               c.id
                             );
-                            setFiltroClientePerm(
+                            setFiltroUsuarioPerm(
                               ""
                             );
                           }}
-                          className={`${styles.clienteOption} ${
-                            selectedClienteId ===
+                          className={`${styles.clienteOption} ${selectedUsuarioId ===
                             c.id
-                              ? styles.clienteOptionActive
-                              : ""
-                          }`}
+                            ? styles.clienteOptionActive
+                            : ""
+                            }`}
                         >
                           <span
                             style={{
@@ -518,7 +505,7 @@ export default function PermisosSection({ setMsg }: Props) {
                 )}
             </div>
 
-            {selectedClienteId !== "" && (
+            {selectedUsuarioId !== "" && (
               <span
                 style={{
                   display: "flex",
@@ -536,17 +523,17 @@ export default function PermisosSection({ setMsg }: Props) {
                       fontFamily: "monospace",
                     }}
                   >
-                    {clienteSeleccionado?.codigo ??
-                      selectedClienteId}
+                    {usuarioSeleccionado?.codigo ??
+                      selectedUsuarioId}
                   </strong>{" "}
-                  — {clienteSeleccionado?.email}
+                  — {usuarioSeleccionado?.email}
                 </span>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedClienteId("");
-                    setFiltroClientePerm("");
+                    setSelectedUsuarioId("");
+                    setFiltroUsuarioPerm("");
                   }}
                   title="Quitar selección"
                   style={{
@@ -571,15 +558,6 @@ export default function PermisosSection({ setMsg }: Props) {
           {/* ------------------------------------------------ */}
 
           <div className={styles.permisosField}>
-            <label
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              Campañas
-            </label>
-
             <input
               placeholder="Buscar campaña o subcampaña..."
               value={filtroCampana}
@@ -603,9 +581,9 @@ export default function PermisosSection({ setMsg }: Props) {
                 onChange={(e) =>
                   setFiltroActivoCampana(
                     e.target.value as
-                      | "activos"
-                      | "inactivos"
-                      | "todos"
+                    | "activos"
+                    | "inactivos"
+                    | "todos"
                   )
                 }
                 className={styles.select}
@@ -628,17 +606,16 @@ export default function PermisosSection({ setMsg }: Props) {
               </select>
             </div>
 
-            {selectedClienteId !== "" && (
+            {selectedUsuarioId !== "" && (
               <div
-                className={`${styles.permisosStatus} ${
-                  buscandoPermisos
-                    ? styles.permisosStatusLoading
-                    : styles.permisosStatusOk
-                }`}
+                className={`${styles.permisosStatus} ${buscandoPermisos
+                  ? styles.permisosStatusLoading
+                  : styles.permisosStatusOk
+                  }`}
               >
                 {buscandoPermisos
                   ? "Cargando permisos..."
-                  : `${permisos.length} subcampaña(s) permitida(s) para este cliente`}
+                  : `${permisos.length} subcampaña(s) permitida(s) para este usuario`}
 
                 {cargandoPermisos &&
                   " — actualizando..."}
@@ -651,7 +628,7 @@ export default function PermisosSection({ setMsg }: Props) {
         {/* RESUMEN DE PERMISOS                             */}
         {/* ------------------------------------------------ */}
 
-        {selectedClienteId !== "" &&
+        {selectedUsuarioId !== "" &&
           permisos.length > 0 && (
             <div
               className={styles.resumenCard}
@@ -708,14 +685,13 @@ export default function PermisosSection({ setMsg }: Props) {
 
                           await cargarPermisos(
                             Number(
-                              selectedClienteId
+                              selectedUsuarioId
                             )
                           );
                         } catch (e) {
                           setMsg(
-                            `Error: ${
-                              (e as Error)
-                                .message
+                            `Error: ${(e as Error)
+                              .message
                             }`
                           );
                         } finally {
@@ -740,7 +716,7 @@ export default function PermisosSection({ setMsg }: Props) {
         {/* CAMPAÑAS                                        */}
         {/* ------------------------------------------------ */}
 
-        {selectedClienteId === "" ? (
+        {selectedUsuarioId === "" ? (
           <div
             style={{
               fontSize: 13,
@@ -748,13 +724,13 @@ export default function PermisosSection({ setMsg }: Props) {
               marginTop: 16,
             }}
           >
-            Selecciona un cliente para gestionar
+            Selecciona un usuario para gestionar
             sus permisos.
           </div>
         ) : (
           <>
             {cargandoUsuarios ||
-            cargandoCampanas ? (
+              cargandoCampanas ? (
               <div
                 style={{
                   fontSize: 13,
@@ -768,19 +744,19 @@ export default function PermisosSection({ setMsg }: Props) {
               <>
                 {campanasFiltradas.length >
                   PAGE_SIZE_CAMPANAS && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#9ca3af",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {campanasFiltradas.length}{" "}
-                    campaña(s) · Página{" "}
-                    {pagePermisosCampanas} de{" "}
-                    {totalPagesPermisos}
-                  </div>
-                )}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {campanasFiltradas.length}{" "}
+                      campaña(s) · Página{" "}
+                      {pagePermisosCampanas} de{" "}
+                      {totalPagesPermisos}
+                    </div>
+                  )}
 
                 {campanasFiltradas.length > 1 && (
                   <div
@@ -812,7 +788,7 @@ export default function PermisosSection({ setMsg }: Props) {
                   }
                 >
                   {campanasFiltradas.length ===
-                  0 ? (
+                    0 ? (
                     <div
                       style={{
                         fontSize: 13,
@@ -820,12 +796,12 @@ export default function PermisosSection({ setMsg }: Props) {
                       }}
                     >
                       {filtroActivoCampana ===
-                      "activos"
+                        "activos"
                         ? "No hay campañas activas que coincidan."
                         : filtroActivoCampana ===
                           "inactivos"
-                        ? "No hay campañas inactivas que coincidan."
-                        : "No hay campañas que coincidan."}
+                          ? "No hay campañas inactivas que coincidan."
+                          : "No hay campañas que coincidan."}
                     </div>
                   ) : (
                     campanasPaginadasPermisos.map(
@@ -901,17 +877,14 @@ export default function PermisosSection({ setMsg }: Props) {
                                         key={
                                           sub.id
                                         }
-                                        className={`${
-                                          styles.subLabel
-                                        } ${
-                                          checked
+                                        className={`${styles.subLabel
+                                          } ${checked
                                             ? styles.subLabelChecked
                                             : ""
-                                        } ${
-                                          cargandoPermisos
+                                          } ${cargandoPermisos
                                             ? styles.subLabelDisabled
                                             : ""
-                                        }`}
+                                          }`}
                                         style={{
                                           opacity:
                                             sub.activo

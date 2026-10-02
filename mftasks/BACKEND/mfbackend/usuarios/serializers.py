@@ -59,6 +59,7 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "nombres",
             "apellidos",
+            "dni",
             "cargo",
             "is_active",
             "activo",
@@ -79,7 +80,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "nombres", "apellidos", "cargo", "is_active", "activo", "tipo_usuario", "password", "roles", "equipo_id", "permisos_campana"]
+        fields = ["id", "email", "nombres", "apellidos", "dni","cargo", "is_active", "activo", "tipo_usuario", "password", "roles", "equipo_id", "permisos_campana"]
         read_only_fields = ["id"]
 
     def validate_roles(self, value):
@@ -171,6 +172,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "email",
             "nombres",
             "apellidos",
+            "dni",
             "cargo",
             "tipo_usuario",
             "roles"
@@ -209,6 +211,7 @@ class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source="usuario.email", read_only=True)
     nombres = serializers.CharField(source="usuario.nombres", read_only=True)
     apellidos = serializers.CharField(source="usuario.apellidos", read_only=True)
+    dni = serializers.CharField(source="usuario.dni")
     cargo = serializers.CharField(source="usuario.cargo", read_only=True)
 
     class Meta:
@@ -221,6 +224,7 @@ class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
             "email",
             "nombres",
             "apellidos",
+            "dni",
             "cargo",
             "rol_en_equipo",
             "estado",
