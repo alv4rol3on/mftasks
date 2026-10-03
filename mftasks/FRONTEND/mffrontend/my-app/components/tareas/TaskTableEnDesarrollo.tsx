@@ -150,6 +150,7 @@ export default function TaskTableEnDesarrollo({
   onInactivarSubtarea,
   onReactivarSubtarea,
   onTareaMutated,
+  soloLectura,
 }: {
   tareas: Task[];
   accionando?: number | null;
@@ -172,6 +173,7 @@ export default function TaskTableEnDesarrollo({
   onInactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
   onReactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
   onTareaMutated?: () => void | Promise<void>;
+  soloLectura?: boolean;
 }) {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   //const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
@@ -273,6 +275,7 @@ export default function TaskTableEnDesarrollo({
       onInactivarSubtarea={onInactivarSubtarea}
       onReactivarSubtarea={onReactivarSubtarea}
       onTareaMutated={onTareaMutated}
+      soloLectura={soloLectura}
     />
 
     {/*{taskParaIniciar && (

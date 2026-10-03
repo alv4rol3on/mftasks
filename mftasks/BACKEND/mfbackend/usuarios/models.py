@@ -123,6 +123,14 @@ class Rol(models.Model):
         help_text="Si está activo, los usuarios con este rol pueden ser líderes de un equipo.",
     )
 
+    auto_aprobar = models.BooleanField(
+        default=False,
+        help_text=(
+            "Si está activo, las solicitudes de equipos de este rol saltan la "
+            "fase de aprobadores y pasan directo a revisión del líder."
+        ),
+    )
+
     class Meta:
         constraints = [
             UniqueConstraint(Lower("nombre"), name="rol_nombre_unique_lower"),
@@ -359,76 +367,6 @@ class EquipoMiembro(models.Model):
 
     def __str__(self):
         return f"{self.usuario} - {self.equipo} ({self.rol_en_equipo}/{self.estado})"
-
-
-class EquipoAprobador(models.Model):
-    """Aprobadores asignados a un equipo: máximo uno por rol global.
-
-    Cualquiera de ellos puede resolver la fase de aprobación de una solicitud;
-    luego pasa a revisión del líder del equipo.
-
-    Los roles permitidos dependen del tipo de equipo (ver jerarquia.py):
-    el equipo GTR admite gerente/subgerente/jefe; el de jefe, gerente/subgerente;
-    el de subgerente, solo gerente; y el de gerente no requiere aprobadores.
-    """
-
-    equipo = models.ForeignKey(
-        Equipo,
-        on_delete=models.CASCADE,
-        related_name="aprobadores",
-    )
-
-    usuario = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="equipos_como_aprobador",
-    )
-
-    rol_aprobador = models.ForeignKey(
-        Rol,
-        on_delete=models.PROTECT,
-        related_name="equipos_aprobador",
-        null=True,
-        help_text="Rol de la cadena de aprobación que ocupa este usuario en el equipo.",
-    )
-
-    fecha_asignacion = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        constraints = [
-            # Se permite más de un aprobador por rol; solo se impide repetir
-            # el mismo usuario en el equipo.
-            UniqueConstraint(
-                fields=["equipo", "usuario"],
-                name="unico_usuario_aprobador_por_equipo",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["equipo"]),
-            models.Index(fields=["usuario"]),
-        ]
-
-    def clean(self):
-        from django.core.exceptions import ValidationError
-        from .jerarquia import roles_aprobador_de_equipo
-
-        super().clean()
-        if self.equipo_id and self.rol_aprobador_id:
-            permitidos = roles_aprobador_de_equipo(self.equipo)
-            ids_permitidos = {r.pk for r in permitidos}
-            if self.rol_aprobador_id not in ids_permitidos:
-                nombres = ", ".join(r.nombre for r in permitidos) or "ninguno"
-                raise ValidationError(
-                    {
-                        "rol_aprobador": (
-                            f"El rol {self.rol_aprobador} no está permitido para este "
-                            f"equipo. Permitidos: {nombres}."
-                        )
-                    }
-                )
-
-    def __str__(self):
-        return f"{self.equipo} - {self.rol_aprobador}: {self.usuario}"
 
 
 class PreferenciaNotificacion(models.Model):

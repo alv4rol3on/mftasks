@@ -14,8 +14,8 @@ from rest_framework.generics import RetrieveUpdateAPIView
 
 from .azure import AzureTokenValidationError, AzureTokenValidator
 
-from .models import Equipo, EquipoAprobador, EquipoMiembro, PreferenciaNotificacion, Rol, User
-from .jerarquia import roles_aprobador_de_equipo, roles_integrante_requeridos
+from .models import Equipo, EquipoMiembro, PreferenciaNotificacion, Rol, User
+from .jerarquia import roles_integrante_requeridos
 from .permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
@@ -283,14 +283,52 @@ class EquipoViewSet(ModelViewSet):
         user = self.request.user
         if not user or not user.is_authenticated:
             return Equipo.objects.none()
+
+        base = (
+            Equipo.objects
+            .select_related("lider")
+            .prefetch_related("miembros__usuario")
+        )
+
+        # Filtro opcional: equipos cuyo líder tenga permiso a la subcampaña.
+        subcampana_id = (
+            self.request.query_params.get("subcampana")
+            or self.request.query_params.get("subcampana_id")
+        )
+        if subcampana_id:
+            base = self._filtrar_por_permiso_lider(base, subcampana_id)
+
         # Administrador ve todos
         if es_administrador(user):
-            return Equipo.objects.all().select_related("lider").prefetch_related("miembros__usuario")
-        # CLIENTE nunca es miembro de equipo: solo ve equipos activos para elegir destino al solicitar (no ve miembros)
+            return base
+        # CLIENTE nunca es miembro de equipo: solo ve equipos activos para elegir
+        # destino al solicitar (no ve miembros)
         if es_cliente(user):
-            return Equipo.objects.filter(activo=True).select_related("lider").prefetch_related("miembros__usuario")
-        # Usuarios internos: ven todos los equipos (el frontend ofrece el filtro "solo mis equipos")
-        return Equipo.objects.all().select_related("lider").prefetch_related("miembros__usuario")
+            return base.filter(activo=True)
+        # Usuarios internos: ven todos los equipos (el frontend ofrece el filtro
+        # "solo mis equipos")
+        return base
+
+    @staticmethod
+    def _filtrar_por_permiso_lider(queryset, subcampana_id):
+        """Limita los equipos a aquellos cuyo líder tenga permiso a la subcampaña."""
+        from campanas.models import PermisoCampana
+        from .models import TipoUsuario
+
+        ids_lideres = set(
+            PermisoCampana.objects.filter(
+                subcampana_id=subcampana_id,
+                subcampana__activo=True,
+                subcampana__campana__activo=True,
+            ).values_list("usuario_id", flat=True)
+        )
+        # Los administradores tienen bypass de permisos.
+        ids_lideres |= set(
+            User.objects.filter(
+                tipo_usuario=TipoUsuario.ADMINISTRADOR
+            ).values_list("id", flat=True)
+        )
+        return queryset.filter(lider_id__in=ids_lideres)
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -613,132 +651,6 @@ class EquipoViewSet(ModelViewSet):
         )
         from .serializers import EquipoMiembroDetailSerializer
         return Response(EquipoMiembroDetailSerializer(miembro).data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=["post"], url_path="aprobadores")
-    def asignar_aprobadores(self, request, pk=None):
-        """Asigna los aprobadores del equipo (solo Administrador).
-
-        Los roles permitidos son la cadena de aprobación del rol del líder del
-        equipo (se calcula desde la jerarquía, no hay roles codificados).
-        """
-        equipo = self.get_object()
-        if not es_administrador(request.user):
-            return Response(
-                {"detail": "Solo el administrador puede asignar aprobadores."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        aprobadores = request.data.get("aprobadores")
-        if not isinstance(aprobadores, list):
-            return Response({"detail": "Debe enviar la lista 'aprobadores'."}, status=status.HTTP_400_BAD_REQUEST)
-
-        roles_permitidos = roles_aprobador_de_equipo(equipo)
-        if not roles_permitidos:
-            return Response(
-                {"detail": "Este equipo no requiere aprobadores."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        mapa_permitidos = {r.nombre.upper(): r for r in roles_permitidos}
-        etiquetas = ", ".join(r.nombre for r in roles_permitidos)
-
-        from .jerarquia import profundidad
-        from .models import TipoUsuario
-
-        seleccionados = []  # [(rol_obj, user_obj)]
-        usuarios_usados = set()
-
-        for item in aprobadores:
-            if not isinstance(item, dict):
-                return Response({"detail": "Formato de aprobador inválido."}, status=status.HTTP_400_BAD_REQUEST)
-
-            codigo = (item.get("codigo") or "").strip()
-            usuario_id = item.get("usuario_id") or item.get("usuario") or item.get("id_usuario")
-            user_obj = None
-            if codigo:
-                try:
-                    user_obj = User.objects.get(codigo__iexact=codigo)
-                except User.DoesNotExist:
-                    return Response({"detail": f"Usuario con código {codigo} no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-            elif usuario_id:
-                try:
-                    user_obj = User.objects.get(id=int(usuario_id))
-                except (User.DoesNotExist, ValueError, TypeError):
-                    return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-            else:
-                return Response({"detail": "Cada aprobador debe indicar 'codigo' o 'usuario_id'."}, status=status.HTTP_400_BAD_REQUEST)
-
-            if not user_obj.is_active:
-                return Response({"detail": f"El usuario {user_obj.codigo} está inactivo."}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Solo colaboradores pueden ser aprobadores.
-            if getattr(user_obj, "tipo_usuario", None) == TipoUsuario.CLIENTE or es_cliente(user_obj):
-                return Response(
-                    {"detail": f"El usuario {user_obj.codigo} es cliente y no puede ser aprobador."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if getattr(user_obj, "tipo_usuario", None) == TipoUsuario.ADMINISTRADOR or es_administrador(user_obj):
-                return Response(
-                    {"detail": f"El usuario {user_obj.codigo} es administrador y no puede ser aprobador."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            roles_usuario = {
-                (r or "").upper()
-                for r in user_obj.roles.values_list("rol__nombre", flat=True)
-            }
-            coincidencias = [nombre for nombre in roles_usuario if nombre in mapa_permitidos]
-            if not coincidencias:
-                return Response(
-                    {
-                        "detail": (
-                            f"El usuario {user_obj.codigo} no tiene un rol superior "
-                            f"de la cadena. Permitidos: {etiquetas}."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            rol_solicitado = (item.get("rol") or item.get("rol_aprobador") or "").upper().strip()
-            if rol_solicitado:
-                if rol_solicitado not in mapa_permitidos:
-                    return Response(
-                        {"detail": f"Rol '{rol_solicitado}' no permitido. Use: {etiquetas}."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                if rol_solicitado not in roles_usuario:
-                    return Response(
-                        {"detail": f"El usuario {user_obj.codigo} no tiene el rol {rol_solicitado}."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                rol_obj = mapa_permitidos[rol_solicitado]
-            else:
-                # Elegir el rol de mayor rango (menos ancestros) entre los coincidentes.
-                rol_obj = mapa_permitidos[
-                    sorted(coincidencias, key=lambda n: profundidad(mapa_permitidos[n]))[0]
-                ]
-
-            if user_obj.id in usuarios_usados:
-                return Response(
-                    {"detail": "Un usuario no puede aparecer dos veces como aprobador."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            usuarios_usados.add(user_obj.id)
-            seleccionados.append((rol_obj, user_obj))
-
-        if not seleccionados:
-            return Response(
-                {"detail": f"Debe asignar al menos un aprobador. Permitidos: {etiquetas}."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        with transaction.atomic():
-            EquipoAprobador.objects.filter(equipo=equipo).delete()
-            for rol_obj, user_obj in seleccionados:
-                EquipoAprobador.objects.create(equipo=equipo, usuario=user_obj, rol_aprobador=rol_obj)
-
-        return Response(
-            EquipoDetailSerializer(equipo, context={"request": request}).data,
-            status=status.HTTP_200_OK,
-        )
 
     @action(detail=True, methods=["get"], url_path="miembros/(?P<usuario_id>[^/.]+)/subtareas-pendientes")
     def subtareas_pendientes(self, request, pk=None, usuario_id=None):

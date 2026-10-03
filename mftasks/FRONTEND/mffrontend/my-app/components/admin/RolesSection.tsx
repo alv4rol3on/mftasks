@@ -27,6 +27,7 @@ type FormRol = {
   descripcion: string;
   superior: string;
   puede_liderar: boolean;
+  auto_aprobar: boolean;
   activo: boolean;
 };
 
@@ -35,6 +36,7 @@ const FORM_VACIO: FormRol = {
   descripcion: "",
   superior: "",
   puede_liderar: false,
+  auto_aprobar: false,
   activo: true,
 };
 
@@ -230,6 +232,7 @@ export default function RolesSection({ setMsg }: Props) {
       descripcion: rol.descripcion ?? "",
       superior: rol.superior != null ? String(rol.superior) : "",
       puede_liderar: rol.puede_liderar,
+      auto_aprobar: rol.auto_aprobar ?? false,
       activo: rol.activo,
     });
   };
@@ -245,6 +248,7 @@ export default function RolesSection({ setMsg }: Props) {
       descripcion: form.descripcion.trim(),
       superior: form.superior ? Number(form.superior) : null,
       puede_liderar: form.puede_liderar,
+      auto_aprobar: form.auto_aprobar,
       activo: form.activo,
     };
 
@@ -368,6 +372,23 @@ export default function RolesSection({ setMsg }: Props) {
           </div>
 
           <div className={styles.createField}>
+            <span className={styles.createHint}>
+              Autoaprobación
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Switch
+                checked={form.auto_aprobar}
+                onChange={(v) => setForm({ ...form, auto_aprobar: v })}
+                label="Autoaprobación"
+                title="Las solicitudes de equipos de este rol saltan la fase de aprobadores y pasan directo a revisión del líder"
+              />
+              <span style={{ fontSize: 12, color: "#374151" }}>
+                {form.auto_aprobar ? "Sí" : "No"}
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.createField}>
             <span className={styles.createHint}>Estado</span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Switch
@@ -453,6 +474,7 @@ export default function RolesSection({ setMsg }: Props) {
                   <th>Aprobador directo</th>
                   <th>Cadena de aprobación</th>
                   <th>Lidera</th>
+                  <th>Autoaprob.</th>
                   <th>Usuarios</th>
                   <th>Activo</th>
                   <th>Acciones</th>
@@ -463,7 +485,7 @@ export default function RolesSection({ setMsg }: Props) {
                 {filas.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       style={{
                         textAlign: "center",
                         padding: 16,
@@ -527,6 +549,22 @@ export default function RolesSection({ setMsg }: Props) {
 
                         <td>
                           {rol.puede_liderar ? (
+                            <span
+                              className={`${styles.badgeActive} ${styles.badgeActiveOn}`}
+                            >
+                              Sí
+                            </span>
+                          ) : (
+                            <span
+                              className={`${styles.badgeActive} ${styles.badgeActiveOff}`}
+                            >
+                              No
+                            </span>
+                          )}
+                        </td>
+
+                        <td>
+                          {rol.auto_aprobar ? (
                             <span
                               className={`${styles.badgeActive} ${styles.badgeActiveOn}`}
                             >

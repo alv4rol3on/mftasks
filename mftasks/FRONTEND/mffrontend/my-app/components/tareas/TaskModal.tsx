@@ -56,6 +56,7 @@ type Props = {
     onInactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
     onReactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
     onTareaMutated?: () => void | Promise<void>;
+    soloLectura?: boolean;
 };
 
 type TabKey = "progreso" | "historial" | "asignaciones";
@@ -75,6 +76,7 @@ export default function TaskModal({
     onInactivarSubtarea,
     onReactivarSubtarea,
     onTareaMutated,
+    soloLectura,
 }: Props) {
     const [depBloqueada, setDepBloqueada] = useState<number | "">("");
     const [depBloqueadora, setDepBloqueadora] = useState<number | "">("");
@@ -303,7 +305,7 @@ export default function TaskModal({
     const roles = (usuario?.roles ?? []).map((r: string) => r.toLowerCase());
     const esClientePuro = roles.includes("cliente") && !roles.includes("miembro") && !roles.includes("gtr") && !roles.includes("sub_lider") && !roles.includes("administrador");
     const puedeVerHistorial = !esClientePuro;
-    const puedeVerAsignaciones = !!tarea?.puedo_operar;
+    const puedeVerAsignaciones = !soloLectura && !!tarea?.puedo_operar;
 
     // opciones asignables (miembros ACTIVO + lider)
     const opcionesAsignables = useMemo(() => {
@@ -372,7 +374,7 @@ export default function TaskModal({
                                         ? <span style={{ marginLeft: 4, color: "#dc2626", fontWeight: 700 }}>⏱ +{formatearTiempo(segundosRetraso)} excedido</span>
                                         : <span style={{ marginLeft: 4 }}>⏱ {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" ? `Tomado ${tarea.tiempo_tomado_formateado}` : `Entrega ${formatearFecha(tarea.fecha_entrega_aproximada)}`}</span>}
                                 </span>
-                                {tarea.estado === "APROBADO" && tarea.puedo_operar && onIniciar && tarea.subtareas.length === 0 && (
+                                {tarea.estado === "APROBADO" && !soloLectura && tarea.puedo_operar && onIniciar && tarea.subtareas.length === 0 && (
                                     <button className={styles.btnIniciar} onClick={() => setMostrarIniciar(true)} disabled={accionando === tarea.id} style={{ marginLeft: 4 }}>
                                         Iniciar tarea
                                     </button>
@@ -693,7 +695,7 @@ export default function TaskModal({
                                         </div>
                                     )}
 
-                                    {subtareasProgreso.length > 1 && tarea.puedo_operar && (
+                                    {subtareasProgreso.length > 1 && !soloLectura && tarea.puedo_operar && (
                                         <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, background: "#fafafa" }}>
                                             <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Crear dependencia</h4>
                                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>

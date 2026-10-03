@@ -30,35 +30,6 @@ type UsuarioLista = {
   activo?: boolean;
 };
 
-/** Cadena de superiores de un rol: [superior directo, ..., raíz]. */
-function cadenaSuperiores(rol: RolInfo, mapa: Map<number, RolInfo>): RolInfo[] {
-  const cadena: RolInfo[] = [];
-  const vistos = new Set<number>([rol.id]);
-  let actual = rol.superior;
-  while (actual != null && !vistos.has(actual)) {
-    const padre = mapa.get(actual);
-    if (!padre) break;
-    cadena.push(padre);
-    vistos.add(padre.id);
-    actual = padre.superior;
-  }
-  return cadena;
-}
-
-/** Rol superior de un usuario dentro de la cadena (el de mayor rango). */
-function rolSuperiorDeUsuario(
-  u: UsuarioLista,
-  superiores: RolInfo[]
-): RolInfo | null {
-  const nombres = new Set((u.roles ?? []).map((r) => r.toLowerCase()));
-  let elegido: RolInfo | null = null;
-  // `superiores` va del inmediato a la raíz: el último match es el de mayor rango.
-  for (const rol of superiores) {
-    if (nombres.has(rol.nombre.toLowerCase())) elegido = rol;
-  }
-  return elegido;
-}
-
 export default function EquiposPage() {
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -89,21 +60,14 @@ export default function EquiposPage() {
   const [busquedaUsuario, setBusquedaUsuario] = useState<string>("");
   // modal crear equipo
   const [modalCrear, setModalCrear] = useState(false);
-  // modal asignar aprobadores
-  const [modalAprobadores, setModalAprobadores] = useState<EquipoInfo | null>(null);
   // modal de integrante (ajustes: sub-líder, inactivar, eliminar)
   const [modalMiembro, setModalMiembro] = useState<{ equipo: EquipoInfo; miembro: EquipoMiembroDetallado } | null>(null);
   const [usuariosTodos, setUsuariosTodos] = useState<UsuarioLista[]>([]);
   const [rolesCatalogo, setRolesCatalogo] = useState<RolInfo[]>([]);
-  // Aprobadores seleccionados por id de usuario (permite varios).
-  const [aprobadoresSel, setAprobadoresSel] = useState<Record<number, boolean>>({});
   // Filtros del buscador de líder (modal crear equipo).
   const [liderBusqueda, setLiderBusqueda] = useState("");
   const [liderTipoFiltro, setLiderTipoFiltro] = useState<string>("todos");
   const [liderRolFiltro, setLiderRolFiltro] = useState<string>("todos");
-  // Filtros del modal de aprobadores.
-  const [aprobadorBusqueda, setAprobadorBusqueda] = useState("");
-  const [aprobadorRolFiltro, setAprobadorRolFiltro] = useState<string>("todos");
 
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
@@ -146,7 +110,7 @@ export default function EquiposPage() {
   const recargar = () => cargar();
 
   // --------------------------------------------------
-  // CATÁLOGOS (usuarios + roles) para líder y aprobadores
+  // CATÁLOGOS (usuarios + roles) para el alta de equipos
   // --------------------------------------------------
 
   const asegurarCatalogos = async () => {
@@ -178,27 +142,14 @@ export default function EquiposPage() {
     await Promise.all(pendientes);
   };
 
-  // Precargar catálogos al montar: el botón "Asignar aprobadores" depende de
-  // los roles para calcular la cadena superior del rol del líder.
+  // Precargar catálogos al montar para el alta de equipos (líderes elegibles).
   useEffect(() => {
     asegurarCatalogos();
   }, []);
 
-  const mapaRoles = new Map<number, RolInfo>(
-    rolesCatalogo.map((r) => [r.id, r])
-  );
   const mapaRolesNombre = new Map<string, RolInfo>(
     rolesCatalogo.map((r) => [r.nombre.toLowerCase(), r])
   );
-
-  /** Roles superiores (cadena) del rol del líder de un equipo. */
-  const superioresDeEquipo = (equipo: EquipoInfo): RolInfo[] => {
-    const nombreRol = (equipo.tipo_equipo ?? "").trim();
-    if (!nombreRol) return [];
-    const rol = mapaRolesNombre.get(nombreRol.toLowerCase());
-    if (!rol) return [];
-    return cadenaSuperiores(rol, mapaRoles);
-  };
 
   /** True si el usuario puede liderar un equipo (administrador o rol que lidera). */
   const puedeLiderar = (u: UsuarioLista) => {
@@ -207,12 +158,6 @@ export default function EquiposPage() {
     return (u.roles ?? []).some(
       (r) => mapaRolesNombre.get(r.toLowerCase())?.puede_liderar === true
     );
-  };
-
-  const esColaborador = (u: UsuarioLista) => {
-    if (u.tipo_usuario) return u.tipo_usuario === "COLABORADOR";
-    const r = (u.roles ?? []).map((x) => x.toLowerCase());
-    return !r.includes("cliente") && !r.includes("administrador");
   };
 
   const handleToggleSubLider = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado) => {
@@ -457,71 +402,6 @@ export default function EquiposPage() {
     }
   };
 
-  const abrirModalAprobadores = async (equipo: EquipoInfo) => {
-    setMensaje(null);
-    await asegurarCatalogos();
-    const inicial: Record<number, boolean> = {};
-    for (const a of equipo.aprobadores ?? []) {
-      inicial[a.usuario.id] = true;
-    }
-    setAprobadoresSel(inicial);
-    setAprobadorBusqueda("");
-    setAprobadorRolFiltro("todos");
-    setModalAprobadores(equipo);
-  };
-
-  const confirmarAprobadores = async () => {
-    if (!modalAprobadores) return;
-
-    const superiores = superioresDeEquipo(modalAprobadores);
-    if (superiores.length === 0) {
-      setMensaje("Error: este equipo no tiene roles superiores configurados.");
-      return;
-    }
-
-    const nombresSuperiores = new Set(
-      superiores.map((r) => r.nombre.toLowerCase())
-    );
-    const seleccionados = usuariosTodos.filter(
-      (u) =>
-        aprobadoresSel[u.id] &&
-        esColaborador(u) &&
-        (u.roles ?? []).some((r) => nombresSuperiores.has(r.toLowerCase()))
-    );
-
-    if (seleccionados.length === 0) {
-      setMensaje(
-        "Error: debes asignar al menos un aprobador colaborador con rol superior."
-      );
-      return;
-    }
-
-    setAccionando(`aprobadores-${modalAprobadores.id}`);
-    setMensaje(null);
-    try {
-      const payload = seleccionados.map((u) => {
-        const rol = rolSuperiorDeUsuario(u, superiores);
-        const item: { rol?: string; codigo?: string; usuario_id?: number } = {};
-        if (rol) item.rol = rol.nombre;
-        if (u.codigo) item.codigo = u.codigo;
-        else item.usuario_id = u.id;
-        return item;
-      });
-
-      await apiFetch(`/api/usuarios/equipos/${modalAprobadores.id}/aprobadores/`, {
-        method: "POST",
-        body: JSON.stringify({ aprobadores: payload }),
-      });
-      setMensaje("Aprobadores actualizados correctamente.");
-      setModalAprobadores(null);
-      await recargar();
-    } catch (e) {
-      setMensaje(`Error: ${(e as Error).message}`);
-    } finally {
-      setAccionando(null);
-    }
-  };
-
   if (cargando) return <div style={{ padding: 16 }}>Cargando equipos…</div>;
   if (error) return <div style={{ background: "#fee2e2", color: "#991b1b", padding: 12, borderRadius: 8, fontSize: 14 }}>Error al cargar equipos: {error}</div>;
 
@@ -554,40 +434,6 @@ export default function EquiposPage() {
       (u.codigo ?? "").toLowerCase().includes(q)
     );
   });
-
-  // Aprobadores candidatos: colaboradores con rol dentro de la cadena superior.
-  const superioresModal = modalAprobadores
-    ? superioresDeEquipo(modalAprobadores)
-    : [];
-  const nombresSuperioresModal = new Set(
-    superioresModal.map((r) => r.nombre.toLowerCase())
-  );
-  const candidatosAprobadores = usuariosTodos.filter(
-    (u) =>
-      esColaborador(u) &&
-      (u.roles ?? []).some((r) => nombresSuperioresModal.has(r.toLowerCase()))
-  );
-
-  const candidatosAprobadoresFiltrados = candidatosAprobadores.filter((u) => {
-    if (aprobadorRolFiltro !== "todos") {
-      const rol = rolSuperiorDeUsuario(u, superioresModal);
-      if (!rol || rol.nombre.toLowerCase() !== aprobadorRolFiltro.toLowerCase()) {
-        return false;
-      }
-    }
-    const q = aprobadorBusqueda.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      u.nombres.toLowerCase().includes(q) ||
-      u.apellidos.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      (u.codigo ?? "").toLowerCase().includes(q)
-    );
-  });
-
-  const aprobadoresSeleccionados = candidatosAprobadores.filter(
-    (u) => aprobadoresSel[u.id]
-  ).length;
 
   const badgeRol = (rol?: string | null) => {
     if (rol === "LIDER") return <span style={{ background: "#7c3aed", color: "white", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>LÍDER</span>;
@@ -788,12 +634,6 @@ export default function EquiposPage() {
             const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
             const liderActivo = liderMiembro?.estado === "ACTIVO";
             const puedoGestionar = Boolean(equipo.puedo_gestionar) && liderActivo;
-            const eresAprobador =
-              (equipo.aprobadores ?? []).some(
-                (a) => a.usuario?.id === usuario?.id
-              );
-
-
 
             return (
               <div key={equipo.id} className={styles.card}>
@@ -822,10 +662,6 @@ export default function EquiposPage() {
                       ) : equipo.mi_rol_en_equipo === "SUB_LIDER" ? (
                         <span className={`${styles.badge} ${styles.badgeSubLider}`}>
                           Eres Sub-líder
-                        </span>
-                      ) : eresAprobador ? (
-                        <span className={`${styles.badge} ${styles.badgeAprobador}`}>
-                          Eres aprobador
                         </span>
                       ) : null}
                     </div>
@@ -894,21 +730,6 @@ export default function EquiposPage() {
                     <div className={styles.expandToolbar}>
                       <h4 className={styles.expandToolbarTitle}>Integrantes — {equipo.miembros.length} miembros</h4>
                       <div className={styles.expandToolbarActions}>
-                        {esAdmin && superioresDeEquipo(equipo).length > 0 && (
-                          <button
-                            onClick={() => abrirModalAprobadores(equipo)}
-                            disabled={!!accionando}
-                            title="Asignar los aprobadores del equipo según su jerarquía"
-                            style={{ background: "#1d4ed8", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-                          >
-                            Asignar aprobadores
-                          </button>
-                        )}
-                        {esAdmin && superioresDeEquipo(equipo).length === 0 && (
-                          <span style={{ fontSize: 12, color: "#6b7280" }}>
-                            -
-                          </span>
-                        )}
                         {soyLider && (
                           <button
                             onClick={() => abrirModalAgregar(equipo)}
@@ -1393,133 +1214,6 @@ export default function EquiposPage() {
         </div>
       )}
 
-      {/* Modal asignar aprobadores */}
-      {modalAprobadores && (
-        <div
-          onClick={() => setModalAprobadores(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Asignar aprobadores</h3>
-            <p style={{ margin: "0 0 8px", fontSize: 12, color: "#6b7280" }}>
-              Selecciona uno o varios colaboradores con rol superior
-              {superioresModal.length > 0
-                ? ` (${superioresModal.map((r) => r.nombre).join(", ")}).`
-                : "."}
-            </p>
-
-            {superioresModal.length === 0 ? (
-              <div style={{ padding: 12, fontSize: 13, color: "#9ca3af" }}>
-                Este equipo no tiene roles superiores configurados.
-              </div>
-            ) : candidatosAprobadores.length === 0 ? (
-              <div style={{ padding: 12, fontSize: 13, color: "#9ca3af" }}>
-                No hay colaboradores con un rol superior para asignar.
-              </div>
-            ) : (
-              <>
-                <input
-                  value={aprobadorBusqueda}
-                  onChange={(e) => setAprobadorBusqueda(e.target.value)}
-                  placeholder="Buscar por nombre, email o código"
-                  style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginTop: 4 }}
-                />
-
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-                  <select
-                    value={aprobadorRolFiltro}
-                    onChange={(e) => setAprobadorRolFiltro(e.target.value)}
-                    style={{ flex: 1, border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
-                  >
-                    <option value="todos">Todos los roles superiores</option>
-                    {superioresModal.map((r) => (
-                      <option key={r.id} value={r.nombre}>{r.nombre}</option>
-                    ))}
-                  </select>
-                  <span style={{ fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" }}>
-                    {aprobadoresSeleccionados} seleccionado(s)
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    maxHeight: 280,
-                    overflowY: "auto",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    border: "1px solid #f3f4f6",
-                    borderRadius: 8,
-                    padding: 6,
-                    marginTop: 8,
-                  }}
-                >
-                  {candidatosAprobadoresFiltrados.length === 0 ? (
-                    <div style={{ padding: 12, fontSize: 13, color: "#9ca3af", textAlign: "center" }}>
-                      No hay colaboradores que coincidan con el filtro.
-                    </div>
-                  ) : (
-                    candidatosAprobadoresFiltrados.map((u) => {
-                      const rolSup = rolSuperiorDeUsuario(u, superioresModal);
-                      const sel = !!aprobadoresSel[u.id];
-                      return (
-                        <label
-                          key={u.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "8px 10px",
-                            borderRadius: 8,
-                            border: `1px solid ${sel ? "#7c3aed" : "#e5e7eb"}`,
-                            background: sel ? "#ede9fe" : "white",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={sel}
-                            onChange={(e) =>
-                              setAprobadoresSel((prev) => ({
-                                ...prev,
-                                [u.id]: e.target.checked,
-                              }))
-                            }
-                            style={{ width: 16, height: 16, accentColor: "#7c3aed" }}
-                          />
-                          <span style={{ flex: 1 }}>
-                            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                              {u.nombres} {u.apellidos}
-                            </span>
-                            <span style={{ display: "block", fontSize: 11, color: "#6b7280" }}>
-                              {u.email} • {rolSup ? `Rol: ${rolSup.nombre}` : "—"}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-              </>
-            )}
-
-            <div style={{ marginTop: 8, fontSize: 11, color: "#6b7280" }}>
-              Cualquiera de los aprobadores asignados puede resolver la fase de aprobación.
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalAprobadores(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
-              <button
-                onClick={confirmarAprobadores}
-                disabled={!!accionando}
-                style={{ background: "#1d4ed8", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-              >
-                Guardar aprobadores
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

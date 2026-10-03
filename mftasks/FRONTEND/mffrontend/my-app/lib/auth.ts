@@ -14,6 +14,7 @@ export interface DatosUsuario {
     cargo?: string;
     tipo_usuario?: TipoUsuario;
     roles?: string[];
+    es_aprobador?: boolean;
 }
 
 export class ErrorDeSesion extends Error {}

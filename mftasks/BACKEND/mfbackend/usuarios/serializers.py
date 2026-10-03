@@ -162,6 +162,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     roles = serializers.SerializerMethodField()
 
+    es_aprobador = serializers.SerializerMethodField()
+
     class Meta:
 
         model = User
@@ -175,7 +177,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "dni",
             "cargo",
             "tipo_usuario",
-            "roles"
+            "roles",
+            "es_aprobador"
         ]
 
     def get_roles(self, obj):
@@ -184,6 +187,10 @@ class UserDetailSerializer(serializers.ModelSerializer):
             r.rol.nombre
             for r in obj.roles.all()
         ]
+
+    def get_es_aprobador(self, obj):
+        from .permissions import es_aprobador_organizacional
+        return es_aprobador_organizacional(obj)
 
 class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
 
@@ -248,10 +255,6 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     rol_integrante_requerido = serializers.SerializerMethodField()
 
-    aprobadores = serializers.SerializerMethodField()
-
-    puedo_asignar_aprobadores = serializers.SerializerMethodField()
-
     class Meta:
         model = Equipo
         fields = [
@@ -263,9 +266,7 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             "activo",
             "fecha_creacion",
             "miembros",
-            "aprobadores",
             "puedo_gestionar",
-            "puedo_asignar_aprobadores",
             "mi_rol_en_equipo",
             "mi_estado",
         ]
@@ -328,23 +329,6 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
     def get_rol_integrante_requerido(self, obj):
         from .jerarquia import rol_integrante_requerido
         return rol_integrante_requerido(obj)
-
-    def get_aprobadores(self, obj):
-        return [
-            {
-                "id": a.id,
-                "usuario": UserSerializer(a.usuario).data,
-                "rol_aprobador": a.rol_aprobador.nombre if a.rol_aprobador_id else None,
-            }
-            for a in obj.aprobadores.select_related("usuario", "rol_aprobador").all()
-        ]
-
-    def get_puedo_asignar_aprobadores(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user or not request.user.is_authenticated:
-            return False
-        from .permissions import es_administrador
-        return es_administrador(request.user)
 
 class EquipoCreateSerializer(serializers.ModelSerializer):
     lider = serializers.CharField(write_only=True)

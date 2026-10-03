@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import TaskTableEnDesarrollo from "@/components/tareas/TaskTableEnDesarrollo";
+import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
 import { Task } from "@/lib/types";
+import { getUsuarioActual } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
@@ -23,10 +25,15 @@ export default function TareasPage() {
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
   const [desde, setDesde] = useState(rangoInicial.desde);
   const [hasta, setHasta] = useState(rangoInicial.hasta);
+  const [filtroCampana, setFiltroCampana] = useState<number | "">("");
+  const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
+  const esAdmin = (getUsuarioActual()?.roles ?? [])
+    .map((r) => r.toLowerCase())
+    .includes("administrador");
 
   const filtros = useMemo<FiltrosTareas>(
-    () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta }),
-    [busqueda, filtroEstado, campoFecha, desde, hasta]
+    () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta, campana: filtroCampana, subcampana: filtroSubcampana }),
+    [busqueda, filtroEstado, campoFecha, desde, hasta, filtroCampana, filtroSubcampana]
   );
   const { tareas, cargando, error, cargar, setTareas, setError } = useTareas(filtros);
 
@@ -38,7 +45,9 @@ export default function TareasPage() {
     filtroEstado !== "TODOS" ||
     !!busqueda ||
     desde !== rangoDefecto.desde ||
-    hasta !== rangoDefecto.hasta;
+    hasta !== rangoDefecto.hasta ||
+    filtroCampana !== "" ||
+    filtroSubcampana !== "";
   const limpiarFiltros = () => {
     const r = rangoFechasPorDefecto();
     setFiltroEstado("EN_PROCESO");
@@ -46,7 +55,9 @@ export default function TareasPage() {
     setDesde(r.desde);
     setHasta(r.hasta);
     setBusqueda("");
-    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta });
+    setFiltroCampana("");
+    setFiltroSubcampana("");
+    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta, campana: "", subcampana: "" });
   };
 
   const aplicarRangoPorDefecto = () => {
@@ -255,14 +266,6 @@ export default function TareasPage() {
       </div>
     );
   }
-  // admin redirect ya hecho en guard, pero fallback render
-  if (typeof window !== "undefined") {
-    const u = (() => { try { const g = localStorage.getItem("user"); return g ? JSON.parse(g) : null; } catch { return null; } })();
-    const rolesU = u ? (u.roles ?? []).map((r: string) => r.toLowerCase()) : [];
-    if (u && rolesU.includes("administrador")) {
-      return <div style={{ padding: 16, color: "#6b7280" }}>Redirigiendo a Solicitudes...</div>;
-    }
-  }
   if (cargando) return <div>Cargando tareas…</div>;
   if (error) return <div>Error al cargar las tareas: {error}</div>;
 
@@ -283,6 +286,15 @@ export default function TareasPage() {
         <span style={{ fontSize: 12, color: "#6b7280" }}>{tareas.length} resultado(s)</span>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+        <FiltroCampanaSubcampana
+          campanaId={filtroCampana}
+          subcampanaId={filtroSubcampana}
+          onChange={({ campanaId, subcampanaId }) => {
+            setFiltroCampana(campanaId);
+            setFiltroSubcampana(subcampanaId);
+          }}
+          selectStyle={selectStyle}
+        />
         <select value={filtroEstado} onChange={handleEstadoChange} style={selectStyle} title="Filtrar por estado">
           {ESTADOS_TAREA.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
@@ -307,7 +319,7 @@ export default function TareasPage() {
           <button type="button" onClick={limpiarFiltros} style={clearBtnStyle}>Limpiar</button>
         )}
       </div>
-      <TaskTableEnDesarrollo tareas={tareas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} />
+      <TaskTableEnDesarrollo tareas={tareas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} soloLectura={esAdmin} />
     </div>
   );
 }

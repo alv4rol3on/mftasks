@@ -13,7 +13,6 @@ from rest_framework.test import APITestCase
 from campanas.models import Campana, PermisoCampana, SubCampana
 from usuarios.models import (
     Equipo,
-    EquipoAprobador,
     EquipoMiembro,
     PreferenciaNotificacion,
     Rol,
@@ -682,6 +681,7 @@ class CrearSolicitudConAdjuntoTestCase(APITestCase):
 
     def setUp(self):
         self.lider = _crear_usuario("lider-up@empresa.com")
+        _asignar_rol(self.lider, "GTR")
         self.cliente = _crear_usuario("cliente-up@empresa.com")
         _asignar_rol(self.cliente, "CLIENTE")
 
@@ -690,6 +690,8 @@ class CrearSolicitudConAdjuntoTestCase(APITestCase):
         self.equipo = Equipo.objects.create(nombre="Equipo UP", lider=self.lider)
 
         PermisoCampana.objects.create(usuario=self.cliente, subcampana=self.sub)
+        # El líder del equipo destino debe tener permiso a la subcampaña.
+        PermisoCampana.objects.create(usuario=self.lider, subcampana=self.sub)
 
         self.client.force_authenticate(user=self.cliente)
 
@@ -865,9 +867,10 @@ class AprobacionPorEquipoTestCase(APITestCase):
         _asignar_rol(self.otro_gerente, "GERENTE")
 
         self.equipo = Equipo.objects.create(nombre="Equipo AE", lider=self.lider)
-        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.gerente, rol_aprobador=Rol.objects.get(nombre__iexact="GERENTE"))
-        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.subgerente, rol_aprobador=Rol.objects.get(nombre__iexact="SUBGERENTE"))
-        EquipoAprobador.objects.create(equipo=self.equipo, usuario=self.jefe, rol_aprobador=Rol.objects.get(nombre__iexact="JEFE"))
+        # Aprobadores automáticos: roles superiores con permiso a la subcampaña.
+        PermisoCampana.objects.create(usuario=self.gerente, subcampana=self.sub)
+        PermisoCampana.objects.create(usuario=self.subgerente, subcampana=self.sub)
+        PermisoCampana.objects.create(usuario=self.jefe, subcampana=self.sub)
 
         self.tarea = Tarea.objects.create(
             asunto="Solicitud AE",
@@ -902,10 +905,10 @@ class AprobacionPorEquipoTestCase(APITestCase):
             2,
         )
 
-    def test_aprobador_no_asignado_no_puede(self):
+    def test_aprobador_sin_permiso_no_puede(self):
+        # Mismo rol superior (GERENTE) pero sin permiso a la subcampaña.
         self.client.force_authenticate(user=self.otro_gerente)
         res = self.client.post(self._url("aprobar"))
-        # No está asignado al equipo: no lo ve (404) y/o no puede aprobar (403).
         self.assertIn(res.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
 
     def test_lider_no_aprueba_fase_aprobadores(self):
@@ -924,32 +927,54 @@ class AprobacionPorEquipoTestCase(APITestCase):
         self.tarea.refresh_from_db()
         self.assertEqual(self.tarea.estado, Tarea.Estado.RECHAZADO)
 
-    def test_sin_aprobadores_bloquea(self):
-        equipo2 = Equipo.objects.create(
-            nombre="Equipo sin aprobadores", lider=self.lider
+    def test_sin_aprobadores_con_permiso_pasa_a_lider(self):
+        # Subcampaña sin permiso para ningún superior: la tarea nace en LIDER.
+        sub_sin_permiso = SubCampana.objects.create(
+            campana=self.campana, nombre="Sub sin permiso", codigo="SUB_SP"
         )
         tarea2 = Tarea.objects.create(
-            asunto="Sin aprobadores",
+            asunto="Sin aprobadores con permiso",
             descripcion="d",
-            subcampana=self.sub,
+            subcampana=sub_sin_permiso,
             estado=Tarea.Estado.EN_ESPERA,
-            equipo=equipo2,
+            equipo=self.equipo,
         )
+        tarea2.refresh_from_db()
+        self.assertEqual(tarea2.paso_aprobacion, "LIDER")
         self.client.force_authenticate(user=self.lider)
-        # El líder está en fase APROBADORES; aún sin permisos (no es aprobador),
-        # así que probamos con un aprobador ficticio no asignado => 403.
-        # Para el caso de equipo sin aprobadores usamos un admin (override).
-        admin = _crear_usuario("adminae@empresa.com")
-        _asignar_rol(admin, "Administrador")
-        self.client.force_authenticate(user=admin)
         res = self.client.post(reverse("task-aprobar", args=[tarea2.id]))
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
 
     def test_aprobador_ve_solicitudes_del_equipo(self):
         self.client.force_authenticate(user=self.gerente)
         res = self.client.get(reverse("task-list"))
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn(self.tarea.id, {t["id"] for t in res.data})
+
+    def test_filtro_por_campana_y_subcampana(self):
+        otra_campana = Campana.objects.create(nombre="Otra Camp", codigo="OTRA_CAMP")
+        otra_sub = SubCampana.objects.create(campana=otra_campana, nombre="Otra Sub", codigo="OTRA_SUB")
+        # El gerente necesita permiso para ver la solicitud de la otra subcampaña.
+        PermisoCampana.objects.create(usuario=self.gerente, subcampana=otra_sub)
+        tarea_otra = Tarea.objects.create(
+            asunto="Otra subcampana",
+            descripcion="d",
+            subcampana=otra_sub,
+            estado=Tarea.Estado.EN_ESPERA,
+            equipo=self.equipo,
+        )
+
+        self.client.force_authenticate(user=self.gerente)
+
+        res = self.client.get(reverse("task-list"), {"subcampana": self.sub.id})
+        ids = {t["id"] for t in res.data}
+        self.assertIn(self.tarea.id, ids)
+        self.assertNotIn(tarea_otra.id, ids)
+
+        res = self.client.get(reverse("task-list"), {"campana": otra_campana.id})
+        ids = {t["id"] for t in res.data}
+        self.assertIn(tarea_otra.id, ids)
+        self.assertNotIn(self.tarea.id, ids)
 
     def test_equipo_gerente_pasa_directo_a_revision_del_lider(self):
         # Un equipo de gerente no tiene aprobadores: la tarea nace en fase LIDER.
@@ -970,3 +995,19 @@ class AprobacionPorEquipoTestCase(APITestCase):
         tarea_ger.refresh_from_db()
         self.assertEqual(tarea_ger.estado, Tarea.Estado.APROBADO)
         self.assertEqual(tarea_ger.paso_aprobacion, "COMPLETADO")
+
+    def test_rol_con_autoaprobacion_pasa_a_lider(self):
+        # El rol del equipo con autoaprobación omite la fase de aprobadores.
+        rol_auto = Rol.objects.create(nombre="GTR_AUTO", auto_aprobar=True, puede_liderar=True)
+        lider_auto = _crear_usuario("liderauto@empresa.com")
+        UserRol.objects.create(usuario=lider_auto, rol=rol_auto)
+        equipo_auto = Equipo.objects.create(nombre="Equipo Auto", lider=lider_auto)
+        tarea_auto = Tarea.objects.create(
+            asunto="Solicitud auto",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_ESPERA,
+            equipo=equipo_auto,
+        )
+        tarea_auto.refresh_from_db()
+        self.assertEqual(tarea_auto.paso_aprobacion, "LIDER")

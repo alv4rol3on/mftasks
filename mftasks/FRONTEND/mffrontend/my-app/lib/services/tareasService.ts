@@ -26,6 +26,8 @@ export interface FiltrosTareas {
   campoFecha?: CampoFecha;
   desde?: string; // yyyy-mm-dd (día en America/Lima)
   hasta?: string; // yyyy-mm-dd (día en America/Lima)
+  campana?: number | "";
+  subcampana?: number | "";
 }
 
 /**
@@ -48,8 +50,11 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
     params.set("campo_fecha", (filtros.campoFecha ?? "solicitud") === "entrega" ? "entrega" : "creacion");
   }
 
+  if (filtros.campana) params.set("campana", String(filtros.campana));
+  if (filtros.subcampana) params.set("subcampana", String(filtros.subcampana));
+
   // Regla de antigüedad: solo cuando no hay búsqueda ni filtros (replica el comportamiento previo).
-  const hayFiltro = estado !== "TODOS" || !!filtros.desde || !!filtros.hasta;
+  const hayFiltro = estado !== "TODOS" || !!filtros.desde || !!filtros.hasta || !!filtros.campana || !!filtros.subcampana;
   if (!q && !hayFiltro) params.set("solo_recientes", "1");
 
   return apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`);

@@ -56,59 +56,14 @@ def _correos_aprobadores(tarea, evento):
         obtener_correo_usuario,
         usuario_quiere_recibir,
     )
-    from usuarios.jerarquia import cadena_aprobacion
-    from usuarios.models import UserRol
+    from .permissions import usuarios_aprobadores_de_tarea
 
     if tarea is None:
         return []
 
-    equipo = getattr(tarea, "equipo", None)
-    subcampana = getattr(tarea, "subcampana", None)
-
-    if equipo is None:
-        return []
-
-    rol_equipo = getattr(equipo, "rol_equipo", None)
-
-    if rol_equipo is None:
-        return []
-
-    roles_aprobadores = cadena_aprobacion(rol_equipo)
-
-    if not roles_aprobadores:
-        return []
-
-    ids_roles = {
-        rol.pk
-        for rol in roles_aprobadores
-        if rol.activo
-    }
-
-    if not ids_roles:
-        return []
-
     correos = []
 
-    usuarios_roles = (
-        UserRol.objects
-        .filter(
-            rol_id__in=ids_roles,
-            activo=True,
-            usuario__activo=True,
-        )
-        .select_related("usuario", "rol")
-    )
-
-    for user_rol in usuarios_roles:
-        usuario = user_rol.usuario
-
-        if usuario is None:
-            continue
-
-        # Debe tener permiso sobre la subcampaña.
-        if not tiene_permiso_subcampana(usuario, subcampana):
-            continue
-
+    for usuario in usuarios_aprobadores_de_tarea(tarea):
         if not usuario_quiere_recibir(usuario, evento):
             continue
 
@@ -342,6 +297,14 @@ class TaskViewSet(viewsets.ModelViewSet):
     def filter_queryset(self, queryset):
         """Filtros opcionales de listado: search, estado, fecha, exclusión de en espera y antigüedad."""
         params = self.request.query_params
+
+        campana = params.get("campana") or params.get("campana_id")
+        if campana:
+            queryset = queryset.filter(subcampana__campana_id=campana)
+
+        subcampana = params.get("subcampana") or params.get("subcampana_id")
+        if subcampana:
+            queryset = queryset.filter(subcampana_id=subcampana)
 
         search = params.get("search") or params.get("q")
         if search:
@@ -1168,9 +1131,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         if Equipo.objects.filter(lider=user).exists():
             es_asignador = True
         if EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists():
-            es_asignador = True
-        from usuarios.models import EquipoAprobador as _EA
-        if _EA.objects.filter(usuario=user).exists():
             es_asignador = True
 
         if es_asignador:

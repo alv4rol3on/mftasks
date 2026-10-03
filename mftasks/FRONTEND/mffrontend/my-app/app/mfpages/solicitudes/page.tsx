@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TaskTableSolicitudes from "@/components/solicitudes/TaskTableSolicitudes";
 import AdminSolicitudesTable from "@/components/solicitudes/AdminSolicitudesTable";
+import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
@@ -28,6 +29,8 @@ export default function SolicitudesPage() {
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
   const [desde, setDesde] = useState(rangoInicial.desde);
   const [hasta, setHasta] = useState(rangoInicial.hasta);
+  const [filtroCampana, setFiltroCampana] = useState<number | "">("");
+  const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
 
   // Guard: CLIENTE puro no debe entrar. ADMIN pasa directo (ahora unificada, no aprobar)
   useEffect(() => {
@@ -57,7 +60,10 @@ export default function SolicitudesPage() {
 
   const cargar = useCallback(() => {
     setCargando(true);
-    apiFetch<Task[]>("/api/tasks/tasks/?estado=EN_ESPERA")
+    const params = new URLSearchParams({ estado: "EN_ESPERA" });
+    if (filtroCampana) params.set("campana", String(filtroCampana));
+    if (filtroSubcampana) params.set("subcampana", String(filtroSubcampana));
+    apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`)
       .then((data) => {
         setError(null);
         // La bandeja de solicitudes solo muestra las que están EN_ESPERA
@@ -67,7 +73,7 @@ export default function SolicitudesPage() {
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setCargando(false));
-  }, []);
+  }, [filtroCampana, filtroSubcampana]);
 
   const aprobar = async (tarea: Task) => {
     setError(null);
@@ -104,12 +110,16 @@ export default function SolicitudesPage() {
     filtroEstado !== "EN_ESPERA" ||
     Boolean(busqueda) ||
     desde !== rangoInicial.desde ||
-    hasta !== rangoInicial.hasta;
+    hasta !== rangoInicial.hasta ||
+    filtroCampana !== "" ||
+    filtroSubcampana !== "";
 
   const limpiarFiltros = () => {
     setFiltroEstado("EN_ESPERA");
     setBusqueda("");
     setCampoFecha("solicitud");
+    setFiltroCampana("");
+    setFiltroSubcampana("");
     const r = rangoFechasPorDefecto();
     setDesde(r.desde);
     setHasta(r.hasta);
@@ -151,6 +161,14 @@ export default function SolicitudesPage() {
 
   const filtrosUI = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+      <FiltroCampanaSubcampana
+        campanaId={filtroCampana}
+        subcampanaId={filtroSubcampana}
+        onChange={({ campanaId, subcampanaId }) => {
+          setFiltroCampana(campanaId);
+          setFiltroSubcampana(subcampanaId);
+        }}
+      />
       {/*<select
         value={filtroEstado}
         onChange={(e) => setFiltroEstado(e.target.value)}

@@ -3,7 +3,6 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from .jerarquia import puede_ser_lider as _puede_ser_lider
 from usuarios.models import (
     Equipo,
-    EquipoAprobador,
     EquipoMiembro
 )
 
@@ -173,23 +172,37 @@ def ids_equipos_visibles(user):
             estado=EquipoMiembro.EstadoMiembro.ACTIVO,
         ).values_list("equipo_id", flat=True)
     )
-    # Aprobadores asignados: ven todo el proceso de las solicitudes del equipo.
-    propios |= set(
-        EquipoAprobador.objects.filter(
-            usuario=user,
-        ).values_list("equipo_id", flat=True)
-    )
     return propios
 
 
-def es_aprobador_asignado(user, equipo):
-    """True si el usuario es un aprobador asignado del equipo."""
-    if not user or not user.is_authenticated or equipo is None:
+def es_aprobador_organizacional(user):
+    """True si el usuario puede aprobar solicitudes según la jerarquía.
+
+    No existen aprobadores asignados por equipo: un usuario es aprobador si su
+    rol efectivo pertenece a la cadena de superiores de algún equipo activo y
+    posee al menos un permiso a subcampaña.
+    """
+    if not user or not user.is_authenticated:
         return False
-    return EquipoAprobador.objects.filter(
-        equipo=equipo,
-        usuario=user,
-    ).exists()
+    if es_administrador(user) or es_cliente(user):
+        return False
+
+    from .jerarquia import rol_efectivo, cadena_aprobacion
+
+    rol = rol_efectivo(user)
+    if rol is None:
+        return False
+
+    if not user.permisos_campana.exists():
+        return False
+
+    for equipo in Equipo.objects.filter(activo=True).select_related("rol_equipo"):
+        if equipo.rol_equipo is None:
+            continue
+        if rol.pk in {r.pk for r in cadena_aprobacion(equipo.rol_equipo)}:
+            return True
+
+    return False
 
 
 class PuedeCrearEquipo(BasePermission):

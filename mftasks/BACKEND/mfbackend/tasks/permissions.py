@@ -172,6 +172,63 @@ class EsSolicitanteDeTarea(BasePermission):
         return obj.solicitante_id == request.user.id
 
 
+def roles_superiores_de_tarea(tarea):
+    """IDs de roles activos que forman la cadena de aprobación de la tarea.
+
+    Es la cadena de superiores del rol del equipo (superior directo -> raíz).
+    """
+    equipo = getattr(tarea, "equipo", None)
+    if equipo is None:
+        return set()
+    rol_equipo = getattr(equipo, "rol_equipo", None)
+    if rol_equipo is None:
+        return set()
+    return {
+        rol.pk
+        for rol in cadena_aprobacion(rol_equipo)
+        if rol.activo
+    }
+
+
+def usuarios_aprobadores_de_tarea(tarea):
+    """Usuarios elegibles para aprobar la fase APROBADORES de la tarea.
+
+    Elegible = activo, su rol efectivo pertenece a la cadena de superiores del
+    equipo y tiene permiso a la subcampaña de la tarea. No depende de
+    asignaciones por equipo: los aprobadores se derivan de la jerarquía.
+    """
+    from usuarios.jerarquia import rol_efectivo
+    from usuarios.models import User
+
+    ids_roles = roles_superiores_de_tarea(tarea)
+    if not ids_roles:
+        return []
+
+    subcampana = getattr(tarea, "subcampana", None)
+
+    candidatos = (
+        User.objects
+        .filter(roles__rol_id__in=ids_roles, is_active=True)
+        .distinct()
+    )
+
+    elegibles = []
+    for usuario in candidatos:
+        rol = rol_efectivo(usuario)
+        if rol is None or rol.pk not in ids_roles:
+            continue
+        if not tiene_permiso_subcampana(usuario, subcampana):
+            continue
+        elegibles.append(usuario)
+
+    return elegibles
+
+
+def hay_aprobadores_con_permiso(tarea):
+    """True si existe al menos un aprobador elegible para la tarea."""
+    return bool(usuarios_aprobadores_de_tarea(tarea))
+
+
 def es_aprobador_de_tarea(user, tarea):
     """
     Determina si el usuario puede aprobar la tarea según
@@ -179,7 +236,7 @@ def es_aprobador_de_tarea(user, tarea):
 
     APROBADORES:
         Puede aprobar un usuario cuyo rol sea superior al
-        rol del equipo de la tarea.
+        rol del equipo de la tarea y tenga permiso a la subcampaña.
 
     LIDER:
         Solo el líder del equipo.
@@ -187,7 +244,8 @@ def es_aprobador_de_tarea(user, tarea):
     Administrador:
         Puede actuar como override.
 
-    EquipoAprobador NO participa en esta autorización.
+    No existen aprobadores asignados por equipo: toda la cadena de roles
+    superiores que cumpla con el permiso a la subcampaña puede aprobar.
     """
 
     if not user or not user.is_authenticated or tarea is None:
@@ -214,33 +272,13 @@ def es_aprobador_de_tarea(user, tarea):
     # =========================================================
     if paso == "APROBADORES":
 
-        
         rol_usuario = rol_efectivo(user)
 
         if rol_usuario is None:
             return False
 
-        rol_equipo = getattr(
-            equipo,
-            "rol_equipo",
-            None,
-        )
-
-        if rol_equipo is None:
-            return False
-
-        superiores = cadena_aprobacion(
-            rol_equipo
-        )
-
-        ids_superiores = {
-            rol.pk
-            for rol in superiores
-            if rol.activo
-        }
-
-        # El usuario debe ser superior al rol del equipo.
-        if rol_usuario.pk not in ids_superiores:
+        # El rol efectivo del usuario debe ser superior al rol del equipo.
+        if rol_usuario.pk not in roles_superiores_de_tarea(tarea):
             return False
 
         # Debe tener acceso a la subcampaña.

@@ -21,7 +21,7 @@ export function useTareasGuard() {
     const isCliente = roles.includes("cliente");
     const isMiembro = roles.includes("miembro");
     if (isAdmin) {
-      router.replace("/mfpages/solicitudes");
+      // El administrador puede visualizar Tareas en desarrollo (solo lectura).
       return;
     }
     if (isCliente && !isMiembro) {

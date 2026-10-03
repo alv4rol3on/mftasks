@@ -1,3 +1,5 @@
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from usuarios.permissions import (
@@ -11,6 +13,17 @@ from .models import Campana, SubCampana, PermisoCampana
 from .serializers import CampanaSerializer, SubCampanaSerializer, PermisoCampanaSerializer
 
 
+def _serializar_subcampana(sub):
+    return {
+        "id": sub.id,
+        "campana": sub.campana_id,
+        "campana_nombre": sub.campana.nombre,
+        "nombre": sub.nombre,
+        "codigo": sub.codigo,
+        "activo": sub.activo,
+    }
+
+
 class CampanaViewSet(ModelViewSet):
     queryset = Campana.objects.all().prefetch_related("subcampanas")
     serializer_class = CampanaSerializer
@@ -21,6 +34,66 @@ class CampanaViewSet(ModelViewSet):
         if self.action in ("create", "update", "partial_update", "destroy"):
             perms += [EsAdministrador()]
         return perms
+
+    @action(detail=False, methods=["get"], url_path="mis-permisos")
+    def mis_permisos(self, request):
+        """Campañas y subcampañas permitidas del usuario autenticado.
+
+        - Admin: todas las campañas/subcampañas activas (acceso total).
+        - Resto: derivado de sus PermisoCampana (subcampaña puntual o campaña
+          completa). Se excluyen campañas/subcampañas inactivas.
+        """
+        user = request.user
+        agrupadas = {}
+
+        def _entrada(campana):
+            return agrupadas.setdefault(
+                campana.id,
+                {
+                    "id": campana.id,
+                    "nombre": campana.nombre,
+                    "codigo": campana.codigo,
+                    "activo": campana.activo,
+                    "_subcampanas": {},
+                },
+            )
+
+        def _agregar_subcampana(campana, sub):
+            entrada = _entrada(campana)
+            entrada["_subcampanas"][sub.id] = _serializar_subcampana(sub)
+
+        if es_administrador(user):
+            for campana in Campana.objects.filter(activo=True).prefetch_related("subcampanas"):
+                for sub in campana.subcampanas.all():
+                    if sub.activo:
+                        _agregar_subcampana(campana, sub)
+        else:
+            permisos = (
+                PermisoCampana.objects
+                .filter(usuario=user)
+                .select_related("campana", "subcampana", "subcampana__campana")
+            )
+            for permiso in permisos:
+                sub = permiso.subcampana
+                if sub is not None:
+                    if not sub.activo or not sub.campana.activo:
+                        continue
+                    _agregar_subcampana(sub.campana, sub)
+                    continue
+                campana = permiso.campana
+                if campana is None or not campana.activo:
+                    continue
+                for sub_campana in campana.subcampanas.filter(activo=True):
+                    _agregar_subcampana(campana, sub_campana)
+
+        resultado = []
+        for entrada in agrupadas.values():
+            subcampanas = list(entrada.pop("_subcampanas").values())
+            subcampanas.sort(key=lambda s: s["nombre"].lower())
+            entrada["subcampanas"] = subcampanas
+            resultado.append(entrada)
+        resultado.sort(key=lambda c: c["nombre"].lower())
+        return Response(resultado)
 
     def get_queryset(self):
         user = self.request.user

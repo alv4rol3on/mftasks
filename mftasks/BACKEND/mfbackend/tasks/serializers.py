@@ -298,9 +298,37 @@ class TaskSerializer(serializers.ModelSerializer):
                 if not subcampana_obj.activo or not subcampana_obj.campana.activo:
                     raise serializers.ValidationError({"subcampana": "La campaña/subcampaña está inhabilitada por Administración y no está disponible para crear tareas."})
             if subcampana_obj and request and es_cliente(request.user) and not es_administrador(request.user):
-                from .permissions import tiene_permiso_subcampana
                 if not tiene_permiso_subcampana(request.user, subcampana_obj):
                     raise serializers.ValidationError({"subcampana": f"No tienes permiso para {subcampana_obj.codigo}."})
+                # El líder del equipo destino debe tener permiso a la subcampaña.
+                equipo = attrs.get("equipo") or self.initial_data.get("equipo")
+                equipo_obj = None
+                if equipo is not None:
+                    try:
+                        if hasattr(equipo, "lider_id"):
+                            equipo_obj = equipo
+                        else:
+                            from usuarios.models import Equipo
+                            equipo_obj = (
+                                Equipo.objects
+                                .select_related("lider")
+                                .get(id=int(equipo))
+                            )
+                    except Exception:
+                        equipo_obj = None
+                if (
+                    equipo_obj is not None
+                    and equipo_obj.lider is not None
+                    and not tiene_permiso_subcampana(equipo_obj.lider, subcampana_obj)
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "equipo": (
+                                "El líder de este equipo no tiene permiso a la "
+                                "subcampaña seleccionada."
+                            )
+                        }
+                    )
             # compat: si viene cliente, ignorar (derivado de subcampana)
             attrs.pop("cliente", None)
         return attrs

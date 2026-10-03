@@ -129,11 +129,25 @@ class Tarea(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        # Si el rol del equipo no tiene cadena de aprobación (es la raíz de la
-        # jerarquía), la solicitud nace directamente en revisión del líder.
+        # La solicitud nace directamente en revisión del líder cuando:
+        #   - el rol del equipo es la raíz (no tiene superiores), o
+        #   - el rol del equipo tiene autoaprobación, o
+        #   - ningún superior de la cadena tiene permiso a la subcampaña.
         if self._state.adding and self.equipo_id and self.estado == self.Estado.EN_ESPERA:
             from usuarios.jerarquia import roles_aprobador_de_equipo
-            if not roles_aprobador_de_equipo(self.equipo):
+            from tasks.permissions import hay_aprobadores_con_permiso
+
+            rol_equipo = getattr(self.equipo, "rol_equipo", None)
+            auto_aprobar = bool(
+                rol_equipo is not None
+                and getattr(rol_equipo, "auto_aprobar", False)
+            )
+
+            if (
+                not roles_aprobador_de_equipo(self.equipo)
+                or auto_aprobar
+                or not hay_aprobadores_con_permiso(self)
+            ):
                 self.paso_aprobacion = self.PasoAprobacion.LIDER
         if not self.ticket:
             from django.utils import timezone

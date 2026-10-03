@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { obtenerDatosMe, DatosUsuario } from "@/lib/auth";
-import type { EquipoInfo } from "@/lib/types";
+import type { CampanaPermitida, EquipoInfo } from "@/lib/types";
 import Switch from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -62,8 +62,11 @@ function CampoNotificacion({
 export default function PerfilPage() {
   const [usuario, setUsuario] = useState<DatosUsuario | null>(null);
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
+  const [campanasPermitidas, setCampanasPermitidas] = useState<CampanaPermitida[]>([]);
   const [cargando, setCargando] = useState(true);
   const [alertasAbierto, setAlertasAbierto] = useState(false);
+  const [campanasAbierto, setCampanasAbierto] = useState(true);
+  const [notifAbierto, setNotifAbierto] = useState(true);
   const [prefs, setPrefs] = useState<PreferenciasNotificacion | null>(null);
   const [prefsGuardadas, setPrefsGuardadas] = useState<PreferenciasNotificacion | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -84,6 +87,14 @@ export default function PerfilPage() {
       })
       .catch(() => { if (!cancel) setEquipos([]); })
       .finally(() => { if (!cancel) setCargando(false); });
+
+    apiFetch<CampanaPermitida[] | { results: CampanaPermitida[] }>("/api/campanas/campanas/mis-permisos/")
+      .then((data) => {
+        if (cancel) return;
+        const arr = Array.isArray(data) ? data : (data as { results: CampanaPermitida[] }).results ?? [];
+        setCampanasPermitidas(arr);
+      })
+      .catch(() => { if (!cancel) setCampanasPermitidas([]); });
 
     obtenerPreferenciasNotificacion()
       .then((p) => {
@@ -188,58 +199,113 @@ export default function PerfilPage() {
         </div>
       </section>
 
-      {prefs && (esCliente || esEquipo) && (
-        <section className={styles.card}>
-          <h3 className={styles.cardTitle}>Notificaciones por correo</h3>
-
-          <CampoNotificacion
-            titulo="Recibir correos"
-            descripcion="Activa o desactiva todas las notificaciones por correo."
-            checked={prefs.recibir_correos}
-            onChange={(v) => actualizarPref("recibir_correos", v)}
-          />
-
-          {esCliente && (
-            <div className={styles.notifGroup}>
-              <h4 className={styles.notifGroupTitle}>Como cliente</h4>
-              {CAMPOS_CLIENTE.map((campo) => (
-                <CampoNotificacion
-                  key={campo.key}
-                  titulo={campo.label}
-                  checked={Boolean(prefs[campo.key])}
-                  disabled={!prefs.recibir_correos}
-                  onChange={(v) => actualizarPref(campo.key, v)}
-                />
-              ))}
-            </div>
-          )}
-
-          {esEquipo && (
-            <div className={styles.notifGroup}>
-              <h4 className={styles.notifGroupTitle}>Como líder / miembro</h4>
-              {CAMPOS_EQUIPO.map((campo) => (
-                <CampoNotificacion
-                  key={campo.key}
-                  titulo={campo.label}
-                  descripcion={campo.descripcion}
-                  checked={Boolean(prefs[campo.key])}
-                  disabled={!prefs.recibir_correos}
-                  onChange={(v) => actualizarPref(campo.key, v)}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className={styles.notifActions}>
-            <button
-              type="button"
-              className={styles.btnGuardar}
-              disabled={!prefsSucias || guardando}
-              onClick={guardarPrefs}
-            >
-              {guardando ? "Guardando…" : "Guardar cambios"}
-            </button>
+      <section className={styles.alertsCard}>
+        <button
+          type="button"
+          className={styles.alertsHeader}
+          aria-expanded={campanasAbierto}
+          onClick={() => setCampanasAbierto((v) => !v)}
+        >
+          <span>Campañas permitidas</span>
+          <span className={`${styles.chevron} ${campanasAbierto ? styles.chevronOpen : ""}`}>▸</span>
+        </button>
+        {campanasAbierto && (
+          <div className={styles.alertsBody}>
+            {campanasPermitidas.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                Sin permisos asignados. Contacta al administrador.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {campanasPermitidas.map((campana) => (
+                  <div key={campana.id}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                      {campana.nombre}
+                      <span style={{ fontFamily: "monospace", fontSize: 11, color: "#6b7280", marginLeft: 6 }}>
+                        {campana.codigo}
+                      </span>
+                    </div>
+                    <div className={styles.badges} style={{ marginTop: 6 }}>
+                      {campana.subcampanas.length > 0 ? (
+                        campana.subcampanas.map((sub) => (
+                          <span key={sub.id} className={styles.badge}>{sub.nombre}</span>
+                        ))
+                      ) : (
+                        <span style={{ fontSize: 12, color: "#9ca3af" }}>Sin subcampañas activas</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        )}
+      </section>
+
+      {prefs && (esCliente || esEquipo) && (
+        <section className={styles.alertsCard}>
+          <button
+            type="button"
+            className={styles.alertsHeader}
+            aria-expanded={notifAbierto}
+            onClick={() => setNotifAbierto((v) => !v)}
+          >
+            <span>Notificaciones por correo</span>
+            <span className={`${styles.chevron} ${notifAbierto ? styles.chevronOpen : ""}`}>▸</span>
+          </button>
+          {notifAbierto && (
+            <div className={styles.alertsBody}>
+
+              <CampoNotificacion
+                titulo="Recibir correos"
+                descripcion="Activa o desactiva todas las notificaciones por correo."
+                checked={prefs.recibir_correos}
+                onChange={(v) => actualizarPref("recibir_correos", v)}
+              />
+
+              {esCliente && (
+                <div className={styles.notifGroup}>
+                  <h4 className={styles.notifGroupTitle}>Como cliente</h4>
+                  {CAMPOS_CLIENTE.map((campo) => (
+                    <CampoNotificacion
+                      key={campo.key}
+                      titulo={campo.label}
+                      checked={Boolean(prefs[campo.key])}
+                      disabled={!prefs.recibir_correos}
+                      onChange={(v) => actualizarPref(campo.key, v)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {esEquipo && (
+                <div className={styles.notifGroup}>
+                  <h4 className={styles.notifGroupTitle}>Como líder / miembro</h4>
+                  {CAMPOS_EQUIPO.map((campo) => (
+                    <CampoNotificacion
+                      key={campo.key}
+                      titulo={campo.label}
+                      descripcion={campo.descripcion}
+                      checked={Boolean(prefs[campo.key])}
+                      disabled={!prefs.recibir_correos}
+                      onChange={(v) => actualizarPref(campo.key, v)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className={styles.notifActions}>
+                <button
+                  type="button"
+                  className={styles.btnGuardar}
+                  disabled={!prefsSucias || guardando}
+                  onClick={guardarPrefs}
+                >
+                  {guardando ? "Guardando…" : "Guardar cambios"}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
     </div>

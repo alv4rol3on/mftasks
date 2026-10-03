@@ -105,6 +105,14 @@ export interface SubCampanaInfo {
     activo: boolean;
 }
 
+export interface CampanaPermitida {
+    id: number;
+    nombre: string;
+    codigo: string;
+    activo: boolean;
+    subcampanas: SubCampanaInfo[];
+}
+
 export interface ResumenCliente {
     tipo: "cliente";
     en_espera: number;
@@ -190,12 +198,6 @@ export interface UsuarioListItem {
     activo?: boolean; // alias compat
 }
 
-export interface EquipoAprobador {
-    id: number;
-    usuario: EquipoMiembro;
-    rol_aprobador: "GERENTE" | "SUBGERENTE" | "JEFE" | string;
-}
-
 export interface RolInfo {
     id: number;
     nombre: string;
@@ -203,6 +205,7 @@ export interface RolInfo {
     activo: boolean;
     superior: number | null;
     puede_liderar: boolean;
+    auto_aprobar: boolean;
 }
 
 export interface EquipoInfo {
@@ -214,10 +217,7 @@ export interface EquipoInfo {
     activo: boolean;
     fecha_creacion?: string;
     miembros: EquipoMiembroDetallado[];
-    aprobadores?: EquipoAprobador[];
     puedo_gestionar?: boolean;
-    eres_Aprobador?: boolean;
-    puedo_asignar_aprobadores?: boolean;
     mi_rol_en_equipo?: string | null;
     mi_estado?: string | null;
 }

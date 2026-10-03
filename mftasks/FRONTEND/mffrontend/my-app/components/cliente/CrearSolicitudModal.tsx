@@ -48,10 +48,24 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
         setCampanas(arr.filter((c) => c.activo));
       })
       .catch(() => setCampanas([]));
-    apiFetch<EquipoInfo[]>("/api/usuarios/equipos/")
-      .then((data) => setEquipos(Array.isArray(data) ? data : (data as any).results ?? []))
-      .catch(() => setEquipos([]));
   }, [open]);
+
+  // Equipos elegibles: solo aquellos cuyo líder tiene permiso a la subcampaña.
+  useEffect(() => {
+    if (!subcampanaId) return;
+    let cancel = false;
+    apiFetch<EquipoInfo[]>(`/api/usuarios/equipos/?subcampana=${subcampanaId}`)
+      .then((data) => {
+        if (cancel) return;
+        setEquipos(Array.isArray(data) ? data : (data as any).results ?? []);
+      })
+      .catch(() => {
+        if (!cancel) setEquipos([]);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [subcampanaId]);
 
   useEffect(() => {
     if (!campanaId) {
@@ -195,14 +209,32 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
         <div className={styles.iniciarBody}>
 
           <div className={styles.crearGrid}>
-            <select value={campanaId} onChange={(e) => setCampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
+            <select
+              value={campanaId}
+              onChange={(e) => {
+                setCampanaId(e.target.value ? Number(e.target.value) : "");
+                setSubcampanaId("");
+                setEquipoId("");
+                setEquipos([]);
+              }}
+              className={styles.inputField}
+            >
               <option value="">Seleccionar Campaña</option>
               {campanas.map((c) => (
                 <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
               ))}
             </select>
 
-            <select value={subcampanaId} onChange={(e) => setSubcampanaId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!campanaId}>
+            <select
+              value={subcampanaId}
+              onChange={(e) => {
+                setSubcampanaId(e.target.value ? Number(e.target.value) : "");
+                setEquipoId("");
+                if (!e.target.value) setEquipos([]);
+              }}
+              className={styles.inputField}
+              disabled={!campanaId}
+            >
               <option value="">{campanaId ? "Seleccionar Subcampaña" : "Elige campaña primero"}</option>
               {subcampanas.map((s) => (
                 <option key={s.id} value={s.id}>{s.nombre} ({s.codigo})</option>
@@ -210,8 +242,8 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
             </select>
 
 
-            <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField}>
-              <option value="">Selecciona Equipo</option>
+            <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!subcampanaId}>
+              <option value="">{subcampanaId ? "Selecciona Equipo" : "Elige subcampaña primero"}</option>
               {equipos.map((e) => (
                 <option key={e.id} value={e.id}>{e.nombre}</option>
               ))}
@@ -264,6 +296,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
 
           {campanaId && subcampanas.length === 0 && <p style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>La campaña/subcampañas que intenta elegir esta temporalmente deshabilitada o no cuenta con los permisos para crear una solicitud. Contacta al administrador.</p>}
+          {subcampanaId && equipos.length === 0 && <p style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>No hay equipos cuyo líder tenga permiso a la subcampaña seleccionada. Contacta al administrador.</p>}
           {error && <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p>}
         </div>
         <div className={styles.modalFooter}>

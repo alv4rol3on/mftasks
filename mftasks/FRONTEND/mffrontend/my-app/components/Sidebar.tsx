@@ -32,7 +32,7 @@ const menuAll: MenuItem[] = [
   { nombre: "Solicitudes", ruta: "/mfpages/solicitudes", show: (c) => c.isAdmin },
   // Personal interno no-admin
   { nombre: "Bandeja de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
-  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => c.isAdmin || (!c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro)) },
   { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
   { nombre: "Administración de usuarios/campañas", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
 ];
@@ -78,7 +78,11 @@ export default function Sidebar({
       : !isAdmin && !isCliente;
     const isMiembroGlobal = isColaborador || roles.includes("miembro");
     const isAsignadorLegacy = roles.includes("asignador");
-    const isAprobador = ["gerente", "subgerente", "jefe"].some((r) => roles.includes(r));
+    // Aprobador dinámico: lo determina el backend por jerarquía + permiso.
+    // Se conserva el respaldo por nombres para sesiones antiguas en caché.
+    const isAprobador =
+      Boolean(user?.es_aprobador) ||
+      ["gerente", "subgerente", "jefe"].some((r) => roles.includes(r));
     const isAsignador = isAdmin || isAsignadorLegacy || isAprobador;
 
     let isLider = false;

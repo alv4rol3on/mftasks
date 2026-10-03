@@ -9,7 +9,7 @@ from rest_framework.test import APITestCase
 from campanas.models import Campana, SubCampana
 
 from .azure import AzureTokenValidationError
-from .models import Equipo, EquipoAprobador, EquipoMiembro, Rol, User, UserRol
+from .models import Equipo, EquipoMiembro, Rol, User, UserRol
 
 
 def _crear_usuario(email, nombres="X", apellidos="Y"):
@@ -370,127 +370,6 @@ class EquipoCreacionPermisosTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class AsignarAprobadoresTestCase(APITestCase):
-
-    def setUp(self):
-        self.admin = _crear_usuario("adminap@empresa.com")
-        _asignar_rol(self.admin, "Administrador")
-        self.lider = _crear_usuario("liderap@empresa.com")
-        _asignar_rol(self.lider, "GTR")
-        self.equipo = Equipo.objects.create(nombre="Equipo AP", lider=self.lider)
-
-        self.gerente = _crear_usuario("gerap@empresa.com")
-        _asignar_rol(self.gerente, "GERENTE")
-        self.subgerente = _crear_usuario("subap@empresa.com")
-        _asignar_rol(self.subgerente, "SUBGERENTE")
-        self.jefe = _crear_usuario("jefeap@empresa.com")
-        _asignar_rol(self.jefe, "JEFE")
-        self.miembro = _crear_usuario("miempap@empresa.com")
-        _asignar_rol(self.miembro, "miembro")
-
-        self.lider_jefe = _crear_usuario("liderjefeap@empresa.com")
-        _asignar_rol(self.lider_jefe, "JEFE")
-        self.equipo_jefe = Equipo.objects.create(nombre="Equipo Jefe AP", lider=self.lider_jefe)
-
-        self.lider_sub = _crear_usuario("lidersubap@empresa.com")
-        _asignar_rol(self.lider_sub, "SUBGERENTE")
-        self.equipo_sub = Equipo.objects.create(nombre="Equipo Sub AP", lider=self.lider_sub)
-
-        self.lider_ger = _crear_usuario("lidergera@empresa.com")
-        _asignar_rol(self.lider_ger, "GERENTE")
-        self.equipo_ger = Equipo.objects.create(nombre="Equipo Ger AP", lider=self.lider_ger)
-
-    def _post(self, equipo, aprobadores):
-        return self.client.post(
-            reverse("equipo-asignar-aprobadores", args=[equipo.id]),
-            {"aprobadores": aprobadores},
-            format="json",
-        )
-
-    def test_admin_asigna_un_aprobador_en_gtr(self):
-        self.client.force_authenticate(user=self.admin)
-        res = self._post(self.equipo, [{"rol": "GERENTE", "codigo": self.gerente.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual(self.equipo.aprobadores.count(), 1)
-
-    def test_admin_asigna_los_tres_roles_en_gtr(self):
-        self.client.force_authenticate(user=self.admin)
-        res = self._post(self.equipo, [
-            {"rol": "GERENTE", "codigo": self.gerente.codigo},
-            {"rol": "SUBGERENTE", "codigo": self.subgerente.codigo},
-            {"rol": "JEFE", "codigo": self.jefe.codigo},
-        ])
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual(
-            set(self.equipo.aprobadores.values_list("rol_aprobador__nombre", flat=True)),
-            {"GERENTE", "SUBGERENTE", "JEFE"},
-        )
-
-    def test_permite_varios_aprobadores_del_mismo_rol(self):
-        self.client.force_authenticate(user=self.admin)
-        otro_jefe = _crear_usuario("otrojefeap@empresa.com")
-        _asignar_rol(otro_jefe, "JEFE")
-        res = self._post(self.equipo, [
-            {"rol": "JEFE", "codigo": self.jefe.codigo},
-            {"rol": "JEFE", "codigo": otro_jefe.codigo},
-        ])
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual(self.equipo.aprobadores.count(), 2)
-
-    def test_no_permite_administrador_como_aprobador(self):
-        self.client.force_authenticate(user=self.admin)
-        admin2 = _crear_usuario("admin2ap@empresa.com")
-        _asignar_rol(admin2, "Administrador")
-        res = self._post(self.equipo, [{"rol": "JEFE", "codigo": admin2.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_sin_aprobadores_rechaza(self):
-        self.client.force_authenticate(user=self.admin)
-        res = self._post(self.equipo, [])
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(self.equipo.aprobadores.count(), 0)
-
-    def test_usuario_sin_rol_correcto(self):
-        self.client.force_authenticate(user=self.admin)
-        res = self._post(self.equipo, [{"rol": "JEFE", "codigo": self.miembro.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_lider_no_puede_asignar(self):
-        self.client.force_authenticate(user=self.lider)
-        res = self._post(self.equipo, [{"rol": "GERENTE", "codigo": self.gerente.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_equipo_jefe_solo_gerente_o_subgerente(self):
-        self.client.force_authenticate(user=self.admin)
-        res = self._post(self.equipo_jefe, [{"rol": "JEFE", "codigo": self.jefe.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-
-        res = self._post(self.equipo_jefe, [
-            {"rol": "GERENTE", "codigo": self.gerente.codigo},
-            {"rol": "SUBGERENTE", "codigo": self.subgerente.codigo},
-        ])
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual(self.equipo_jefe.aprobadores.count(), 2)
-
-    def test_equipo_subgerente_solo_gerente(self):
-        self.client.force_authenticate(user=self.admin)
-        res = self._post(self.equipo_sub, [{"rol": "SUBGERENTE", "codigo": self.subgerente.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-
-        res = self._post(self.equipo_sub, [{"rol": "GERENTE", "codigo": self.gerente.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertEqual(
-            set(self.equipo_sub.aprobadores.values_list("rol_aprobador__nombre", flat=True)),
-            {"GERENTE"},
-        )
-
-    def test_equipo_gerente_no_requiere_aprobadores(self):
-        self.client.force_authenticate(user=self.admin)
-        res = self._post(self.equipo_ger, [{"rol": "GERENTE", "codigo": self.gerente.codigo}])
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(self.equipo_ger.aprobadores.count(), 0)
-
-
 class EquipoBajaMiembroTestCase(APITestCase):
 
     def setUp(self):
@@ -699,25 +578,3 @@ class JerarquiaDinamicaTestCase(TestCase):
         equipo = Equipo.objects.create(nombre="Equipo Cadena", lider=lider)
         nombres = {r.nombre.upper() for r in roles_aprobador_de_equipo(equipo)}
         self.assertEqual(nombres, {"JEFE", "SUBGERENTE", "GERENTE"})
-
-    def test_equipo_aprobador_rechaza_rol_fuera_de_cadena(self):
-        lider = _crear_usuario("liderval@empresa.com")
-        _asignar_rol(lider, "GTR")
-        equipo = Equipo.objects.create(nombre="Equipo Val", lider=lider)
-        aprobador = _crear_usuario("aprobval@empresa.com")
-        # Gerente SÍ pertenece a la cadena de un equipo GTR.
-        valido = EquipoAprobador(
-            equipo=equipo,
-            usuario=aprobador,
-            rol_aprobador=self._rol("Gerente"),
-        )
-        valido.full_clean()
-
-        # Miembro NO pertenece a la cadena de aprobación.
-        invalido = EquipoAprobador(
-            equipo=equipo,
-            usuario=aprobador,
-            rol_aprobador=self._rol("Miembro"),
-        )
-        with self.assertRaises(ValidationError):
-            invalido.full_clean()
