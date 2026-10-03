@@ -2,8 +2,5 @@
 - Nueva pestaña exclusiva de administrador "Centro de solicitudes" donde puede buscar cualquier solicitud previa
 - el miembro de equipo que es sublider no esta recibiendo correos
 - los equipos en los que "Eres aprobador" tambien deberia aparecer bajo el filtro "solo mis equipos"
-- reestructurar los roles para ser administrables: poder crear roles y poder ordenarlo jerarquicamente
-- aprobador propio(por ejemplo para gerente, subgerente, jefe)
-- a los usuarios tipo colaborador tambien se les asigna campañas y en base a eso sale los aprobadores
-- aprobadores automaticos, por ejemplo: si un usuario tiene todo un arbol de aprobadores y a este se le asigna por debajo alguien a quien aprobar solicitudes este hereda todos
-los aprobadores del de arriba
+- editar informacion de usuario(por ejemplo la descripcion de cargo, telefono, etc)
+- Arreglar logica de autoaprobacion

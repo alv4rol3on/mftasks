@@ -322,12 +322,6 @@ export default function RolesSection({ setMsg }: Props) {
             : "Crear nuevo rol"}
         </h3>
 
-        <p className={styles.permisosDesc}>
-          Un rol representa una posición. Su <strong>superior directo</strong>{" "}
-          define quién aprueba sus solicitudes; la cadena completa
-          (heredada) se calcula automáticamente y no se almacena.
-        </p>
-
         <div className={styles.formGrid} style={{ marginTop: 12 }}>
           <input
             placeholder="Nombre del rol (p. ej. Coordinador)"
@@ -388,7 +382,7 @@ export default function RolesSection({ setMsg }: Props) {
             </div>
           </div>
 
-          <div className={styles.createField}>
+          {/*<div className={styles.createField}>
             <span className={styles.createHint}>Estado</span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Switch
@@ -401,7 +395,7 @@ export default function RolesSection({ setMsg }: Props) {
                 {form.activo ? "Activo" : "Inactivo"}
               </span>
             </div>
-          </div>
+          </div>*/}
         </div>
 
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -476,7 +470,7 @@ export default function RolesSection({ setMsg }: Props) {
                   <th>Lidera</th>
                   <th>Autoaprob.</th>
                   <th>Usuarios</th>
-                  <th>Activo</th>
+                  {/*<th>Activo</th>*/}
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -581,14 +575,14 @@ export default function RolesSection({ setMsg }: Props) {
 
                         <td>{contarUsuarios(rol.nombre)}</td>
 
-                        <td>
+                        {/*<td>
                           <Switch
                             checked={rol.activo}
                             onChange={() => toggleActivo(rol)}
                             label={rol.activo ? "Desactivar rol" : "Activar rol"}
                             title={rol.activo ? "Desactivar" : "Activar"}
                           />
-                        </td>
+                        </td>*/}
 
                         <td>
                           <div style={{ display: "flex", gap: 6 }}>

@@ -51,6 +51,26 @@
   padding: 0 16px 16px;
   border-top: 1px solid #e5e7eb;
   padding-top: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.alertsBody::-webkit-scrollbar {
+  width: 6px;
+}
+
+.alertsBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.alertsBody::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+.alertsBody::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 .card {

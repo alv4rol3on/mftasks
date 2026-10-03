@@ -199,48 +199,51 @@ export default function PerfilPage() {
         </div>
       </section>
 
-      <section className={styles.alertsCard}>
-        <button
-          type="button"
-          className={styles.alertsHeader}
-          aria-expanded={campanasAbierto}
-          onClick={() => setCampanasAbierto((v) => !v)}
-        >
-          <span>Campañas permitidas</span>
-          <span className={`${styles.chevron} ${campanasAbierto ? styles.chevronOpen : ""}`}>▸</span>
-        </button>
-        {campanasAbierto && (
-          <div className={styles.alertsBody}>
-            {campanasPermitidas.length === 0 ? (
-              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-                Sin permisos asignados. Contacta al administrador.
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {campanasPermitidas.map((campana) => (
-                  <div key={campana.id}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                      {campana.nombre}
-                      <span style={{ fontFamily: "monospace", fontSize: 11, color: "#6b7280", marginLeft: 6 }}>
-                        {campana.codigo}
-                      </span>
+      {!esAdmin &&
+        <section className={styles.alertsCard}>
+          <button
+            type="button"
+            className={styles.alertsHeader}
+            aria-expanded={campanasAbierto}
+            onClick={() => setCampanasAbierto((v) => !v)}
+          >
+            <span>Campañas permitidas</span>
+            <span className={`${styles.chevron} ${campanasAbierto ? styles.chevronOpen : ""}`}>▸</span>
+          </button>
+          {campanasAbierto && (
+            <div className={styles.alertsBody}>
+              {campanasPermitidas.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                  Sin permisos asignados. Contacta al administrador.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {campanasPermitidas.map((campana) => (
+                    <div key={campana.id}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                        {campana.nombre}
+                        <span style={{ fontFamily: "monospace", fontSize: 11, color: "#6b7280", marginLeft: 6 }}>
+                          {campana.codigo}
+                        </span>
+                      </div>
+                      <div className={styles.badges} style={{ marginTop: 6 }}>
+                        {campana.subcampanas.length > 0 ? (
+                          campana.subcampanas.map((sub) => (
+                            <span key={sub.id} className={styles.badge}>{sub.nombre}</span>
+                          ))
+                        ) : (
+                          <span style={{ fontSize: 12, color: "#9ca3af" }}>Sin subcampañas activas</span>
+                        )}
+                      </div>
                     </div>
-                    <div className={styles.badges} style={{ marginTop: 6 }}>
-                      {campana.subcampanas.length > 0 ? (
-                        campana.subcampanas.map((sub) => (
-                          <span key={sub.id} className={styles.badge}>{sub.nombre}</span>
-                        ))
-                      ) : (
-                        <span style={{ fontSize: 12, color: "#9ca3af" }}>Sin subcampañas activas</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      }
+      
 
       {prefs && (esCliente || esEquipo) && (
         <section className={styles.alertsCard}>

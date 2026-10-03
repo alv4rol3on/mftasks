@@ -567,26 +567,6 @@ export default function EquiposPage() {
           >
             {soloMios ? "Filtro: solo mis equipos" : "Filtro: todos los equipos"}
           </button>
-          <select
-            value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value)}
-            style={{
-              border: "1px solid #d1d5db",
-              background: "white",
-              color: "#374151",
-              borderRadius: 8,
-              padding: "8px 10px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <option value="TODOS">Todos los tipos</option>
-            <option value="GERENTE">Equipo de Gerente</option>
-            <option value="SUBGERENTE">Equipo de Subgerente</option>
-            <option value="JEFE">Equipo de Jefe</option>
-            <option value="GTR">Equipo GTR</option>
-          </select>
           <span style={{ fontSize: 12, color: "#6b7280" }}>
             {equiposVisibles.length} de {equipos.length} equipo(s)
           </span>
