@@ -1777,7 +1777,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
             tarea.estado = Tarea.Estado.STAND_BY
             tarea.motivo_standby = (
-                f"Pausa por subtarea #{subtarea.id}: {motivo}"
+                f"Pausa por subtarea #{subtarea.codigo}: {motivo}"
             )
             tarea.fecha_standby = ahora
             tarea.standby_por = request.user
@@ -1798,7 +1798,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 estado_anterior=estado_tarea_anterior,
                 estado_nuevo=tarea.estado,
                 detalle=(
-                    f"Tarea pausada por la subtarea #{subtarea.id}. "
+                    f"Tarea pausada por la subtarea #{subtarea.codigo}. "
                     f"Motivo: {motivo}"
                 ),
             )
@@ -1964,7 +1964,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                     estado_nuevo=tarea.estado,
                     detalle=(
                         f"Nueva fecha de entrega al reanudar subtarea "
-                        f"#{subtarea.id}: "
+                        f"#{subtarea.codigo}: "
                         f"{entrega_anterior.isoformat() if entrega_anterior else '-'} -> "
                         f"{nueva_fecha.isoformat()}."
                     ),
@@ -1997,7 +1997,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                             detalle=(
                                 f"Continuar cuenta regresiva: fecha de entrega "
                                 f"ampliada por el tiempo en standby de la subtarea "
-                                f"#{subtarea.id} "
+                                f"#{subtarea.codigo} "
                                 f"({int(tiempo_perdido.total_seconds())}s): "
                                 f"{entrega_anterior.isoformat()} -> "
                                 f"{tarea.fecha_entrega_aproximada.isoformat()}."

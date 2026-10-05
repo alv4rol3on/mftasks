@@ -258,7 +258,7 @@ export default function UsuariosSection({ setMsg }: Props) {
               className={styles.btnPrimary}
               onClick={() => setCrearOpen(true)}
             >
-              + Nuevo usuario
+              + Crear usuario
             </button>
 
           </div>
@@ -317,16 +317,24 @@ export default function UsuariosSection({ setMsg }: Props) {
                       const rolActual = (u.roles ?? [])[0] ?? "";
 
                       const badgeAdmin = {
-                        background: "#fee2e2",
-                        color: "#991b1b",
+                        background: "#3a6aed",
+                        color: "#fafafa",
                         padding: "2px 6px",
                         borderRadius: 6,
                         fontSize: 11,
                       } as const;
 
                       const badgeCliente = {
-                        background: "#e0e7ff",
-                        color: "#3730a3",
+                        background: "#00ca1b",
+                        color: "#fafafa",
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        fontSize: 11,
+                      } as const;
+
+                      const badgeColab = {
+                        background: "#d10000",
+                        color: "#fafafa",
                         padding: "2px 6px",
                         borderRadius: 6,
                         fontSize: 11,
@@ -365,14 +373,14 @@ export default function UsuariosSection({ setMsg }: Props) {
                           <td>
                             {esAdmin || tipo === "ADMINISTRADOR" ? (
                               <span style={badgeAdmin}>
-                                Administrador
+                                ADMINISTRADOR
                               </span>
                             ) : tipo === "CLIENTE" ? (
                               <span style={badgeCliente}>
-                                Cliente
+                                CLIENTE
                               </span>
                             ) : (
-                              rolActual || "-"
+                              <span style={badgeColab}>{rolActual || "-"}</span>
                             )}
                           </td>
 

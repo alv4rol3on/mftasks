@@ -271,7 +271,7 @@ export default function RolesSection({ setMsg }: Props) {
               className={styles.btnPrimary}
               onClick={abrirCreacion}
             >
-              + Nuevo rol
+              + Crear rol
             </button>
           </div>
         </div>
