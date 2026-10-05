@@ -55,6 +55,34 @@ def cadena_aprobacion(rol):
     return cadena
 
 
+def roles_subordinados(rol):
+    """Roles que dependen transitivamente de `rol` por la relación `superior`.
+
+    Es el conjunto de roles cuya `cadena_aprobacion` contiene a `rol`, es decir,
+    los equipos a los que `rol` puede aprobar. No incluye al propio `rol`.
+    Se calcula en memoria y protege ante ciclos.
+    """
+    from .models import Rol
+
+    rol = get_rol(rol)
+    if rol is None:
+        return []
+
+    resultado = []
+    visitados = {rol.pk}
+    pendientes = list(Rol.objects.filter(superior=rol))
+
+    while pendientes:
+        actual = pendientes.pop()
+        if actual.pk in visitados:
+            continue
+        visitados.add(actual.pk)
+        resultado.append(actual)
+        pendientes.extend(Rol.objects.filter(superior=actual))
+
+    return resultado
+
+
 def profundidad(rol):
     """Número de superiores de un rol (0 = raíz). Posición derivada, no almacenada."""
     return len(cadena_aprobacion(rol))

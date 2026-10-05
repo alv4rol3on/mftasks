@@ -79,6 +79,7 @@ export default function TaskModal({
         if (registro) {
             return registro.accion === "APROBADO" ? "aprobado" : "rechazado";
         }
+        if (tarea.auto_aprobada && paso === "APROBADORES") return "omitido";
         if (tarea.estado === "RECHAZADO") return "omitido";
         if (tarea.paso_aprobacion === paso) return "actual";
         if (tarea.paso_aprobacion === "COMPLETADO") return "aprobado";

@@ -140,6 +140,7 @@ class TaskSerializer(serializers.ModelSerializer):
     paso_aprobacion_nombre = serializers.SerializerMethodField()
     aprobaciones = serializers.SerializerMethodField()
     puedo_aprobar = serializers.SerializerMethodField()
+    auto_aprobada = serializers.SerializerMethodField()
 
     puedo_operar = serializers.SerializerMethodField()
     tiempo_tomado_segundos = serializers.SerializerMethodField()
@@ -154,7 +155,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
+        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
         read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por"]
 
     def get_cliente_nombre(self, obj):
@@ -208,6 +209,13 @@ class TaskSerializer(serializers.ModelSerializer):
             return False
         from .permissions import es_aprobador_de_tarea
         return es_aprobador_de_tarea(request.user, obj)
+
+    def get_auto_aprobada(self, obj):
+        equipo = getattr(obj, "equipo", None)
+        rol_equipo = getattr(equipo, "rol_equipo", None)
+        return bool(
+            rol_equipo is not None and getattr(rol_equipo, "auto_aprobar", False)
+        )
 
     def get_subtareas(self, obj):
         return SubtareaSerializer(obj.subtareas.all(), many=True).data

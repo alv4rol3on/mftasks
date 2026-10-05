@@ -175,6 +175,59 @@ def ids_equipos_visibles(user):
     return propios
 
 
+def es_aprobador_del_equipo(user, equipo):
+    """True si el rol efectivo del usuario es un superior del rol del equipo.
+
+    El usuario puede aprobar las solicitudes de ese equipo según la jerarquía.
+    """
+    if not user or not user.is_authenticated or equipo is None:
+        return False
+    if es_administrador(user):
+        return True
+
+    from .jerarquia import rol_efectivo, cadena_aprobacion
+
+    rol_usuario = rol_efectivo(user)
+    if rol_usuario is None:
+        return False
+
+    rol_equipo = getattr(equipo, "rol_equipo", None)
+    if rol_equipo is None:
+        return False
+
+    return rol_usuario.pk in {
+        rol.pk for rol in cadena_aprobacion(rol_equipo) if rol.activo
+    }
+
+
+def ids_equipos_aprobables(user):
+    """IDs de equipos cuyas solicitudes el usuario puede aprobar por jerarquía.
+
+    Son los equipos cuyo `rol_equipo` está por debajo del rol efectivo del
+    usuario. No incluye los equipos propios (para esos el usuario es líder).
+    """
+    if not user or not user.is_authenticated:
+        return set()
+    if es_administrador(user):
+        return set(Equipo.objects.values_list("id", flat=True))
+
+    from .jerarquia import rol_efectivo, roles_subordinados
+
+    rol = rol_efectivo(user)
+    if rol is None:
+        return set()
+
+    ids_roles = {r.pk for r in roles_subordinados(rol) if r.activo}
+    if not ids_roles:
+        return set()
+
+    return set(
+        Equipo.objects
+        .filter(rol_equipo_id__in=ids_roles)
+        .values_list("id", flat=True)
+    )
+
+
 def es_aprobador_organizacional(user):
     """True si el usuario puede aprobar solicitudes según la jerarquía.
 

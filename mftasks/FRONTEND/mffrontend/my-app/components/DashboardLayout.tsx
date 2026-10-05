@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMsal } from "@azure/msal-react";
 import Sidebar from "./Sidebar";
+import CapacidadesProvider from "./CapacidadesProvider";
+import GuardRuta from "./GuardRuta";
 import "../components/DashboardLayout.css";
 import {
     cerrarSesion,
@@ -48,44 +50,46 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar
-        menuOpen={menuOpen}
-        setMenuOpen={setMenuOpen}
-      />
+    <CapacidadesProvider>
+      <div className="dashboard-layout">
+        <Sidebar
+          menuOpen={menuOpen}
+          setMenuOpen={setMenuOpen}
+        />
 
-      <main className="dashboard-main">
-        <header className="dashboard-header">
-          {/* Botón hamburguesa (solo visible en móviles) */}
-          <button
-            type="button"
-            className="menu-button"
-            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-            aria-expanded={menuOpen}
-            aria-controls="sidebar"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            ☰
-          </button>
+        <main className="dashboard-main">
+          <header className="dashboard-header">
+            {/* Botón hamburguesa (solo visible en móviles) */}
+            <button
+              type="button"
+              className="menu-button"
+              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={menuOpen}
+              aria-controls="sidebar"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              ☰
+            </button>
 
-          <div style={{ display:"flex", flexDirection:"column", lineHeight:1.1}}>
-            <h1 style={{ margin:0}}>Hola, {nombre || "..."}</h1>
-            {codigo && <span style={{ fontSize:11, opacity:0.9, fontWeight:400}}>{codigo}</span>}
-          </div>
+            <div style={{ display:"flex", flexDirection:"column", lineHeight:1.1}}>
+              <h1 style={{ margin:0}}>Hola, {nombre || "..."}</h1>
+              {codigo && <span style={{ fontSize:11, opacity:0.9, fontWeight:400}}>{codigo}</span>}
+            </div>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="dashboard-logout"
-          >
-            Cerrar sesión
-          </button>
-        </header>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="dashboard-logout"
+            >
+              Cerrar sesión
+            </button>
+          </header>
 
-        <section className="dashboard-content">
-          {children}
-        </section>
-      </main>
-    </div>
+          <section className="dashboard-content">
+            <GuardRuta>{children}</GuardRuta>
+          </section>
+        </main>
+      </div>
+    </CapacidadesProvider>
   );
 }

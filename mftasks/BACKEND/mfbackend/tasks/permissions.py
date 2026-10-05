@@ -5,6 +5,7 @@ from usuarios.permissions import (
     es_cliente,
     ids_equipos_visibles,
     es_lider_del_equipo,
+    es_aprobador_del_equipo,
 )
 from usuarios.jerarquia import rol_efectivo, cadena_aprobacion
 from usuarios.models import EquipoMiembro
@@ -120,7 +121,14 @@ def puede_observar_tarea(user, tarea):
     if es_cliente(user):
         return tarea.solicitante_id == user.id
 
-    return tarea.equipo_id in ids_equipos_visibles(user)
+    if tarea.equipo_id in ids_equipos_visibles(user):
+        return True
+
+    # Aprobador jerárquico del equipo (incluye equipos con autoaprobación).
+    if es_aprobador_del_equipo(user, tarea.equipo):
+        return tiene_permiso_subcampana(user, tarea.subcampana)
+
+    return False
 
 
 def tiene_permiso_subcampana(user, subcampana):
@@ -265,7 +273,25 @@ def es_aprobador_de_tarea(user, tarea):
     # FASE LÍDER
     # =========================================================
     if paso == "LIDER":
-        return es_lider_del_equipo(user, equipo)
+        if es_lider_del_equipo(user, equipo):
+            return True
+
+        # Con autoaprobación, la cadena de superiores conserva la potestad de
+        # aprobar o rechazar la solicitud aunque esté en revisión del líder.
+        rol_equipo = getattr(equipo, "rol_equipo", None)
+        if rol_equipo is not None and getattr(rol_equipo, "auto_aprobar", False):
+            rol_usuario = rol_efectivo(user)
+            if (
+                rol_usuario is not None
+                and rol_usuario.pk in roles_superiores_de_tarea(tarea)
+                and tiene_permiso_subcampana(
+                    user,
+                    getattr(tarea, "subcampana", None),
+                )
+            ):
+                return True
+
+        return False
 
     # =========================================================
     # FASE APROBACIÓN JERÁRQUICA

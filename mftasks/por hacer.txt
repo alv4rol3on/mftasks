@@ -1,6 +1,5 @@
-- correccion en los html que llegan a los correos, deben tener una informacion mas acorde a lo esperado
-- el miembro de equipo que es sublider no esta recibiendo correos
-- los equipos en los que "Eres aprobador" tambien deberia aparecer bajo el filtro "solo mis equipos"
-- Arreglar logica de autoaprobacion
+
+
+
 
 

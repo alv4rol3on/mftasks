@@ -1,4 +1,4 @@
-Hola {{ nombre_destinatario|default:"equipo" }},
+{% if nombre_destinatario %}Hola {{ nombre_destinatario }},{% else %}Hola,{% endif %}
 
 {{ mensaje }}
 

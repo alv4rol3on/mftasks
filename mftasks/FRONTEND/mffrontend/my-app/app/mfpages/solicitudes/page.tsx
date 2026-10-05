@@ -9,14 +9,12 @@ import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
-import type { EquipoInfo } from "@/lib/types";
 
 export default function SolicitudesPage() {
   const router = useRouter();
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sinPermiso, setSinPermiso] = useState(false);
 
   const user = getUsuarioActual();
   const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
@@ -39,29 +37,10 @@ export default function SolicitudesPage() {
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
 
-  // Guard: CLIENTE puro no debe entrar. ADMIN pasa directo (ahora unificada, no aprobar)
+  // La protección de acceso la resuelve el guard central (redirige a perfil).
   useEffect(() => {
-    const u = getUsuarioActual();
-    if (!u) { router.replace("/"); return; }
-    const roles = (u.roles ?? []).map((r) => r.toLowerCase());
-    const isAd = roles.includes("administrador");
-    const isCliente = roles.includes("cliente");
-    const isAsignador = roles.includes("asignador");
-    if (isAd) return; // admin unificada
-    if (isAsignador) return;
-    if (isCliente && !isAsignador) {
-      apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>("/api/usuarios/equipos/")
-        .then((data) => {
-          const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
-          const uid = u.id;
-          const esGtr = arr.some((eq) => eq.miembros?.some((m) => m.id_usuario === uid && (m.rol_en_equipo === "LIDER" || m.rol_en_equipo === "SUB_LIDER") && m.estado === "ACTIVO"));
-          const esLider = arr.some((eq) => eq.lider?.id === uid);
-          const esMiembro = arr.some((eq) => eq.miembros?.some((m) => m.id_usuario === uid));
-          if (esLider || esGtr) return;
-          if (esMiembro) return;
-          setSinPermiso(true);
-        })
-        .catch(() => setSinPermiso(true));
+    if (!getUsuarioActual()) {
+      router.replace("/");
     }
   }, [router]);
 
@@ -238,15 +217,6 @@ export default function SolicitudesPage() {
     </div>
   );
 
-
-  if (sinPermiso) {
-    return (
-      <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
-        <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
-        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE debes usar &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes. La bandeja de solicitudes de aprobación es solo para personal interno (solo lectura).</p>
-      </div>
-    );
-  }
 
   if (cargando) return <div>Cargando solicitudes…</div>;
   if (error) return <div>Error al cargar las solicitudes: {error}</div>;

@@ -17,10 +17,6 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import ValidationError
 
 
-from usuarios.jerarquia import rol_efectivo, cadena_aprobacion
-from tasks.permissions import tiene_permiso_subcampana
-
-
 from tasks.services.notificaciones_email import (
     programar_correo_equipo,
     programar_correo_tarea,
@@ -34,6 +30,7 @@ from usuarios.permissions import (
     es_administrador,
     es_cliente,
     ids_equipos_visibles,
+    ids_equipos_aprobables,
     es_lider_de_equipo
 )
 
@@ -42,7 +39,6 @@ from .permissions import (
     EsAsignadorDeEquipoDeTarea,
     PuedeAprobarPasoDeTarea,
     es_aprobador_de_tarea,
-    tiene_permiso_subcampana
 )
 from .serializers import SubtareaSerializer, TaskSerializer
 from .services.logs import registrar_log
@@ -103,12 +99,25 @@ def _notificar_fase(tarea, fase):
             contexto_adicional={
                 "nivel_nombre": "Aprobadores",
                 "nivel": fase,
-                "nombre_destinatario": f"aprobadores de {tarea.equipo.nombre}",
             },
         )
 
     if fase == Tarea.PasoAprobacion.LIDER:
         correos = _correos_lider(tarea.equipo, "EQUIPO_PENDIENTE_REVISION")
+
+        # Con autoaprobación la solicitud nace en revisión del líder, pero la
+        # cadena de superiores conserva visibilidad y potestad de resolverla.
+        rol_equipo = getattr(tarea.equipo, "rol_equipo", None)
+        auto_aprobar = bool(
+            rol_equipo is not None and getattr(rol_equipo, "auto_aprobar", False)
+        )
+        if auto_aprobar:
+            correos += _correos_aprobadores(
+                tarea,
+                "SOLICITUD_PENDIENTE_LIDER",
+            )
+
+        correos = list(dict.fromkeys(correos))
         if not correos:
             return False
         return programar_correo_tarea(
@@ -116,13 +125,18 @@ def _notificar_fase(tarea, fase):
             tarea=tarea,
             destinatarios=correos,
             mensaje=(
-                f"La solicitud {tarea.ticket or tarea.id} fue aprobada por los "
-                "aprobadores y espera tu revisión como líder del equipo."
+                f"La solicitud {tarea.ticket or tarea.id} espera revisión del "
+                "líder del equipo. Como superior de su rol, también puedes "
+                "aprobarla o rechazarla."
+                if auto_aprobar
+                else (
+                    f"La solicitud {tarea.ticket or tarea.id} fue aprobada por "
+                    "los aprobadores y espera tu revisión como líder del equipo."
+                )
             ),
             contexto_adicional={
                 "nivel_nombre": "Líder",
                 "nivel": fase,
-                "nombre_destinatario": f"equipo {tarea.equipo.nombre}",
             },
         )
 
@@ -222,77 +236,43 @@ class TaskViewSet(viewsets.ModelViewSet):
         # =========================================================
         # USUARIO CON ROL JERÁRQUICO
         #
-        # Los roles superiores pueden visualizar solicitudes
-        # pendientes de aprobación de equipos inferiores.
+        # Los roles superiores pueden visualizar las solicitudes de los
+        # equipos inferiores: las pendientes que les corresponde aprobar y,
+        # para seguimiento, todas las tareas de esos equipos.
         #
         # NO se utiliza EquipoAprobador.
         # =========================================================
-        from usuarios.jerarquia import rol_efectivo, cadena_aprobacion
-        rol_usuario = rol_efectivo(user)
+        ids_equipos = list(ids_equipos_visibles(user))
+        equipos_aprobables = list(ids_equipos_aprobables(user))
 
-        ids_tareas_aprobables = []
+        condicion = Q(equipo_id__in=ids_equipos)
 
-        if rol_usuario:
-
-            tareas_pendientes = Tarea.objects.filter(
-                estado=Tarea.Estado.EN_ESPERA,
-                paso_aprobacion=Tarea.PasoAprobacion.APROBADORES,
-            ).select_related(
-                "equipo",
-                "equipo__rol_equipo",
-                "subcampana",
-                "subcampana__campana",
+        if equipos_aprobables:
+            ids_subcampanas = set(
+                PermisoCampana.objects.filter(
+                    usuario=user,
+                    subcampana__activo=True,
+                    subcampana__campana__activo=True,
+                ).values_list("subcampana_id", flat=True)
             )
 
-            for tarea in tareas_pendientes:
+            if ids_subcampanas:
+                pendientes_aprobables = Q(
+                    estado=Tarea.Estado.EN_ESPERA,
+                    paso_aprobacion=Tarea.PasoAprobacion.APROBADORES,
+                ) | Q(
+                    estado=Tarea.Estado.EN_ESPERA,
+                    paso_aprobacion=Tarea.PasoAprobacion.LIDER,
+                    equipo__rol_equipo__auto_aprobar=True,
+                )
 
-                if not tarea.equipo:
-                    continue
+                condicion |= (
+                    Q(equipo_id__in=equipos_aprobables)
+                    & Q(subcampana_id__in=ids_subcampanas)
+                    & (pendientes_aprobables | ~Q(estado=Tarea.Estado.EN_ESPERA))
+                )
 
-                rol_equipo = tarea.equipo.rol_equipo
-
-                if not rol_equipo:
-                    continue
-
-                # -------------------------------------------------
-                # Obtener superiores del rol del equipo
-                # -------------------------------------------------
-                superiores = cadena_aprobacion(rol_equipo)
-
-                ids_superiores = {
-                    rol.pk
-                    for rol in superiores
-                    if rol.activo
-                }
-
-                # El rol del usuario debe ser uno de los superiores.
-                if rol_usuario.pk not in ids_superiores:
-                    continue
-
-                # -------------------------------------------------
-                # Debe tener permiso sobre la subcampaña
-                # -------------------------------------------------
-                if not tiene_permiso_subcampana(
-                    user,
-                    tarea.subcampana,
-                ):
-                    continue
-
-                ids_tareas_aprobables.append(tarea.pk)
-
-        # =========================================================
-        # TAREAS PROPIAS DE SUS EQUIPOS
-        # =========================================================
-        from usuarios.permissions import ids_equipos_visibles
-
-        ids_equipos = list(
-            ids_equipos_visibles(user)
-        )
-
-        return base_qs.filter(
-            Q(pk__in=ids_tareas_aprobables)
-            | Q(equipo_id__in=ids_equipos)
-        ).distinct()
+        return base_qs.filter(condicion).distinct()
 
     def filter_queryset(self, queryset):
         """Filtros opcionales de listado: search, estado, fecha, exclusión de en espera y antigüedad."""
@@ -1040,60 +1020,41 @@ class TaskViewSet(viewsets.ModelViewSet):
             })
 
         def _por_aprobar(usuario):
-            from usuarios.jerarquia import (
-                rol_efectivo,
-                cadena_aprobacion,
-            )
+            from usuarios.jerarquia import rol_efectivo, roles_subordinados
 
             rol_usuario = rol_efectivo(usuario)
 
             if rol_usuario is None:
                 return 0
 
-            tareas = Tarea.objects.filter(
-                estado=Tarea.Estado.EN_ESPERA,
-                paso_aprobacion=Tarea.PasoAprobacion.APROBADORES,
-            ).select_related(
-                "equipo",
-                "equipo__rol_equipo",
-                "subcampana",
-                "subcampana__campana",
-            )
+            ids_roles_sub = {
+                rol.pk for rol in roles_subordinados(rol_usuario) if rol.activo
+            }
 
             total = 0
 
-            for tarea in tareas:
-
-                if not tarea.equipo:
-                    continue
-
-                rol_equipo = tarea.equipo.rol_equipo
-
-                if not rol_equipo:
-                    continue
-
-                superiores = cadena_aprobacion(
-                    rol_equipo
+            if ids_roles_sub:
+                ids_subcampanas = set(
+                    PermisoCampana.objects.filter(
+                        usuario=usuario,
+                        subcampana__activo=True,
+                        subcampana__campana__activo=True,
+                    ).values_list("subcampana_id", flat=True)
                 )
 
-                ids_superiores = {
-                    rol.pk
-                    for rol in superiores
-                    if rol.activo
-                }
+                total = Tarea.objects.filter(
+                    estado=Tarea.Estado.EN_ESPERA,
+                    equipo__rol_equipo_id__in=ids_roles_sub,
+                    subcampana_id__in=ids_subcampanas,
+                ).filter(
+                    Q(paso_aprobacion=Tarea.PasoAprobacion.APROBADORES)
+                    | Q(
+                        paso_aprobacion=Tarea.PasoAprobacion.LIDER,
+                        equipo__rol_equipo__auto_aprobar=True,
+                    )
+                ).count()
 
-                if rol_usuario.pk not in ids_superiores:
-                    continue
-
-                if not tiene_permiso_subcampana(
-                    usuario,
-                    tarea.subcampana,
-                ):
-                    continue
-
-                total += 1
-
-            # Las tareas en fase LIDER siguen correspondiendo
+            # Las tareas en fase LIDER sin autoaprobación siguen correspondiendo
             # únicamente al líder del equipo.
             total += Tarea.objects.filter(
                 estado=Tarea.Estado.EN_ESPERA,

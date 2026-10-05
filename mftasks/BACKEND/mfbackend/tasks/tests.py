@@ -4,6 +4,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template.loader import render_to_string
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -774,6 +775,110 @@ class NotificacionesDiariasTestCase(APITestCase):
         else:
             self.fail("No se programó el resumen para el cliente")
 
+    @patch("tasks.services.notificaciones_email.programar_correo_tarea")
+    def test_digest_incluye_sub_lider(self, mock_envio):
+        mock_envio.return_value = True
+        sublider = _crear_usuario("sublidern@empresa.com")
+        EquipoMiembro.objects.create(
+            equipo=self.equipo,
+            usuario=sublider,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        )
+        Tarea.objects.create(
+            asunto="Abierta",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_DESARROLLO,
+            equipo=self.equipo,
+        )
+
+        from tasks.scheduler import enviar_digest_miembros
+        enviar_digest_miembros()
+
+        destinatarios = []
+        for call in mock_envio.call_args_list:
+            if call.kwargs.get("evento") == "EQUIPO_ALERTA_DIARIA":
+                destinatarios.extend(call.kwargs.get("destinatarios") or [])
+
+        self.assertIn("sublidern@empresa.com", destinatarios)
+
+
+class ContenidoCorreosTestCase(TestCase):
+    """Contenido y destinatarios de los correos."""
+
+    def setUp(self):
+        self.campana = Campana.objects.create(nombre="Camp E", codigo="CAMP_E")
+        self.sub = SubCampana.objects.create(campana=self.campana, nombre="Sub E", codigo="SUB_E")
+        self.lider = _crear_usuario("liderE@empresa.com")
+        self.equipo = Equipo.objects.create(nombre="Equipo E", lider=self.lider)
+        self.solicitante = _crear_usuario("solicitanteE@empresa.com")
+        self.tarea = Tarea.objects.create(
+            asunto="Solicitud E",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_DESARROLLO,
+            equipo=self.equipo,
+            solicitante=self.solicitante,
+        )
+
+    def test_no_agrega_solicitante_sin_destinatario_explicito(self):
+        from tasks.services.notificaciones_email import programar_correo_tarea
+
+        with patch("tasks.services.notificaciones_email.enviar_notificacion_email") as mock_send:
+            with self.captureOnCommitCallbacks(execute=True):
+                programar_correo_tarea(
+                    evento="EQUIPO_ALERTA_DIARIA",
+                    tarea=self.tarea,
+                    destinatarios=["miembro@empresa.com"],
+                    mensaje="x",
+                )
+
+        self.assertTrue(mock_send.called)
+        _, kwargs = mock_send.call_args
+        self.assertEqual(kwargs["destinatarios"], ["miembro@empresa.com"])
+        self.assertNotIn(self.solicitante.email, kwargs["destinatarios"])
+
+    def test_agrega_solicitante_con_destinatario_explicito(self):
+        from tasks.services.notificaciones_email import programar_correo_tarea
+
+        with patch("tasks.services.notificaciones_email.enviar_notificacion_email") as mock_send:
+            with self.captureOnCommitCallbacks(execute=True):
+                programar_correo_tarea(
+                    evento="SOLICITUD_APROBADA",
+                    tarea=self.tarea,
+                    usuario_destinatario=self.solicitante,
+                    mensaje="x",
+                )
+
+        _, kwargs = mock_send.call_args
+        self.assertIn(self.solicitante.email, kwargs["destinatarios"])
+
+    def test_plantilla_rechazo_incluye_motivo_y_resolutor(self):
+        html = render_to_string(
+            "emails/solicitud_rechazada.html",
+            {
+                "codigo": "T-1",
+                "mensaje": "Tu solicitud fue rechazada.",
+                "motivo_rechazo": "No aplica",
+                "aprobador_nombre": "Juan Perez",
+            },
+        )
+        self.assertIn("No aplica", html)
+        self.assertIn("Juan Perez", html)
+
+    def test_saludo_neutro_sin_aprobadores(self):
+        html = render_to_string(
+            "emails/equipo_pendiente_revision.html",
+            {
+                "codigo": "T-1",
+                "mensaje": "Pendiente de revisión.",
+                "nivel_nombre": "Líder",
+            },
+        )
+        self.assertIn("Hola", html)
+        self.assertNotIn("aprobadores de", html)
+
 
 class VisibilidadEquiposTestCase(APITestCase):
     """Visibilidad: cada usuario ve solo los equipos donde es líder o integrante."""
@@ -1011,3 +1116,91 @@ class AprobacionPorEquipoTestCase(APITestCase):
         )
         tarea_auto.refresh_from_db()
         self.assertEqual(tarea_auto.paso_aprobacion, "LIDER")
+
+    def _crear_equipo_auto(self, nombre="Equipo Auto Sub"):
+        """Crea un equipo con rol autoaprobado que sí tiene superiores reales."""
+        slug = nombre.lower().replace(" ", "_")
+        rol_jefe = Rol.objects.get(nombre__iexact="JEFE")
+        rol_auto = Rol.objects.create(
+            nombre=f"rol_{slug}",
+            auto_aprobar=True,
+            puede_liderar=True,
+            superior=rol_jefe,
+        )
+        lider_auto = _crear_usuario(f"{slug}@empresa.com")
+        UserRol.objects.create(usuario=lider_auto, rol=rol_auto)
+        equipo_auto = Equipo.objects.create(nombre=nombre, lider=lider_auto)
+        tarea = Tarea.objects.create(
+            asunto="Solicitud auto con superiores",
+            descripcion="d",
+            subcampana=self.sub,
+            estado=Tarea.Estado.EN_ESPERA,
+            equipo=equipo_auto,
+        )
+        tarea.refresh_from_db()
+        return lider_auto, tarea
+
+    def test_superior_ve_autoaprobada_en_bandeja(self):
+        _, tarea = self._crear_equipo_auto("Equipo Auto Ver")
+        self.assertEqual(tarea.paso_aprobacion, "LIDER")
+
+        self.client.force_authenticate(user=self.jefe)
+        res = self.client.get(reverse("task-list"), {"estado": "EN_ESPERA"})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(tarea.id, {t["id"] for t in res.data})
+
+    def test_superior_aprueba_autoaprobada(self):
+        _, tarea = self._crear_equipo_auto("Equipo Auto Aprobar")
+        self.client.force_authenticate(user=self.jefe)
+        res = self.client.post(reverse("task-aprobar", args=[tarea.id]))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.estado, Tarea.Estado.APROBADO)
+        self.assertEqual(tarea.paso_aprobacion, "COMPLETADO")
+        self.assertEqual(tarea.aprobador, self.jefe)
+
+    def test_superior_rechaza_autoaprobada(self):
+        _, tarea = self._crear_equipo_auto("Equipo Auto Rechazar")
+        self.client.force_authenticate(user=self.jefe)
+        res = self.client.post(
+            reverse("task-rechazar", args=[tarea.id]),
+            {"motivo_rechazo": "No aplica"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.estado, Tarea.Estado.RECHAZADO)
+
+    def test_lider_sigue_aprobando_autoaprobada(self):
+        lider_auto, tarea = self._crear_equipo_auto("Equipo Auto Lider")
+        self.client.force_authenticate(user=lider_auto)
+        res = self.client.post(reverse("task-aprobar", args=[tarea.id]))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.estado, Tarea.Estado.APROBADO)
+
+    def test_superior_ve_tareas_en_desarrollo_del_equipo(self):
+        lider_auto, tarea = self._crear_equipo_auto("Equipo Auto Desarrollo")
+        self.client.force_authenticate(user=lider_auto)
+        res = self.client.post(reverse("task-aprobar", args=[tarea.id]))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        self.client.force_authenticate(user=self.jefe)
+        res = self.client.get(
+            reverse("task-list"),
+            {"estado": "EN_PROCESO", "excluir_espera": "1"},
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(tarea.id, {t["id"] for t in res.data})
+
+    def test_tarea_normal_en_lider_no_es_pendiente_para_superior(self):
+        # Un superior resuelve la fase APROBADORES de una solicitud normal.
+        self.client.force_authenticate(user=self.jefe)
+        res = self.client.post(reverse("task-aprobar", args=[self.tarea.id]))
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        # Queda en revisión del líder; no vuelve a contarse como pendiente para
+        # el resto de superiores (solo seguimiento).
+        self.client.force_authenticate(user=self.gerente)
+        res = self.client.get(reverse("task-list"), {"estado": "EN_ESPERA"})
+        self.assertNotIn(self.tarea.id, {t["id"] for t in res.data})

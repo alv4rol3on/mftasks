@@ -1,4 +1,4 @@
-Hola {{ nombre_destinatario|default:"usuario" }},
+{% if nombre_destinatario %}Hola {{ nombre_destinatario }},{% else %}Hola,{% endif %}
 
 {{ mensaje }}
 
@@ -46,5 +46,31 @@ Adjuntos:
 - {{ archivo }}
 {% endfor %}
 {% endif %}
+
+{% if nivel_nombre %}
+Nivel pendiente: {{ nivel_nombre }}
+{% endif %}
+
+{% if aprobador_nombre %}
+Resuelto por: {{ aprobador_nombre }}
+{% endif %}
+
+{% if motivo_rechazo %}
+Motivo de rechazo: {{ motivo_rechazo }}
+{% endif %}
+
+{% if motivo_standby %}
+Motivo de pausa: {{ motivo_standby }}
+{% endif %}
+
+{% if fecha_respuesta %}
+Fecha de respuesta: {{ fecha_respuesta }}
+{% endif %}
+
+{% if fecha_solucion %}
+Fecha de solución: {{ fecha_solucion }}
+{% endif %}
+
+{% block extra %}{% endblock %}
 
 Este correo fue generado automáticamente por el sistema MF.

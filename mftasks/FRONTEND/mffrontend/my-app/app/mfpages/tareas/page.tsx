@@ -8,13 +8,11 @@ import { getUsuarioActual } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
-import { useTareasGuard } from "./hooks/useTareasGuard";
 import { ESTADOS_TAREA, rangoFechasPorDefecto } from "./utils/tareasFilters";
 import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar, type EstadoFiltro, type CampoFecha, type FiltrosTareas } from "@/lib/services/tareasService";
 
 export default function TareasPage() {
   const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea } = useTasksWebSocket();
-  const { sinPermiso } = useTareasGuard();
   const { showToast } = useToast();
   const [accionando, setAccionando] = useState<number | null>(null);
   const [empezandoId, setEmpezandoId] = useState<number | null>(null);
@@ -258,14 +256,6 @@ export default function TareasPage() {
     }
   };
 
-  if (sinPermiso) {
-    return (
-      <div style={{ background: "#fee2e2", border: "1px solid #fecaca", padding: 16, borderRadius: 8 }}>
-        <p style={{ color: "#991b1b", fontWeight: 600 }}>Acceso denegado</p>
-        <p style={{ color: "#7f1d1d", fontSize: 13, marginTop: 4 }}>Como CLIENTE no tienes acceso a Tareas en desarrollo. Usa &quot;Mis Solicitudes&quot; para ver el estado de tus solicitudes.</p>
-      </div>
-    );
-  }
   if (cargando) return <div>Cargando tareas…</div>;
   if (error) return <div>Error al cargar las tareas: {error}</div>;
 

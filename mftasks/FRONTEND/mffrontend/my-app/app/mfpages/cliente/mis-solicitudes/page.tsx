@@ -41,23 +41,12 @@ export default function MisSolicitudesPage() {
   const [openCrear, setOpenCrear] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { showToast } = useToast();
-  const [sinPermiso, setSinPermiso] = useState(false);
 
   useEffect(() => {
     const user = getUsuarioActual();
 
     if (!user) {
       router.replace("/");
-      return;
-    }
-
-    const roles = (user.roles ?? []).map((r) => r.toLowerCase());
-
-    const isAdmin = roles.includes("administrador");
-    const isCliente = roles.includes("cliente");
-
-    if (!isCliente && !isAdmin) {
-      setSinPermiso(true);
     }
   }, [router]);
 
@@ -226,34 +215,6 @@ export default function MisSolicitudesPage() {
       );
     });
   }, [tareas, filtro, busqueda, campoFecha, desde, hasta]);
-
-  if (sinPermiso) {
-    return (
-      <div
-        style={{
-          background: "#fee2e2",
-          border: "1px solid #fecaca",
-          padding: 16,
-          borderRadius: 8,
-        }}
-      >
-        <p style={{ color: "#991b1b", fontWeight: 600 }}>
-          Acceso denegado
-        </p>
-
-        <p
-          style={{
-            color: "#7f1d1d",
-            fontSize: 13,
-            marginTop: 4,
-          }}
-        >
-          Esta sección es solo para CLIENTE. Si eres personal interno usa
-          &quot;Bandeja de solicitudes&quot; y &quot;Tareas en desarrollo&quot;.
-        </p>
-      </div>
-    );
-  }
 
   if (cargando) {
     return <div>Cargando solicitudes…</div>;

@@ -104,7 +104,10 @@ def enviar_digest_miembros():
 
         miembros = equipo.miembros.select_related("usuario").filter(
             estado=EquipoMiembro.EstadoMiembro.ACTIVO,
-            rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO,
+            rol_en_equipo__in=[
+                EquipoMiembro.RolEnEquipo.MIEMBRO,
+                EquipoMiembro.RolEnEquipo.SUB_LIDER,
+            ],
         )
 
         correos = []
@@ -134,7 +137,6 @@ def enviar_digest_miembros():
             contexto_adicional={
                 "tareas": detalle,
                 "equipo_nombre": equipo.nombre,
-                "nombre_destinatario": f"equipo {equipo.nombre}",
             },
         )
         if programado:

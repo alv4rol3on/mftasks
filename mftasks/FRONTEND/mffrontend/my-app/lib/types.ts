@@ -61,6 +61,7 @@ export interface Task {
     paso_aprobacion_nombre?: string | null;
     aprobaciones?: AprobacionTarea[];
     puedo_aprobar?: boolean;
+    auto_aprobada?: boolean;
     motivo_rechazo: string;
     motivo_standby?: string | null;
     fecha_standby?: string | null;

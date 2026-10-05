@@ -226,6 +226,19 @@ def contexto_detalles_tarea(tarea):
         "fecha_entrega_aproximada": formatear_fecha(
             getattr(tarea, "fecha_entrega_aproximada", None)
         ),
+        "fecha_respuesta": formatear_fecha(
+            getattr(tarea, "fecha_respuesta", None)
+        ),
+        "fecha_solucion": formatear_fecha(
+            getattr(tarea, "fecha_solucion", None)
+        ),
+        "aprobador_nombre": (
+            obtener_nombre_usuario(getattr(tarea, "aprobador", None))
+            if getattr(tarea, "aprobador", None) is not None
+            else ""
+        ),
+        "motivo_rechazo": getattr(tarea, "motivo_rechazo", "") or "",
+        "motivo_standby": getattr(tarea, "motivo_standby", "") or "",
         "adjuntos": adjuntos,
     }
 
@@ -302,13 +315,6 @@ def programar_correo_tarea(
             "La tarea es obligatoria para programar el correo."
         )
 
-    if usuario_destinatario is None:
-        usuario_destinatario = getattr(
-            tarea,
-            "solicitante",
-            None,
-        )
-
     correos = []
 
     if destinatarios:
@@ -347,9 +353,10 @@ def programar_correo_tarea(
         return False
 
     contexto = contexto_detalles_tarea(tarea)
-    contexto["nombre_destinatario"] = obtener_nombre_usuario(
-        usuario_destinatario
-    )
+    if usuario_destinatario is not None:
+        contexto["nombre_destinatario"] = obtener_nombre_usuario(
+            usuario_destinatario
+        )
     contexto["mensaje"] = mensaje
 
     if contexto_adicional:
@@ -417,9 +424,6 @@ def programar_correo_equipo(
         return False
 
     contexto = contexto_detalles_tarea(tarea)
-    contexto["nombre_destinatario"] = (
-        getattr(equipo, "nombre", "") or "equipo"
-    )
     contexto["mensaje"] = mensaje
 
     if contexto_adicional:
