@@ -48,6 +48,7 @@ class UserSerializer(serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
     roles = serializers.SerializerMethodField()
+    bloqueo_estado_rol = serializers.SerializerMethodField()
 
     class Meta:
 
@@ -61,14 +62,34 @@ class UserSerializer(serializers.ModelSerializer):
             "apellidos",
             "dni",
             "cargo",
+            "descripcion_cargo",
+            "telefono",
             "is_active",
             "activo",
             "tipo_usuario",
             "roles",
+            "bloqueo_estado_rol",
         ]
 
     def get_roles(self, obj):
         return [r.rol.nombre for r in obj.roles.all()]
+
+    def get_bloqueo_estado_rol(self, obj):
+        from .restricciones import motivo_bloqueo_estado_rol
+
+        equipo = None
+        if hasattr(obj, "_es_miembro") or hasattr(obj, "_es_lider"):
+            equipo = bool(
+                getattr(obj, "_es_miembro", False)
+                or getattr(obj, "_es_lider", False)
+            )
+
+        return motivo_bloqueo_estado_rol(
+            obj,
+            pendientes=getattr(obj, "_tiene_pendientes", None),
+            equipo=equipo,
+            proceso=getattr(obj, "_tiene_solicitudes_proceso", None),
+        )
 
 class UserCreateSerializer(serializers.ModelSerializer):
     roles = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
@@ -80,7 +101,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "nombres", "apellidos", "dni","cargo", "is_active", "activo", "tipo_usuario", "password", "roles", "equipo_id", "permisos_campana"]
+        fields = ["id", "email", "nombres", "apellidos", "dni", "cargo", "descripcion_cargo", "telefono", "is_active", "activo", "tipo_usuario", "password", "roles", "equipo_id", "permisos_campana"]
         read_only_fields = ["id"]
 
     def validate_roles(self, value):
@@ -99,6 +120,41 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 + ". Créelos primero desde la administración de roles."
             )
         return normalized
+
+    def validate(self, attrs):
+        # Solo aplica en actualización: restringe cambios de estado/rol según
+        # las reglas de negocio (subtareas pendientes, equipo, solicitudes).
+        if self.instance is None:
+            return attrs
+
+        from .restricciones import motivo_bloqueo_estado_rol
+
+        cambia = False
+
+        if "is_active" in attrs and attrs["is_active"] != self.instance.is_active:
+            cambia = True
+        if "activo" in attrs and attrs["activo"] != self.instance.is_active:
+            cambia = True
+        if (
+            "tipo_usuario" in attrs
+            and attrs["tipo_usuario"] != self.instance.tipo_usuario
+        ):
+            cambia = True
+        if "roles" in attrs:
+            actuales = {
+                (ur.rol.nombre or "").lower()
+                for ur in self.instance.roles.select_related("rol")
+            }
+            nuevos = {(r or "").lower() for r in attrs["roles"]}
+            if actuales != nuevos:
+                cambia = True
+
+        if cambia:
+            motivo = motivo_bloqueo_estado_rol(self.instance)
+            if motivo:
+                raise serializers.ValidationError({"detail": motivo})
+
+        return attrs
 
     def _tipo_usuario_para_roles(self, roles):
         from .models import TipoUsuario
@@ -176,6 +232,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "apellidos",
             "dni",
             "cargo",
+            "descripcion_cargo",
+            "telefono",
             "tipo_usuario",
             "roles",
             "es_aprobador"

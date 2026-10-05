@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import Pagination from "@/components/ui/Pagination";
-import Switch from "@/components/ui/Switch";
+import EditarUsuarioModal from "./EditarUsuarioModal";
+import CrearUsuarioModal from "./CrearUsuarioModal";
 
 import type { RolInfo } from "@/lib/types";
 
@@ -18,10 +19,13 @@ type Usuario = {
   nombres: string;
   apellidos: string;
   cargo?: string;
+  descripcion_cargo?: string;
+  telefono?: string;
   is_active: boolean;
   tipo_usuario?: TipoUsuario;
   roles?: string[];
-  dni: string
+  dni: string;
+  bloqueo_estado_rol?: string | null;
 };
 
 const PAGE_SIZE_USUARIOS = 10;
@@ -31,9 +35,6 @@ const TIPOS_USUARIO: { value: TipoUsuario; label: string }[] = [
   { value: "CLIENTE", label: "Cliente" },
   { value: "ADMINISTRADOR", label: "Administrador" },
 ];
-
-const ROL_CLIENTE = "Cliente";
-const ROL_ADMIN = "Administrador";
 
 type Props = {
   setMsg: (msg: string | null) => void;
@@ -49,26 +50,8 @@ export default function UsuariosSection({ setMsg }: Props) {
   const [filtroRol, setFiltroRol] = useState<string>("todos");
 
   const [pageUsuarios, setPageUsuarios] = useState(1);
-
-  const [nuevo, setNuevo] = useState<{
-    email: string;
-    nombres: string;
-    apellidos: string;
-    cargo: string;
-    password: string;
-    tipo_usuario: TipoUsuario;
-    rol: string;
-    dni: string
-  }>({
-    email: "",
-    nombres: "",
-    apellidos: "",
-    cargo: "",
-    password: "",
-    tipo_usuario: "COLABORADOR",
-    rol: "",
-    dni: ""
-  });
+  const [editando, setEditando] = useState<Usuario | null>(null);
+  const [crearOpen, setCrearOpen] = useState(false);
 
   // Roles jerárquicos asignables a colaboradores (activos, sin los de sistema).
   const rolesJerarquicos = roles
@@ -120,121 +103,7 @@ export default function UsuariosSection({ setMsg }: Props) {
   }, []);
 
   // --------------------------------------------------
-  // CREAR USUARIO
-  // --------------------------------------------------
-
-  const rolesParaTipo = (tipo: TipoUsuario, rol: string): string[] | null => {
-    if (tipo === "CLIENTE") return [ROL_CLIENTE];
-    if (tipo === "ADMINISTRADOR") return [ROL_ADMIN];
-    if (!rol) return null;
-    return [rol];
-  };
-
-  const handleDniChange = (value: string) => {
-    const dni = value.replace(/\D/g, "").slice(0, 8);
-
-    setNuevo({
-      ...nuevo,
-      dni,
-    });
-  };
-
-  const crearUsuario = async () => {
-    if (!nuevo.email || !nuevo.nombres || !nuevo.apellidos) {
-      setMsg("Email, nombres y apellidos obligatorios");
-      return;
-    }
-
-    if (!/^\d{8}$/.test(nuevo.dni)) {
-      setMsg("El DNI debe contener exactamente 8 números.");
-      return;
-    }
-
-    const rolesPayload = rolesParaTipo(nuevo.tipo_usuario, nuevo.rol);
-
-    if (rolesPayload === null) {
-      setMsg("Selecciona un rol para el colaborador.");
-      return;
-    }
-
-    try {
-      await apiFetch("/api/usuarios/usuarios/", {
-        method: "POST",
-        body: JSON.stringify({
-          email: nuevo.email,
-          nombres: nuevo.nombres,
-          apellidos: nuevo.apellidos,
-          dni: nuevo.dni,
-          cargo: nuevo.cargo,
-          password: nuevo.password || undefined,
-          tipo_usuario: nuevo.tipo_usuario,
-          roles: rolesPayload,
-        }),
-      });
-
-      setMsg(
-        `Usuario ${nuevo.email} creado (${nuevo.tipo_usuario.toLowerCase()})`
-      );
-
-      setNuevo({
-        email: "",
-        nombres: "",
-        apellidos: "",
-        cargo: "",
-        password: "",
-        tipo_usuario: "COLABORADOR",
-        rol: "",
-        dni: ""
-      });
-
-      await cargarUsuarios();
-    } catch (e) {
-      setMsg(`Error: ${(e as Error).message}`);
-    }
-  };
-
-  // --------------------------------------------------
-  // ACTIVAR / DESACTIVAR USUARIO
-  // --------------------------------------------------
-
-  const toggleActivo = async (u: Usuario) => {
-    const esAdmin = (u.roles ?? [])
-      .map(r => r.toLowerCase())
-      .includes("administrador");
-
-    if (esAdmin) {
-      setMsg("Error: No se puede modificar usuarios administradores");
-      return;
-    }
-
-    if (
-      !confirm(
-        `¿${u.is_active ? "Desactivar" : "Activar"} a ${u.nombres} ${u.apellidos} (${u.email})?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await apiFetch(`/api/usuarios/usuarios/${u.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          is_active: !u.is_active,
-        }),
-      });
-
-      setMsg(
-        `${u.email} ${!u.is_active ? "activado" : "desactivado"}`
-      );
-
-      await cargarUsuarios();
-    } catch (e) {
-      setMsg((e as Error).message);
-    }
-  };
-
-  // --------------------------------------------------
-  // CAMBIAR TIPO / ROL
+  // ADMIN
   // --------------------------------------------------
 
   const esUsuarioAdmin = (u: Usuario) =>
@@ -242,92 +111,6 @@ export default function UsuariosSection({ setMsg }: Props) {
     (u.roles ?? [])
       .map((r) => r.toLowerCase())
       .includes("administrador");
-
-  const actualizarUsuario = async (
-    u: Usuario,
-    payload: Record<string, unknown>,
-    etiqueta: string
-  ) => {
-    try {
-      await apiFetch(`/api/usuarios/usuarios/${u.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-
-      setMsg(`${u.email}: ${etiqueta}`);
-      await cargarUsuarios();
-    } catch (e) {
-      setMsg(`Error: ${(e as Error).message}`);
-    }
-  };
-
-  const cambiarTipo = async (
-    u: Usuario,
-    nuevoTipo: TipoUsuario
-  ) => {
-    if (esUsuarioAdmin(u)) {
-      setMsg("Error: No se puede modificar usuarios administradores");
-      return;
-    }
-
-    if (nuevoTipo === "CLIENTE") {
-      await actualizarUsuario(
-        u,
-        { tipo_usuario: "CLIENTE", roles: [ROL_CLIENTE] },
-        "tipo cambiado a Cliente"
-      );
-      return;
-    }
-
-    if (nuevoTipo === "ADMINISTRADOR") {
-      await actualizarUsuario(
-        u,
-        { tipo_usuario: "ADMINISTRADOR", roles: [ROL_ADMIN] },
-        "tipo cambiado a Administrador"
-      );
-      return;
-    }
-
-    // COLABORADOR: necesita un rol jerárquico. Conserva el actual si aplica;
-    // si no, asigna el primero disponible.
-    const actual = (u.roles ?? [])[0];
-    const esJerarquico =
-      actual != null &&
-      rolesJerarquicos.some(
-        (r) => r.nombre.toLowerCase() === actual.toLowerCase()
-      );
-    const rolAsignado = esJerarquico ? actual : rolesJerarquicos[0]?.nombre;
-
-    if (!rolAsignado) {
-      setMsg(
-        "No hay roles jerárquicos disponibles. Cree uno en la pestaña Roles."
-      );
-      return;
-    }
-
-    await actualizarUsuario(
-      u,
-      { tipo_usuario: "COLABORADOR", roles: [rolAsignado] },
-      `tipo cambiado a Colaborador (${rolAsignado})`
-    );
-  };
-
-  const cambiarRol = async (u: Usuario, nuevoRol: string) => {
-    if (esUsuarioAdmin(u)) {
-      setMsg("Error: No se puede modificar el rol de administradores");
-      return;
-    }
-    if (!nuevoRol) {
-      setMsg("Selecciona un rol válido");
-      return;
-    }
-
-    await actualizarUsuario(
-      u,
-      { tipo_usuario: "COLABORADOR", roles: [nuevoRol] },
-      `rol cambiado a ${nuevoRol}`
-    );
-  };
 
   // --------------------------------------------------
   // FILTROS
@@ -402,134 +185,6 @@ export default function UsuariosSection({ setMsg }: Props) {
 
   return (
     <div className={styles.container}>
-
-      {/* CREAR USUARIO */}
-
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>
-          Crear nuevo usuario
-        </h3>
-
-        <input
-          placeholder="Nombres"
-          value={nuevo.nombres}
-          onChange={e =>
-            setNuevo({
-              ...nuevo,
-              nombres: e.target.value,
-            })
-          }
-          className={styles.input}
-        />
-
-        <input
-          placeholder="Apellidos"
-          value={nuevo.apellidos}
-          onChange={e =>
-            setNuevo({
-              ...nuevo,
-              apellidos: e.target.value,
-            })
-          }
-          className={styles.input}
-        />
-
-        <input
-          placeholder="DNI"
-          value={nuevo.dni}
-          onChange={e => handleDniChange(e.target.value)}
-          className={styles.input}
-          inputMode="numeric"
-          maxLength={8}
-          pattern="\d{8}"
-          required
-        />
-
-        <div className={styles.formGrid}>
-          <input
-            placeholder="Email"
-            value={nuevo.email}
-            onChange={e =>
-              setNuevo({
-                ...nuevo,
-                email: e.target.value,
-              })
-            }
-            className={styles.input}
-          />
-
-          <input
-            placeholder="Cargo"
-            value={nuevo.cargo}
-            onChange={e =>
-              setNuevo({
-                ...nuevo,
-                cargo: e.target.value,
-              })
-            }
-            className={styles.input}
-          />
-
-          <input
-            placeholder="Password"
-            type="password"
-            value={nuevo.password}
-            onChange={e =>
-              setNuevo({
-                ...nuevo,
-                password: e.target.value,
-              })
-            }
-            className={styles.input}
-          />
-
-          <select
-            value={nuevo.tipo_usuario}
-            onChange={e =>
-              setNuevo({
-                ...nuevo,
-                tipo_usuario: e.target.value as TipoUsuario,
-              })
-            }
-            className={styles.select}
-          >
-            {TIPOS_USUARIO.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-
-          {nuevo.tipo_usuario === "COLABORADOR" && (
-            <select
-              value={nuevo.rol}
-              onChange={e =>
-                setNuevo({
-                  ...nuevo,
-                  rol: e.target.value,
-                })
-              }
-              className={styles.select}
-            >
-              <option value="">Selecciona un rol...</option>
-              {rolesJerarquicos.map((r) => (
-                <option key={r.id} value={r.nombre}>
-                  {r.nombre}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <button
-          onClick={crearUsuario}
-          className={styles.btnPrimary}
-          style={{ marginTop: 12 }}
-        >
-          Crear
-        </button>
-      </div>
-
       {/* LISTA DE USUARIOS */}
 
       <div className={styles.card}>
@@ -598,13 +253,21 @@ export default function UsuariosSection({ setMsg }: Props) {
               className={styles.searchInput}
             />
 
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              onClick={() => setCrearOpen(true)}
+            >
+              + Nuevo usuario
+            </button>
+
           </div>
         </div>
 
         {cargando ? (
           <div
             style={{
-              color: "white",
+              color: "#374151",
               fontSize: 13,
             }}
           >
@@ -619,9 +282,9 @@ export default function UsuariosSection({ setMsg }: Props) {
                   <tr>
                     <th>Codigo</th>
                     <th>Nombre</th>
-                    <th>Tipo</th>
+                    <th>Email</th>
                     <th>Rol</th>
-                    <th>Activo</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
 
@@ -633,7 +296,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                   {usuariosPaginados.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={5}
                         style={{
                           textAlign: "center",
                           padding: 16,
@@ -652,11 +315,6 @@ export default function UsuariosSection({ setMsg }: Props) {
                         (esAdmin ? "ADMINISTRADOR" : "COLABORADOR");
 
                       const rolActual = (u.roles ?? [])[0] ?? "";
-                      const rolEnLista = rolesJerarquicos.some(
-                        r =>
-                          r.nombre.toLowerCase() ===
-                          rolActual.toLowerCase()
-                      );
 
                       const badgeAdmin = {
                         background: "#fee2e2",
@@ -700,36 +358,8 @@ export default function UsuariosSection({ setMsg }: Props) {
                             {u.apellidos}
                           </td>
 
-                          <td>
-                            {esAdmin ? (
-                              <span style={badgeAdmin}>
-                                Administrador
-                              </span>
-                            ) : (
-                              <select
-                                value={tipo}
-                                onChange={e =>
-                                  cambiarTipo(
-                                    u,
-                                    e.target.value as TipoUsuario
-                                  )
-                                }
-                                className={styles.select}
-                                style={{
-                                  padding: "4px 6px",
-                                  fontSize: 12,
-                                }}
-                              >
-                                {TIPOS_USUARIO.map(t => (
-                                  <option
-                                    key={t.value}
-                                    value={t.value}
-                                  >
-                                    {t.label}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
+                          <td style={{ fontSize: 12 }}>
+                            {u.email}
                           </td>
 
                           <td>
@@ -742,52 +372,27 @@ export default function UsuariosSection({ setMsg }: Props) {
                                 Cliente
                               </span>
                             ) : (
-                              <select
-                                value={rolEnLista ? rolActual : ""}
-                                onChange={e =>
-                                  cambiarRol(u, e.target.value)
-                                }
-                                className={styles.select}
-                                style={{
-                                  padding: "4px 6px",
-                                  fontSize: 12,
-                                }}
-                              >
-                                <option value="">
-                                  Selecciona un rol...
-                                </option>
-                                {rolesJerarquicos.map(r => (
-                                  <option
-                                    key={r.id}
-                                    value={r.nombre}
-                                  >
-                                    {r.nombre}
-                                  </option>
-                                ))}
-                              </select>
+                              rolActual || "-"
                             )}
                           </td>
 
                           <td>
-                            <Switch
-                              checked={u.is_active}
+                            <button
+                              type="button"
+                              className={styles.btnEdit}
                               disabled={esAdmin}
-                              onChange={() =>
-                                toggleActivo(u)
-                              }
-                              label={
-                                u.is_active
-                                  ? "Desactivar usuario"
-                                  : "Activar usuario"
-                              }
                               title={
                                 esAdmin
                                   ? "No se puede modificar administradores"
-                                  : u.is_active
-                                    ? "Desactivar"
-                                    : "Activar"
+                                  : "Editar información del usuario"
                               }
-                            />
+                              onClick={() => {
+                                if (esAdmin) return;
+                                setEditando(u);
+                              }}
+                            >
+                              Editar
+                            </button>
                           </td>
                         </tr>
                       );
@@ -810,6 +415,30 @@ export default function UsuariosSection({ setMsg }: Props) {
           </>
         )}
       </div>
+
+      {editando && (
+        <EditarUsuarioModal
+          key={editando.id}
+          usuario={editando}
+          rolesJerarquicos={rolesJerarquicos}
+          onClose={() => setEditando(null)}
+          onSaved={async (m) => {
+            setMsg(m);
+            await cargarUsuarios();
+          }}
+        />
+      )}
+
+      {crearOpen && (
+        <CrearUsuarioModal
+          rolesJerarquicos={rolesJerarquicos}
+          onClose={() => setCrearOpen(false)}
+          onSaved={async (m) => {
+            setMsg(m);
+            await cargarUsuarios();
+          }}
+        />
+      )}
     </div>
   );
 }

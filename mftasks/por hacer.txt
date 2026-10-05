@@ -1,6 +1,6 @@
 - correccion en los html que llegan a los correos, deben tener una informacion mas acorde a lo esperado
-- Nueva pestaña exclusiva de administrador "Centro de solicitudes" donde puede buscar cualquier solicitud previa
 - el miembro de equipo que es sublider no esta recibiendo correos
 - los equipos en los que "Eres aprobador" tambien deberia aparecer bajo el filtro "solo mis equipos"
-- editar informacion de usuario(por ejemplo la descripcion de cargo, telefono, etc)
 - Arreglar logica de autoaprobacion
+
+

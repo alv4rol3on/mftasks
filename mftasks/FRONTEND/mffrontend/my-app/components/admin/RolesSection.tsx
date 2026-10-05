@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
-import SearchableSelect from "@/components/ui/SearchableSelect";
-import Switch from "@/components/ui/Switch";
 
 import type { RolInfo } from "@/lib/types";
 
 import styles from "./AdminSections.module.css";
+import RolModal from "./RolModal";
 
 type Usuario = {
   id: number;
@@ -20,24 +19,6 @@ type Usuario = {
 
 type Props = {
   setMsg: (msg: string | null) => void;
-};
-
-type FormRol = {
-  nombre: string;
-  descripcion: string;
-  superior: string;
-  puede_liderar: boolean;
-  auto_aprobar: boolean;
-  activo: boolean;
-};
-
-const FORM_VACIO: FormRol = {
-  nombre: "",
-  descripcion: "",
-  superior: "",
-  puede_liderar: false,
-  auto_aprobar: false,
-  activo: true,
 };
 
 /** Cadena de un rol: el propio rol y sus superiores directos, en orden. */
@@ -107,9 +88,8 @@ export default function RolesSection({ setMsg }: Props) {
     "activos" | "inactivos" | "todos"
   >("todos");
 
-  const [form, setForm] = useState<FormRol>(FORM_VACIO);
-  const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [guardando, setGuardando] = useState(false);
+  const [rolModalOpen, setRolModalOpen] = useState(false);
+  const [rolEditando, setRolEditando] = useState<RolInfo | null>(null);
 
   // --------------------------------------------------
   // CARGA
@@ -186,6 +166,7 @@ export default function RolesSection({ setMsg }: Props) {
 
   // Opciones de superior: excluye el propio rol y sus descendientes.
   const opcionesSuperior = useMemo(() => {
+    const editandoId = rolEditando?.id ?? null;
     const excluidos = new Set<number>();
     if (editandoId != null) {
       excluidos.add(editandoId);
@@ -214,79 +195,20 @@ export default function RolesSection({ setMsg }: Props) {
             : "raíz",
       }));
     return [{ value: "", label: "— Sin superior (raíz) —" }, ...opciones];
-  }, [roles, editandoId, mapaRoles]);
+  }, [roles, rolEditando, mapaRoles]);
 
   // --------------------------------------------------
   // ACCIONES
   // --------------------------------------------------
 
-  const iniciarCreacion = () => {
-    setEditandoId(null);
-    setForm(FORM_VACIO);
+  const abrirCreacion = () => {
+    setRolEditando(null);
+    setRolModalOpen(true);
   };
 
-  const iniciarEdicion = (rol: RolInfo) => {
-    setEditandoId(rol.id);
-    setForm({
-      nombre: rol.nombre,
-      descripcion: rol.descripcion ?? "",
-      superior: rol.superior != null ? String(rol.superior) : "",
-      puede_liderar: rol.puede_liderar,
-      auto_aprobar: rol.auto_aprobar ?? false,
-      activo: rol.activo,
-    });
-  };
-
-  const guardar = async () => {
-    if (!form.nombre.trim()) {
-      setMsg("El nombre del rol es obligatorio.");
-      return;
-    }
-
-    const payload = {
-      nombre: form.nombre.trim(),
-      descripcion: form.descripcion.trim(),
-      superior: form.superior ? Number(form.superior) : null,
-      puede_liderar: form.puede_liderar,
-      auto_aprobar: form.auto_aprobar,
-      activo: form.activo,
-    };
-
-    setGuardando(true);
-    try {
-      if (editandoId != null) {
-        await apiFetch(`/api/usuarios/roles/${editandoId}/`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-        setMsg(`Rol "${payload.nombre}" actualizado.`);
-      } else {
-        await apiFetch("/api/usuarios/roles/", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        setMsg(`Rol "${payload.nombre}" creado.`);
-      }
-      iniciarCreacion();
-      await cargarRoles();
-    } catch (e) {
-      setMsg(`Error: ${(e as Error).message}`);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const toggleActivo = async (rol: RolInfo) => {
-    try {
-      await apiFetch(`/api/usuarios/roles/${rol.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ activo: !rol.activo }),
-      });
-      setMsg(`Rol "${rol.nombre}" ${rol.activo ? "desactivado" : "activado"}.`);
-      await cargarRoles();
-    } catch (e) {
-      setMsg(`Error: ${(e as Error).message}`);
-    }
+  const abrirEdicion = (rol: RolInfo) => {
+    setRolEditando(rol);
+    setRolModalOpen(true);
   };
 
   const eliminar = async (rol: RolInfo) => {
@@ -300,7 +222,7 @@ export default function RolesSection({ setMsg }: Props) {
     try {
       await apiFetch(`/api/usuarios/roles/${rol.id}/`, { method: "DELETE" });
       setMsg(`Rol "${rol.nombre}" eliminado.`);
-      if (editandoId === rol.id) iniciarCreacion();
+      if (rolEditando?.id === rol.id) setRolModalOpen(false);
       await cargarRoles();
     } catch (e) {
       setMsg(`Error: ${(e as Error).message}`);
@@ -313,117 +235,6 @@ export default function RolesSection({ setMsg }: Props) {
 
   return (
     <div className={styles.container}>
-      {/* CREAR / EDITAR */}
-
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>
-          {editandoId != null
-            ? `Editar rol: ${mapaRoles.get(editandoId)?.nombre ?? ""}`
-            : "Crear nuevo rol"}
-        </h3>
-
-        <div className={styles.formGrid} style={{ marginTop: 12 }}>
-          <input
-            placeholder="Nombre del rol (p. ej. Coordinador)"
-            value={form.nombre}
-            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            className={styles.input}
-          />
-
-          <input
-            placeholder="Descripción (opcional)"
-            value={form.descripcion}
-            onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-            className={styles.input}
-          />
-
-          <div className={styles.createField}>
-            <span className={styles.createHint}>Superior directo (aprobador)</span>
-            <SearchableSelect
-              value={form.superior}
-              onChange={(v) => setForm({ ...form, superior: v })}
-              options={opcionesSuperior}
-              placeholder="— Sin superior (raíz) —"
-              emptyText="Sin roles disponibles"
-            />
-          </div>
-
-          <div className={styles.createField}>
-            <span className={styles.createHint}>
-              Puede liderar equipos
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Switch
-                checked={form.puede_liderar}
-                onChange={(v) => setForm({ ...form, puede_liderar: v })}
-                label="Puede liderar equipos"
-                title="Permite asignar usuarios con este rol como líderes de equipo"
-              />
-              <span style={{ fontSize: 12, color: "#374151" }}>
-                {form.puede_liderar ? "Sí" : "No"}
-              </span>
-            </div>
-          </div>
-
-          <div className={styles.createField}>
-            <span className={styles.createHint}>
-              Autoaprobación
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Switch
-                checked={form.auto_aprobar}
-                onChange={(v) => setForm({ ...form, auto_aprobar: v })}
-                label="Autoaprobación"
-                title="Las solicitudes de equipos de este rol saltan la fase de aprobadores y pasan directo a revisión del líder"
-              />
-              <span style={{ fontSize: 12, color: "#374151" }}>
-                {form.auto_aprobar ? "Sí" : "No"}
-              </span>
-            </div>
-          </div>
-
-          {/*<div className={styles.createField}>
-            <span className={styles.createHint}>Estado</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Switch
-                checked={form.activo}
-                onChange={(v) => setForm({ ...form, activo: v })}
-                label="Rol activo"
-                title="Los roles inactivos no deberían asignarse a nuevos usuarios"
-              />
-              <span style={{ fontSize: 12, color: "#374151" }}>
-                {form.activo ? "Activo" : "Inactivo"}
-              </span>
-            </div>
-          </div>*/}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button
-            type="button"
-            onClick={guardar}
-            className={styles.btnPrimary}
-            disabled={guardando}
-          >
-            {guardando
-              ? "Guardando..."
-              : editandoId != null
-              ? "Guardar cambios"
-              : "Crear rol"}
-          </button>
-
-          {editandoId != null && (
-            <button
-              type="button"
-              onClick={iniciarCreacion}
-              className={styles.createToggleBtn}
-            >
-              Cancelar
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* LISTA */}
 
       <div className={styles.card}>
@@ -454,6 +265,14 @@ export default function RolesSection({ setMsg }: Props) {
               onChange={(e) => setFiltro(e.target.value)}
               className={styles.searchInput}
             />
+
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              onClick={abrirCreacion}
+            >
+              + Nuevo rol
+            </button>
           </div>
         </div>
 
@@ -470,7 +289,6 @@ export default function RolesSection({ setMsg }: Props) {
                   <th>Lidera</th>
                   <th>Autoaprob.</th>
                   <th>Usuarios</th>
-                  {/*<th>Activo</th>*/}
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -479,7 +297,7 @@ export default function RolesSection({ setMsg }: Props) {
                 {filas.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={7}
                       style={{
                         textAlign: "center",
                         padding: 16,
@@ -575,20 +393,11 @@ export default function RolesSection({ setMsg }: Props) {
 
                         <td>{contarUsuarios(rol.nombre)}</td>
 
-                        {/*<td>
-                          <Switch
-                            checked={rol.activo}
-                            onChange={() => toggleActivo(rol)}
-                            label={rol.activo ? "Desactivar rol" : "Activar rol"}
-                            title={rol.activo ? "Desactivar" : "Activar"}
-                          />
-                        </td>*/}
-
                         <td>
                           <div style={{ display: "flex", gap: 6 }}>
                             <button
                               type="button"
-                              onClick={() => iniciarEdicion(rol)}
+                              onClick={() => abrirEdicion(rol)}
                               className={styles.createToggleBtn}
                             >
                               Editar
@@ -613,6 +422,19 @@ export default function RolesSection({ setMsg }: Props) {
           </div>
         )}
       </div>
+
+      {rolModalOpen && (
+        <RolModal
+          key={rolEditando?.id ?? "nuevo"}
+          rol={rolEditando}
+          opcionesSuperior={opcionesSuperior}
+          onClose={() => setRolModalOpen(false)}
+          onSaved={async (m) => {
+            setMsg(m);
+            await cargarRoles();
+          }}
+        />
+      )}
     </div>
   );
 }

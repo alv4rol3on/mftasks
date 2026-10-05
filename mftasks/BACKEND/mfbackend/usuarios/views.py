@@ -172,6 +172,34 @@ class UserViewSet(ModelViewSet):
 
     permission_classes = [IsAuthenticatedActivo]
 
+    def get_queryset(self):
+        from django.db.models import Exists, OuterRef
+        from tasks.models import Subtarea, Tarea
+
+        base = User.objects.all()
+
+        if self.action in ("list", "retrieve"):
+            pendientes = Subtarea.objects.filter(
+                asignado=OuterRef("pk"),
+                activo=True,
+            ).exclude(estado=Subtarea.Estado.SOLUCIONADO)
+            proceso = Tarea.objects.filter(
+                solicitante=OuterRef("pk"),
+                activo=True,
+            ).exclude(
+                estado__in=[Tarea.Estado.SOLUCIONADO, Tarea.Estado.RECHAZADO],
+            )
+            miembro = EquipoMiembro.objects.filter(usuario=OuterRef("pk"))
+            lidera = Equipo.objects.filter(lider=OuterRef("pk"))
+            base = base.annotate(
+                _tiene_pendientes=Exists(pendientes),
+                _tiene_solicitudes_proceso=Exists(proceso),
+                _es_miembro=Exists(miembro),
+                _es_lider=Exists(lidera),
+            )
+
+        return base
+
     def get_permissions(self):
 
         permisos = super().get_permissions()

@@ -22,8 +22,15 @@ export default function SolicitudesPage() {
   const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
   const isAdmin = rolesLower.includes("administrador");
 
+  const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
+  const etiquetaEstado = (estado: string) => {
+    if (estado === "TODOS") return "Todos los estados";
+    if (estado === "EN_PROCESO") return "EN PROCESO";
+    return estado.replace(/_/g, " ");
+  };
+
   // filtros
-  const [filtroEstado, setFiltroEstado] = useState<string>("EN_ESPERA");
+  const [filtroEstado, setFiltroEstado] = useState<string>(isAdmin ? "TODOS" : "EN_ESPERA");
   const [busqueda, setBusqueda] = useState("");
   const [campoFecha, setCampoFecha] = useState<"solicitud" | "entrega">("solicitud");
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
@@ -60,20 +67,21 @@ export default function SolicitudesPage() {
 
   const cargar = useCallback(() => {
     setCargando(true);
-    const params = new URLSearchParams({ estado: "EN_ESPERA" });
+    const params = new URLSearchParams();
+    // La bandeja de aprobación (no-admin) solo muestra EN_ESPERA.
+    // El Centro de solicitudes (admin) trae todos los estados.
+    if (!isAdmin) params.set("estado", "EN_ESPERA");
     if (filtroCampana) params.set("campana", String(filtroCampana));
     if (filtroSubcampana) params.set("subcampana", String(filtroSubcampana));
     apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`)
       .then((data) => {
         setError(null);
-        // La bandeja de solicitudes solo muestra las que están EN_ESPERA
-        // (el backend ya filtra por estado; orden más reciente primero).
         const ordenadas = [...data].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime());
         setTareas(ordenadas);
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setCargando(false));
-  }, [filtroCampana, filtroSubcampana]);
+  }, [filtroCampana, filtroSubcampana, isAdmin]);
 
   const aprobar = async (tarea: Task) => {
     setError(null);
@@ -106,8 +114,10 @@ export default function SolicitudesPage() {
     cargar();
   }, [cargar]);
 
+  const estadoPorDefecto = isAdmin ? "TODOS" : "EN_ESPERA";
+
   const hayFiltros =
-    filtroEstado !== "EN_ESPERA" ||
+    filtroEstado !== estadoPorDefecto ||
     Boolean(busqueda) ||
     desde !== rangoInicial.desde ||
     hasta !== rangoInicial.hasta ||
@@ -115,7 +125,7 @@ export default function SolicitudesPage() {
     filtroSubcampana !== "";
 
   const limpiarFiltros = () => {
-    setFiltroEstado("EN_ESPERA");
+    setFiltroEstado(estadoPorDefecto);
     setBusqueda("");
     setCampoFecha("solicitud");
     setFiltroCampana("");
@@ -130,11 +140,13 @@ export default function SolicitudesPage() {
 
     return tareas.filter((t) => {
       const coincideEstado =
-        filtroEstado === "EN_ESPERA"
-          ? t.estado === "EN_ESPERA"
-          : filtroEstado === "EN_PROCESO"
-            ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
-            : t.estado === filtroEstado;
+        filtroEstado === "TODOS"
+          ? true
+          : filtroEstado === "EN_ESPERA"
+            ? t.estado === "EN_ESPERA"
+            : filtroEstado === "EN_PROCESO"
+              ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
+              : t.estado === filtroEstado;
       if (!coincideEstado) return false;
 
       const fecha = campoFecha === "entrega" ? t.fecha_entrega_aproximada : t.fecha_creacion;
@@ -169,15 +181,17 @@ export default function SolicitudesPage() {
           setFiltroSubcampana(subcampanaId);
         }}
       />
-      {/*<select
-        value={filtroEstado}
-        onChange={(e) => setFiltroEstado(e.target.value)}
-        style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
-      >
-        {ESTADOS.map((s) => (
-          <option key={s} value={s}>{etiquetaEstado(s)}</option>
-        ))}
-      </select>*/}
+      {isAdmin && (
+        <select
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+          style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+        >
+          {ESTADOS.map((s) => (
+            <option key={s} value={s}>{etiquetaEstado(s)}</option>
+          ))}
+        </select>
+      )}
       {/*<select
         value={campoFecha}
         onChange={(e) => setCampoFecha(e.target.value as "solicitud" | "entrega")}
@@ -241,7 +255,7 @@ export default function SolicitudesPage() {
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
-          <h2 className="text-lg font-medium" style={{ margin: 0 }}>Solicitudes</h2>
+          <h2 className="text-lg font-medium" style={{ margin: 0 }}>Centro de solicitudes</h2>
           <span style={{ fontSize: 12, color: "#6b7280" }}>{tareasFiltradas.length} de {tareas.length} · Solo lectura</span>
         </div>
         {filtrosUI}
