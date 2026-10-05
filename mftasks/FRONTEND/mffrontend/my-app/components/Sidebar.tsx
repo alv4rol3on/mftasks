@@ -19,11 +19,11 @@ const menuAll: MenuItem[] = [
   { nombre: "Seguimiento de Solicitudes", ruta: "/mfpages/cliente/mis-solicitudes", show: (c) => c.isCliente },
   // Para admin: Centro de solicitudes (seguimiento de todos los estados, solo lectura)
   { nombre: "Centro de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => c.isAdmin },
+  { nombre: "Administración de usuarios/campañas", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
   // Personal interno no-admin
   { nombre: "Bandeja de solicitudes", ruta: "/mfpages/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
-  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => c.isAdmin || (!c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro)) },
+  { nombre: "Tareas en desarrollo", ruta: "/mfpages/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Equipos", ruta: "/mfpages/equipos", show: () => true },
-  { nombre: "Administración de usuarios/campañas", ruta: "/mfpages/admin", show: (c) => c.isAdmin },
 ];
 
 interface SidebarProps {

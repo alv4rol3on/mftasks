@@ -538,9 +538,9 @@ export default function EquiposPage() {
           {puedeCrearEquipo && !esClientePuro && (
             <button
               onClick={abrirModalCrear}
-              style={{ background: "#7c3aed", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+              style={{ background: "#000000", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
             >
-              Crear equipo
+              + Crear equipo
             </button>
           )}
           <button onClick={recargar} disabled={cargando} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
@@ -624,17 +624,6 @@ export default function EquiposPage() {
                   <div className={styles.cardHeaderLeft}>
                     <div className={styles.cardTitleRow}>
                       <h3 className={styles.cardTitle}>{equipo.nombre}</h3>
-                      {equipo.tipo_equipo && (
-                        <span className={`${styles.badge} ${styles.badgeTipo}`}>
-                          {equipo.tipo_equipo === "GERENTE"
-                            ? "Equipo de Gerente"
-                            : equipo.tipo_equipo === "SUBGERENTE"
-                              ? "Equipo de Subgerente"
-                              : equipo.tipo_equipo === "JEFE"
-                                ? "Equipo de Jefe"
-                                : "Equipo GTR"}
-                        </span>
-                      )}
                       {puedoGestionar ? (
                         <span className={`${styles.badge} ${styles.badgeGestionar}`}>
                           Puedes gestionar
@@ -656,7 +645,6 @@ export default function EquiposPage() {
                     </div>
                   </div>
                   <div className={styles.cardHeaderRight}>
-                    <span>{expandido ? "Ocultar" : "Ver integrantes"}</span>
                     <span className={`${styles.cardHeaderArrow} ${expandido ? styles.cardHeaderArrowOpen : ""}`}>▼</span>
                   </div>
                 </div>

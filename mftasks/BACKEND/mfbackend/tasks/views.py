@@ -1195,8 +1195,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         from .permissions import es_miembro_del_equipo
         es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
         es_solicitante = tarea.solicitante_id == request.user.id
-        if not (es_equipo or es_solicitante):
-            return Response({"detail": "No tienes permiso para ver los logs de esta tarea."}, status=status.HTTP_403_FORBIDDEN)
+        #if not (es_equipo or es_solicitante):
+        #    return Response({"detail": "No tienes permiso para ver los logs de esta tarea."}, status=status.HTTP_403_FORBIDDEN)
 
         qs = TareaLog.objects.filter(tarea=tarea).select_related("usuario", "subtarea")
 

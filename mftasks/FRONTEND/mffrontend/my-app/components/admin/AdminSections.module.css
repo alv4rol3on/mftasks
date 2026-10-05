@@ -569,13 +569,13 @@
 }
 
 .badgeActiveOn {
-  color: #166534;
-  background: #dcfce7;
+  color: #fdfdfd;
+  background: #00ca1b;
 }
 
 .badgeActiveOff {
-  color: #991b1b;
-  background: #fee2e2;
+  color: #fdfdfd;
+  background: #d10000;
 }
 
 .campanaCount {

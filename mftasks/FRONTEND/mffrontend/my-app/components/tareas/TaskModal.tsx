@@ -59,7 +59,7 @@ type Props = {
     soloLectura?: boolean;
 };
 
-type TabKey = "progreso" | "historial" | "asignaciones";
+type TabKey = "progreso" | "historial" | "editar";
 
 export default function TaskModal({
     tarea,
@@ -133,7 +133,7 @@ export default function TaskModal({
     };
 
     useEffect(() => {
-        if (tab === "asignaciones" && tarea && miembros.length === 0 && !miembrosLoading && !miembrosError) {
+        if (tab === "editar" && tarea && miembros.length === 0 && !miembrosLoading && !miembrosError) {
             cargarMiembros();
         }
     }, [tab, tarea?.id]);
@@ -447,7 +447,7 @@ export default function TaskModal({
                             <div className={styles.tabsHeader}>
                                 <button onClick={() => setTab("progreso")} className={tab === "progreso" ? styles.tabBtnActive : styles.tabBtn}>Progreso</button>
                                 {puedeVerHistorial && <button onClick={() => setTab("historial")} className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}>Historial</button>}
-                                {puedeVerAsignaciones && tarea.estado !== "SOLUCIONADO" && tarea.estado !== "APROBADO" && <button onClick={() => setTab("asignaciones")} className={tab === "asignaciones" ? styles.tabBtnActive : styles.tabBtn}>Asignaciones</button>}
+                                {puedeVerAsignaciones && tarea.estado !== "SOLUCIONADO" && tarea.estado !== "APROBADO" && <button onClick={() => setTab("editar")} className={tab === "editar" ? styles.tabBtnActive : styles.tabBtn}>Editar asignaciones</button>}
                             </div>
                             {tab === "progreso" ? (
                                 <>
@@ -615,7 +615,7 @@ export default function TaskModal({
                                             </button>
                                         </div>
                                     </div>
-                                    <p style={{ fontSize: 11, color: "#6b7280", marginTop: -4, marginBottom: 8 }}>Cambia el asignado, inactiva subtareas o crea dependencias entre ellas. Solo líder / asignador / admin. Las inactivas no cuentan en progreso.</p>
+                                    <p style={{ fontSize: 11, color: "#6b7280", marginTop: -4, marginBottom: 8 }}>Cambia el asignado, inactiva subtareas o crea dependencias entre ellas.</p>
                                     {miembrosError && <p style={{ color: "#991b1b", fontSize: 12 }}>{miembrosError}</p>}
                                     {asigErr && <p style={{ color: "#991b1b", fontSize: 12, background: "#fee2e2", padding: "6px 8px", borderRadius: 6 }}>{asigErr}</p>}
                                     {asigMsg && <p style={{ color: "#166534", fontSize: 12, background: "#dcfce7", padding: "6px 8px", borderRadius: 6 }}>{asigMsg}</p>}

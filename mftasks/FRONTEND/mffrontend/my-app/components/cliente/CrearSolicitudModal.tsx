@@ -221,7 +221,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
             >
               <option value="">Seleccionar Campaña</option>
               {campanas.map((c) => (
-                <option key={c.id} value={c.id}>{c.nombre} ({c.codigo})</option>
+                <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>
 
@@ -237,7 +237,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
             >
               <option value="">{campanaId ? "Seleccionar Subcampaña" : "Elige campaña primero"}</option>
               {subcampanas.map((s) => (
-                <option key={s.id} value={s.id}>{s.nombre} ({s.codigo})</option>
+                <option key={s.id} value={s.id}>{s.nombre}</option>
               ))}
             </select>
 

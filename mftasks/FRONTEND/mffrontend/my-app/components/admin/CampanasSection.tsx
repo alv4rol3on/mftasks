@@ -276,7 +276,7 @@ export default function CampanasSection({ setMsg }: Props) {
             className={styles.btnPrimary}
             onClick={() => setModalOpen(true)}
           >
-            + Nueva
+            + Crear campaña/subcampaña
           </button>
         </div>
 

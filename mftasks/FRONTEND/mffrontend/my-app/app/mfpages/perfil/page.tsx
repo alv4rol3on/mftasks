@@ -185,10 +185,6 @@ export default function PerfilPage() {
             <span className={styles.valueMono}>{usuario?.codigo ?? "—"}</span>
           </div>
           <div className={styles.field}>
-            <span className={styles.label}>Cargo</span>
-            <span className={styles.value}>{usuario?.cargo || "—"}</span>
-          </div>
-          <div className={styles.field}>
             <span className={styles.label}>Rol(es)</span>
             <span className={styles.badges}>
               {roles.length > 0

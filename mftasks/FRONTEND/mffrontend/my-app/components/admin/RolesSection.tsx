@@ -285,7 +285,7 @@ export default function RolesSection({ setMsg }: Props) {
                 <tr>
                   <th>Rol</th>
                   <th>Aprobador directo</th>
-                  <th>Cadena de aprobación</th>
+                  {/*<th>Cadena de aprobación</th>*/}
                   <th>Lidera</th>
                   <th>Autoaprob.</th>
                   <th>Usuarios</th>
@@ -351,26 +351,26 @@ export default function RolesSection({ setMsg }: Props) {
                             : "— (raíz)"}
                         </td>
 
-                        <td>
+                        {/*<td>
                           <span className={styles.chain}>
                             {cadena
                               .map((r) => r.nombre)
                               .join(" → ")}
                           </span>
-                        </td>
+                        </td>*/}
 
                         <td>
                           {rol.puede_liderar ? (
                             <span
                               className={`${styles.badgeActive} ${styles.badgeActiveOn}`}
                             >
-                              Sí
+                              ✓
                             </span>
                           ) : (
                             <span
                               className={`${styles.badgeActive} ${styles.badgeActiveOff}`}
                             >
-                              No
+                              X
                             </span>
                           )}
                         </td>
@@ -380,13 +380,13 @@ export default function RolesSection({ setMsg }: Props) {
                             <span
                               className={`${styles.badgeActive} ${styles.badgeActiveOn}`}
                             >
-                              Sí
+                              ✓
                             </span>
                           ) : (
                             <span
                               className={`${styles.badgeActive} ${styles.badgeActiveOff}`}
                             >
-                              No
+                              X
                             </span>
                           )}
                         </td>
