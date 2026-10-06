@@ -13,10 +13,9 @@ import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
 
 type CampoFecha = "solicitud" | "entrega";
 
-const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
+const ESTADOS = ["EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
 
 function etiquetaEstado(estado: string): string {
-  if (estado === "TODOS") return "Todos los estados";
   if (estado === "EN_PROCESO") return "EN PROCESO";
   return estado;
 }

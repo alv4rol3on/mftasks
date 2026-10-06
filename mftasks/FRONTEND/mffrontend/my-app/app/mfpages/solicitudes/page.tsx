@@ -62,7 +62,7 @@ export default function SolicitudesPage() {
       .finally(() => setCargando(false));
   }, [filtroCampana, filtroSubcampana, isAdmin]);
 
-  const aprobar = async (tarea: Task) => {
+  {/*const aprobar = async (tarea: Task) => {
     setError(null);
     try {
       await apiFetch(`/api/tasks/tasks/${tarea.id}/aprobar/`, { method: "POST" });
@@ -72,9 +72,23 @@ export default function SolicitudesPage() {
       setError(msg);
       throw e;
     }
+  };*/}
+
+  const aprobar = async (tarea: Task) => {
+    setError(null);
+
+    try {
+      await apiFetch(`/api/tasks/tasks/${tarea.id}/aprobar/`, {
+        method: "POST",
+      });
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      throw e;
+    }
   };
 
-  const rechazar = async (tarea: Task, motivo: string) => {
+  {/*const rechazar = async (tarea: Task, motivo: string) => {
     setError(null);
     try {
       await apiFetch(`/api/tasks/tasks/${tarea.id}/rechazar/`, {
@@ -82,6 +96,23 @@ export default function SolicitudesPage() {
         body: JSON.stringify({ motivo_rechazo: motivo }),
       });
       await cargar();
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      throw e;
+    }
+  };*/}
+
+  const rechazar = async (tarea: Task, motivo: string) => {
+    setError(null);
+
+    try {
+      await apiFetch(`/api/tasks/tasks/${tarea.id}/rechazar/`, {
+        method: "POST",
+        body: JSON.stringify({
+          motivo_rechazo: motivo,
+        }),
+      });
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
@@ -263,6 +294,7 @@ export default function SolicitudesPage() {
         tareas={tareasFiltradas}
         onAprobar={aprobar}
         onRechazar={rechazar}
+        onReload={cargar}
       />
     </div>
   );

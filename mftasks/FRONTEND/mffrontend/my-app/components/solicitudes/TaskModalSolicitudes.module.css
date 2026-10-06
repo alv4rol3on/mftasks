@@ -183,3 +183,228 @@
         padding: 14px;
     }
 }
+
+
+
+/*PARTE POPUP RESPUESTA*/
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(17, 24, 39, 0.55);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  padding: 32px 28px;
+  background: #ffffff;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  animation: popIn 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.circle {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #dcfce7;
+  animation: circleIn 0.4s ease-out;
+}
+
+.check {
+  width: 52px;
+  height: 52px;
+  fill: none;
+  stroke: #16a34a;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: checkDraw 0.5s 0.25s ease-out forwards;
+}
+
+.rejected {
+  width: 52px;
+  height: 52px;
+  fill: none;
+  stroke: #f0341b;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: rejectDraw 0.5s 0.25s ease-out forwards;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  animation: fadeUp 0.4s 0.2s both;
+}
+
+.ticket {
+  margin: 0 0 4px;
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #166534;
+  animation: fadeUp 0.4s 0.3s both;
+}
+
+.asunto {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: #6b7280;
+  animation: fadeUp 0.4s 0.4s both;
+}
+
+.button {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: fadeUp 0.4s 0.5s both;
+}
+
+.confirmIcon {
+    font-size: 42px;
+    font-weight: 700;
+    color: #92400e;
+}
+
+.confirmMotivo {
+    margin: 16px 0;
+    padding: 12px;
+    background: #f7f7f7;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 13px;
+}
+
+.confirmMotivo p {
+    margin: 6px 0 0;
+    color: #374151;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.confirmActions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.confirmActions button {
+    flex: 1;
+}
+
+.motivoRespuesta {
+    margin: 0 0 20px;
+    padding: 10px 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #991b1b;
+    font-size: 13px;
+    text-align: left;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* ================================
+   ANIMACIONES DEL POPUP DE RESPUESTA
+   ================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes popIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.7);
+    }
+
+    70% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes circleIn {
+    0% {
+        opacity: 0;
+        transform: scale(0);
+    }
+
+    70% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes checkDraw {
+    from {
+        stroke-dashoffset: 48;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes rejectDraw {
+    from {
+        stroke-dashoffset: 56;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}

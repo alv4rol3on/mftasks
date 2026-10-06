@@ -22,6 +22,7 @@ type Props = {
     onClose: () => void;
     onAprobar: (tarea: Task) => Promise<void>;
     onRechazar: (tarea: Task, motivo: string) => Promise<void>;
+    onReload: () => void;
 };
 
 export default function TaskModal({
@@ -29,10 +30,18 @@ export default function TaskModal({
     onClose,
     onAprobar,
     onRechazar,
+    onReload
 }: Props) {
     const [seguimiento, setSeguimiento] = useState<EventoSeguimiento[] | null>(null);
     const [rechazando, setRechazando] = useState(false);
     const [motivo, setMotivo] = useState("");
+    const [respuesta, setRespuesta] = useState<{
+        tipo: "aprobada" | "rechazada";
+        ticket: string | null;
+        asunto: string;
+        motivo?: string;
+    } | null>(null);
+
 
     const tareaId = tarea?.id ?? null;
 
@@ -111,7 +120,7 @@ export default function TaskModal({
         onClose();
     };
 
-    const confirmarRechazo = async () => {
+    {/*const confirmarRechazo = async () => {
         if (!motivo.trim()) return;
         try {
             await onRechazar(tarea, motivo.trim());
@@ -120,7 +129,105 @@ export default function TaskModal({
         }
         setRechazando(false);
         setMotivo("");
+    };*/}
+
+    const aprobar = async () => {
+        try {
+            await onAprobar(tarea);
+
+            setRespuesta({
+                tipo: "aprobada",
+                ticket: tarea.ticket ?? null,
+                asunto: tarea.asunto,
+            });
+        } catch {
+            // El padre maneja el error
+        }
     };
+
+    const confirmarRechazo = async () => {
+        if (!motivo.trim()) return;
+
+        try {
+            await onRechazar(tarea, motivo.trim());
+
+            setRespuesta({
+                tipo: "rechazada",
+                ticket: tarea.ticket ?? null,
+                asunto: tarea.asunto,
+                motivo: motivo.trim(),
+            });
+
+            setRechazando(false);
+            setMotivo("");
+        } catch {
+            // El padre maneja el error
+        }
+    };
+
+    if (respuesta) {
+        return (
+            <div className={styles.overlay}>
+                <div className={styles.card}>
+
+                    <div className={styles.circle}>
+                        {respuesta.tipo === "aprobada" ? (
+                            <svg
+                                className={styles.check}
+                                viewBox="0 0 52 52"
+                                aria-hidden="true"
+                            >
+                                <path d="M14 27 L23 36 L38 18" />
+                            </svg>
+                        ) : (
+                            <svg
+                                className={styles.rejected}
+                                viewBox="0 0 52 52"
+                                aria-hidden="true"
+                            >
+                                <path d="M16 16 L36 36 M36 16 L16 36" />
+                            </svg>
+                        )}
+                    </div>
+
+                    <h2 className={styles.title}>
+                        {respuesta.tipo === "aprobada"
+                            ? "¡Solicitud aprobada!"
+                            : "¡Solicitud rechazada!"}
+                    </h2>
+
+                    {respuesta.ticket && (
+                        <p className={styles.ticket}>
+                            N.º {respuesta.ticket}
+                        </p>
+                    )}
+
+                    <p className={styles.asunto}>
+                        {respuesta.asunto}
+                    </p>
+
+                    {respuesta.tipo === "rechazada" && respuesta.motivo && (
+                        <p className={styles.motivoRespuesta}>
+                            Motivo: {respuesta.motivo}
+                        </p>
+                    )}
+
+                    <button
+                        type="button"
+                        className={styles.button}
+                        onClick={() => {
+                            setRespuesta(null);
+                            onClose();
+                            onReload();
+                        }}
+                    >
+                        Aceptar
+                    </button>
+
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={styles.modalOverlay} onClick={cerrar}>
@@ -288,7 +395,7 @@ export default function TaskModal({
                                             onClick={confirmarRechazo}
                                             disabled={!motivo.trim()}
                                         >
-                                            Confirmar rechazo
+                                            Enviar respuesta
                                         </button>
                                         <button
                                             className={`${styles.btn} ${styles.btnSecondary}`}
@@ -304,11 +411,7 @@ export default function TaskModal({
                                     <>
                                         <button
                                             className={`${styles.btn} ${styles.btnYes}`}
-                                            onClick={async () => {
-                                                try {
-                                                    await onAprobar(tarea);
-                                                } catch { }
-                                            }}
+                                            onClick={aprobar}
                                         >
                                             Aprobar
                                         </button>
@@ -333,7 +436,6 @@ export default function TaskModal({
                         />
                     </div>
                 </div>
-
 
             </div>
         </div>

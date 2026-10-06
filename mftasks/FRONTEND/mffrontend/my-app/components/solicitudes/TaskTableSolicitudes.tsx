@@ -28,23 +28,23 @@ interface TaskTableSolicitudesProps {
   tareas: Task[];
   onAprobar: (tarea: Task) => Promise<void>;
   onRechazar: (tarea: Task, motivo: string) => Promise<void>;
+  onReload: () => void;
 }
 
 export default function TaskTableSolicitudes({
   tareas,
   onAprobar,
   onRechazar,
+  onReload
 }: TaskTableSolicitudesProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const handleAprobar = async (tarea: Task) => {
     await onAprobar(tarea);
-    setSelectedTask(null);
   };
 
   const handleRechazar = async (tarea: Task, motivo: string) => {
     await onRechazar(tarea, motivo);
-    setSelectedTask(null);
   };
 
   return (
@@ -96,6 +96,7 @@ export default function TaskTableSolicitudes({
         onClose={() => setSelectedTask(null)}
         onAprobar={handleAprobar}
         onRechazar={handleRechazar}
+        onReload={onReload}
       />
     </>
   );
