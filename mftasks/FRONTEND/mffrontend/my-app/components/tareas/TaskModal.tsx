@@ -308,6 +308,8 @@ export default function TaskModal({
     const esClientePuro = roles.includes("cliente") && !roles.includes("miembro") && !roles.includes("gtr") && !roles.includes("sub_lider") && !roles.includes("administrador");
     const puedeVerHistorial = !esClientePuro;
     const puedeVerAsignaciones = !soloLectura && !!tarea?.puedo_operar;
+    const solicitudNoEmpieza = tarea?.estado === "APROBADO" || tarea?.estado === "EN_ESPERA"
+    const solicitudRechazada = tarea?.estado === "RECHAZADO"
 
     // opciones asignables (miembros ACTIVO + lider)
     const opcionesAsignables = useMemo(() => {
@@ -452,13 +454,14 @@ export default function TaskModal({
                                 {puedeVerAsignaciones && tarea.estado !== "SOLUCIONADO" && tarea.estado !== "APROBADO" && <button onClick={() => setTab("editar")} className={tab === "editar" ? styles.tabBtnActive : styles.tabBtn}>Editar asignaciones</button>}
                             </div>
                             {tab === "progreso" ? (
+
                                 <>
                                     <h3>Progreso — Subtareas</h3>
 
                                     {subtareasProgreso.length === 0 ? (
                                         <p className={styles.sinSubtareas}>
                                             {tarea.subtareas.length === 0
-                                                ? "Esta tarea ha sido aprobada y se encuentra en proceso de asignación"
+                                                ? "Esta solicitud se encuentra en proceso de revisión"
                                                 : "Todas las subtareas activas han sido inactivadas. Revisa Asignaciones."}
                                         </p>
                                     ) : (
@@ -599,6 +602,8 @@ export default function TaskModal({
                                     )}
 
                                 </>
+
+
                             ) : tab === "historial" ? (
                                 <HistorialTarea key={`${tarea.id}-${histVersion}`} tareaId={tarea.id} />
                             ) : (

@@ -23,7 +23,7 @@
     justify-content: space-between;
     height: 52px;
     padding: 0 16px;
-    background: #CF3215;
+    background: #c22105;
     color: #fff;
     flex-shrink: 0;
 }
@@ -41,6 +41,15 @@
     cursor: pointer;
     text-decoration: none;
     background-color: #CF3215;
+}
+.dashboard-logout:hover {
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    text-decoration: none;
+    background-color: #f13b1b;
 }
 
 .dashboard-content {

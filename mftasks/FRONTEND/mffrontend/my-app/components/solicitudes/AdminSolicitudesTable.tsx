@@ -28,12 +28,12 @@ function badge(estado: string, fueraDeTiempo = false) {
     return { bg: "#fee2e2", color: "#991b1b", border: "#f87171", label: "FUERA DE TIEMPO" };
   }
   const m: Record<string, any> = {
-    EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#9ca3af", label: "EN ESPERA" },
-    APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#ddd6fe", label: "APROBADO" },
-    EN_DESARROLLO: { bg: "#dbeafe", color: "#1e3a8a", border: "#2563eb", label: "EN DESARROLLO" },
-    STAND_BY: { bg: "#fef3c7", color: "#78350f", border: "#d97706", label: "STAND BY" },
-    SOLUCIONADO: { bg: "#dcfce7", color: "#14532d", border: "#16a34a", label: "SOLUCIONADO" },
-    RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#fecaca", label: "RECHAZADO" },
+    EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#1f2937", label: "EN ESPERA" },
+    APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#5b21b6", label: "APROBADO" },
+    EN_DESARROLLO: { bg: "#dbeafe", color: "#1e3a8a", border: "#1e3a8a", label: "EN DESARROLLO" },
+    STAND_BY: { bg: "#fef3c7", color: "#78350f", border: "#78350f", label: "STAND BY" },
+    SOLUCIONADO: { bg: "#dcfce7", color: "#14532d", border: "#14532d", label: "SOLUCIONADO" },
+    RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#991b1b", label: "RECHAZADO" },
   };
   return m[estado] ?? { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb", label: estado };
 }

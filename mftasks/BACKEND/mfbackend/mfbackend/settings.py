@@ -187,14 +187,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://frontend:3000",
-    "http://192.168.202.12:3000"
+    "http://192.168.202.10:3000"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.trycloudflare.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://192.168.202.12:3000",
+    "http://192.168.202.10:3000",
 ]
 
 AZURE_TENANT_ID = os.environ.get("AZURE_TENANT_ID", "")

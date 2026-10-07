@@ -39,11 +39,17 @@ services:
 
     working_dir: /app
 
-    command: npm run dev -- --hostname 0.0.0.0
+    command: >
+      npm run dev --
+      --hostname 0.0.0.0
+      --experimental-https
+      --experimental-https-key /certs/server.key
+      --experimental-https-cert /certs/server.crt
 
     volumes:
       - ./FRONTEND/mffrontend/my-app:/app
       - /app/node_modules
+      - ./certs:/certs:ro
 
     ports:
       - "3000:3000"

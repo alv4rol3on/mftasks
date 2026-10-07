@@ -115,7 +115,7 @@ export default function TaskStateSection({
                     {subtareasProgreso.length === 0 ? (
                         <p className={styles.sinSubtareas}>
                             {tarea.subtareas.length === 0
-                                ? "Esta tarea ha sido aprobada y se encuentra en proceso de asignación"
+                                ? "Esta tarea se encuentra en proceso de revisión"
                                 : "Todas las subtareas activas han sido inactivadas. Revisa Asignaciones."}
                         </p>
                     ) : (
