@@ -3,9 +3,14 @@ from .models import *
 
 class RolSerializer(serializers.ModelSerializer):
 
+    usuarios_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Rol
         fields = "__all__"
+
+    def get_usuarios_count(self, obj):
+        return obj.usuarios.count()
 
     def validate(self, attrs):
         nombre = attrs.get("nombre", getattr(self.instance, "nombre", None))
@@ -259,6 +264,7 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
             "cliente_solicitud_creada",
             "cliente_solicitud_resuelta",
             "cliente_solicitud_standby",
+            "cliente_solicitud_reanudada",
             "cliente_solicitud_solucionada",
             "equipo_nueva_solicitud",
             "equipo_pendiente_revision",
@@ -313,6 +319,12 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     rol_integrante_requerido = serializers.SerializerMethodField()
 
+    rol_equipo = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    rol_equipo_nombre = serializers.SerializerMethodField()
+
+    rol_color = serializers.SerializerMethodField()
+
     class Meta:
         model = Equipo
         fields = [
@@ -320,6 +332,9 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             "nombre",
             "lider",
             "tipo_equipo",
+            "rol_equipo",
+            "rol_equipo_nombre",
+            "rol_color",
             "rol_integrante_requerido",
             "activo",
             "fecha_creacion",
@@ -388,6 +403,15 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
         from .jerarquia import rol_integrante_requerido
         return rol_integrante_requerido(obj)
 
+    def get_rol_equipo_nombre(self, obj):
+        rol = getattr(obj, "rol_equipo", None)
+        return rol.nombre if rol is not None else None
+
+    def get_rol_color(self, obj):
+        rol = getattr(obj, "rol_equipo", None)
+        color = getattr(rol, "color", "") if rol is not None else ""
+        return color or None
+
 class EquipoCreateSerializer(serializers.ModelSerializer):
     lider = serializers.CharField(write_only=True)
 
@@ -454,6 +478,7 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
             "cliente_solicitud_creada",
             "cliente_solicitud_resuelta",
             "cliente_solicitud_standby",
+            "cliente_solicitud_reanudada",
             "cliente_solicitud_solucionada",
             "cliente_resumen_diario",
             "equipo_nueva_solicitud",

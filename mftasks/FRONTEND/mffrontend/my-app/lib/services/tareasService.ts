@@ -67,14 +67,21 @@ export async function iniciarTarea(tareaId: number, payload: IniciarPayload): Pr
   });
 }
 
+export interface SubtaskActionResponse {
+  solicitud_resuelta?: boolean;
+  tarea_estado?: string;
+  tarea_ticket?: string | null;
+  [key: string]: unknown;
+}
+
 export async function empezarSubtarea(tareaId: number, subtareaId: number): Promise<void> {
   await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/empezar/`, {
     method: "POST",
   });
 }
 
-export async function completarSubtarea(tareaId: number, subtareaId: number): Promise<void> {
-  await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, {
+export async function completarSubtarea(tareaId: number, subtareaId: number): Promise<SubtaskActionResponse> {
+  return apiFetch<SubtaskActionResponse>(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, {
     method: "POST",
   });
 }
@@ -103,7 +110,7 @@ export async function cambiarEstadoSubtarea(
   nuevoEstado: string,
   motivo?: string,
   estadoActual?: string
-): Promise<void> {
+): Promise<SubtaskActionResponse | undefined> {
   if (nuevoEstado === "STAND_BY") {
     if (!motivo) throw new Error("Motivo obligatorio para STAND_BY");
     if (estadoActual !== "EN_ESPERA" && estadoActual !== "EN_DESARROLLO") {
@@ -135,8 +142,7 @@ export async function cambiarEstadoSubtarea(
   }
   if (nuevoEstado === "SOLUCIONADO") {
     if (estadoActual === "SOLUCIONADO") throw new Error("Ya está solucionada");
-    await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, { method: "POST" });
-    return;
+    return apiFetch<SubtaskActionResponse>(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/completar/`, { method: "POST" });
   }
   throw new Error(`Estado no soportado: ${nuevoEstado}`);
 }
@@ -172,8 +178,8 @@ export async function reasignarSubtarea(tareaId: number, subtareaId: number, nue
   });
 }
 
-export async function inactivarSubtarea(tareaId: number, subtareaId: number): Promise<void> {
-  await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/inactivar/`, {
+export async function inactivarSubtarea(tareaId: number, subtareaId: number): Promise<SubtaskActionResponse> {
+  return apiFetch<SubtaskActionResponse>(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/inactivar/`, {
     method: "POST",
   });
 }

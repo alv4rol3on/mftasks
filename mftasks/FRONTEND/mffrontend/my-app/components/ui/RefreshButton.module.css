@@ -1,0 +1,65 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px;
+  line-height: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn[aria-busy="true"]:disabled {
+  opacity: 1;
+}
+
+.solid {
+  background: #111827;
+  color: #ffffff;
+}
+
+.solid:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.outline {
+  background: #ffffff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.outline:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.ghost {
+  background: transparent;
+  color: #374151;
+}
+
+.ghost:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.spin {
+  animation: girar 0.8s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

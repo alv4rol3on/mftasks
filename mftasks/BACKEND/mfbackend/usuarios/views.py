@@ -272,8 +272,32 @@ class RolViewSet(ModelViewSet):
 
         return permisos
 
+    def update(self, request, *args, **kwargs):
+        # No se puede inactivar un rol que aún tiene usuarios asignados.
+        if request.data.get("activo") is False:
+            rol = self.get_object()
+            cantidad = rol.usuarios.count()
+            if cantidad:
+                return Response(
+                    {"detail": f"Hay {cantidad} usuario(s) con este rol."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
         from django.db.models import ProtectedError
+
+        rol = self.get_object()
+        cantidad = rol.usuarios.count()
+        if cantidad:
+            return Response(
+                {"detail": f"Hay {cantidad} usuario(s) con este rol."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             return super().destroy(request, *args, **kwargs)

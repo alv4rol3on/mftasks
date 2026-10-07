@@ -143,6 +143,20 @@ def _notificar_fase(tarea, fase):
     return False
 
 
+def _notificar_reanudacion(tarea, estado_anterior):
+    """Notifica al solicitante cuando la solicitud sale del estado en pausa."""
+    if (
+        estado_anterior == Tarea.Estado.STAND_BY
+        and tarea.estado == Tarea.Estado.EN_DESARROLLO
+    ):
+        programar_correo_tarea(
+            evento="SOLICITUD_REANUDADA",
+            tarea=tarea,
+            usuario_destinatario=tarea.solicitante,
+            mensaje="Tu solicitud fue reanudada.",
+        )
+
+
 def _parsear_fecha(valor):
 
     if not valor:
@@ -1547,10 +1561,22 @@ class TaskViewSet(viewsets.ModelViewSet):
                 mensaje="Tu solicitud fue solucionada.",
             )
 
+        _notificar_reanudacion(tarea, estado_tarea_anterior)
+
         notificar_subtarea(tarea, subtarea)
         notificar_tarea(tarea)
 
-        return Response(SubtareaSerializer(subtarea).data)
+        solicitud_resuelta = (
+            tarea.estado == Tarea.Estado.SOLUCIONADO
+            and estado_tarea_anterior != Tarea.Estado.SOLUCIONADO
+        )
+
+        return Response({
+            **SubtareaSerializer(subtarea).data,
+            "solicitud_resuelta": solicitud_resuelta,
+            "tarea_estado": tarea.estado,
+            "tarea_ticket": tarea.ticket,
+        })
 
     @action(
         detail=True,
@@ -1632,6 +1658,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         if tarea.estado == Tarea.Estado.SOLUCIONADO:
             return Response({"detail": "No se puede inactivar subtarea de tarea solucionada."}, status=status.HTTP_400_BAD_REQUEST)
         ahora = timezone.localtime(timezone.now())
+        solicitud_resuelta = False
+        estado_tarea_anterior = tarea.estado
         with transaction.atomic():
             subtarea.activo = False
             subtarea.fecha_inactivacion = ahora
@@ -1658,6 +1686,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 tarea.estado = Tarea.Estado.SOLUCIONADO
                 tarea.fecha_solucion = ahora
                 tarea.save(update_fields=["progreso", "estado", "fecha_solucion"])
+                solicitud_resuelta = estado_ant != Tarea.Estado.SOLUCIONADO
                 registrar_log(
                     tarea=tarea, usuario=request.user,
                     tipo_evento=TareaLog.TipoEvento.FIN,
@@ -1677,10 +1706,17 @@ class TaskViewSet(viewsets.ModelViewSet):
                 else:
                     tarea.save(update_fields=["progreso"])
 
+        _notificar_reanudacion(tarea, estado_tarea_anterior)
+
         notificar_subtarea(tarea, subtarea)
         notificar_tarea(tarea)
 
-        return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
+        return Response({
+            **SubtareaSerializer(subtarea).data,
+            "solicitud_resuelta": solicitud_resuelta,
+            "tarea_estado": tarea.estado,
+            "tarea_ticket": tarea.ticket,
+        }, status=status.HTTP_200_OK)
 
     @action(
         detail=True,
@@ -1944,6 +1980,8 @@ class TaskViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        estado_tarea_anterior = tarea.estado
+
         with transaction.atomic():
 
             ahora = timezone.localtime(timezone.now())
@@ -2089,6 +2127,8 @@ class TaskViewSet(viewsets.ModelViewSet):
                             "Ya no quedan subtareas en standby."
                         ),
                     )
+
+        _notificar_reanudacion(tarea, estado_tarea_anterior)
 
         notificar_subtarea(tarea, subtarea)
         notificar_tarea(tarea)

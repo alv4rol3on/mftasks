@@ -15,6 +15,7 @@ EVENTO_A_PREFERENCIA = {
     "SOLICITUD_APROBADA": "cliente_solicitud_resuelta",
     "SOLICITUD_RECHAZADA": "cliente_solicitud_resuelta",
     "SOLICITUD_STANDBY": "cliente_solicitud_standby",
+    "SOLICITUD_REANUDADA": "cliente_solicitud_reanudada",
     "SOLICITUD_FINALIZADA": "cliente_solicitud_solucionada",
     "EQUIPO_NUEVA_SOLICITUD": "equipo_nueva_solicitud",
     "EQUIPO_ALERTA_DIARIA": "equipo_alerta_diaria",

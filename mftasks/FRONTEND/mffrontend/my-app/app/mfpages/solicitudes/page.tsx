@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
+import RefreshButton from "@/components/ui/RefreshButton";
 
 export default function SolicitudesPage() {
   const router = useRouter();
@@ -279,13 +280,7 @@ export default function SolicitudesPage() {
           Solicitudes recibidas
         </h2>
 
-        <button
-          onClick={cargar}
-          disabled={cargando}
-          style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
-        >
-          🔄 {cargando ? "Recargando..." : "Recargar"}
-        </button>
+        <RefreshButton onClick={cargar} loading={cargando} variant="solid" />
       </div>
 
       {filtrosUI}

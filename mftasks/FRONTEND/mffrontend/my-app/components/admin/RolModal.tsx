@@ -27,7 +27,10 @@ type FormRol = {
   puede_liderar: boolean;
   auto_aprobar: boolean;
   activo: boolean;
+  color: string;
 };
+
+const HEX_RE = /^#(?:[0-9a-fA-F]{6})$/;
 
 export default function RolModal({
   rol,
@@ -42,6 +45,7 @@ export default function RolModal({
     puede_liderar: rol?.puede_liderar ?? false,
     auto_aprobar: rol?.auto_aprobar ?? false,
     activo: rol?.activo ?? true,
+    color: rol?.color ?? "",
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +58,12 @@ export default function RolModal({
       return;
     }
 
+    const color = form.color.trim();
+    if (color && !HEX_RE.test(color)) {
+      setError("El color debe tener formato #RRGGBB.");
+      return;
+    }
+
     const payload = {
       nombre: form.nombre.trim(),
       descripcion: form.descripcion.trim(),
@@ -61,6 +71,7 @@ export default function RolModal({
       puede_liderar: form.puede_liderar,
       auto_aprobar: form.auto_aprobar,
       activo: form.activo,
+      color,
     };
 
     setGuardando(true);
@@ -182,6 +193,48 @@ export default function RolModal({
           </div>
         </label>
       </div>
+
+      <label className={styles.field} style={{ marginTop: 12 }}>
+        <span>Color de la barra del equipo</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <input
+            type="color"
+            aria-label="Selector de color"
+            value={HEX_RE.test(form.color) ? form.color : "#252525"}
+            onChange={(e) => setForm({ ...form, color: e.target.value })}
+            style={{ width: 44, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 8, background: "white", cursor: "pointer" }}
+          />
+          <input
+            className={styles.input}
+            placeholder="#RRGGBB (vacío = neutro)"
+            value={form.color}
+            maxLength={7}
+            onChange={(e) => setForm({ ...form, color: e.target.value })}
+            style={{ width: 160, fontFamily: "monospace" }}
+          />
+          <span
+            aria-label="Vista previa del color"
+            title="Vista previa"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: "1px solid #d1d5db",
+              background: HEX_RE.test(form.color) ? form.color : "#252525",
+            }}
+          />
+          {form.color && (
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              style={{ padding: "6px 10px", fontSize: 12 }}
+              onClick={() => setForm({ ...form, color: "" })}
+            >
+              Quitar color
+            </button>
+          )}
+        </div>
+      </label>
 
       {error && (
         <div className={`${styles.msg} ${styles.msgError}`} style={{ marginTop: 12 }}>

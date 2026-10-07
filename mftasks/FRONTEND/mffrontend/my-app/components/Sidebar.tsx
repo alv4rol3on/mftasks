@@ -75,9 +75,7 @@ export default function Sidebar({
           ✕
         </button>
         <div className="sidebar-logo-container">
-          <div className="sidebar-logo">
-            LOGO
-          </div>
+          <img src="/mfsac.png" alt="MF SAC" className="sidebar-logo" />
         </div>
 
         <nav className="sidebar-nav">

@@ -32,6 +32,10 @@ EVENTOS_EMAIL = {
         "asunto": "Solicitud {codigo} en pausa",
         "template": "emails/solicitud_standby.html",
     },
+    "SOLICITUD_REANUDADA": {
+        "asunto": "Solicitud {codigo} reanudada",
+        "template": "emails/solicitud_reanudada.html",
+    },
     "SOLICITUD_FINALIZADA": {
         "asunto": "Solicitud {codigo} solucionada",
         "template": "emails/solicitud_finalizada.html",

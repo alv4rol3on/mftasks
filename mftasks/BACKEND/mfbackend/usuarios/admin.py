@@ -46,6 +46,7 @@ class PreferenciaNotificacionInline(admin.StackedInline):
                         "cliente_solicitud_creada",
                         "cliente_solicitud_resuelta",
                         "cliente_solicitud_standby",
+                        "cliente_solicitud_reanudada",
                         "cliente_solicitud_solucionada",
                     )
                 },
@@ -176,6 +177,7 @@ class RolAdmin(admin.ModelAdmin):
         "nombre",
         "superior",
         "puede_liderar",
+        "color",
         "activo",
     )
 
@@ -300,6 +302,7 @@ class PreferenciaNotificacionAdmin(admin.ModelAdmin):
         "cliente_solicitud_creada",
         "cliente_solicitud_resuelta",
         "cliente_solicitud_standby",
+        "cliente_solicitud_reanudada",
         "cliente_solicitud_solucionada",
         "equipo_nueva_solicitud",
         "equipo_pendiente_revision",
@@ -338,6 +341,7 @@ class PreferenciaNotificacionAdmin(admin.ModelAdmin):
                     "cliente_solicitud_creada",
                     "cliente_solicitud_resuelta",
                     "cliente_solicitud_standby",
+                    "cliente_solicitud_reanudada",
                     "cliente_solicitud_solucionada",
                 )
             },

@@ -1,13 +1,5 @@
-
-- añadir campo "color" a los roles, con el fin de que estos se hereden en el banner de equipos
-- cuando se elimina un rol este solo se desactiva, no aparece en la relacion
 - al buscar una solicitud mediante la barra de busqueda, este no debe limitarse al rango de fechas ni al estado
-- cuando se terminan todas las subtareas de la solicitud, debe aparecer un popup que diga "Solicitud resuelta" 
-- si un usuario se lo inactiva desde la interfaz administrador, este ya no puede iniciar sesion
-
-PARA EL FINAL
-- cambiar algunos botones por iconos
-
+- si un usuario es inactivado desde la interfaz administrador, este ya no puede iniciar sesion
 
 
 

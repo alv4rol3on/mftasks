@@ -1,0 +1,10 @@
+{% extends "emails/notificacion_base.html" %}
+
+{% block titulo_documento %}Solicitud reanudada{% endblock %}
+{% block encabezado %}Solicitud reanudada{% endblock %}
+
+{% block extra %}
+<p style="color: #616161; font-size: 13px;">
+    La solicitud salió del estado en pausa y continúa su proceso. Te avisaremos cuando tenga novedades.
+</p>
+{% endblock %}

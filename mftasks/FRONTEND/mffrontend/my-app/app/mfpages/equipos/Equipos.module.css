@@ -26,56 +26,15 @@
   align-items: center;
   cursor: pointer;
   gap: 12px;
-  background: #252525;
+  /* El color lo hereda del rol del equipo (var --rol-color); si no, neutro. */
+  background: var(--rol-color, #252525);
   color: #fff;
-  border-bottom: 3px solid #CF3215;
-  transition: background 0.15s;
+  border-bottom: 3px solid var(--rol-color, #CF3215);
+  transition: filter 0.15s;
 }
 
 .cardHeader:hover {
-  background: #1a1a1a;
-}
-
-/* Color del encabezado según el tipo de equipo.
-   Deben ir después de .cardHeader:hover para ganar en especificidad. */
-.tipoGerente,
-.tipoGerente:hover {
-  background: #6d28d9;
-  border-bottom-color: #4c1d95;
-}
-
-.tipoGerente:hover {
-  background: #5b21b6;
-}
-
-.tipoSubgerente,
-.tipoSubgerente:hover {
-  background: #1d4ed8;
-  border-bottom-color: #1e3a8a;
-}
-
-.tipoSubgerente:hover {
-  background: #1e40af;
-}
-
-.tipoJefe,
-.tipoJefe:hover {
-  background: #0f766e;
-  border-bottom-color: #134e4a;
-}
-
-.tipoJefe:hover {
-  background: #115e59;
-}
-
-.tipoGtr,
-.tipoGtr:hover {
-  background: #b45309;
-  border-bottom-color: #78350f;
-}
-
-.tipoGtr:hover {
-  background: #92400e;
+  filter: brightness(0.92);
 }
 
 /* Badge de tipo sobre encabezados de color */

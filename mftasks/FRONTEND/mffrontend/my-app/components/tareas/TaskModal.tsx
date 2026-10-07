@@ -8,6 +8,8 @@ import { apiFetch } from "@/lib/api";
 import SubtaskCountdown from "./SubtaskCountdown";
 import TaskIniciarModal from "./TaskIniciarModal";
 import AdjuntosTarea from "../adjuntos/AdjuntosTarea";
+import RefreshButton from "../ui/RefreshButton";
+import IconButton from "../ui/IconButton";
 import { useContador } from "./ContadoresProvider";
 import { formatearTiempo } from "@/lib/tiempoLaboral";
 import TaskStateSection from "./TaskModalComponents/TaskStateSection";
@@ -604,7 +606,7 @@ export default function TaskModal({
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                                         <h3 style={{ margin: 0 }}>Asignaciones</h3>
                                         <div style={{ display: "flex", gap: 8 }}>
-                                            <button onClick={cargarMiembros} disabled={miembrosLoading} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{miembrosLoading ? "Cargando..." : "Recargar equipo"}</button>
+                                            <RefreshButton onClick={cargarMiembros} loading={miembrosLoading} variant="outline" title="Recargar equipo" />
                                             <button
                                                 onClick={guardarAsignaciones}
                                                 disabled={!hayCambiosAsignacion || guardandoAsignaciones}
@@ -668,22 +670,21 @@ export default function TaskModal({
                                                                 <td data-label="Acciones">
                                                                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                                                                         {!inactiva ? (
-                                                                            <button
+                                                                            <IconButton
+                                                                                icon="ban"
+                                                                                variant="danger"
                                                                                 onClick={() => handleInactivar(subtarea.id)}
                                                                                 disabled={esSolucionada || inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
                                                                                 title={esSolucionada ? "No se puede inactivar solucionada" : "Inactivar subtarea"}
-                                                                                style={{ background: esSolucionada ? "#9ca3af" : "#ef4444", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: esSolucionada ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700 }}
-                                                                            >
-                                                                                {inactivandoId === subtarea.id ? "..." : "Inactivar"}
-                                                                            </button>
+                                                                            />
                                                                         ) : (
-                                                                            <button
+                                                                            <IconButton
+                                                                                icon="power"
+                                                                                variant="success"
                                                                                 onClick={() => handleReactivar(subtarea.id)}
                                                                                 disabled={inactivandoId === subtarea.id || tarea.estado === "SOLUCIONADO"}
-                                                                                style={{ background: "#16a34a", color: "white", border: "none", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
-                                                                            >
-                                                                                {inactivandoId === subtarea.id ? "..." : "Reactivar"}
-                                                                            </button>
+                                                                                title="Reactivar subtarea"
+                                                                            />
                                                                         )}
                                                                     </div>
                                                                 </td>

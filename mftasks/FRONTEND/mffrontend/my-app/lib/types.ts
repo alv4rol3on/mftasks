@@ -207,6 +207,8 @@ export interface RolInfo {
     superior: number | null;
     puede_liderar: boolean;
     auto_aprobar: boolean;
+    color?: string | null;
+    usuarios_count?: number;
 }
 
 export interface EquipoInfo {
@@ -214,6 +216,9 @@ export interface EquipoInfo {
     nombre: string;
     lider: EquipoMiembro | null;
     tipo_equipo?: "GERENTE" | "SUBGERENTE" | "JEFE" | "GTR" | string;
+    rol_equipo?: number | null;
+    rol_equipo_nombre?: string | null;
+    rol_color?: string | null;
     rol_integrante_requerido?: "MIEMBRO" | "GTR" | "JEFE" | "SUBGERENTE" | string;
     activo: boolean;
     fecha_creacion?: string;

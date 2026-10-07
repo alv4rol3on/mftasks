@@ -8,6 +8,7 @@ import type { RolInfo } from "@/lib/types";
 
 import styles from "./AdminSections.module.css";
 import RolModal from "./RolModal";
+import IconButton from "@/components/ui/IconButton";
 
 type Usuario = {
   id: number;
@@ -86,7 +87,7 @@ export default function RolesSection({ setMsg }: Props) {
   const [filtro, setFiltro] = useState("");
   const [filtroActivo, setFiltroActivo] = useState<
     "activos" | "inactivos" | "todos"
-  >("todos");
+  >("activos");
 
   const [rolModalOpen, setRolModalOpen] = useState(false);
   const [rolEditando, setRolEditando] = useState<RolInfo | null>(null);
@@ -146,8 +147,8 @@ export default function RolesSection({ setMsg }: Props) {
     return m;
   }, [usuarios]);
 
-  const contarUsuarios = (nombre: string) =>
-    conteoPorRol.get(nombre.toLowerCase()) ?? 0;
+  const contarUsuarios = (rol: RolInfo) =>
+    rol.usuarios_count ?? conteoPorRol.get(rol.nombre.toLowerCase()) ?? 0;
 
   const arbol = useMemo(() => ordenarPorArbol(roles), [roles]);
 
@@ -184,7 +185,11 @@ export default function RolesSection({ setMsg }: Props) {
       }
     }
     const opciones = roles
-      .filter((r) => !excluidos.has(r.id))
+      .filter(
+        (r) =>
+          !excluidos.has(r.id) &&
+          (r.activo || r.id === rolEditando?.superior)
+      )
       .sort((a, b) => a.nombre.localeCompare(b.nombre))
       .map((r) => ({
         value: String(r.id),
@@ -212,6 +217,11 @@ export default function RolesSection({ setMsg }: Props) {
   };
 
   const eliminar = async (rol: RolInfo) => {
+    const cantidad = contarUsuarios(rol);
+    if (cantidad > 0) {
+      setMsg(`Hay ${cantidad} usuario(s) con este rol.`);
+      return;
+    }
     if (
       !confirm(
         `¿Eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer.`
@@ -222,6 +232,31 @@ export default function RolesSection({ setMsg }: Props) {
     try {
       await apiFetch(`/api/usuarios/roles/${rol.id}/`, { method: "DELETE" });
       setMsg(`Rol "${rol.nombre}" eliminado.`);
+      if (rolEditando?.id === rol.id) setRolModalOpen(false);
+      await cargarRoles();
+    } catch (e) {
+      setMsg(`Error: ${(e as Error).message}`);
+    }
+  };
+
+  const alternarActivo = async (rol: RolInfo) => {
+    if (rol.activo) {
+      const cantidad = contarUsuarios(rol);
+      if (cantidad > 0) {
+        setMsg(`Hay ${cantidad} usuario(s) con este rol.`);
+        return;
+      }
+    }
+    try {
+      await apiFetch(`/api/usuarios/roles/${rol.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ activo: !rol.activo }),
+      });
+      setMsg(
+        rol.activo
+          ? `Rol "${rol.nombre}" inactivado.`
+          : `Rol "${rol.nombre}" reactivado.`
+      );
       if (rolEditando?.id === rol.id) setRolModalOpen(false);
       await cargarRoles();
     } catch (e) {
@@ -328,7 +363,19 @@ export default function RolesSection({ setMsg }: Props) {
                               <span style={{ color: "#9ca3af" }}>↳</span>
                             )}
                             <div>
-                              <div style={{ fontWeight: 700 }}>
+                              <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span
+                                  aria-hidden="true"
+                                  title={rol.color || "Neutro"}
+                                  style={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: 999,
+                                    flexShrink: 0,
+                                    background: rol.color || "#252525",
+                                    border: "1px solid #d1d5db",
+                                  }}
+                                />
                                 {rol.nombre}
                               </div>
                               {rol.descripcion && (
@@ -391,26 +438,37 @@ export default function RolesSection({ setMsg }: Props) {
                           )}
                         </td>
 
-                        <td>{contarUsuarios(rol.nombre)}</td>
+                        <td>{contarUsuarios(rol)}</td>
 
                         <td>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <button
-                              type="button"
+                            <IconButton
+                              icon="edit"
+                              variant="primary"
+                              title="Editar rol"
                               onClick={() => abrirEdicion(rol)}
-                              className={styles.createToggleBtn}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              type="button"
+                            />
+                            {rol.activo ? (
+                              <IconButton
+                                icon="ban"
+                                variant="warning"
+                                title="Inactivar rol"
+                                onClick={() => alternarActivo(rol)}
+                              />
+                            ) : (
+                              <IconButton
+                                icon="power"
+                                variant="success"
+                                title="Reactivar rol"
+                                onClick={() => alternarActivo(rol)}
+                              />
+                            )}
+                            <IconButton
+                              icon="trash"
+                              variant="danger"
+                              title="Eliminar rol (solo si no está en uso)"
                               onClick={() => eliminar(rol)}
-                              className={styles.createToggleBtn}
-                              style={{ color: "#b91c1c" }}
-                              title="Solo se elimina si no está en uso"
-                            >
-                              Eliminar
-                            </button>
+                            />
                           </div>
                         </td>
                       </tr>

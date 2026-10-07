@@ -135,6 +135,22 @@ class Rol(models.Model):
         ),
     )
 
+    color = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        validators=[
+            RegexValidator(
+                r"^#(?:[0-9a-fA-F]{6})$",
+                "Use un color hexadecimal en formato #RRGGBB.",
+            )
+        ],
+        help_text=(
+            "Color hexadecimal (#RRGGBB) que heredan los equipos de este rol "
+            "para la barra de su tarjeta. Vacío = neutro."
+        ),
+    )
+
     class Meta:
         constraints = [
             UniqueConstraint(Lower("nombre"), name="rol_nombre_unique_lower"),
@@ -388,6 +404,7 @@ class PreferenciaNotificacion(models.Model):
     cliente_solicitud_creada = models.BooleanField(default=True)
     cliente_solicitud_resuelta = models.BooleanField(default=True)
     cliente_solicitud_standby = models.BooleanField(default=True)
+    cliente_solicitud_reanudada = models.BooleanField(default=True)
     cliente_solicitud_solucionada = models.BooleanField(default=True)
     cliente_resumen_diario = models.BooleanField(default=True)
 

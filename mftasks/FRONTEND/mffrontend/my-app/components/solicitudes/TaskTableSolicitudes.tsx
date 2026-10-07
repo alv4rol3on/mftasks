@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import TaskModal from "./TaskModal";
+import IconButton from "@/components/ui/IconButton";
 import styles from "./TasksTableSolicitudes.module.css";
 import { Task } from "@/lib/types";
 
@@ -78,12 +79,12 @@ export default function TaskTableSolicitudes({
 
 
                 <div>
-                  <button
-                    className={styles.btnDetalles}
+                  <IconButton
+                    icon="eye"
+                    variant="info"
+                    title="Ver detalles"
                     onClick={() => setSelectedTask(tarea)}
-                  >
-                    Ver detalles
-                  </button>
+                  />
                 </div>
               </div>
             ))}

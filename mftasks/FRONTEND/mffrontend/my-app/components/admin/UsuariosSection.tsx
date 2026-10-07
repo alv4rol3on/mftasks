@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import Pagination from "@/components/ui/Pagination";
 import EditarUsuarioModal from "./EditarUsuarioModal";
 import CrearUsuarioModal from "./CrearUsuarioModal";
+import IconButton from "@/components/ui/IconButton";
 
 import type { RolInfo } from "@/lib/types";
 
@@ -385,9 +386,9 @@ export default function UsuariosSection({ setMsg }: Props) {
                           </td>
 
                           <td>
-                            <button
-                              type="button"
-                              className={styles.btnEdit}
+                            <IconButton
+                              icon="edit"
+                              variant="primary"
                               disabled={esAdmin}
                               title={
                                 esAdmin
@@ -398,9 +399,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                                 if (esAdmin) return;
                                 setEditando(u);
                               }}
-                            >
-                              Editar
-                            </button>
+                            />
                           </td>
                         </tr>
                       );

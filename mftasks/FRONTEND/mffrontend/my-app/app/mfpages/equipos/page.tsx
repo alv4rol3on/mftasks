@@ -4,6 +4,7 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo, EquipoMiembroDetallado, RolInfo } from "@/lib/types";
+import RefreshButton from "@/components/ui/RefreshButton";
 import styles from "./Equipos.module.css";
 
 type EquipoApiResponse = EquipoInfo[] | { results: EquipoInfo[] };
@@ -457,13 +458,6 @@ export default function EquiposPage() {
     return lider?.estado === "ACTIVO";
   })();
 
-  const claseTipo = (tipo?: string | null) => {
-    if (tipo === "GERENTE") return styles.tipoGerente;
-    if (tipo === "SUBGERENTE") return styles.tipoSubgerente;
-    if (tipo === "JEFE") return styles.tipoJefe;
-    return styles.tipoGtr;
-  };
-
   const abrirModalCrear = async () => {
     setNuevo({ nombre: "", lider: "" });
     setLiderBusqueda("");
@@ -543,9 +537,7 @@ export default function EquiposPage() {
               + Crear equipo
             </button>
           )}
-          <button onClick={recargar} disabled={cargando} style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
-            🔄 {cargando ? "Recargando..." : "Recargar"}
-          </button>
+          <RefreshButton onClick={recargar} loading={cargando} variant="solid" />
         </div>
       </div>
 
@@ -619,7 +611,8 @@ export default function EquiposPage() {
               <div key={equipo.id} className={styles.card}>
                 <div
                   onClick={() => setEquipoExpandido(expandido ? null : equipo.id)}
-                  className={`${styles.cardHeader} ${claseTipo(equipo.tipo_equipo)}`}
+                  className={styles.cardHeader}
+                  style={equipo.rol_color ? ({ "--rol-color": equipo.rol_color } as React.CSSProperties) : undefined}
                 >
                   <div className={styles.cardHeaderLeft}>
                     <div className={styles.cardTitleRow}>

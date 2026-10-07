@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Task } from "@/lib/types";
 import TaskModal from "@/components/tareas/TaskModal";
 import Pagination from "@/components/ui/Pagination";
+import IconButton from "@/components/ui/IconButton";
 import styles from "@/components/shared/SharedTable.module.css";
 import { ContadoresProvider, useContador } from "@/components/tareas/ContadoresProvider";
 
@@ -118,13 +119,12 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     <td data-label="Equipo" style={{ fontSize: 12 }}>{t.equipo_nombre}</td>
                     <td data-label="Acciones" style={{ whiteSpace: "nowrap" }}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setSelected(t); }}
-                          className={styles.btnDetalles}
-                          style={{ padding: "6px 10px", fontSize: 11 }}
-                        >
-                          Ver
-                        </button>
+                        <IconButton
+                          icon="eye"
+                          variant="info"
+                          title="Ver solicitud"
+                          onClick={() => setSelected(t)}
+                        />
                       </div>
                     </td>
                   </tr>

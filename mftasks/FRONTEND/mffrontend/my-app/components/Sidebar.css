@@ -21,13 +21,11 @@
 }
 
 .sidebar-logo {
-    width: 46px;
-    height: 60px;
-    background: #ff5b5b;
-    border-radius: 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    height: 90px;
+    width: auto;
+    max-width: 90%;
+    object-fit: contain;
+    display: block;
 }
 
 .sidebar-nav {
@@ -129,6 +127,10 @@
     .sidebar-logo-container{
         height:110px;
         padding-top:12px;
+    }
+
+    .sidebar-logo{
+        height:72px;
     }
 
     .sidebar-nav{

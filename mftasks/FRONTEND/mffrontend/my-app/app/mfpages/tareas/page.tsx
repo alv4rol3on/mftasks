@@ -6,6 +6,7 @@ import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampan
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
+import Modal from "@/components/ui/Modal";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { ESTADOS_TAREA, rangoFechasPorDefecto } from "./utils/tareasFilters";
@@ -17,6 +18,7 @@ export default function TareasPage() {
   const [accionando, setAccionando] = useState<number | null>(null);
   const [empezandoId, setEmpezandoId] = useState<number | null>(null);
   const [completandoId, setCompletandoId] = useState<number | null>(null);
+  const [solicitudResuelta, setSolicitudResuelta] = useState<{ ticket?: string | null; asunto?: string } | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("EN_PROCESO");
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
@@ -34,6 +36,12 @@ export default function TareasPage() {
     [busqueda, filtroEstado, campoFecha, desde, hasta, filtroCampana, filtroSubcampana]
   );
   const { tareas, cargando, error, cargar, setTareas, setError } = useTareas(filtros);
+
+  const revelarSolicitudResuelta = (tareaId: number, res?: { solicitud_resuelta?: boolean; tarea_ticket?: string | null }) => {
+    if (!res?.solicitud_resuelta) return;
+    const t = tareas.find((x) => x.id === tareaId);
+    setSolicitudResuelta({ ticket: res.tarea_ticket ?? t?.ticket, asunto: t?.asunto });
+  };
 
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
   const idsTareasKey = idsTareas.join(",");
@@ -172,9 +180,10 @@ export default function TareasPage() {
   const completarSubtarea = async (tareaId: number, subtareaId: number) => {
     setCompletandoId(subtareaId);
     try {
-      await apiCompletar(tareaId, subtareaId);
+      const res = await apiCompletar(tareaId, subtareaId);
       showToast("Subtarea completada", "success");
       await cargar();
+      revelarSolicitudResuelta(tareaId, res);
     } catch (e) {
       showToast((e as Error).message, "error");
     } finally {
@@ -191,7 +200,7 @@ export default function TareasPage() {
         showToast("Motivo obligatorio para STAND_BY", "error");
         return;
       }
-      await apiCambiar(tareaId, subtareaId, nuevoEstado, motivo, estadoActual);
+      const res = await apiCambiar(tareaId, subtareaId, nuevoEstado, motivo, estadoActual);
       const msgs: Record<string, string> = {
         STAND_BY: "Subtarea en pausa",
         EN_DESARROLLO: estadoActual === "STAND_BY" ? "Subtarea reanudada" : "Subtarea iniciada",
@@ -200,6 +209,7 @@ export default function TareasPage() {
       };
       showToast(msgs[nuevoEstado] ?? "Estado actualizado", "success");
       await cargar();
+      revelarSolicitudResuelta(tareaId, res);
     } catch (e) {
       showToast((e as Error).message, "error");
     }
@@ -237,9 +247,10 @@ export default function TareasPage() {
   };
   const inactivarSubtarea = async (tareaId: number, subtareaId: number) => {
     try {
-      await apiInactivar(tareaId, subtareaId);
+      const res = await apiInactivar(tareaId, subtareaId);
       showToast("Subtarea inactivada", "success");
       await cargar();
+      revelarSolicitudResuelta(tareaId, res);
     } catch (e) {
       showToast((e as Error).message, "error");
       throw e;
@@ -310,6 +321,26 @@ export default function TareasPage() {
         )}
       </div>
       <TaskTableEnDesarrollo tareas={tareas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} soloLectura={esAdmin} />
+
+      {solicitudResuelta && (
+        <Modal
+          title="Solicitud resuelta"
+          onClose={() => setSolicitudResuelta(null)}
+          footer={
+            <button
+              type="button"
+              onClick={() => setSolicitudResuelta(null)}
+              style={{ background: "#16a34a", color: "white", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}
+            >
+              Aceptar
+            </button>
+          }
+        >
+          <p style={{ margin: 0 }}>
+            {solicitudResuelta.ticket ? `La solicitud ${solicitudResuelta.ticket}` : "La solicitud"} fue resuelta: todas sus subtareas fueron completadas.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }

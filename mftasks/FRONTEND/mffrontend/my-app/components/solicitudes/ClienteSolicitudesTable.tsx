@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Task } from "@/lib/types";
 import Pagination from "@/components/ui/Pagination";
+import IconButton from "@/components/ui/IconButton";
 import styles from "@/components/shared/SharedTable.module.css";
 
 const fmt = new Intl.DateTimeFormat("es-PE", {
@@ -89,13 +90,12 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
                       {parseFloat(String(t.progreso ?? 0)).toFixed(1)}%
                     </td>
                     <td data-label="Acción" style={{ whiteSpace: "nowrap" }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onSelect(t); }}
-                        className={styles.btnDetalles}
-                        style={{ padding: "6px 10px", fontSize: 11 }}
-                      >
-                        Ver detalle
-                      </button>
+                      <IconButton
+                        icon="eye"
+                        variant="info"
+                        title="Ver detalle"
+                        onClick={() => onSelect(t)}
+                      />
                     </td>
                   </tr>
                 );

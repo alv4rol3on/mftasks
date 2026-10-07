@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLogs, LogItem } from "@/lib/services/tareasService";
 import Pagination from "../ui/Pagination";
+import RefreshButton from "../ui/RefreshButton";
 import styles from "./TaskModalDesarrollo.module.css";
 
 const HIST_PAGE_SIZE = 10;
@@ -85,7 +86,7 @@ export default function HistorialTarea({ tareaId }: Props) {
         <div className={styles.historialTabContent}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <h3 style={{ margin: 0 }}>Historial de la tarea</h3>
-                <button onClick={cargarLogs} disabled={recargando} style={{ background: "white", border: "1px solid #d1d5db", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>{recargando ? "Cargando..." : "Recargar"}</button>
+                <RefreshButton onClick={cargarLogs} loading={recargando} variant="outline" />
             </div>
             {logsError && <p style={{ color: "#991b1b", fontSize: 12 }}>{logsError}</p>}
             {!logs && !logsError && <p style={{ fontSize: 12 }}>Cargando logs...</p>}
