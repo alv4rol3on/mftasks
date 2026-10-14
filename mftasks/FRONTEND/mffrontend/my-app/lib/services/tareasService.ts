@@ -41,13 +41,17 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   const q = filtros.busqueda?.trim();
   if (q) params.set("search", q);
 
+  // Al buscar, se ignora el filtro de estado y el rango de fechas para que la
+  // búsqueda sea global; los filtros solo aplican cuando no hay texto.
   const estado = filtros.estado ?? "TODOS";
-  if (estado !== "TODOS") params.set("estado", estado);
+  if (!q && estado !== "TODOS") params.set("estado", estado);
 
-  if (filtros.desde) params.set("desde", filtros.desde);
-  if (filtros.hasta) params.set("hasta", filtros.hasta);
-  if (filtros.desde || filtros.hasta) {
-    params.set("campo_fecha", (filtros.campoFecha ?? "solicitud") === "entrega" ? "entrega" : "creacion");
+  if (!q) {
+    if (filtros.desde) params.set("desde", filtros.desde);
+    if (filtros.hasta) params.set("hasta", filtros.hasta);
+    if (filtros.desde || filtros.hasta) {
+      params.set("campo_fecha", (filtros.campoFecha ?? "solicitud") === "entrega" ? "entrega" : "creacion");
+    }
   }
 
   if (filtros.campana) params.set("campana", String(filtros.campana));

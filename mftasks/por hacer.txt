@@ -1,5 +1,2 @@
-- al buscar una solicitud mediante la barra de busqueda, este no debe limitarse al rango de fechas ni al estado
-- si un usuario es inactivado desde la interfaz administrador, este ya no puede iniciar sesion
 
-
-
+zcQJcdC52ik

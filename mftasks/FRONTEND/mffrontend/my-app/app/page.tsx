@@ -53,9 +53,14 @@ export default function Home() {
         })();
     }, [instance, accounts, inProgress, router]);
 
-    const iniciarSesion = () => {
+    const iniciarSesion = (otroCorreo = false) => {
         setError(null);
-        instance.loginRedirect(loginRequest);
+        if (otroCorreo) instance.setActiveAccount(null);
+        instance.loginRedirect(
+            otroCorreo
+                ? { ...loginRequest, prompt: "select_account" }
+                : loginRequest
+        );
     };
 
     return (
@@ -78,7 +83,7 @@ export default function Home() {
 
             {!cargando && (
                 <button
-                    onClick={iniciarSesion}
+                    onClick={() => iniciarSesion()}
                     disabled={inProgress !== InteractionStatus.None}
                     style={{
                         padding: "0.75rem 1.5rem",
@@ -87,6 +92,20 @@ export default function Home() {
                     }}
                 >
                     Iniciar sesión con Microsoft
+                </button>
+            )}
+
+            {error && (
+                <button
+                    onClick={() => iniciarSesion(true)}
+                    disabled={inProgress !== InteractionStatus.None}
+                    style={{
+                        padding: "0.75rem 1.5rem",
+                        fontSize: "1rem",
+                        cursor: "pointer",
+                    }}
+                >
+                    Iniciar sesión con otro correo
                 </button>
             )}
 
