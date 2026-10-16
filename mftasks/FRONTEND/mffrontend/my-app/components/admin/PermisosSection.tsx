@@ -430,7 +430,7 @@ export default function PermisosSection({ setMsg }: Props) {
     <div className={styles.container}>
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>
-          Permisos — Usuario → Subcampañas
+          Permisos: Usuario → Subcampañas
         </h3>
 
         <p className={styles.permisosDesc}>
@@ -914,7 +914,7 @@ export default function PermisosSection({ setMsg }: Props) {
                                             width: 16,
                                             height: 16,
                                             accentColor:
-                                              "#7c3aed",
+                                              "white",
                                           }}
                                         />
 
@@ -946,7 +946,7 @@ export default function PermisosSection({ setMsg }: Props) {
                                           </div>
                                         </div>
 
-                                        {checked && (
+                                        {/*{checked && (
                                           <span
                                             className={
                                               styles.subBadge
@@ -954,7 +954,7 @@ export default function PermisosSection({ setMsg }: Props) {
                                           >
                                             permitida
                                           </span>
-                                        )}
+                                        )}*/}
                                       </label>
                                     );
                                   }

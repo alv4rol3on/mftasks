@@ -90,7 +90,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                 <th>Fecha solicitud</th>
                 <th>Solicitud</th>
                 <th>Estado</th>
-                <th>Solicitante</th>
                 <th>Equipo</th>
                 <th>Acciones</th>
               </tr>
@@ -115,7 +114,7 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     <td data-label="Estado">
                       <EstadoCell tarea={t} />
                     </td>
-                    <td data-label="Solicitante" style={{ fontSize: 12 }}>{t.solicitante_nombre ?? "-"}</td>
+                    {/*<td data-label="Solicitante" style={{ fontSize: 12 }}>{t.solicitante_nombre ?? "-"}</td>*/}
                     <td data-label="Equipo" style={{ fontSize: 12 }}>{t.equipo_nombre}</td>
                     <td data-label="Acciones" style={{ whiteSpace: "nowrap" }}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

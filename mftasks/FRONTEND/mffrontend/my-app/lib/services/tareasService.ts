@@ -18,7 +18,7 @@ export type EstadoFiltro =
   | "RECHAZADO"
   | "FUERA_DE_TIEMPO";
 
-export type CampoFecha = "solicitud" | "entrega";
+export type CampoFecha = "solicitud" | "entrega" | "aprobacion";
 
 export interface FiltrosTareas {
   busqueda?: string;
@@ -46,13 +46,26 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   const estado = filtros.estado ?? "TODOS";
   if (!q && estado !== "TODOS") params.set("estado", estado);
 
+  
   if (!q) {
     if (filtros.desde) params.set("desde", filtros.desde);
     if (filtros.hasta) params.set("hasta", filtros.hasta);
+
     if (filtros.desde || filtros.hasta) {
-      params.set("campo_fecha", (filtros.campoFecha ?? "solicitud") === "entrega" ? "entrega" : "creacion");
+      
+      const campoFecha = filtros.campoFecha ?? "solicitud";
+
+      const campoFechaBackend: Record<CampoFecha, string> = {
+        solicitud: "creacion",
+        entrega: "entrega",
+        aprobacion: "aprobacion",
+      };
+
+      params.set("campo_fecha", campoFechaBackend[campoFecha]);
+
     }
   }
+
 
   if (filtros.campana) params.set("campana", String(filtros.campana));
   if (filtros.subcampana) params.set("subcampana", String(filtros.subcampana));

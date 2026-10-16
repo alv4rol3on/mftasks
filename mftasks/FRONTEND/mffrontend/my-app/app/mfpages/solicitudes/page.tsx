@@ -211,7 +211,7 @@ export default function SolicitudesPage() {
       >
         <option value="solicitud">Fecha de solicitud</option>
         <option value="entrega">Fecha de entrega</option>
-      </select>*/}
+      </select>
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
         Desde
         <input
@@ -231,7 +231,7 @@ export default function SolicitudesPage() {
           onChange={(e) => setHasta(e.target.value)}
           style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
         />
-      </label>
+      </label>*/}
       <input
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}

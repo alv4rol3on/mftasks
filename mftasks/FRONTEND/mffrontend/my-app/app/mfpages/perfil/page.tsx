@@ -149,7 +149,7 @@ export default function PerfilPage() {
     <div className={styles.container}>
       <h2 className={styles.title}>Perfil</h2>
 
-      {!esAdmin && (
+      {!esAdmin || !esCliente && (
         <section className={styles.alertsCard}>
           <button
             type="button"
@@ -219,9 +219,6 @@ export default function PerfilPage() {
                     <div key={campana.id}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
                         {campana.nombre}
-                        <span style={{ fontFamily: "monospace", fontSize: 11, color: "#6b7280", marginLeft: 6 }}>
-                          {campana.codigo}
-                        </span>
                       </div>
                       <div className={styles.badges} style={{ marginTop: 6 }}>
                         {campana.subcampanas.length > 0 ? (
@@ -240,7 +237,7 @@ export default function PerfilPage() {
           )}
         </section>
       }
-      
+
 
       {prefs && (esCliente || esEquipo) && (
         <section className={styles.alertsCard}>

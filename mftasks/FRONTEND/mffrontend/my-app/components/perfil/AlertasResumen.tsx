@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
-import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
 import { useToast } from "@/components/ui/Toast";
 import { Task } from "@/lib/types";
 
@@ -44,7 +43,7 @@ export default function AlertasResumen() {
       .finally(() => setCargando(false));
   }, []);
 
-  const cargar = useCallback(async () => {
+  {/*const cargar = useCallback(async () => {
     try {
       const data = await apiFetch<Task[]>("/api/tasks/tasks/");
       setTareas(data);
@@ -55,18 +54,18 @@ export default function AlertasResumen() {
     } finally {
       setCargando(false);
     }
-  }, [showToast]);
+  }, [showToast]);*/}
 
   if (cargando) return <div style={{ fontSize: 13, color: "#6b7280" }}>Cargando alertas…</div>;
   if (error) return <div className="rounded p-4 text-sm text-red-600">Error al cargar alertas: {error}</div>;
 
   const esAsignador = resumen?.tipo === "asignador" || resumen?.tipo === "admin";
-  const esCliente = resumen?.tipo === "cliente";
+  //const esCliente = resumen?.tipo === "cliente";
   const porAprobar = resumen?.por_aprobar ?? 0;
   const pendientes = resumen?.pendientes ?? 0;
   const tareasConPendientes = resumen?.tareas_con_pendientes ?? [];
 
-  if (esCliente) {
+  {/*if (esCliente) {
     const total = resumen?.total ?? 0;
     return (
       <div>
@@ -88,7 +87,7 @@ export default function AlertasResumen() {
         <CrearSolicitudModal open={openCrear} onClose={() => setOpenCrear(false)} onCreated={() => { cargar(); }} />
       </div>
     );
-  }
+  }*/}
 
   const renderPendientesDetalle = () => {
     if (tareasConPendientes.length === 0) return null;

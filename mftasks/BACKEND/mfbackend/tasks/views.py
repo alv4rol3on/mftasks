@@ -324,18 +324,42 @@ class TaskViewSet(viewsets.ModelViewSet):
         if params.get("excluir_espera") in ("1", "true", "yes"):
             queryset = queryset.exclude(estado=Tarea.Estado.EN_ESPERA)
 
+        
         campo_fecha = (params.get("campo_fecha") or "creacion").lower()
         desde = parse_date(params.get("desde") or "")
         hasta = parse_date(params.get("hasta") or "")
+
         if desde or hasta:
             tz = timezone.get_current_timezone()
-            campo = "fecha_entrega_aproximada" if campo_fecha == "entrega" else "fecha_creacion"
+
+            campos_fecha = {
+                "creacion": "fecha_creacion",
+                "entrega": "fecha_entrega_aproximada",
+                "aprobacion": "fecha_inicio",
+            }
+
+            campo = campos_fecha.get(campo_fecha)
+
+            if campo is None:
+                raise ValidationError({
+                    "campo_fecha": (
+                        "Campo de fecha inválido. "
+                        "Usa creacion, entrega o aprobacion."
+                    )
+                })
+
             if desde:
-                inicio = timezone.make_aware(datetime.combine(desde, time.min), tz)
+                inicio = timezone.make_aware(
+                    datetime.combine(desde, time.min), tz
+                )
                 queryset = queryset.filter(**{f"{campo}__gte": inicio})
+
             if hasta:
-                fin = timezone.make_aware(datetime.combine(hasta + timedelta(days=1), time.min), tz)
+                fin = timezone.make_aware(
+                    datetime.combine(hasta + timedelta(days=1), time.min), tz
+                )
                 queryset = queryset.filter(**{f"{campo}__lt": fin})
+
 
         if params.get("solo_recientes") in ("1", "true", "yes"):
             limite = timezone.now() - timedelta(days=3)

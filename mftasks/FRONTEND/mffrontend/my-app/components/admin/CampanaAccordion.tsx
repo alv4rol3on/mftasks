@@ -59,7 +59,7 @@ export default function CampanaAccordion({
             {campana.nombre}
           </span>{" "}
 
-          <span className={styles.campanaCode}>
+          {/*<span className={styles.campanaCode}>
             ({campana.codigo})
           </span>
 
@@ -73,7 +73,7 @@ export default function CampanaAccordion({
             {campana.activo
               ? "activa"
               : "inactiva"}
-          </span>
+          </span>*/}
         </div>
 
         <span

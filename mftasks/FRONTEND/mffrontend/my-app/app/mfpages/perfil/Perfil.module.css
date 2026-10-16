@@ -113,11 +113,17 @@
 }
 
 .valueMono {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
   font-size: 13px;
   font-weight: 700;
   font-family: monospace;
-  color: #991b1b;
-  word-break: break-word;
+  background: #991b1b;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
 .badges {
@@ -127,8 +133,8 @@
 }
 
 .badge {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: #292741;
+  color: #ffffff;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;

@@ -304,6 +304,7 @@ export default function TareasPage() {
         <select value={campoFecha} onChange={(e) => setCampoFecha(e.target.value as CampoFecha)} style={selectStyle} title="Campo de fecha a filtrar">
           <option value="solicitud">Fecha de solicitud</option>
           <option value="entrega">Fecha de entrega</option>
+          <option value="aprobacion">Fecha de aprobacion</option>
         </select>
         <label style={fechaLabelStyle}>
           Desde

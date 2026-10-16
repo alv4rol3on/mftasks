@@ -379,7 +379,7 @@ export default function CampanasSection({ setMsg }: Props) {
                       <span className={styles.campanaTitle}>
                         {camp.nombre}
                       </span>{" "}
-                      <span className={styles.campanaCode}>
+                      {/*<span className={styles.campanaCode}>
                         ({camp.codigo})
                       </span>
 
@@ -391,7 +391,7 @@ export default function CampanasSection({ setMsg }: Props) {
                         }`}
                       >
                         {camp.activo ? "activa" : "inactiva"}
-                      </span>
+                      </span>*/}
                     </div>
 
                     <span
@@ -475,7 +475,7 @@ export default function CampanasSection({ setMsg }: Props) {
                                   gap: 6,
                                 }}
                               >
-                                <span
+                                {/*<span
                                   className={`${styles.badgeActive} ${
                                     sub.activo && camp.activo
                                       ? styles.badgeActiveOn
@@ -486,7 +486,7 @@ export default function CampanasSection({ setMsg }: Props) {
                                   {sub.activo && camp.activo
                                     ? "habilitada"
                                     : "inhabilitada"}
-                                </span>
+                                </span>*/}
 
                                 <Switch
                                   checked={sub.activo}

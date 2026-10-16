@@ -1,2 +1,6 @@
-
-zcQJcdC52ik
+nueva idea:
+las tareas en desarrollo cambiaran su diseño para optar por un manejo de tareas similar a jira o youtruck
+sidebar desplegable
+para administrador: interfaz renovada de manejo de usuarios con apartados propios donde se configura sus roles y permisos de campañas
+para administrador: interfaz renovada de manejo de campañas con apartados propios donde se configura sus subcampañas
+zcQJcdC52ik123

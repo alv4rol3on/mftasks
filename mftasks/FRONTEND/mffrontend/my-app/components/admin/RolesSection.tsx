@@ -152,18 +152,33 @@ export default function RolesSection({ setMsg }: Props) {
 
   const arbol = useMemo(() => ordenarPorArbol(roles), [roles]);
 
+
   const filas = useMemo(() => {
     const q = filtro.toLowerCase().trim();
+
     return arbol.filter(({ rol }) => {
+      // Roles protegidos: no mostrar en la tabla editable.
+      const nombreRol = rol.nombre.trim().toUpperCase();
+
+      if (
+        nombreRol === "ADMINISTRADOR" ||
+        nombreRol === "CLIENTE"
+      ) {
+        return false;
+      }
+
       if (filtroActivo === "activos" && !rol.activo) return false;
       if (filtroActivo === "inactivos" && rol.activo) return false;
+
       if (!q) return true;
+
       return (
         rol.nombre.toLowerCase().includes(q) ||
         (rol.descripcion ?? "").toLowerCase().includes(q)
       );
     });
   }, [arbol, filtro, filtroActivo]);
+
 
   // Opciones de superior: excluye el propio rol y sus descendientes.
   const opcionesSuperior = useMemo(() => {

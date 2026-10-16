@@ -409,6 +409,9 @@ export default function TaskModal({
                                     )
 
                                     }
+                                    {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
+                                        <tr><td><strong>tiempo laboral utilizado:</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado}</td></tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -417,7 +420,7 @@ export default function TaskModal({
                             <h3 className={styles.cardTitle}>Descripción</h3>
                             <div className={styles.descriptionBox} style={{ marginBottom: 12 }}>{tarea.descripcion}</div>
                             <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} />
-                            {noEstaEnDesarrollo ? (null):(
+                            {/*{noEstaEnDesarrollo ? (null):(
                                 <div className={styles.infoCard} style={{ padding: 12 }}>
                                     <h4 className={styles.cardTitle} style={{ fontSize: 12, marginBottom: 8 }}>Tiempos</h4>
                                     <table className={styles.infoTable} style={{ fontSize: 13 }}>
@@ -431,14 +434,12 @@ export default function TaskModal({
                                             {(tarea as any).fecha_inicio_efectiva && (tarea as any).inicio_anticipado && (
                                                 <tr><td><strong>Inicio efectivo</strong></td><td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "#6b7280" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td></tr>
                                             )}
-                                            {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
-                                                <tr><td><strong>Solucionado en:</strong></td><td style={{ color: "#166534", fontWeight: 700 }}>{tarea.tiempo_tomado_formateado} ({tarea.tiempo_tomado_horas}h)</td></tr>
-                                            )}
+
 
                                         </tbody>
                                     </table>
                                 </div>
-                            )}
+                            )}*/}
 
 
                             {subtareasInactivasCount > 0 && (

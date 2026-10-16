@@ -47,8 +47,8 @@
 }
 
 .msgError {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #991b1b;
+  color: #ffffff;
 }
 
 .msgSuccess {
@@ -440,8 +440,8 @@
 }
 
 .chip {
-  background: #ede9fe;
-  border: 1px solid #ddd6fe;
+  background: #88dd88;
+  border: 1px solid #609b60;
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 11px;
@@ -451,9 +451,9 @@
 }
 
 .chipRemove {
-  background: white;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: rgb(255, 255, 255);
+  border: 1px solid #609b60;
+  color: #000000;
   padding: 2px 6px;
   border-radius: 6px;
   cursor: pointer;
@@ -543,7 +543,7 @@
 .linkBtn {
   background: none;
   border: none;
-  color: #7c3aed;
+  color: #fdfdfd;
   font-size: 12px;
   cursor: pointer;
   text-decoration: underline;
@@ -612,8 +612,8 @@
 }
 
 .subLabelChecked {
-  border-color: #7c3aed;
-  background: #ede9fe;
+  border-color: #609b60;
+  background: #88dd88;
 }
 
 .subLabelDisabled {
@@ -642,8 +642,8 @@
 
 .subBadge {
   font-size: 10px;
-  background: #7c3aed;
-  color: white;
+  background: white;
+  color: black;
   padding: 2px 6px;
   border-radius: 999px;
   white-space: nowrap;
