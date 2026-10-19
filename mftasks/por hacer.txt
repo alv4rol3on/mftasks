@@ -1,6 +1,6 @@
 nueva idea:
-las tareas en desarrollo cambiaran su diseño para optar por un manejo de tareas similar a jira o youtruck
-sidebar desplegable
-para administrador: interfaz renovada de manejo de usuarios con apartados propios donde se configura sus roles y permisos de campañas
-para administrador: interfaz renovada de manejo de campañas con apartados propios donde se configura sus subcampañas
+- los miembros de equipo heredan permisos de campañas/subcampañas del lider
+- los clientes deben tener un mejor diseño para la interfaz de seguimiento de solicitudes
+- añadir slugs a los enlaces de las tareas 
+- el filtro EN PROCESO no deberia respetar los rangos de fecha
 zcQJcdC52ik123

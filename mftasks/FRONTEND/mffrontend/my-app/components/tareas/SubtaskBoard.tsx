@@ -149,7 +149,7 @@ export default function SubtaskBoard({ tarea, puedeMover, procesandoId, onMove }
     return (
         <div>
             <p className={styles.boardHint}>
-                Arrastra las tarjetas entre columnas o usa el menú ⋮ para mover, pausar o reanudar. En móvil puedes usar “Mover a…”.
+                Arrastra las tarjetas entre columnas para modificar su estado
             </p>
             <DndContext
                 sensors={sensors}

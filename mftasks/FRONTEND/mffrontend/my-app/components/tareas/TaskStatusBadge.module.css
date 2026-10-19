@@ -22,27 +22,27 @@
 }
 
 .espera {
-    background: color-mix(in srgb, var(--color-waiting) 12%, white);
-    border-color: color-mix(in srgb, var(--color-waiting) 30%, white);
-    color: color-mix(in srgb, var(--color-waiting) 82%, black);
+    background: color-mix(in srgb, var(--color-waiting) 100%, white);
+    border-color: color-mix(in srgb, var(--color-waiting) 100%, white);
+    color: color-mix(in srgb, var(--color-waiting) 0%, rgb(255, 255, 255));
 }
 
 .desarrollo {
-    background: color-mix(in srgb, var(--color-in-progress) 12%, white);
-    border-color: color-mix(in srgb, var(--color-in-progress) 30%, white);
-    color: color-mix(in srgb, var(--color-in-progress) 82%, black);
+    background: color-mix(in srgb, var(--color-in-progress) 100%, white);
+    border-color: color-mix(in srgb, var(--color-in-progress) 100%, white);
+    color: color-mix(in srgb, var(--color-in-progress) 0%, rgb(255, 255, 255));
 }
 
 .pausa {
-    background: color-mix(in srgb, var(--color-paused) 10%, white);
-    border-color: color-mix(in srgb, var(--color-paused) 28%, white);
-    color: color-mix(in srgb, var(--color-paused) 82%, black);
+    background: color-mix(in srgb, var(--color-paused) 100%, white);
+    border-color: color-mix(in srgb, var(--color-paused) 100%, white);
+    color: color-mix(in srgb, var(--color-paused) 0%, rgb(255, 255, 255));
 }
 
 .solucionado {
-    background: color-mix(in srgb, var(--color-done) 12%, white);
-    border-color: color-mix(in srgb, var(--color-done) 30%, white);
-    color: color-mix(in srgb, var(--color-done) 82%, black);
+    background: color-mix(in srgb, var(--color-done) 100%, white);
+    border-color: color-mix(in srgb, var(--color-done) 100%, white);
+    color: color-mix(in srgb, var(--color-done) 0%, rgb(255, 255, 255));
 }
 
 .aprobado {
@@ -52,9 +52,9 @@
 }
 
 .rechazado {
-    background: color-mix(in srgb, var(--color-danger) 10%, white);
-    border-color: color-mix(in srgb, var(--color-danger) 30%, white);
-    color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 100%, white);
+    border-color: color-mix(in srgb, var(--color-danger) 100%, white);
+    color: color-mix(in srgb, var(--color-done) 0%, rgb(255, 255, 255));
 }
 
 .neutro {

@@ -30,22 +30,26 @@ services:
     env_file:
       - .env
 
+  
   frontend:
     build:
       context: ./FRONTEND/mffrontend/my-app
       dockerfile: Dockerfile
 
     container_name: mf-frontend
-
     working_dir: /app
 
     command: >
       npm run dev --
       --hostname 0.0.0.0
+      --experimental-https
+      --experimental-https-key /certs/server.key
+      --experimental-https-cert /certs/server.crt
 
     volumes:
       - ./FRONTEND/mffrontend/my-app:/app
       - /app/node_modules
+      - ./certs:/certs:ro
 
     ports:
       - "3000:3000"
@@ -54,14 +58,10 @@ services:
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_CLIENT_ID: ${NEXT_PUBLIC_CLIENT_ID}
       NEXT_PUBLIC_TENANT_ID: ${NEXT_PUBLIC_TENANT_ID}
-      # Vacío => MSAL usa window.location.origin (sirve para localhost, LAN y túnel)
       NEXT_PUBLIC_REDIRECT_URI: ""
-      # Vacío => las llamadas van a /api en el mismo origen y Next las proxya
-      # (necesario para la prueba por túnel temporal de Cloudflare: el navegador
-      # del cliente llama al mismo origen y Next enruta a backend:8000).
       NEXT_PUBLIC_API_URL: ""
-      # Destino interno para el rewrite /api -> backend (nombre del servicio Docker)
       BACKEND_INTERNAL_URL: http://backend:8000
 
     depends_on:
       - backend
+

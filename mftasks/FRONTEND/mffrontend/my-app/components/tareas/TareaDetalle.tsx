@@ -247,17 +247,13 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
             </div>
             <h2 className={styles.headerTitle}>{tarea.asunto}</h2>
             <div className={styles.headerMeta}>
-              <span className={styles.headerMetric}>
-                <span className={styles.headerMetricLabel}>Entrega general</span>
-                <strong>{tarea.fecha_entrega_aproximada ? formatearFecha(tarea.fecha_entrega_aproximada) : "Sin fecha de entrega"}</strong>
-              </span>
               <span className={styles.headerTimer} title="Tiempo laboral restante o utilizado">
                 {tarea.estado === "APROBADO"
                   ? "Aún no iniciada"
                   : tarea.estado === "RECHAZADO"
                     ? "Sin temporizador"
                     : tarea.estado === "SOLUCIONADO" && tarea.tiempo_tomado_formateado
-                      ? `Tomado ${tarea.tiempo_tomado_formateado}`
+                      ? `Tiempo laboral utilizado: ${tarea.tiempo_tomado_formateado}`
                       : <TaskCountdown tareaId={tarea.id} />}
               </span>
               {puedeIniciar && (
@@ -285,10 +281,10 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
                 <tr><td>Equipo</td><td>{tarea.equipo_nombre || "-"}</td></tr>
                 <tr><td>Fecha solicitud</td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
                 {tarea.fecha_inicio && <tr><td>Inicio</td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>}
-                <tr><td>Entrega</td><td>{tarea.fecha_entrega_aproximada ? formatearFecha(tarea.fecha_entrega_aproximada) : "Sin fecha de entrega"}</td></tr>
-                {tarea.tiempo_tomado_formateado && tarea.estado === "SOLUCIONADO" && (
-                  <tr><td>Tiempo laboral utilizado</td><td className={styles.successText}>{tarea.tiempo_tomado_formateado}</td></tr>
-                )}
+                {tarea.fecha_entrega_aproximada ? (
+                  <tr><td>Entrega</td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
+                ):(null)}
+                
               </tbody>
             </table>
           </section>
@@ -312,7 +308,7 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
         <section className={styles.workspace} aria-labelledby="detalle-trabajo">
           <div className={styles.workspaceTop}>
             <div>
-              <h2 className={styles.workspaceTitle} id="detalle-trabajo">Trabajo de la solicitud</h2>
+              <h2 className={styles.workspaceTitle} id="detalle-trabajo">Progreso de la solicitud</h2>
             </div>
             <div className={styles.progressSummary}>
               <span className={styles.progressValue}>{progreso}%</span>

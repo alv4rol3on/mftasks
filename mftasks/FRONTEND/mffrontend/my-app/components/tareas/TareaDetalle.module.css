@@ -125,27 +125,28 @@
     align-items: center;
     border: 1px solid rgba(255, 255, 255, .24);
     border-radius: 999px;
-    background: rgba(255, 255, 255, .1);
+    background: rgb(255, 255, 255);
     padding: 4px 10px;
-    color: var(--color-background);
+    color: var(--color-background-2);
     font-size: 12px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
 .startButton {
-    border: 1px solid var(--color-background);
+    border: 1px solid var(--color-done);
     border-radius: 7px;
-    background: var(--color-background);
+    background: var(--color-done);
     padding: 7px 12px;
-    color: var(--color-detail-header);
+    color: white;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
 }
 
 .startButton:hover {
-    background: #f1f0ff;
+    background: var(--color-done-hover);
+    border: 1px solid var(--color-done-hover);
 }
 
 .startButton:focus-visible {
@@ -398,10 +399,21 @@
     transition: background .15s, outline .15s;
 }
 
-.columnEspera { border-top-color: var(--mf-waiting); }
-.columnDesarrollo { border-top-color: var(--mf-dev); }
-.columnStandBy { border-top-color: var(--mf-pause); }
-.columnSolucionado { border-top-color: var(--mf-done); }
+.columnEspera {
+    border-top-color: var(--mf-waiting);
+}
+
+.columnDesarrollo {
+    border-top-color: var(--mf-dev);
+}
+
+.columnStandBy {
+    border-top-color: var(--mf-pause);
+}
+
+.columnSolucionado {
+    border-top-color: var(--mf-done);
+}
 
 .boardColumnOver {
     background: #eef2ff;
@@ -461,6 +473,7 @@
 }
 
 .subtaskCard {
+    position: relative;
     border: 1px solid var(--color-border);
     border-left: 3px solid var(--color-border);
     border-radius: 8px;
@@ -485,6 +498,7 @@
 }
 
 .subtaskCardTop {
+    padding-top: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -505,6 +519,18 @@
 }
 
 .dragHandle {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: grab;
+
     border: 1px solid var(--color-border);
     border-radius: 5px;
     background: var(--color-surface);
@@ -580,7 +606,6 @@
     font-size: 10px;
     font-weight: 700;
     letter-spacing: .03em;
-    text-transform: uppercase;
 }
 
 .blockReason {
@@ -686,7 +711,7 @@
     line-height: 1.35;
 }
 
-.dragOverlayCard > span:last-child {
+.dragOverlayCard>span:last-child {
     color: var(--mf-muted);
     font-size: 10.5px;
 }
@@ -810,8 +835,13 @@
 }
 
 @keyframes shimmer {
-    0% { background-position: 100% 50%; }
-    100% { background-position: 0 50%; }
+    0% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0 50%;
+    }
 }
 
 .dialog {
@@ -1037,6 +1067,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .progressFill,
     .tab,
     .tabActive,

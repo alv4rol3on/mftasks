@@ -99,7 +99,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
 
                 {tarea.estado === "STAND_BY" && (
                   <>
-                    <h3>Motivo pausa</h3>
+                    <h3>Motivo de la pausa</h3>
                     <div className={styles.descriptionBox}>{tarea.motivo_standby}</div>
                   </>
                 )}

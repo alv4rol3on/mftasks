@@ -142,13 +142,24 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
                         </div>
                     )}
 
-                    <button
+                    {/*<button
                         type="button"
                         className={styles.dragHandle}
                         {...attributes}
                         {...listeners}
                         disabled={!arrastrable || !!procesando}
                         aria-label={`Mover subtarea ${subtarea.descripcion}`}
+                        title={arrastrable ? "Arrastrar para cambiar de estado" : "No puedes mover esta subtarea"}
+                    >
+                        ⠿
+                    </button>*/}
+                    <button
+                        type="button"
+                        className={styles.dragHandle}
+                        {...attributes}
+                        {...listeners}
+                        disabled={!arrastrable || !!procesando}
+                        aria-label="Mover subtarea"
                         title={arrastrable ? "Arrastrar para cambiar de estado" : "No puedes mover esta subtarea"}
                     >
                         ⠿
@@ -164,7 +175,7 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
             </div>
 
             <div className={styles.subtaskAssignee}>
-                <span className={styles.subtaskLabel}>Asignado a</span>
+                <span className={styles.subtaskLabel}>Asignado a: </span>
                 <strong>{subtarea.asignado_nombre || "Sin asignar"}</strong>
             </div>
 
@@ -174,16 +185,13 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
                 </div>
             )}
 
-            {(subtarea.bloqueada_por?.length ?? 0) > 0 && (
-                <div className={styles.dependencyLine}>
+            {(subtarea.bloqueada_por?.length ?? 0 ) > 0 && (
+                !solucionada && (
+                 <div className={styles.dependencyLine}>
                     Depende de: {subtarea.bloqueada_por!.map((b) => `#${b.id} ${b.descripcion}`).join(", ")}
-                </div>
-            )}
-
-            {bloqueaA.length > 0 && (
-                <div className={styles.dependencyLine}>
-                    Bloquea a: {bloqueaA.map((s) => `#${s.id} ${s.descripcion}`).join(", ")}
-                </div>
+                </div>   
+                )
+                
             )}
 
             {pausada && subtarea.motivo_standby && (

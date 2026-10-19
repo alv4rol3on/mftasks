@@ -6,6 +6,7 @@ const backendInternalUrl =
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.202.10"],
   skipTrailingSlashRedirect: true,
+  devIndicators: false,
   experimental: {
     // El upload pasa por el proxy de Next; el default (10MB) truncaría archivos
     // cercanos al límite de 10MB más el overhead multipart.
