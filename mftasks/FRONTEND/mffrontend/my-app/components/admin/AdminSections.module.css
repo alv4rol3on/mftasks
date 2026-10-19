@@ -13,7 +13,7 @@
 .tabs {
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 8px;
   flex-wrap: wrap;
 }
@@ -21,9 +21,9 @@
 .tabBtn {
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   background: white;
-  color: #374151;
+  color: var(--color-text);
   cursor: pointer;
   text-transform: capitalize;
   font-size: 13px;
@@ -31,10 +31,10 @@
 
 .tabBtnActive {
   padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid #111827;
-  background: #111827;
-  color: white;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-brand);
+  background: var(--color-brand);
+  color: var(--color-background);
   cursor: pointer;
   text-transform: capitalize;
   font-size: 13px;
@@ -47,18 +47,18 @@
 }
 
 .msgError {
-  background: #991b1b;
-  color: #ffffff;
+  background: var(--color-danger);
+  color: var(--color-background);
 }
 
 .msgSuccess {
-  background: #dcfce7;
-  color: #166534;
+  background: color-mix(in srgb, var(--color-done) 12%, white);
+  color: var(--color-done);
 }
 
 .card {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 16px;
 }
@@ -77,7 +77,7 @@
 }
 
 .input {
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 13px;
@@ -87,7 +87,7 @@
 }
 
 .select {
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 13px;
@@ -99,17 +99,22 @@
 .select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background: #f3f4f6;
+  background: var(--color-surface);
 }
 
 .btnPrimary {
-  background: #111827;
-  color: white;
-  border: none;
+  background: var(--color-brand);
+  color: var(--color-background);
+  border: 1px solid var(--color-brand);
   padding: 8px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   font-size: 13px;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
 }
 
 .btnPrimary:disabled {
@@ -119,8 +124,8 @@
 
 .btnSecondary {
   background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
@@ -134,8 +139,8 @@
 
 .btnEdit {
   background: white;
-  color: #3730a3;
-  border: 1px solid #c7d2fe;
+  color: var(--color-detail-header);
+  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
   padding: 4px 10px;
   border-radius: 8px;
   cursor: pointer;
@@ -153,7 +158,7 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text);
   min-width: 0;
 }
 
@@ -163,7 +168,7 @@
 }
 
 .textarea {
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 13px;
@@ -177,17 +182,17 @@
 .sectionDivider {
   margin: 16px 0 12px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border);
   font-size: 12px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
 .modalHint {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   margin-bottom: 12px;
 }
 
@@ -202,7 +207,7 @@
 }
 
 .searchInput {
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 13px;
@@ -228,9 +233,9 @@
 .createToggleBtn {
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   background: white;
-  color: #374151;
+  color: var(--color-text);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -238,10 +243,10 @@
 
 .createToggleActive {
   padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #111827;
-  background: #111827;
-  color: white;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-brand);
+  background: var(--color-brand);
+  color: var(--color-background);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -266,31 +271,31 @@
 .createField label {
   font-size: 12px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--color-text-secondary);
 }
 
 .createHint {
   font-size: 11px;
   font-weight: 400;
-  color: #9ca3af;
+  color: var(--color-text-secondary);
 }
 
 .dupWarning {
   margin-top: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #991b1b;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
   border-radius: 6px;
   padding: 6px 8px;
 }
 
 .sugerencias {
   margin-top: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--color-surface);
   padding: 8px 10px;
   font-weight: 400;
 }
@@ -298,7 +303,7 @@
 .sugerenciasTitle {
   font-size: 11px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: .03em;
   margin-bottom: 4px;
@@ -306,13 +311,13 @@
 
 .sugerenciaItem {
   font-size: 12px;
-  color: #374151;
+  color: var(--color-text);
   padding: 3px 0;
 }
 
 .sugerenciaCode {
   font-family: monospace;
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 
 .tableWrap {
@@ -330,8 +335,8 @@
 }
 
 .table thead tr {
-  background: #0d0e0e;
-  color: white;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   text-align: left;
 }
 
@@ -339,13 +344,13 @@
 .table td {
   padding: 8px;
   white-space: nowrap;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-border);
 }
 
 /* PERMISOS */
 .permisosDesc {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   margin: 0 0 12px;
 }
 
@@ -373,11 +378,11 @@
 }
 
 .clienteDropdown {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   max-height: 180px;
   overflow-y: auto;
-  background: #fafafa;
+  background: var(--color-surface);
   position: absolute;
   top: 100%;
   left: 0;
@@ -392,14 +397,14 @@
   cursor: pointer;
   font-size: 12px;
   font-weight: 400;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   gap: 6px;
   align-items: center;
 }
 
 .clienteOptionActive {
-  background: #ede9fe;
+  background: color-mix(in srgb, var(--color-detail-header) 10%, white);
 }
 
 .permisosStatus {
@@ -410,18 +415,18 @@
 }
 
 .permisosStatusLoading {
-  background: #fef3c7;
-  color: #92400e;
+  background: color-mix(in srgb, var(--color-waiting) 12%, white);
+  color: var(--color-waiting);
 }
 
 .permisosStatusOk {
-  background: #dcfce7;
-  color: #166534;
+  background: color-mix(in srgb, var(--color-done) 12%, white);
+  color: var(--color-done);
 }
 
 .resumenCard {
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 12px;
@@ -462,12 +467,12 @@
 }
 
 .emptyPermisos {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: color-mix(in srgb, var(--color-in-progress) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-in-progress) 28%, white);
   padding: 12px;
   border-radius: 8px;
   font-size: 13px;
-  color: #1e40af;
+  color: var(--color-in-progress);
 }
 
 .campanasList {
@@ -481,14 +486,14 @@
 }
 
 .campanaCard {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   overflow: clip;
   background: white;
 }
 
 .campanaHead {
-  background: #f9fafb;
+  background: var(--color-surface);
   padding: 8px 12px;
   display: flex;
   justify-content: space-between;
@@ -504,7 +509,7 @@
 }
 
 .campanaHead:hover {
-  background: #f3f4f6;
+  background: var(--color-surface);
 }
 
 .campanaBody {
@@ -526,7 +531,7 @@
   display: inline-block;
   transition: transform .18s ease;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 
 .chevronOpen {
@@ -543,7 +548,7 @@
 .linkBtn {
   background: none;
   border: none;
-  color: #fdfdfd;
+  color: var(--color-brand);
   font-size: 12px;
   cursor: pointer;
   text-decoration: underline;
@@ -558,7 +563,7 @@
 .campanaCode {
   font-family: monospace;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 
 .badgeActive {
@@ -569,18 +574,18 @@
 }
 
 .badgeActiveOn {
-  color: #fdfdfd;
-  background: #00ca1b;
+  color: var(--color-background);
+  background: var(--color-done);
 }
 
 .badgeActiveOff {
-  color: #fdfdfd;
-  background: #d10000;
+  color: var(--color-background);
+  background: var(--color-danger);
 }
 
 .campanaCount {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
@@ -598,7 +603,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   background: white;
   border-radius: 8px;
   cursor: pointer;
@@ -629,7 +634,7 @@
 .subName {
   font-size: 12px;
   font-weight: 600;
-  color: #111827;
+  color: var(--color-text);
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -637,7 +642,7 @@
 .subCode {
   font-size: 11px;
   font-family: monospace;
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 
 .subBadge {
@@ -653,7 +658,7 @@
 /* Roles: cadena de aprobación */
 .chain {
   font-size: 11px;
-  color: #374151;
+  color: var(--color-text);
   font-weight: 600;
   white-space: nowrap;
 }

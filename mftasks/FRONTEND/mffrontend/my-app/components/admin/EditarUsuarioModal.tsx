@@ -316,7 +316,7 @@ export default function EditarUsuarioModal({
                     : "Activar"
               }
             />
-            <span style={{ fontSize: 12, color: "#374151" }}>
+            <span style={{ fontSize: 12, color: "var(--color-text)" }}>
               {form.is_active ? "Habilitado" : "Inhabilitado"}
             </span>
           </div>

@@ -1,7 +1,7 @@
 .modalOverlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.55);
+    background: var(--color-overlay);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -26,7 +26,7 @@
 }
 
 .modalHeader {
-    background: #b5b801;
+    background: var(--color-detail-header);
     color: white;
     padding: 18px 24px;
     display: flex;
@@ -54,7 +54,7 @@
 
 .modalFooter {
     padding: 20px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid var(--color-border);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
@@ -70,17 +70,17 @@
 }
 
 .btnYes {
-    background: #2563eb;
-    color: white;
+    background: var(--color-brand);
+    color: var(--color-background);
 }
 
 .btnNo {
-    background: #ff6c61;
+    background: var(--color-danger);
     color: white;
 }
 
 .btnSecondary {
-    background: #ececec;
+    background: var(--color-border);
 }
 
 .close {
@@ -111,7 +111,7 @@
 
 .descriptionBox {
     background: #f7f7f7;
-    border: 1px solid #eee;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: 12px;
     white-space: pre-wrap;
@@ -203,7 +203,7 @@
   width: 100%;
   max-width: 380px;
   padding: 32px 28px;
-  background: #ffffff;
+  background: var(--color-background);
   border-radius: 16px;
   text-align: center;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
@@ -218,7 +218,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #dcfce7;
+  background: color-mix(in srgb, var(--color-done) 12%, white);
   animation: circleIn 0.4s ease-out;
 }
 
@@ -226,7 +226,7 @@
   width: 52px;
   height: 52px;
   fill: none;
-  stroke: #16a34a;
+  stroke: var(--color-done);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -252,7 +252,7 @@
   margin: 0 0 6px;
   font-size: 18px;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-text);
   animation: fadeUp 0.4s 0.2s both;
 }
 
@@ -261,41 +261,46 @@
   font-family: monospace;
   font-size: 14px;
   font-weight: 700;
-  color: #166534;
+  color: var(--color-done);
   animation: fadeUp 0.4s 0.3s both;
 }
 
 .asunto {
   margin: 0 0 20px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   animation: fadeUp 0.4s 0.4s both;
 }
 
 .button {
   width: 100%;
   padding: 10px 16px;
-  border: none;
-  border-radius: 10px;
-  background: #111827;
-  color: #ffffff;
+  border: 1px solid var(--color-brand);
+  border-radius: var(--radius-control);
+  background: var(--color-brand);
+  color: var(--color-background);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   animation: fadeUp 0.4s 0.5s both;
+}
+
+.button:hover {
+  background: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
 }
 
 .confirmIcon {
     font-size: 42px;
     font-weight: 700;
-    color: #92400e;
+    color: var(--color-waiting);
 }
 
 .confirmMotivo {
     margin: 16px 0;
     padding: 12px;
     background: #f7f7f7;
-    border: 1px solid #eee;
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     text-align: left;
     font-size: 13px;
@@ -303,7 +308,7 @@
 
 .confirmMotivo p {
     margin: 6px 0 0;
-    color: #374151;
+    color: var(--color-text);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -321,10 +326,10 @@
 .motivoRespuesta {
     margin: 0 0 20px;
     padding: 10px 12px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: color-mix(in srgb, var(--color-danger) 8%, white);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
     border-radius: 8px;
-    color: #991b1b;
+    color: var(--color-danger);
     font-size: 13px;
     text-align: left;
     white-space: pre-wrap;

@@ -101,11 +101,11 @@ export default function TaskModal({
     };
 
     const colores: Record<string, { bg: string; fg: string }> = {
-        aprobado: { bg: "#dcfce7", fg: "#166534" },
-        rechazado: { bg: "#fee2e2", fg: "#991b1b" },
-        actual: { bg: "#fef3c7", fg: "#92400e" },
-        pendiente: { bg: "#f3f4f6", fg: "#6b7280" },
-        omitido: { bg: "#f3f4f6", fg: "#9ca3af" },
+        aprobado: { bg: "color-mix(in srgb, var(--color-done) 12%, white)", fg: "var(--color-done)" },
+        rechazado: { bg: "color-mix(in srgb, var(--color-danger) 10%, white)", fg: "var(--color-danger)" },
+        actual: { bg: "color-mix(in srgb, var(--color-waiting) 12%, white)", fg: "var(--color-waiting)" },
+        pendiente: { bg: "var(--color-surface)", fg: "var(--color-text-secondary)" },
+        omitido: { bg: "var(--color-surface)", fg: "var(--color-text-secondary)" },
     };
 
     const etiquetas: Record<string, string> = {
@@ -330,7 +330,7 @@ export default function TaskModal({
                                 return (
                                     <Fragment key={paso}>
                                         {idx > 0 && (
-                                            <div style={{ fontSize: 20, fontWeight: 700, color: "#6b7280" }}>
+                                            <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-secondary)" }}>
                                                 →
                                             </div>
                                         )}
@@ -360,7 +360,7 @@ export default function TaskModal({
                                     marginTop: 10,
                                     paddingLeft: 18,
                                     fontSize: 12,
-                                    color: "#374151",
+                                    color: "var(--color-text)",
                                 }}
                             >
                                 {(tarea.aprobaciones ?? []).map((a) => (

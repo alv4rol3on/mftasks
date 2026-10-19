@@ -35,9 +35,9 @@ export default function Pagination({ page, totalPages, totalItems, pageSize, onP
           style={{
             padding: "6px 12px",
             borderRadius: 8,
-            border: "1px solid #d1d5db",
-            background: page <= 1 ? "#f3f4f6" : "white",
-            color: page <= 1 ? "#9ca3af" : "#111827",
+            border: "1px solid var(--color-border)",
+            background: page <= 1 ? "var(--color-disabled)" : "var(--color-background)",
+            color: page <= 1 ? "var(--color-text-secondary)" : "var(--color-text)",
             cursor: page <= 1 ? "not-allowed" : "pointer",
             fontSize: 13,
             fontWeight: 600,
@@ -48,7 +48,7 @@ export default function Pagination({ page, totalPages, totalItems, pageSize, onP
 
         {pages.map((p, idx) =>
           typeof p === "string" ? (
-            <span key={`ellipsis-${idx}`} style={{ padding: "6px 4px", color: "#6b7280", fontSize: 13 }}>…</span>
+            <span key={`ellipsis-${idx}`} style={{ padding: "6px 4px", color: "var(--color-text-secondary)", fontSize: 13 }}>…</span>
           ) : (
             <button
               key={p}
@@ -59,9 +59,9 @@ export default function Pagination({ page, totalPages, totalItems, pageSize, onP
                 minWidth: 36,
                 padding: "6px 10px",
                 borderRadius: 8,
-                border: p === page ? "1px solid #2563eb" : "1px solid #d1d5db",
-                background: p === page ? "#2563eb" : "white",
-                color: p === page ? "white" : "#374151",
+                border: p === page ? "1px solid var(--color-brand)" : "1px solid var(--color-border)",
+                background: p === page ? "var(--color-brand)" : "var(--color-background)",
+                color: p === page ? "var(--color-background)" : "var(--color-text)",
                 cursor: "pointer",
                 fontSize: 13,
                 fontWeight: p === page ? 700 : 500,
@@ -79,9 +79,9 @@ export default function Pagination({ page, totalPages, totalItems, pageSize, onP
           style={{
             padding: "6px 12px",
             borderRadius: 8,
-            border: "1px solid #d1d5db",
-            background: page >= totalPages ? "#f3f4f6" : "white",
-            color: page >= totalPages ? "#9ca3af" : "#111827",
+            border: "1px solid var(--color-border)",
+            background: page >= totalPages ? "var(--color-disabled)" : "var(--color-background)",
+            color: page >= totalPages ? "var(--color-text-secondary)" : "var(--color-text)",
             cursor: page >= totalPages ? "not-allowed" : "pointer",
             fontSize: 13,
             fontWeight: 600,
@@ -91,7 +91,7 @@ export default function Pagination({ page, totalPages, totalItems, pageSize, onP
         </button>
       </div>
       {typeof totalItems === "number" && typeof pageSize === "number" && (
-        <div style={{ textAlign: "center", fontSize: 12, color: "#6b7280" }}>
+        <div style={{ textAlign: "center", fontSize: 12, color: "var(--color-text-secondary)" }}>
           Mostrando {start}-{end} de {totalItems} · Página {page} de {totalPages}
         </div>
       )}

@@ -1,260 +1,435 @@
-.taskTableContainer {
+.tableCard {
+    --mf-border: var(--color-border);
+    --mf-text: var(--color-text);
+    --mf-muted: var(--color-text-secondary);
+    --mf-dev: var(--color-in-progress);
+    --mf-done: var(--color-done);
+    --mf-danger: var(--color-danger);
+    border: 1px solid var(--mf-border);
+    border-radius: 12px;
+    background: var(--color-background);
+    overflow: hidden;
+}
+
+.tableContainer {
     width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
-    margin-top: 15px;
+    -webkit-overflow-scrolling: touch;
 }
 
 .taskTable {
     width: 100%;
-    min-width: 1000px;
-    background: #fff;
-    border: 1px solid #d8d8d8;
-    border-radius: 10px;
-    font-size: 14px;
-    overflow: hidden;
+    min-width: 1060px;
+    border-collapse: collapse;
+    font-size: 13px;
+    color: var(--mf-text);
 }
 
-.taskHeader,
-.taskRow {
-    display: grid;
-    grid-template-columns: 60px minmax(220px, 3fr) minmax(150px, 2fr) 160px 140px 170px 180px;
-    align-items: center;
-}
-
-.taskHeader {
-    background: #f3f4f6;
-    color: #444;
-    font-weight: 600;
-    border-bottom: 2px solid #ddd;
-}
-
-.taskHeader div,
-.taskRow div {
-    padding: 14px 18px;
-    min-width: 0;
-}
-
-.taskHeader div {
+.taskTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--mf-border);
+    background: var(--color-surface);
+    color: var(--mf-muted);
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
     white-space: nowrap;
 }
 
-.taskRow {
-    border-bottom: 1px solid #ececec;
-    transition: background .2s;
+.taskTable thead th:nth-child(1) { width: 145px; }
+.taskTable thead th:nth-child(3) { width: 150px; }
+.taskTable thead th:nth-child(4) { width: 150px; }
+.taskTable thead th:nth-child(5) { width: 160px; }
+.taskTable thead th:nth-child(6) { width: 185px; }
+
+.taskTable tbody td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
 }
 
-.taskRow:last-child {
+.taskTable tbody tr:last-child td {
     border-bottom: none;
 }
 
-.taskRow:hover {
-    background: #f8fbff;
+.taskRow {
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s;
 }
 
-.taskSubject {
-    font-weight: 600;
-    color: #1d3557;
+.taskRow:hover {
+    background: #f7fafc;
+}
 
-    /* Permite que el asunto ocupe varias líneas */
-    white-space: normal;
+.taskRow:focus-visible {
+    outline: 2px solid var(--color-detail-header);
+    outline-offset: -2px;
+}
+
+.rowSolucionado {
+    background: #f6fbf8;
+    box-shadow: inset 3px 0 0 var(--color-done);
+}
+
+.rowStandBy {
+    background: #fffbf3;
+    box-shadow: inset 3px 0 0 var(--color-waiting);
+}
+
+.rowFueraDeTiempo {
+    background: #fff8f7;
+    box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.rowPendiente:not(.rowSolucionado):not(.rowStandBy):not(.rowFueraDeTiempo) {
+    box-shadow: inset 3px 0 0 var(--color-detail-header);
+}
+
+.dateCell {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.subjectCell {
+    min-width: 250px;
+}
+
+.subjectTitle {
+    display: block;
+    color: #12263f;
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.35;
     overflow-wrap: anywhere;
 }
 
-.btnDetalles,
-.btnIniciar {
-    padding: 8px 14px;
-    border: none;
+.subjectMeta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+    color: var(--mf-muted);
+    font-size: 11px;
+}
+
+.ticket {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-border);
     border-radius: 6px;
-    color: white;
-    cursor: pointer;
-    transition: background .2s;
+    background: var(--color-surface);
+    padding: 1px 6px;
+    color: var(--color-text);
+    font-size: 10.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.pendingNote {
+    display: block;
+    margin-top: 5px;
+    color: #8a5a0a;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.teamCell {
+    color: var(--color-text);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.deliveryCell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
     white-space: nowrap;
 }
 
-.btnDetalles {
-    background: rgb(58, 194, 248);
+.deliveryDate {
+    color: var(--color-text);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
-.btnDetalles:hover {
-    background: #c4c6ce;
+.counter {
+    color: var(--mf-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 
-.btnIniciar {
-    background: #16a34a;
-    margin-left: 8px;
+.progress {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 130px;
 }
 
-.btnIniciar:hover:not(:disabled) {
-    background: #15803d;
+.progressTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
 }
 
-.btnIniciar:disabled {
-    opacity: .6;
-    cursor: not-allowed;
+.progressValue {
+    color: var(--mf-text);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
-/* =========================================================
-   TABLET
-   ========================================================= */
+.progressMeta {
+    color: var(--mf-muted);
+    font-size: 10.5px;
+    white-space: nowrap;
+}
 
-@media (max-width: 1100px) {
+.progressTrack {
+    width: 100%;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--color-disabled);
+    overflow: hidden;
+}
+
+.progressBar {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--mf-dev);
+    transition: width .25s ease;
+}
+
+.progressBarDone {
+    background: var(--mf-done);
+}
+
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    padding: 28px;
+    text-align: center;
+}
+
+.emptyIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 10px;
+    border-radius: 50%;
+    background: #e7f5ee;
+    color: var(--mf-done);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.emptyState strong {
+    color: var(--mf-text);
+    font-size: 15px;
+}
+
+.emptyState p {
+    margin: 5px 0 0;
+    color: var(--mf-muted);
+    font-size: 12px;
+}
+
+.paginationWrap {
+    margin-top: 12px;
+}
+
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.tableContainer::-webkit-scrollbar {
+    height: 8px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+    background: #c3cbd5;
+    border-radius: 4px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
+}
+
+@media (max-width: 1050px) {
     .taskTable {
-        min-width: 900px;
+        min-width: 860px;
     }
 
-    .taskHeader,
-    .taskRow {
-        grid-template-columns:
-            55px
-            minmax(180px, 2.5fr)
-            minmax(130px, 1.5fr)
-            130px
-            120px
-            150px
-            160px;
-    }
-
-    .taskHeader div,
-    .taskRow div {
-        padding: 12px 12px;
+    .taskTable thead th:nth-child(3),
+    .taskTable tbody td[data-col="equipo"] {
+        display: none;
     }
 }
 
+@media (max-width: 780px) {
+    .tableCard {
+        border: none;
+        background: transparent;
+        overflow: visible;
+    }
 
-/* =========================================================
-   MÓVIL
-   ========================================================= */
-
-@media (max-width: 700px) {
-
-    .taskTableContainer {
+    .tableContainer {
         overflow-x: visible;
     }
 
     .taskTable {
         min-width: 0;
         width: 100%;
-        border: none;
-        background: transparent;
-        overflow: visible;
     }
 
-    /* Ocultamos encabezado */
-    .taskHeader {
+    .taskTable thead {
         display: none;
     }
 
-    /* Cada fila se convierte en una tarjeta */
-    .taskRow {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0;
-        background: #fff;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        margin-bottom: 12px;
-        padding: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .taskRow:hover {
-        background: #fff;
-    }
-
-    .taskRow div {
-        padding: 10px;
-        min-width: 0;
-        white-space: normal;
-        overflow-wrap: anywhere;
-    }
-
-    /* ID */
-    .taskRow div:nth-child(1) {
-        font-weight: 600;
-        color: #555;
-    }
-
-    /* Asunto ocupa toda la fila */
-    .taskRow div:nth-child(2) {
-        grid-column: 1 / -1;
-        font-size: 15px;
-    }
-
-    /* Cliente */
-    .taskRow div:nth-child(3) {
-        grid-column: 1 / -1;
-    }
-
-    /* Equipo */
-    .taskRow div:nth-child(4) {
-        grid-column: 1 / -1;
-    }
-
-    /* Estado */
-    .taskRow div:nth-child(5) {
-        grid-column: 1 / -1;
-    }
-
-    /* Fecha */
-    .taskRow div:nth-child(6) {
-        grid-column: 1 / -1;
-    }
-
-    /* Acciones */
-    .taskRow div:nth-child(7) {
-        grid-column: 1 / -1;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding-top: 14px;
-        border-top: 1px solid #eee;
-    }
-
-    .btnDetalles,
-    .btnIniciar {
-        flex: 1;
-        min-width: 120px;
-        margin-left: 0;
-    }
-}
-
-
-/* =========================================================
-   MÓVILES PEQUEÑOS
-   ========================================================= */
-
-@media (max-width: 400px) {
-
-    .taskRow {
-        grid-template-columns: 1fr;
-    }
-
-    .taskRow div {
-        grid-column: 1 / -1 !important;
-    }
-
-    .btnDetalles,
-    .btnIniciar {
+    .taskTable tbody,
+    .taskTable tbody tr,
+    .taskTable tbody td {
+        display: block;
         width: 100%;
-        flex: none;
+    }
+
+    .taskTable tbody tr {
+        margin-bottom: 10px;
+        border: 1px solid var(--mf-border);
+        border-radius: 12px;
+        background: var(--color-background);
+        box-shadow: 0 1px 3px rgba(16, 24, 40, .05);
+        overflow: hidden;
+    }
+
+    .taskRow:hover,
+    .rowSolucionado,
+    .rowStandBy,
+    .rowFueraDeTiempo {
+        background: var(--color-background);
+    }
+
+    .rowSolucionado { box-shadow: inset 4px 0 0 var(--color-done); }
+    .rowStandBy { box-shadow: inset 4px 0 0 var(--color-waiting); }
+    .rowFueraDeTiempo { box-shadow: inset 4px 0 0 var(--color-danger); }
+    .rowPendiente:not(.rowSolucionado):not(.rowStandBy):not(.rowFueraDeTiempo) {
+        box-shadow: inset 4px 0 0 var(--color-detail-header);
+    }
+
+    .taskTable tbody td {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--color-border);
+        text-align: right;
+    }
+
+    .taskTable tbody td:last-child {
+        border-bottom: none;
+    }
+
+    .taskTable tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 38%;
+        color: var(--mf-muted);
+        text-align: left;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .taskTable tbody td[data-label="Solicitud"] {
+        display: block;
+        padding: 13px 14px;
+        background: #fbfcfd;
+        border-bottom: 1px solid var(--color-border);
+        text-align: left;
+    }
+
+    .taskTable tbody td[data-label="Solicitud"]::before {
+        display: none;
+    }
+
+    .taskTable tbody td[data-col="equipo"] {
+        display: flex;
+    }
+
+    .dateCell,
+    .deliveryCell,
+    .progress {
+        white-space: normal;
+    }
+
+    .deliveryCell {
+        align-items: flex-end;
+    }
+
+    .progress {
+        flex: 1;
+        align-items: stretch;
+        max-width: 60%;
+    }
+
+    .progressTop {
+        align-items: baseline;
+    }
+
+    .progressMeta {
+        white-space: normal;
+        text-align: right;
     }
 }
 
+@media (max-width: 480px) {
+    .taskTable tbody td {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
 
-/* =========================================================
-   SCROLLBAR
-   ========================================================= */
+    .taskTable tbody td::before {
+        flex-basis: 42%;
+        font-size: 10px;
+    }
 
-.taskTableContainer::-webkit-scrollbar {
-    height: 8px;
+    .subjectTitle {
+        font-size: 13px;
+    }
+
+    .progress {
+        max-width: 55%;
+    }
 }
 
-.taskTableContainer::-webkit-scrollbar-thumb {
-    background: #b5b5b5;
-    border-radius: 4px;
-}
-
-.taskTableContainer::-webkit-scrollbar-thumb:hover {
-    background: #8d8d8d;
+@media (prefers-reduced-motion: reduce) {
+    .taskRow,
+    .progressBar {
+        transition: none;
+    }
 }

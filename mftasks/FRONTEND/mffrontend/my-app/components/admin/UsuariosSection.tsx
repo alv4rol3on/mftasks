@@ -268,7 +268,7 @@ export default function UsuariosSection({ setMsg }: Props) {
         {cargando ? (
           <div
             style={{
-              color: "#374151",
+              color: "var(--color-text)",
               fontSize: 13,
             }}
           >
@@ -301,7 +301,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                         style={{
                           textAlign: "center",
                           padding: 16,
-                          color: "#6b7280",
+                          color: "var(--color-text-secondary)",
                         }}
                       >
                         No hay usuarios que coincidan.
@@ -318,26 +318,26 @@ export default function UsuariosSection({ setMsg }: Props) {
                       const rolActual = (u.roles ?? [])[0] ?? "";
 
                       const badgeAdmin = {
-                        background: "#3a6aed",
-                        color: "#fafafa",
+                        background: "var(--color-badge)",
+                        color: "var(--color-background)",
                         padding: "2px 6px",
-                        borderRadius: 6,
+                        borderRadius: 999,
                         fontSize: 11,
                       } as const;
 
                       const badgeCliente = {
-                        background: "#00ca1b",
-                        color: "#fafafa",
+                        background: "var(--color-badge)",
+                        color: "var(--color-background)",
                         padding: "2px 6px",
-                        borderRadius: 6,
+                        borderRadius: 999,
                         fontSize: 11,
                       } as const;
 
                       const badgeColab = {
-                        background: "#d10000",
-                        color: "#fafafa",
+                        background: "var(--color-badge)",
+                        color: "var(--color-background)",
                         padding: "2px 6px",
-                        borderRadius: 6,
+                        borderRadius: 999,
                         fontSize: 11,
                       } as const;
 
@@ -356,7 +356,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                                 "monospace",
                               fontSize: 12,
                               fontWeight: 700,
-                              color: "#991b1b",
+                              color: "var(--color-danger)",
                             }}
                           >
                             {u.codigo ?? "-"}

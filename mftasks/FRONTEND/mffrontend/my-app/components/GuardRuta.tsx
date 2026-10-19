@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCapacidades } from "./CapacidadesProvider";
+import PageLoader from "./ui/PageLoader";
 import { rutaPermitida } from "@/lib/capacidades";
 
 /**
@@ -28,7 +29,14 @@ export default function GuardRuta({
     }
   }, [cargando, autenticado, permitido, router]);
 
-  if (cargando || !autenticado) return null;
+  if (!autenticado) {
+    return <PageLoader label="Verificando sesión…" />;
+  }
+
+  if (cargando) {
+    return <PageLoader label="Cargando permisos…" />;
+  }
+
   if (!permitido) return null;
 
   return <>{children}</>;

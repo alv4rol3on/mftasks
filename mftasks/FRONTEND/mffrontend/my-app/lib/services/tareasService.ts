@@ -77,6 +77,10 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   return apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`);
 }
 
+export async function fetchTarea(tareaId: number): Promise<Task> {
+  return apiFetch<Task>(`/api/tasks/tasks/${tareaId}/?con_retraso=1`);
+}
+
 export async function iniciarTarea(tareaId: number, payload: IniciarPayload): Promise<void> {
   await apiFetch(`/api/tasks/tasks/${tareaId}/iniciar/`, {
     method: "POST",

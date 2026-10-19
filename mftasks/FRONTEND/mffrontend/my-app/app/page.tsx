@@ -10,6 +10,8 @@ import {
     isAutenticado,
     ErrorDeSesion,
 } from "@/lib/auth";
+import Spinner from "@/components/ui/Spinner";
+import styles from "./Login.module.css";
 
 export default function Home() {
     const { instance, accounts, inProgress } = useMsal();
@@ -63,57 +65,49 @@ export default function Home() {
         );
     };
 
+    const autenticando =
+        cargando || inProgress !== InteractionStatus.None;
+
     return (
-        <main
-            style={{
-                minHeight: "100vh",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "1rem",
-                fontFamily: "system-ui, sans-serif",
-            }}
-        >
-            <h1 style={{ fontSize: "1.5rem", margin: 0 }}>
-                Portal de tareas
-            </h1>
+        <main className={styles.page}>
+            <section className={styles.card}>
+                <img src="/mfsac.png" alt="MF SAC" className={styles.logo} />
 
-            {cargando && <p>Autenticando con Microsoft…</p>}
+                <p className={styles.eyebrow}>MF Tasks</p>
+                <h1 className={styles.title}>Portal de tareas</h1>
 
-            {!cargando && (
-                <button
-                    onClick={() => iniciarSesion()}
-                    disabled={inProgress !== InteractionStatus.None}
-                    style={{
-                        padding: "0.75rem 1.5rem",
-                        fontSize: "1rem",
-                        cursor: "pointer",
-                    }}
-                >
-                    Iniciar sesión con Microsoft
-                </button>
-            )}
+                {autenticando ? (
+                    <p className={styles.status} role="status" aria-live="polite">
+                        <Spinner size={18} />
+                        <span>
+                            {cargando
+                                ? "Autenticando con Microsoft…"
+                                : "Conectando con Microsoft…"}
+                        </span>
+                    </p>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => iniciarSesion()}
+                        className={styles.primary}
+                    >
+                        Iniciar sesión con Microsoft
+                    </button>
+                )}
 
-            {error && (
-                <button
-                    onClick={() => iniciarSesion(true)}
-                    disabled={inProgress !== InteractionStatus.None}
-                    style={{
-                        padding: "0.75rem 1.5rem",
-                        fontSize: "1rem",
-                        cursor: "pointer",
-                    }}
-                >
-                    Iniciar sesión con otro correo
-                </button>
-            )}
+                {error && (
+                    <button
+                        type="button"
+                        onClick={() => iniciarSesion(true)}
+                        disabled={inProgress !== InteractionStatus.None}
+                        className={styles.secondary}
+                    >
+                        Iniciar sesión con otro correo
+                    </button>
+                )}
 
-            {error && (
-                <p style={{ color: "#b91c1c", maxWidth: "30rem", textAlign: "center" }}>
-                    {error}
-                </p>
-            )}
+                {error && <p className={styles.error}>{error}</p>}
+            </section>
         </main>
     );
 }

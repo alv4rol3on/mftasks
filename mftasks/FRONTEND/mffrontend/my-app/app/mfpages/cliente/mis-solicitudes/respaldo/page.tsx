@@ -12,7 +12,7 @@ const formatter = new Intl.DateTimeFormat("es-PE", { timeZone: "America/Lima", d
 const fmt = (f: string | null | undefined) => (!f ? "-" : isNaN(new Date(f).getTime()) ? "-" : formatter.format(new Date(f)));
 
 const estadoColor: Record<string, string> = {
-  EN_ESPERA: "#f59e0b", APROBADO: "#2563eb", EN_DESARROLLO: "#7c3aed", RECHAZADO: "#dc2626", SOLUCIONADO: "#16a34a",
+  EN_ESPERA: "var(--color-waiting)", APROBADO: "var(--color-in-progress)", EN_DESARROLLO: "var(--color-detail-header)", RECHAZADO: "var(--color-danger)", SOLUCIONADO: "var(--color-done)",
 };
 
 export default function MisSolicitudesPage() {
@@ -51,7 +51,7 @@ export default function MisSolicitudesPage() {
     cargar(busqueda);
   };*/}
   if (cargando) return <div>Cargando solicitudes…</div>;
-  if (error) return <div style={{ color: "#dc2626" }}>Error: {error}</div>;
+  if (error) return <div style={{ color: "var(--color-danger)" }}>Error: {error}</div>;
 
 
 
@@ -60,40 +60,40 @@ export default function MisSolicitudesPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <h2 className="text-lg font-medium">Mis solicitudes</h2>
         {/*<form onSubmit={handleBuscar} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240 }} />
-          <button type="submit" style={{ background: "#111827", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
-          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}
+          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240 }} />
+          <button type="submit" style={{ background: "var(--color-text)", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
+          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}
         </form>*/}
-        <button onClick={() => setOpenCrear(true)} style={{ background: "#2563eb", color: "white", padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer" }}>+ Crear solicitud</button>
+        <button onClick={() => setOpenCrear(true)} style={{ background: "var(--color-in-progress)", color: "white", padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer" }}>+ Crear solicitud</button>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         {["TODAS", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "RECHAZADO", "SOLUCIONADO"].map((est) => (
-          <button key={est} onClick={() => setFiltro(est)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: filtro === est ? "#3128bb" : "white", color: filtro === est ? "white" : "#333", cursor: "pointer", fontSize: 12 }}>{est}</button>
+          <button key={est} onClick={() => setFiltro(est)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--color-border)", background: filtro === est ? "var(--color-detail-header)" : "white", color: filtro === est ? "white" : "#333", cursor: "pointer", fontSize: 12 }}>{est}</button>
         ))}
       </div>
 
       {filtradas.length === 0 ? (
-        <div className="rounded p-4 text-sm" style={{ background: "#f9fafb", border: "1px dashed #ddd" }}>No hay solicitudes en este estado.</div>
+        <div className="rounded p-4 text-sm" style={{ background: "var(--color-surface)", border: "1px dashed var(--color-border)" }}>No hay solicitudes en este estado.</div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {filtradas.map((t) => (
-            <div key={t.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, background: "white" }}>
+            <div key={t.id} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, background: "white" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{t.asunto} <span style={{ background: estadoColor[t.estado] ?? "#6b7280", color: "white", padding: "2px 6px", borderRadius: 4, fontSize: 10, marginLeft: 6 }}>{t.estado}</span></div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>{t.cliente_nombre} • {t.equipo_nombre} • {fmt(t.fecha_creacion)}</div>
-                  {t.motivo_rechazo && t.estado === "RECHAZADO" && <div style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>Motivo: {t.motivo_rechazo}</div>}
+                  <div style={{ fontWeight: 600 }}>{t.asunto} <span style={{ background: estadoColor[t.estado] ?? "var(--color-text-secondary)", color: "white", padding: "2px 6px", borderRadius: 4, fontSize: 10, marginLeft: 6 }}>{t.estado}</span></div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{t.cliente_nombre} • {t.equipo_nombre} • {fmt(t.fecha_creacion)}</div>
+                  {t.motivo_rechazo && t.estado === "RECHAZADO" && <div style={{ fontSize: 12, color: "var(--color-danger)", marginTop: 4 }}>Motivo: {t.motivo_rechazo}</div>}
                 </div>
-                <button onClick={() => setSelected(t)} style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "1px solid #3128bb", color: "#3128bb", background: "white", cursor: "pointer", fontSize: 12 }}>Ver detalle</button>
+                <button onClick={() => setSelected(t)} style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "1px solid var(--color-detail-header)", color: "var(--color-detail-header)", background: "white", cursor: "pointer", fontSize: 12 }}>Ver detalle</button>
               </div>
               {(t.estado === "EN_DESARROLLO" || t.estado === "SOLUCIONADO" || t.subtareas.length > 0) && (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginBottom: 4 }}><span>Progreso</span><span>{parseFloat(String(t.progreso ?? 0)).toFixed(1)}%</span></div>
-                  <div style={{ background: "#e5e7eb", borderRadius: 6, height: 8, overflow: "hidden" }}>
-                    <div style={{ width: `${Math.min(100, parseFloat(String(t.progreso ?? 0)) || 0)}%`, background: "#2563eb", height: "100%" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4 }}><span>Progreso</span><span>{parseFloat(String(t.progreso ?? 0)).toFixed(1)}%</span></div>
+                  <div style={{ background: "var(--color-border)", borderRadius: 6, height: 8, overflow: "hidden" }}>
+                    <div style={{ width: `${Math.min(100, parseFloat(String(t.progreso ?? 0)) || 0)}%`, background: "var(--color-in-progress)", height: "100%" }} />
                   </div>
-                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>{t.subtareas.length} subtareas • {t.subtareas.filter((s) => s.estado === "SOLUCIONADO").length} completadas</div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>{t.subtareas.length} subtareas • {t.subtareas.filter((s) => s.estado === "SOLUCIONADO").length} completadas</div>
                 </div>
               )}
             </div>

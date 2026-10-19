@@ -38,6 +38,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <div
+        role="status"
+        aria-live="polite"
         style={{
           position: "fixed",
           bottom: 20,
@@ -52,11 +54,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={t.id}
             style={{
-              background: t.type === "success" ? "#16a34a" : t.type === "error" ? "#dc2626" : "#2563eb",
-              color: "white",
+              background: t.type === "success"
+                ? "var(--color-success)"
+                : t.type === "error"
+                  ? "var(--color-danger)"
+                  : "var(--color-detail-header)",
+              color: "var(--color-background)",
               padding: "12px 20px",
-              borderRadius: 8,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              borderRadius: "var(--radius-control)",
+              boxShadow: "0 4px 12px rgba(16,24,40,0.18)",
               fontSize: 14,
               minWidth: 220,
               maxWidth: 360,

@@ -3,11 +3,16 @@
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 8px;
   line-height: 0;
   cursor: pointer;
   transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .btn:disabled {
@@ -20,31 +25,31 @@
 }
 
 .solid {
-  background: #111827;
-  color: #ffffff;
+  background: var(--color-brand);
+  color: var(--color-background);
 }
 
 .solid:hover:not(:disabled) {
-  background: #1f2937;
+  background: var(--color-brand-hover);
 }
 
 .outline {
-  background: #ffffff;
-  color: #374151;
-  border-color: #d1d5db;
+  background: var(--color-background);
+  color: var(--color-text);
+  border-color: var(--color-border);
 }
 
 .outline:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--color-surface);
 }
 
 .ghost {
   background: transparent;
-  color: #374151;
+  color: var(--color-text);
 }
 
 .ghost:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--color-surface);
 }
 
 .spin {

@@ -513,7 +513,7 @@ export default function PermisosSection({ setMsg }: Props) {
                   gap: 8,
                   flexWrap: "wrap",
                   fontSize: 12,
-                  color: "#374151",
+                  color: "var(--color-text)",
                 }}
               >
                 <span>
@@ -538,13 +538,13 @@ export default function PermisosSection({ setMsg }: Props) {
                   title="Quitar selección"
                   style={{
                     border:
-                      "1px solid #d1d5db",
+                      "1px solid var(--color-border)",
                     background: "white",
                     borderRadius: 6,
                     padding: "2px 8px",
                     fontSize: 11,
                     cursor: "pointer",
-                    color: "#b91c1c",
+                    color: "var(--color-danger)",
                   }}
                 >
                   ✕ Quitar selección
@@ -658,7 +658,7 @@ export default function PermisosSection({ setMsg }: Props) {
                     <span
                       style={{
                         fontFamily: "monospace",
-                        color: "#6b7280",
+                        color: "var(--color-text-secondary)",
                       }}
                     >
                       ({p.subcampana})
@@ -720,7 +720,7 @@ export default function PermisosSection({ setMsg }: Props) {
           <div
             style={{
               fontSize: 13,
-              color: "#6b7280",
+              color: "var(--color-text-secondary)",
               marginTop: 16,
             }}
           >
@@ -734,7 +734,7 @@ export default function PermisosSection({ setMsg }: Props) {
               <div
                 style={{
                   fontSize: 13,
-                  color: "#6b7280",
+                  color: "var(--color-text-secondary)",
                   marginTop: 16,
                 }}
               >
@@ -747,7 +747,7 @@ export default function PermisosSection({ setMsg }: Props) {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--color-text-secondary)",
                         marginBottom: 6,
                       }}
                     >
@@ -792,7 +792,7 @@ export default function PermisosSection({ setMsg }: Props) {
                     <div
                       style={{
                         fontSize: 13,
-                        color: "#6b7280",
+                        color: "var(--color-text-secondary)",
                       }}
                     >
                       {filtroActivoCampana ===
@@ -858,7 +858,7 @@ export default function PermisosSection({ setMsg }: Props) {
                                   style={{
                                     fontSize: 12,
                                     color:
-                                      "#9ca3af",
+                                      "var(--color-text-secondary)",
                                   }}
                                 >
                                   Sin

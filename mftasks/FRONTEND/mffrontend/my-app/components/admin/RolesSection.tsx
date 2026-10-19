@@ -327,7 +327,7 @@ export default function RolesSection({ setMsg }: Props) {
         </div>
 
         {cargando ? (
-          <div style={{ color: "#374151", fontSize: 13 }}>Cargando...</div>
+          <div style={{ color: "var(--color-text)", fontSize: 13 }}>Cargando...</div>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
@@ -351,7 +351,7 @@ export default function RolesSection({ setMsg }: Props) {
                       style={{
                         textAlign: "center",
                         padding: 16,
-                        color: "#6b7280",
+                        color: "var(--color-text-secondary)",
                       }}
                     >
                       No hay roles que coincidan.
@@ -375,7 +375,7 @@ export default function RolesSection({ setMsg }: Props) {
                             }}
                           >
                             {depth > 0 && (
-                              <span style={{ color: "#9ca3af" }}>↳</span>
+                              <span style={{ color: "var(--color-text-secondary)" }}>↳</span>
                             )}
                             <div>
                               <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
@@ -387,8 +387,8 @@ export default function RolesSection({ setMsg }: Props) {
                                     height: 10,
                                     borderRadius: 999,
                                     flexShrink: 0,
-                                    background: rol.color || "#252525",
-                                    border: "1px solid #d1d5db",
+                                    background: rol.color || "var(--color-sidebar)",
+                                    border: "1px solid var(--color-border)",
                                   }}
                                 />
                                 {rol.nombre}
@@ -397,7 +397,7 @@ export default function RolesSection({ setMsg }: Props) {
                                 <div
                                   style={{
                                     fontSize: 11,
-                                    color: "#6b7280",
+                                    color: "var(--color-text-secondary)",
                                   }}
                                 >
                                   {rol.descripcion}

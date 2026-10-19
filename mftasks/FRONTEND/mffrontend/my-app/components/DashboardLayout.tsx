@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMsal } from "@azure/msal-react";
 import Sidebar from "./Sidebar";
 import CapacidadesProvider from "./CapacidadesProvider";
@@ -21,6 +21,7 @@ export default function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { instance } = useMsal();
 
   // Estado para el menú hamburguesa
@@ -51,7 +52,7 @@ export default function DashboardLayout({
 
   return (
     <CapacidadesProvider>
-      <div className="dashboard-layout">
+      <div className={`dashboard-layout ${menuOpen ? "sidebar-open" : ""}`}>
         <Sidebar
           menuOpen={menuOpen}
           setMenuOpen={setMenuOpen}
@@ -59,21 +60,22 @@ export default function DashboardLayout({
 
         <main className="dashboard-main">
           <header className="dashboard-header">
-            {/* Botón hamburguesa (solo visible en móviles) */}
-            <button
-              type="button"
-              className="menu-button"
-              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-              aria-expanded={menuOpen}
-              aria-controls="sidebar"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              ☰
-            </button>
+            <div className="dashboard-header-left">
+              <button
+                type="button"
+                className="menu-button"
+                aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+                aria-expanded={menuOpen}
+                aria-controls="sidebar"
+                onClick={() => setMenuOpen(!menuOpen)}
+              >
+                ☰
+              </button>
 
-            <div style={{ display:"flex", flexDirection:"column", lineHeight:1.1}}>
-              <h1 style={{ margin:0}}>Hola, {nombre || "..."}</h1>
-              {codigo && <span style={{ fontSize:11, opacity:0.9, fontWeight:400}}>{codigo}</span>}
+              <div className="dashboard-user">
+                <h1>Hola, {nombre || "..."}</h1>
+                {codigo && <span>{codigo}</span>}
+              </div>
             </div>
 
             <button
@@ -85,7 +87,7 @@ export default function DashboardLayout({
             </button>
           </header>
 
-          <section className="dashboard-content">
+          <section key={pathname} className="dashboard-content">
             <GuardRuta>{children}</GuardRuta>
           </section>
         </main>

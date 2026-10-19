@@ -56,7 +56,7 @@ export default function AlertasResumen() {
     }
   }, [showToast]);*/}
 
-  if (cargando) return <div style={{ fontSize: 13, color: "#6b7280" }}>Cargando alertas…</div>;
+  if (cargando) return <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Cargando alertas…</div>;
   if (error) return <div className="rounded p-4 text-sm text-red-600">Error al cargar alertas: {error}</div>;
 
   const esAsignador = resumen?.tipo === "asignador" || resumen?.tipo === "admin";
@@ -74,12 +74,12 @@ export default function AlertasResumen() {
         ) : (
           <div className="grid gap-3">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ background: "#fef3c7", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En espera: {resumen?.en_espera ?? 0}</span>
-              <span style={{ background: "#dcfce7", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Aprobadas: {resumen?.aprobadas ?? 0}</span>
-              <span style={{ background: "#dbeafe", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En desarrollo: {resumen?.en_desarrollo ?? 0}</span>
-              <span style={{ background: "#fee2e2", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Rechazadas: {resumen?.rechazadas ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En espera: {resumen?.en_espera ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Aprobadas: {resumen?.aprobadas ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En desarrollo: {resumen?.en_desarrollo ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Rechazadas: {resumen?.rechazadas ?? 0}</span>
             </div>
-            <Link href="/mfpages/cliente/mis-solicitudes" style={{ color: "#2563eb", textDecoration: "underline", fontSize: 14 }}>
+            <Link href="/mfpages/cliente/mis-solicitudes" style={{ color: "var(--color-in-progress)", textDecoration: "underline", fontSize: 14 }}>
               Ver mis solicitudes →
             </Link>
           </div>
@@ -92,23 +92,23 @@ export default function AlertasResumen() {
   const renderPendientesDetalle = () => {
     if (tareasConPendientes.length === 0) return null;
     return (
-      <div style={{ marginTop: 12, background: "#dbeafe", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "10px 14px", background: "#dbeafe", borderBottom: "1px solid #e5e7eb", fontSize: 12, fontWeight: 700, color: "#374151" }}>
+      <div style={{ marginTop: 12, background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", border: "1px solid var(--color-border)", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: "10px 14px", background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", borderBottom: "1px solid var(--color-border)", fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>
           Estás teniendo subtareas pendientes por completar en:
         </div>
         {tareasConPendientes.map((t) => (
-          <div key={t.tarea_id} style={{ padding: "10px 14px", borderBottom: "1px solid #f3f4f6" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-              Tarea #{t.tarea_id} — {t.asunto} <span style={{ fontWeight: 400, color: "#6b7280", fontSize: 12 }}>({t.equipo_nombre} • {t.estado_tarea})</span>
+          <div key={t.tarea_id} style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+              Tarea #{t.tarea_id} — {t.asunto} <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", fontSize: 12 }}>({t.equipo_nombre} • {t.estado_tarea})</span>
             </div>
-            <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, color: "#374151" }}>
+            <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, color: "var(--color-text)" }}>
               {t.subtareas.map((s) => (
                 <li key={s.subtarea_id} style={{ marginBottom: 2 }}>
-                  <span style={{ fontWeight: 600 }}>{s.descripcion}</span> — <span style={{ background: s.estado === "EN_DESARROLLO" ? "#fef3c7" : "#e5e7eb", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>{s.estado}</span> (peso {s.peso})
+                  <span style={{ fontWeight: 600 }}>{s.descripcion}</span> — <span style={{ background: s.estado === "EN_DESARROLLO" ? "color-mix(in srgb, var(--color-waiting) 12%, white)" : "var(--color-border)", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>{s.estado}</span> (peso {s.peso})
                 </li>
               ))}
             </ul>
-            <Link href="/mfpages/tareas" style={{ fontSize: 12, color: "#2563eb", textDecoration: "underline" }}>Ver tarea →</Link>
+            <Link href="/mfpages/tareas" style={{ fontSize: 12, color: "var(--color-in-progress)", textDecoration: "underline" }}>Ver tarea →</Link>
           </div>
         ))}
       </div>
@@ -120,8 +120,8 @@ export default function AlertasResumen() {
       {esAsignador ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {porAprobar > 0 ? (
-            <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: 16 }}>
-              <p style={{ color: "#92400e", fontWeight: 600 }}>
+            <div style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", border: "1px solid var(--color-waiting)", borderRadius: 8, padding: 16 }}>
+              <p style={{ color: "var(--color-waiting)", fontWeight: 600 }}>
                 Tienes {porAprobar} {porAprobar === 1 ? "solicitud por aprobar" : "solicitudes por aprobar"}
               </p>
               <Link href="/mfpages/solicitudes" style={{ color: "#b45309", textDecoration: "underline", fontSize: 14 }}>

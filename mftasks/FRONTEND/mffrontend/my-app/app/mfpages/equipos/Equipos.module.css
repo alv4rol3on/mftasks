@@ -1,12 +1,12 @@
-/* Equipos — tarjetas con header oscuro #252525, acento #CF3215 */
+/* Equipos — tarjetas con header oscuro var(--color-sidebar), acento var(--color-brand) */
 .grid {
   display: grid;
   gap: 16px;
 }
 
 .card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -15,7 +15,7 @@
 
 .card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: #d1d5db;
+  border-color: var(--color-border);
 }
 
 /* Header oscuro — texto claro con contraste AA */
@@ -27,9 +27,9 @@
   cursor: pointer;
   gap: 12px;
   /* El color lo hereda del rol del equipo (var --rol-color); si no, neutro. */
-  background: var(--rol-color, #252525);
-  color: #fff;
-  border-bottom: 3px solid var(--rol-color, #CF3215);
+  background: var(--color-sidebar);
+  color: var(--color-background);
+  border-bottom: 3px solid var(--color-brand);
   transition: filter 0.15s;
 }
 
@@ -40,7 +40,7 @@
 /* Badge de tipo sobre encabezados de color */
 .badgeTipo {
   background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  color: var(--color-background);
   border: 1px solid rgba(255, 255, 255, 0.32);
 }
 
@@ -60,13 +60,13 @@
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-background);
   line-height: 1.2;
 }
 
 .cardMeta {
   font-size: 12px;
-  color: #d1d5db;
+  color: var(--color-border);
   margin-top: 4px;
   display: flex;
   gap: 12px;
@@ -75,7 +75,7 @@
 }
 
 .cardMeta strong {
-  color: #fff;
+  color: var(--color-background);
   font-weight: 600;
 }
 
@@ -83,7 +83,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #d1d5db;
+  color: var(--color-border);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -92,14 +92,14 @@
   transform: rotate(0);
   transition: transform 0.2s;
   font-size: 12px;
-  color: #e5e7eb;
+  color: var(--color-border);
 }
 
 .cardHeaderArrowOpen {
   transform: rotate(180deg);
 }
 
-/* Badges dentro del header oscuro — fondos claros con buen contraste sobre #252525 */
+/* Badges dentro del header oscuro — fondos claros con buen contraste sobre var(--color-sidebar) */
 .badge {
   padding: 2px 8px;
   border-radius: 999px;
@@ -110,34 +110,34 @@
 }
 
 .badgeInactivo {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+  background: color-mix(in srgb, var(--color-danger) 10%, white);
+  color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
 }
 
 .badgeGestionar {
-  background: #1fbb00;
-  color: #ede9fe;
-  border: 1px solid #ddd6fe;
+  background: var(--color-done);
+  color: color-mix(in srgb, var(--color-detail-header) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
 }
 
 .badgeSubLider {
-  background: #f59e0b;
-  color: #ede9fe;
-  border: 1px solid #ddd6fe;
+  background: var(--color-waiting);
+  color: color-mix(in srgb, var(--color-detail-header) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
 }
 
 .badgeAprobador {
-  background: #ff5252;
-  color: #ede9fe;
-  border: 1px solid #ddd6fe;
+  background: var(--color-danger);
+  color: color-mix(in srgb, var(--color-detail-header) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
 }
 
 /* Contenido expandido — mantiene fondo claro para legibilidad */
 .expand {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border);
   padding: 16px;
-  background: #fafafa;
+  background: var(--color-surface);
 }
 
 .expandToolbar {
@@ -152,7 +152,7 @@
 .expandToolbarTitle {
   font-size: 13px;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-text);
   margin: 0;
 }
 
@@ -164,8 +164,8 @@
 }
 
 .btnAgregar {
-  background: #CF3215;
-  color: #fff;
+  background: var(--color-brand);
+  color: var(--color-background);
   border: none;
   padding: 8px 14px;
   border-radius: 8px;
@@ -176,7 +176,7 @@
 }
 
 .btnAgregar:hover:not(:disabled) {
-  background: #a32610;
+  background: var(--color-brand-hover);
 }
 
 .btnAgregar:disabled {
@@ -185,9 +185,9 @@
 }
 
 .btnSecondary {
-  background: #fff;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--color-background);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   padding: 8px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -199,13 +199,13 @@
 .pageTitle {
   font-size: 18px;
   font-weight: 700;
-  color: #111827;
+  color: var(--color-text);
   margin: 0;
 }
 
 .pageSubtitle {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   margin: 4px 0 0;
 }
 
@@ -218,14 +218,14 @@
 }
 
 .alertError {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+  background: color-mix(in srgb, var(--color-danger) 10%, white);
+  color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
 }
 
 .alertSuccess {
-  background: #dcfce7;
-  color: #166534;
+  background: color-mix(in srgb, var(--color-done) 12%, white);
+  color: var(--color-done);
   border: 1px solid #bbf7d0;
 }
 

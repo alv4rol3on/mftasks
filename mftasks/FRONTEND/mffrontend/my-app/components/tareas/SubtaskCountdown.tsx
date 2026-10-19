@@ -28,7 +28,7 @@ interface ContadorSub {
 
 type Snap = { raw: ContadorSub; serverAhora: Date };
 
-const COLOR_RETRASO = "#dc2626";
+const COLOR_RETRASO = "var(--color-danger)";
 
 function TextoExcedido({ segundos }: { segundos: number }) {
     return (
@@ -112,12 +112,12 @@ export default function SubtaskCountdown({ tareaId, subtareaId, estado, fallback
         : tiempoTomado;
 
     if (tomadoMostrado !== null) {
-        return <span style={{ fontSize: 11, color: "#166534" }}>{fallbackFormateado ? `Tomado: ${fallbackFormateado}` : `Tomado: ${formatearTiempo(tomadoMostrado)}`}</span>;
+        return <span style={{ fontSize: 11, color: "var(--color-done)" }}>{fallbackFormateado ? `Tomado: ${fallbackFormateado}` : `Tomado: ${formatearTiempo(tomadoMostrado)}`}</span>;
     }
     const snap = snapshot;
     if (snap && snap.raw.pausado) {
         if (displaySec !== null && displaySec < 0) return <TextoExcedido segundos={-displaySec} />;
-        return <span style={{ fontSize: 11, color: "#92400e" }}>En pausa</span>;
+        return <span style={{ fontSize: 11, color: "var(--color-waiting)" }}>En pausa</span>;
     }
     if (displaySec === null) return <span style={{ fontSize: 11 }}>—</span>;
     if (displaySec < 0) return <TextoExcedido segundos={-displaySec} />;

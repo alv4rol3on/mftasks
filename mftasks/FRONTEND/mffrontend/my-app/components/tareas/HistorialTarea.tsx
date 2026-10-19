@@ -84,57 +84,85 @@ export default function HistorialTarea({ tareaId }: Props) {
 
     return (
         <div className={styles.historialTabContent}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <h3 style={{ margin: 0 }}>Historial de la tarea</h3>
-                <RefreshButton onClick={cargarLogs} loading={recargando} variant="outline" />
+            <div className={styles.historyHeader}>
+                <div>
+                    <h3 className={styles.sectionTitle}>Historial de la solicitud</h3>
+                    <p className={styles.sectionHint}>Trazabilidad de la solicitud y de sus subtareas.</p>
+                </div>
+                <RefreshButton onClick={cargarLogs} loading={recargando} variant="outline" title="Recargar historial" />
             </div>
-            {logsError && <p style={{ color: "#991b1b", fontSize: 12 }}>{logsError}</p>}
-            {!logs && !logsError && <p style={{ fontSize: 12 }}>Cargando logs...</p>}
-            {logs && logs.length === 0 && <p style={{ fontSize: 12, color: "#6b7280" }}>Sin registros.</p>}
-            {logs && logs.length > 0 && (
-                <div className={styles.historialContainer}>
-                    <table className={`${styles.subtareasTable} ${styles.historialTable}`}>
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Usuario</th>
-                                <th>Evento</th>
-                                <th>Detalle</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {logsPaginados.map((l) => {
-                                const expanded = expandedLogs.has(l.id);
-                                const detalle = l.detalle || `${l.estado_anterior ?? ""} → ${l.estado_nuevo ?? ""}`;
-                                const necesitaClamp = detalle.length > 120;
-                                return (
-                                    <tr key={l.id}>
-                                        <td data-label="Fecha">{formatearFechaSec(l.fecha)}</td>
-                                        <td data-label="Usuario">{l.usuario ?? "-"}</td>
-                                        <td data-label="Evento"><span title={l.tipo_evento} style={{ background: "#e0e7ff", padding: "2px 6px", borderRadius: 6 }}>{ETIQUETAS_EVENTO[l.tipo_evento] ?? l.tipo_evento}</span>{l.subtarea_id ? <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>{l.subtarea_codigo ?? `Sub #${l.subtarea_id}`}</div> : null}</td>
-                                        <td data-label="Detalle">
-                                            <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>{detalle}</div>
-                                            {necesitaClamp && (
-                                                <button
-                                                    type="button"
-                                                    className={styles.historialToggle}
-                                                    onClick={() => setExpandedLogs(prev => {
-                                                        const n = new Set(prev);
-                                                        if (n.has(l.id)) n.delete(l.id); else n.add(l.id);
-                                                        return n;
-                                                    })}
-                                                >
-                                                    {expanded ? "Ver menos" : "Ver más"}
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+
+            {logsError && <p className={styles.errorNotice}>{logsError}</p>}
+            {!logs && !logsError && <p className={styles.sinSubtareas}>Cargando historial…</p>}
+            {logs && logs.length === 0 && (
+                <div className={styles.historyEmpty}>
+                    <strong>Sin eventos registrados</strong>
+                    <p>Cuando se realicen cambios en la solicitud aparecerán aquí.</p>
                 </div>
             )}
+
+            {logs && logs.length > 0 && (
+                <ol className={styles.historyList} aria-label="Cronología de la solicitud">
+                    {logsPaginados.map((l) => {
+                        const expanded = expandedLogs.has(l.id);
+                        const estados = [l.estado_anterior, l.estado_nuevo].filter(Boolean).join(" → ");
+                        const detalle = l.detalle || estados || "Sin detalle";
+                        const necesitaClamp = detalle.length > 120;
+                        const esSubtarea = !!l.subtarea_id;
+
+                        return (
+                            <li key={l.id} className={styles.historyItem}>
+                                <span
+                                    className={`${styles.historyDot} ${esSubtarea ? styles.historyDotSubtask : styles.historyDotTask}`}
+                                    aria-hidden="true"
+                                />
+                                <div className={styles.historyBody}>
+                                    <div className={styles.historyTop}>
+                                        <span className={styles.historyEvent}>
+                                            {ETIQUETAS_EVENTO[l.tipo_evento] ?? l.tipo_evento}
+                                        </span>
+                                        <time className={styles.historyDate} dateTime={l.fecha}>
+                                            {formatearFechaSec(l.fecha)}
+                                        </time>
+                                    </div>
+
+                                    <div className={styles.historyMeta}>
+                                        <span className={styles.historyUser}>{l.usuario ?? "Sistema"}</span>
+                                        <span className={styles.historyEntity}>
+                                            {esSubtarea
+                                                ? `Subtarea ${l.subtarea_codigo ?? `#${l.subtarea_id}`}`
+                                                : "Solicitud"}
+                                        </span>
+                                    </div>
+
+                                    {esSubtarea && l.subtarea_descripcion && (
+                                        <div className={styles.historySubtask}>{l.subtarea_descripcion}</div>
+                                    )}
+
+                                    <div className={necesitaClamp ? (expanded ? `${styles.historialClamp} ${styles.expanded}` : styles.historialClamp) : undefined}>
+                                        {detalle}
+                                    </div>
+
+                                    {necesitaClamp && (
+                                        <button
+                                            type="button"
+                                            className={styles.historialToggle}
+                                            onClick={() => setExpandedLogs(prev => {
+                                                const n = new Set(prev);
+                                                if (n.has(l.id)) n.delete(l.id); else n.add(l.id);
+                                                return n;
+                                            })}
+                                        >
+                                            {expanded ? "Ver menos" : "Ver más"}
+                                        </button>
+                                    )}
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ol>
+            )}
+
             {logs && logs.length > HIST_PAGE_SIZE && (
                 <Pagination page={paginaClamped} totalPages={totalHistPages} totalItems={logs.length} pageSize={HIST_PAGE_SIZE} onPageChange={setPaginaHist} />
             )}

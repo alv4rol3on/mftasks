@@ -4,6 +4,7 @@ import { Task } from "@/lib/types";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import HistorialTarea from "../tareas/HistorialTarea";
+import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
 
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -19,15 +20,6 @@ const fmt = (f: string | null | undefined) => {
   if (!f) return "-";
   const d = new Date(f);
   return isNaN(d.getTime()) ? "-" : formatter.format(d);
-};
-
-const estadoColor: Record<string, string> = {
-  EN_ESPERA: "#9ca3af",
-  APROBADO: "#7c3aed",
-  EN_DESARROLLO: "#2563eb",
-  RECHAZADO: "#dc2626",
-  SOLUCIONADO: "#16a34a",
-  STAND_BY: "#d97706",
 };
 
 type Props = { tarea: Task | null; onClose: () => void };
@@ -46,7 +38,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
         <div className={styles.modalHeader}>
           <div>
             <h2>Solicitud #{tarea.id}</h2>
-            <p>{tarea.asunto} — <span style={{ background: estadoColor[tarea.estado] ?? "#6b7280", padding: "2px 8px", borderRadius: 6, fontSize: 11 }}>{tarea.estado}</span></p>
+            <p>{tarea.asunto} — <TaskStatusBadge estado={tarea.estado} compact /></p>
           </div>
           <button className={styles.close} onClick={onClose}>✕</button>
         </div>
@@ -75,7 +67,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                     <tr><td><strong>Campaña</strong></td><td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td></tr>
                     <tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre ?? "-"}</td></tr>
                     <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
-                    <tr><td><strong>Estado</strong></td><td><span style={{ background: estadoColor[tarea.estado] ?? "#6b7280", padding: "2px 8px", borderRadius: 6, color: "white", fontSize: 11 }}>{tarea.estado}</span></td></tr>
+                    <tr><td><strong>Estado</strong></td><td><TaskStatusBadge estado={tarea.estado} compact /></td></tr>
 
                     <tr><td><strong>Fecha solicitud</strong></td><td>{fmt(tarea.fecha_creacion)}</td></tr>
 
@@ -121,8 +113,8 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                   ) : (
                     <>
                     <h3>Progreso — {progresoNum.toFixed(2)}%</h3>
-                    <div style={{ background: "#e5e7eb", borderRadius: 8, height: 14, overflow: "hidden", marginBottom: 12 }}>
-                      <div style={{ width: `${Math.min(100, progresoNum)}%`, background: progresoNum === 100 ? "#16a34a" : "#2563eb", height: "100%", transition: "width .3s" }} />
+                    <div style={{ background: "var(--color-border)", borderRadius: 8, height: 14, overflow: "hidden", marginBottom: 12 }}>
+                      <div style={{ width: `${Math.min(100, progresoNum)}%`, background: progresoNum === 100 ? "var(--color-done)" : "var(--color-in-progress)", height: "100%", transition: "width .3s" }} />
                     </div>
                   </>
                   )
@@ -161,7 +153,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                             title={s.motivo_standby || ""}
                           >
                             <td data-label="Subtarea">{s.descripcion}</td>
-                            <td data-label="Estado"><span style={{ background: estadoColor[s.estado] ?? "#6b7280", padding: "2px 6px", borderRadius: 6, fontSize: 11, color: "white" }}>{s.estado}</span></td>
+                            <td data-label="Estado"><TaskStatusBadge estado={s.estado} compact /></td>
                             <td data-label="Peso">{s.peso}</td>
                             <td data-label="Asignado">{s.asignado_nombre}</td>
                           </tr>

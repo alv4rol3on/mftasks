@@ -1,0 +1,71 @@
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.compact {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+.icon {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.espera {
+    background: color-mix(in srgb, var(--color-waiting) 12%, white);
+    border-color: color-mix(in srgb, var(--color-waiting) 30%, white);
+    color: color-mix(in srgb, var(--color-waiting) 82%, black);
+}
+
+.desarrollo {
+    background: color-mix(in srgb, var(--color-in-progress) 12%, white);
+    border-color: color-mix(in srgb, var(--color-in-progress) 30%, white);
+    color: color-mix(in srgb, var(--color-in-progress) 82%, black);
+}
+
+.pausa {
+    background: color-mix(in srgb, var(--color-paused) 10%, white);
+    border-color: color-mix(in srgb, var(--color-paused) 28%, white);
+    color: color-mix(in srgb, var(--color-paused) 82%, black);
+}
+
+.solucionado {
+    background: color-mix(in srgb, var(--color-done) 12%, white);
+    border-color: color-mix(in srgb, var(--color-done) 30%, white);
+    color: color-mix(in srgb, var(--color-done) 82%, black);
+}
+
+.aprobado {
+    background: var(--color-badge);
+    border-color: var(--color-badge);
+    color: var(--color-background);
+}
+
+.rechazado {
+    background: color-mix(in srgb, var(--color-danger) 10%, white);
+    border-color: color-mix(in srgb, var(--color-danger) 30%, white);
+    color: var(--color-danger);
+}
+
+.neutro {
+    background: var(--color-disabled);
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
+}
+
+@media (max-width: 480px) {
+    .badge {
+        padding: 3px 8px;
+        font-size: 11px;
+    }
+}

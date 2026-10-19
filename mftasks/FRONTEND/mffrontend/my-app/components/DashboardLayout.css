@@ -21,11 +21,42 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     height: 52px;
     padding: 0 16px;
-    background: #c22105;
-    color: #fff;
+    background: var(--color-brand);
+    color: var(--color-background);
     flex-shrink: 0;
+}
+
+.dashboard-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.dashboard-user {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    min-width: 0;
+}
+
+.dashboard-user h1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-user span {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: .9;
+}
+
+.dashboard-layout.sidebar-open .dashboard-content {
+    overflow: hidden;
 }
 
 .dashboard-header h1 {
@@ -37,10 +68,12 @@
     padding: 6px 12px;
     font-size: 14px;
     font-weight: 500;
-    color: white;
+    color: var(--color-background);
     cursor: pointer;
     text-decoration: none;
-    background-color: #CF3215;
+    background-color: var(--color-brand);
+    border: 1px solid var(--color-brand);
+    border-radius: var(--radius-control);
 }
 .dashboard-logout:hover {
     padding: 6px 12px;
@@ -49,7 +82,8 @@
     color: white;
     cursor: pointer;
     text-decoration: none;
-    background-color: #f13b1b;
+    background-color: var(--color-brand-hover);
+    border-color: var(--color-brand-hover);
 }
 
 .dashboard-content {
@@ -58,8 +92,18 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
-    background: #fff;
+    background: var(--color-background);
     -webkit-overflow-scrolling: touch;
+    animation: dashboardPageIn .22s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes dashboardPageIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 /* ---------- Tablet ---------- */
@@ -108,22 +152,41 @@
 
 }
 
-.menu-button{
-    display:none;
+.menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: white;
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
 }
 
-@media (max-width:768px){
+.menu-button:hover {
+    background: rgba(255, 255, 255, .14);
+}
 
-    .menu-button{
+.menu-button:focus-visible {
+    outline: 2px solid var(--color-background);
+    outline-offset: 2px;
+}
 
-        display:block;
-        background:none;
-        border:none;
-        color:white;
-        font-size:28px;
-        cursor:pointer;
-        margin-right:10px;
-
+@media (max-width: 768px) {
+    .menu-button {
+        width: 34px;
+        height: 34px;
+        font-size: 24px;
     }
+}
 
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-content {
+        animation: none;
+    }
 }

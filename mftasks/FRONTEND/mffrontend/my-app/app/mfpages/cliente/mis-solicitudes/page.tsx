@@ -221,7 +221,7 @@ export default function MisSolicitudesPage() {
 
   if (error) {
     return (
-      <div style={{ color: "#dc2626" }}>
+      <div style={{ color: "var(--color-danger)" }}>
         Error: {error}
       </div>
     );
@@ -241,19 +241,19 @@ export default function MisSolicitudesPage() {
         }}
       >
         <h2 className="text-lg font-medium" style={{ margin: 0 }}>Mis solicitudes</h2>
-        <span style={{ fontSize: 12, color: "#6b7280" }}>{filtradas.length} de {tareas.length} solicitudes</span>
+        <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{filtradas.length} de {tareas.length} solicitudes</span>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <button
           onClick={() => setOpenCrear(true)}
           style={{
-            background: "#3128bb",
-            color: "white",
+            background: "var(--color-brand)",
+            color: "var(--color-background)",
             padding: "8px 16px",
-            borderRadius: 8,
-            border: "none",
+            borderRadius: "var(--radius-control)",
+            border: "1px solid var(--color-brand)",
             cursor: "pointer",
-            fontWeight: 600,
+            fontWeight: 700,
             fontSize: 13,
           }}
         >
@@ -266,7 +266,7 @@ export default function MisSolicitudesPage() {
         <select
           value={filtro}
           onChange={handleEstadoChange}
-          style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
         >
           {ESTADOS.map((s) => (
             <option key={s} value={s}>{etiquetaEstado(s)}</option>
@@ -276,41 +276,41 @@ export default function MisSolicitudesPage() {
           value={campoFecha}
           onChange={(e) => setCampoFecha(e.target.value as CampoFecha)}
           title="Campo de fecha a filtrar"
-          style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
         >
           <option value="solicitud">Fecha de solicitud</option>
           <option value="entrega">Fecha de entrega</option>
         </select>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
           Desde
           <input
             type="date"
             value={desde}
             max={hasta || undefined}
             onChange={(e) => setDesde(e.target.value)}
-            style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
           />
         </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
           Hasta
           <input
             type="date"
             value={hasta}
             min={desde || undefined}
             onChange={(e) => setHasta(e.target.value)}
-            style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
           />
         </label>
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por ticket, asunto, descripción..."
-          style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240, flex: 1 }}
+          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240, flex: 1 }}
         />
         {hayFiltros && (
           <button
             onClick={limpiarFiltros}
-            style={{ border: "1px solid #d1d5db", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
+            style={{ border: "1px solid var(--color-border)", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
           >
             Limpiar
           </button>

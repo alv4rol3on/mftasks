@@ -1,0 +1,32 @@
+.formCard {
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-background);
+    padding: 18px;
+}
+
+.intro {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.introTitle {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.introText {
+    margin: 4px 0 0;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+    .formCard {
+        padding: 13px;
+    }
+}

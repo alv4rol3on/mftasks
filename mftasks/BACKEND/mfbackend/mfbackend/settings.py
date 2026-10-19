@@ -221,7 +221,7 @@ ANYMAIL = {
 }
 
 DEFAULT_FROM_EMAIL = (
-    f"Sistema de Solicitudes <{os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')}>"
+    f"Sistema de Solicitudes <{os.getenv('DEFAULT_FROM_EMAIL', 'alv4rol3on@gmail.com')}>"
 )
 
 

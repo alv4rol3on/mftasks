@@ -5,6 +5,7 @@ import { Task } from "@/lib/types";
 import Pagination from "@/components/ui/Pagination";
 import IconButton from "@/components/ui/IconButton";
 import styles from "@/components/shared/SharedTable.module.css";
+import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
 
 const fmt = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -20,17 +21,6 @@ function fmtFecha(f: string | null | undefined) {
   const d = new Date(f);
   if (isNaN(d.getTime())) return "-";
   return fmt.format(d).replace(",", "");
-}
-function badge(estado: string) {
-  const m: Record<string, any> = {
-    EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#9ca3af", label: "EN ESPERA" },
-    APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#ddd6fe", label: "APROBADO" },
-    EN_DESARROLLO: { bg: "#dbeafe", color: "#1e3a8a", border: "#2563eb", label: "EN DESARROLLO" },
-    STAND_BY: { bg: "#fef3c7", color: "#78350f", border: "#d97706", label: "STAND BY" },
-    SOLUCIONADO: { bg: "#dcfce7", color: "#14532d", border: "#16a34a", label: "SOLUCIONADO" },
-    RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#fecaca", label: "RECHAZADO" },
-  };
-  return m[estado] ?? { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb", label: estado };
 }
 
 type Props = {
@@ -66,8 +56,6 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
             </thead>
             <tbody>
               {paginadas.map((t) => {
-
-                const b = badge(t.estado);
                 return (
                   <tr
                     key={t.id}
@@ -80,13 +68,13 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
                     <td data-label="Solicitud">
                       <div className={styles.taskSubject}>
                         {t.campana_nombre ?? "-"} {t.subcampana_nombre ? `- ${t.subcampana_nombre}` : ""}: {t.asunto}
-                        <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`} • {t.equipo_nombre}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`} • {t.equipo_nombre}</span>
                       </div>
                     </td>
                     <td data-label="Estado">
-                      <span style={{ display: "inline-flex", alignItems: "center", background: b.bg, color: b.color, border: `1px solid ${b.border}`, padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>{b.label}</span>
+                      <TaskStatusBadge estado={t.estado} compact />
                     </td>
-                    <td data-label="Progreso" style={{ whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "#1d3557" }}>
+                    <td data-label="Progreso" style={{ whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
                       {parseFloat(String(t.progreso ?? 0)).toFixed(1)}%
                     </td>
                     <td data-label="Acción" style={{ whiteSpace: "nowrap" }}>

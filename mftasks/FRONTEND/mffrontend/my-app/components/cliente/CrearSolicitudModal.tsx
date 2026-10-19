@@ -295,9 +295,9 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
           </div>
 
 
-          {campanaId && subcampanas.length === 0 && <p style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>La campaña/subcampañas que intenta elegir esta temporalmente deshabilitada o no cuenta con los permisos para crear una solicitud. Contacta al administrador.</p>}
-          {subcampanaId && equipos.length === 0 && <p style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>No hay equipos cuyo líder tenga permiso a la subcampaña seleccionada. Contacta al administrador.</p>}
-          {error && <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p>}
+          {campanaId && subcampanas.length === 0 && <p style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 6 }}>La campaña/subcampañas que intenta elegir esta temporalmente deshabilitada o no cuenta con los permisos para crear una solicitud. Contacta al administrador.</p>}
+          {subcampanaId && equipos.length === 0 && <p style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 6 }}>No hay equipos cuyo líder tenga permiso a la subcampaña seleccionada. Contacta al administrador.</p>}
+          {error && <p style={{ color: "var(--color-danger)", fontSize: 13 }}>{error}</p>}
         </div>
         <div className={styles.modalFooter}>
           <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={onClose}>Cancelar</button>

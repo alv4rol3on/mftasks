@@ -26,11 +26,11 @@ interface ContadorResponseFallback {
 
 type Snap = { raw: ContadorResponseFallback; serverAhora: Date };
 
-const COLOR_RETRASO = "#dc2626";
+const COLOR_RETRASO = "var(--color-danger)";
 
 function BadgeExtra({ segundos }: { segundos: number }) {
   if (!segundos || segundos <= 0) return null;
-  return <span style={{ marginLeft: 6, background: "#ede9fe", color: "#5b21b6", border: "1px solid #ddd6fe", padding: "1px 6px", borderRadius: 999, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>+{formatearTiempo(segundos)} anticipado</span>;
+  return <span style={{ marginLeft: 6, background: "color-mix(in srgb, var(--color-detail-header) 10%, white)", color: "var(--color-detail-header)", border: "1px solid color-mix(in srgb, var(--color-detail-header) 26%, white)", padding: "1px 6px", borderRadius: 999, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>+{formatearTiempo(segundos)} anticipado</span>;
 }
 
 function TextoExcedido({ segundos, extra }: { segundos: number; extra: number }) {

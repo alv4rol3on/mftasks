@@ -317,7 +317,7 @@ export default function CampanasSection({ setMsg }: Props) {
           <div
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--color-text-secondary)",
               marginBottom: 6,
             }}
           >
@@ -348,7 +348,7 @@ export default function CampanasSection({ setMsg }: Props) {
 
         <div className={styles.campanasList}>
           {campanasFiltradas.length === 0 ? (
-            <div style={{ fontSize: 13, color: "#6b7280" }}>
+            <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
               {filtroActivoCampana === "activos"
                 ? "No hay campañas activas."
                 : filtroActivoCampana === "inactivos"
@@ -439,7 +439,7 @@ export default function CampanasSection({ setMsg }: Props) {
                     <div className={styles.campanaBodyInner}>
                       <div className={styles.subcampanasGrid}>
                         {camp.subcampanas.length === 0 ? (
-                          <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                             Sin subcampañas
                           </span>
                         ) : (

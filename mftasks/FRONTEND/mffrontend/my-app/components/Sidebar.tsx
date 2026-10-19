@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import "../components/Sidebar.css";
 import { useCapacidades } from "./CapacidadesProvider";
 import type { Caps } from "@/lib/capacidades";
@@ -37,36 +37,55 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { caps } = useCapacidades();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const menu = useMemo(() => menuAll.filter((m) => m.show(caps)), [caps]);
 
-  // Bloquear scroll del body cuando el menú fullscreen está abierto (solo móvil)
+  // Cierra el drawer al navegar y restaura el foco al botón que lo abrió.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname, setMenuOpen]);
+
   useEffect(() => {
     if (menuOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      const onKey = (e: KeyboardEvent) => {
-        if (e.key === "Escape") setMenuOpen(false);
-      };
-      window.addEventListener("keydown", onKey);
-      return () => {
-        document.body.style.overflow = prev;
-        window.removeEventListener("keydown", onKey);
-      };
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
+      requestAnimationFrame(() => closeButtonRef.current?.focus());
+    } else if (previousFocusRef.current?.isConnected) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
     }
+  }, [menuOpen]);
+
+  // Bloquear scroll y permitir cerrar con Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [menuOpen, setMenuOpen]);
 
   return (
     <>
-      {/* Fondo oscuro */}
       <div
         className={`sidebar-overlay ${menuOpen ? "show" : ""}`}
         onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
       />
 
-      {/* Sidebar */}
-      <aside id="sidebar" className={`sidebar ${menuOpen ? "open" : ""}`} aria-hidden={!menuOpen ? true : undefined}>
+      <aside id="sidebar" className={`sidebar ${menuOpen ? "open" : ""}`} aria-hidden={!menuOpen}>
         <button
+          ref={closeButtonRef}
           type="button"
           className="sidebar-close"
           aria-label="Cerrar menú"
@@ -80,13 +99,15 @@ export default function Sidebar({
 
         <nav className="sidebar-nav">
           {menu.map((item) => {
-            const activo = pathname === item.ruta;
+            const activo =
+              pathname === item.ruta || pathname.startsWith(`${item.ruta}/`);
 
             return (
               <Link
                 key={item.ruta}
                 href={item.ruta}
                 className={`sidebar-link ${activo ? "active" : ""}`}
+                aria-current={activo ? "page" : undefined}
                 onClick={() => setMenuOpen(false)}
               >
                 {item.nombre}

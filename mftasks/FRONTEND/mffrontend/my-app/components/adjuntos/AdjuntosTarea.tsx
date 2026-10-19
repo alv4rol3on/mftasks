@@ -43,9 +43,9 @@ export default function AdjuntosTarea({ archivos, tareaId, ticket, titulo = "Arc
             style={{
                 marginTop: 12,
                 padding: 12,
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--color-border)",
                 borderRadius: 8,
-                background: "#fafafa",
+                background: "var(--color-surface)",
             }}
         >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
@@ -55,7 +55,7 @@ export default function AdjuntosTarea({ archivos, tareaId, ticket, titulo = "Arc
                     onClick={descargarZip}
                     disabled={descargando}
                     style={{
-                        background: "#3128bb",
+                        background: "var(--color-detail-header)",
                         color: "white",
                         border: "none",
                         padding: "6px 12px",
@@ -90,7 +90,7 @@ export default function AdjuntosTarea({ archivos, tareaId, ticket, titulo = "Arc
                 </div>
             ))}
 
-            {error && <p style={{ color: "#991b1b", fontSize: 12, margin: "6px 0 0" }}>{error}</p>}
+            {error && <p style={{ color: "var(--color-danger)", fontSize: 12, margin: "6px 0 0" }}>{error}</p>}
         </div>
     );
 }

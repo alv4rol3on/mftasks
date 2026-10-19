@@ -7,6 +7,7 @@ import Pagination from "@/components/ui/Pagination";
 import IconButton from "@/components/ui/IconButton";
 import styles from "@/components/shared/SharedTable.module.css";
 import { ContadoresProvider, useContador } from "@/components/tareas/ContadoresProvider";
+import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
 
 const fmt = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -23,28 +24,11 @@ function fmtFecha(f: string | null | undefined) {
   if (isNaN(d.getTime())) return "-";
   return fmt.format(d).replace(",", "");
 }
-function badge(estado: string, fueraDeTiempo = false) {
-  if (fueraDeTiempo && estado === "EN_DESARROLLO") {
-    return { bg: "#fee2e2", color: "#991b1b", border: "#f87171", label: "FUERA DE TIEMPO" };
-  }
-  const m: Record<string, any> = {
-    EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#1f2937", label: "EN ESPERA" },
-    APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#5b21b6", label: "APROBADO" },
-    EN_DESARROLLO: { bg: "#dbeafe", color: "#1e3a8a", border: "#1e3a8a", label: "EN DESARROLLO" },
-    STAND_BY: { bg: "#fef3c7", color: "#78350f", border: "#78350f", label: "STAND BY" },
-    SOLUCIONADO: { bg: "#dcfce7", color: "#14532d", border: "#14532d", label: "SOLUCIONADO" },
-    RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#991b1b", label: "RECHAZADO" },
-  };
-  return m[estado] ?? { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb", label: estado };
-}
 
 function EstadoCell({ tarea }: { tarea: Task }) {
   const contador = useContador(tarea.id);
   const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!contador?.con_retraso;
-  const b = badge(tarea.estado, fueraDeTiempo);
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", background: b.bg, color: b.color, border: `1px solid ${b.border}`, padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>{b.label}</span>
-  );
+  return <TaskStatusBadge estado={tarea.estado} fueraDeTiempo={fueraDeTiempo} compact />;
 }
 
 type Props = {
@@ -108,7 +92,7 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     <td data-label="Solicitud">
                       <div className={styles.taskSubject}>
                         {t.campana_nombre ?? "-"} {t.subcampana_nombre ? `- ${t.subcampana_nombre}` : ""}: {t.asunto}
-                        <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`}</span>
                       </div>
                     </td>
                     <td data-label="Estado">

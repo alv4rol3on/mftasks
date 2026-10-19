@@ -9,6 +9,9 @@ interface Props {
   subcampanaId: number | "";
   onChange: (next: { campanaId: number | ""; subcampanaId: number | "" }) => void;
   selectStyle?: React.CSSProperties;
+  selectClassName?: string;
+  campanaAriaLabel?: string;
+  subcampanaAriaLabel?: string;
 }
 
 /**
@@ -20,6 +23,9 @@ export default function FiltroCampanaSubcampana({
   subcampanaId,
   onChange,
   selectStyle,
+  selectClassName,
+  campanaAriaLabel = "Filtrar por campaña",
+  subcampanaAriaLabel = "Filtrar por subcampaña",
 }: Props) {
   const [campanas, setCampanas] = useState<CampanaInfo[]>([]);
   const [subcampanas, setSubcampanas] = useState<SubCampanaInfo[]>([]);
@@ -60,7 +66,7 @@ export default function FiltroCampanaSubcampana({
   }, [campanaId]);
 
   const base: React.CSSProperties = {
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--color-border)",
     borderRadius: 8,
     padding: "8px 12px",
     fontSize: 13,
@@ -80,7 +86,9 @@ export default function FiltroCampanaSubcampana({
           })
         }
         style={base}
+        className={selectClassName}
         title="Filtrar por campaña"
+        aria-label={campanaAriaLabel}
       >
         <option value="">Todas las campañas</option>
         {campanas.map((c) => (
@@ -97,8 +105,10 @@ export default function FiltroCampanaSubcampana({
           })
         }
         style={base}
+        className={selectClassName}
         disabled={!campanaId}
         title="Filtrar por subcampaña"
+        aria-label={subcampanaAriaLabel}
       >
         <option value="">{campanaId ? "Todas las subcampañas" : "Elige campaña"}</option>
         {subcampanas.map((s) => (

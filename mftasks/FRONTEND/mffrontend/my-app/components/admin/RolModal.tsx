@@ -172,7 +172,7 @@ export default function RolModal({
               label="Puede liderar equipos"
               title="Permite asignar usuarios con este rol como líderes de equipo"
             />
-            <span style={{ fontSize: 12, color: "#374151" }}>
+            <span style={{ fontSize: 12, color: "var(--color-text)" }}>
               {form.puede_liderar ? "Sí" : "No"}
             </span>
           </div>
@@ -187,7 +187,7 @@ export default function RolModal({
               label="Autoaprobación"
               title="Las solicitudes de equipos de este rol saltan la fase de aprobadores y pasan directo a revisión del líder"
             />
-            <span style={{ fontSize: 12, color: "#374151" }}>
+            <span style={{ fontSize: 12, color: "var(--color-text)" }}>
               {form.auto_aprobar ? "Sí" : "No"}
             </span>
           </div>
@@ -195,14 +195,14 @@ export default function RolModal({
       </div>
 
       <label className={styles.field} style={{ marginTop: 12 }}>
-        <span>Color de la barra del equipo</span>
+        <span>Color</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <input
             type="color"
             aria-label="Selector de color"
-            value={HEX_RE.test(form.color) ? form.color : "#252525"}
+            value={HEX_RE.test(form.color) ? form.color : "var(--color-sidebar)"}
             onChange={(e) => setForm({ ...form, color: e.target.value })}
-            style={{ width: 44, height: 36, padding: 2, border: "1px solid #d1d5db", borderRadius: 8, background: "white", cursor: "pointer" }}
+            style={{ width: 44, height: 36, padding: 2, border: "1px solid var(--color-border)", borderRadius: 8, background: "white", cursor: "pointer" }}
           />
           <input
             className={styles.input}
@@ -219,8 +219,8 @@ export default function RolModal({
               width: 28,
               height: 28,
               borderRadius: 999,
-              border: "1px solid #d1d5db",
-              background: HEX_RE.test(form.color) ? form.color : "#252525",
+              border: "1px solid var(--color-border)",
+              background: HEX_RE.test(form.color) ? form.color : "var(--color-sidebar)",
             }}
           />
           {form.color && (

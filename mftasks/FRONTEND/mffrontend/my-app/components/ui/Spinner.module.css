@@ -1,0 +1,21 @@
+.spinner {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.icon {
+  animation: spinnerRotate .8s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes spinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon {
+    animation: none;
+  }
+}

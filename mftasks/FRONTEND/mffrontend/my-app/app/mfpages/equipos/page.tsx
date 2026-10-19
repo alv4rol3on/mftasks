@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo, EquipoMiembroDetallado, RolInfo } from "@/lib/types";
 import RefreshButton from "@/components/ui/RefreshButton";
+import PageLoader from "@/components/ui/PageLoader";
 import styles from "./Equipos.module.css";
 
 type EquipoApiResponse = EquipoInfo[] | { results: EquipoInfo[] };
@@ -403,8 +404,8 @@ export default function EquiposPage() {
     }
   };
 
-  if (cargando) return <div style={{ padding: 16 }}>Cargando equipos…</div>;
-  if (error) return <div style={{ background: "#fee2e2", color: "#991b1b", padding: 12, borderRadius: 8, fontSize: 14 }}>Error al cargar equipos: {error}</div>;
+  if (cargando) return <PageLoader label="Cargando equipos…" />;
+  if (error) return <div style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", padding: 12, borderRadius: 8, fontSize: 14 }}>Error al cargar equipos: {error}</div>;
 
   // Líderes elegibles (administradores o colaboradores con rol que puede liderar).
   const lideresCandidatos = usuariosTodos.filter(puedeLiderar);
@@ -437,17 +438,17 @@ export default function EquiposPage() {
   });
 
   const badgeRol = (rol?: string | null) => {
-    if (rol === "LIDER") return <span style={{ background: "#7c3aed", color: "white", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>LÍDER</span>;
-    if (rol === "SUB_LIDER") return <span style={{ background: "#f59e0b", color: "white", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>SUB-LÍDER</span>;
-    if (rol === "MIEMBRO") return <span style={{ background: "#e5e7eb", color: "#374151", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>MIEMBRO</span>;
+    if (rol === "LIDER") return <span style={{ background: "var(--color-badge)", color: "var(--color-background)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>LÍDER</span>;
+    if (rol === "SUB_LIDER") return <span style={{ background: "var(--color-badge)", color: "var(--color-background)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>SUB-LÍDER</span>;
+    if (rol === "MIEMBRO") return <span style={{ background: "var(--color-border)", color: "var(--color-text)", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>MIEMBRO</span>;
     return null;
   };
 
   const badgeEstado = (estado: string) => {
-    if (estado === "ACTIVO") return <span style={{ background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Activo</span>;
-    if (estado === "INDISPONIBLE") return <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Indisponible</span>;
-    if (estado === "INACTIVO") return <span style={{ background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Inactivo</span>;
-    return <span style={{ background: "#e5e7eb", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>{estado}</span>;
+    if (estado === "ACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Activo</span>;
+    if (estado === "INDISPONIBLE") return <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", color: "var(--color-waiting)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Indisponible</span>;
+    if (estado === "INACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Inactivo</span>;
+    return <span style={{ background: "var(--color-border)", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>{estado}</span>;
   };
 
   const esLiderDeEquipo = (equipo: EquipoInfo) => equipo.lider?.id === usuario?.id || esAdmin;
@@ -532,7 +533,7 @@ export default function EquiposPage() {
           {puedeCrearEquipo && !esClientePuro && (
             <button
               onClick={abrirModalCrear}
-              style={{ background: "#000000", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+              style={{ background: "var(--color-brand)", color: "var(--color-background)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}
             >
               + Crear equipo
             </button>
@@ -547,9 +548,9 @@ export default function EquiposPage() {
             type="button"
             onClick={() => setSoloMios((v) => !v)}
             style={{
-              border: "1px solid #d1d5db",
-              background: soloMios ? "#111827" : "white",
-              color: soloMios ? "white" : "#374151",
+              border: "1px solid var(--color-border)",
+              background: soloMios ? "var(--color-text)" : "white",
+              color: soloMios ? "white" : "var(--color-text)",
               borderRadius: 8,
               padding: "8px 14px",
               fontSize: 13,
@@ -559,7 +560,7 @@ export default function EquiposPage() {
           >
             {soloMios ? "Filtro: solo mis equipos" : "Filtro: todos los equipos"}
           </button>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>
+          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
             {equiposVisibles.length} de {equipos.length} equipo(s)
           </span>
         </div>
@@ -575,14 +576,14 @@ export default function EquiposPage() {
 
 
       {esClientePuro && (
-        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: 12, borderRadius: 8, fontSize: 13, color: "#1e40af" }}>
+        <div style={{ background: "color-mix(in srgb, var(--color-in-progress) 10%, white)", border: "1px solid color-mix(in srgb, var(--color-in-progress) 28%, white)", padding: 12, borderRadius: 8, fontSize: 13, color: "var(--color-in-progress)" }}>
           Para crear una solicitud, elige uno de estos equipos en <Link href="/mfpages/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "#1d4ed8" }}>Mis Solicitudes</Link>.
         </div>
       )}
 
       {equiposVisibles.length === 0 ? (
-        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, padding: 24, textAlign: "center" }}>
-          <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>
+        <div style={{ background: "white", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24, textAlign: "center" }}>
+          <p style={{ color: "var(--color-text-secondary)", fontSize: 14, margin: 0 }}>
             {soloMios
               ? "No perteneces a ningún equipo aún."
               : filtroTipo !== "TODOS"
@@ -591,7 +592,7 @@ export default function EquiposPage() {
                   ? "No hay equipos activos disponibles por el momento."
                   : "No hay equipos disponibles."}
           </p>
-          {!esClientePuro && !soloMios && <p style={{ color: "#9ca3af", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
+          {!esClientePuro && !soloMios && <p style={{ color: "var(--color-text-secondary)", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
         </div>
       ) : (
         <div className={styles.grid}>
@@ -645,14 +646,14 @@ export default function EquiposPage() {
                 {expandido && (
                   <div className={styles.expand}>
                     {/* Fila líder con disponibilidad */}
-                    <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.estado === "INDISPONIBLE" ? "#f59e0b" : "#e5e7eb"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", display: "flex", gap: 8, alignItems: "center" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center" }}>
                           {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeEstado(liderMiembro.estado)}
                         </div>
-                        <div style={{ fontSize: 12, color: "#6b7280" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `• ${equipo.lider.cargo}` : ""}</div>
+                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `• ${equipo.lider.cargo}` : ""}</div>
                         {liderMiembro?.estado === "INDISPONIBLE" && (liderMiembro.fecha_inicio_indisponibilidad || liderMiembro.motivo_indisponibilidad) && (
-                          <div style={{ fontSize: 11, color: "#92400e", marginTop: 4 }}>
+                          <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
                             {liderMiembro.motivo_indisponibilidad ? `Motivo: ${liderMiembro.motivo_indisponibilidad}` : ""}
                             {liderMiembro.fecha_inicio_indisponibilidad ? ` • ${liderMiembro.fecha_inicio_indisponibilidad}` : ""}
                             {liderMiembro.fecha_fin_indisponibilidad ? ` → ${liderMiembro.fecha_fin_indisponibilidad}` : ""}
@@ -670,7 +671,7 @@ export default function EquiposPage() {
                                 }}
                                 disabled={!!accionando || !tieneSubLiderActivo}
                                 title={!tieneSubLiderActivo ? "CONDICION: Debe haber un sub-líder asignado en el equipo" : "Inactivar cuenta"}
-                                style={{ background: tieneSubLiderActivo ? "white" : "#f3f4f6", color: tieneSubLiderActivo ? "#92400e" : "#9ca3af", border: "1px solid #fde68a", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
+                                style={{ background: tieneSubLiderActivo ? "white" : "var(--color-surface)", color: tieneSubLiderActivo ? "var(--color-waiting)" : "var(--color-text-secondary)", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, white)", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
                               >
                                 Inactivar cuenta
                               </button>
@@ -678,7 +679,7 @@ export default function EquiposPage() {
                               <button
                                 onClick={() => handleCambiarEstado(equipo, liderMiembro, "ACTIVO")}
                                 disabled={!!accionando}
-                                style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                                style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
                               >
                                 Volver a estado activo
                               </button>
@@ -704,9 +705,9 @@ export default function EquiposPage() {
                       </div>
                     </div>
                     <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", background: "white", borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", background: "white", borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border)" }}>
                         <thead>
-                          <tr style={{ background: "#f9fafb", textAlign: "left", fontSize: 12, color: "#6b7280" }}>
+                          <tr style={{ background: "var(--color-surface)", textAlign: "left", fontSize: 12, color: "var(--color-text-secondary)" }}>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Integrante</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Email</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
@@ -716,7 +717,7 @@ export default function EquiposPage() {
                         <tbody>
                           {equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").length === 0 ? (
                             <tr>
-                              <td colSpan={4} style={{ padding: 16, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+                              <td colSpan={4} style={{ padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
                                 Sin integrantes adicionales (solo líder)
                               </td>
                             </tr>
@@ -728,22 +729,22 @@ export default function EquiposPage() {
                                   key={m.id}
                                   onClick={() => { if (puedoGestionar) setModalMiembro({ equipo, miembro: m }); }}
                                   title={puedoGestionar ? "Clic para gestionar al integrante" : undefined}
-                                  style={{ borderTop: "1px solid #f3f4f6", fontSize: 13, background: m.estado === "INACTIVO" ? "#fef2f2" : m.estado === "INDISPONIBLE" ? "#fffbeb" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1, cursor: puedoGestionar ? "pointer" : "default" }}
+                                  style={{ borderTop: "1px solid var(--color-border)", fontSize: 13, background: m.estado === "INACTIVO" ? "color-mix(in srgb, var(--color-danger) 8%, white)" : m.estado === "INDISPONIBLE" ? "color-mix(in srgb, var(--color-waiting) 10%, white)" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1, cursor: puedoGestionar ? "pointer" : "default" }}
                                 >
                                   <td style={{ padding: "10px 12px" }}>
-                                    <div style={{ fontWeight: 600, color: "#111827" }}>
-                                      {m.nombres} {m.apellidos} {esYo && <span style={{ background: "#dbeafe", color: "#1e40af", padding: "1px 6px", borderRadius: 999, fontSize: 11, marginLeft: 6 }}>Tú</span>}
+                                    <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
+                                      {m.nombres} {m.apellidos} {esYo && <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", color: "var(--color-in-progress)", padding: "1px 6px", borderRadius: 999, fontSize: 11, marginLeft: 6 }}>Tú</span>}
                                     </div>
-                                    <div style={{ fontSize: 11, color: "#6b7280" }}>{m.cargo || "—"}</div>
+                                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{m.cargo || "—"}</div>
                                     {m.estado === "INDISPONIBLE" && (m.fecha_inicio_indisponibilidad || m.motivo_indisponibilidad) && (
-                                      <div style={{ fontSize: 11, color: "#92400e", marginTop: 4 }}>
+                                      <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
                                         {m.motivo_indisponibilidad ? `Motivo: ${m.motivo_indisponibilidad}` : ""}
                                         {m.fecha_inicio_indisponibilidad ? ` • ${m.fecha_inicio_indisponibilidad}` : ""}
                                         {m.fecha_fin_indisponibilidad ? ` → ${m.fecha_fin_indisponibilidad}` : ""}
                                       </div>
                                     )}
                                   </td>
-                                  <td style={{ padding: "10px 12px", color: "#374151", fontSize: 12 }}>{m.email}</td>
+                                  <td style={{ padding: "10px 12px", color: "var(--color-text)", fontSize: 12 }}>{m.email}</td>
                                   <td style={{ padding: "10px 12px" }}>{badgeRol(m.rol_en_equipo)}</td>
                                   <td style={{ padding: "10px 12px" }}>{badgeEstado(m.estado)}</td>
                                 </tr>
@@ -770,14 +771,14 @@ export default function EquiposPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
               <div>
-                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>
                   {modalMiembro.miembro.nombres} {modalMiembro.miembro.apellidos}
                 </h3>
-                <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
                   {modalMiembro.miembro.email} · {modalMiembro.miembro.cargo || "—"}
                 </p>
               </div>
-              <button onClick={() => setModalMiembro(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#6b7280", lineHeight: 1 }}>✕</button>
+              <button onClick={() => setModalMiembro(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--color-text-secondary)", lineHeight: 1 }}>✕</button>
             </div>
 
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
@@ -786,7 +787,7 @@ export default function EquiposPage() {
             </div>
 
             {modalMiembro.miembro.estado === "INDISPONIBLE" && (modalMiembro.miembro.fecha_inicio_indisponibilidad || modalMiembro.miembro.motivo_indisponibilidad) && (
-              <div style={{ fontSize: 12, color: "#92400e", marginTop: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 10, background: "color-mix(in srgb, var(--color-waiting) 10%, white)", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, white)", borderRadius: 8, padding: 8 }}>
                 {modalMiembro.miembro.motivo_indisponibilidad ? `Motivo: ${modalMiembro.miembro.motivo_indisponibilidad}` : ""}
                 {modalMiembro.miembro.fecha_inicio_indisponibilidad ? ` • ${modalMiembro.miembro.fecha_inicio_indisponibilidad}` : ""}
                 {modalMiembro.miembro.fecha_fin_indisponibilidad ? ` → ${modalMiembro.miembro.fecha_fin_indisponibilidad}` : ""}
@@ -809,9 +810,9 @@ export default function EquiposPage() {
                       : "Otorgar/revocar SUB-LÍDER"
                 }
                 style={{
-                  background: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "#fef3c7" : "white",
-                  color: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "#92400e" : "#374151",
-                  border: `1px solid ${modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "#f59e0b" : "#d1d5db"}`,
+                  background: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "color-mix(in srgb, var(--color-waiting) 12%, white)" : "white",
+                  color: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-text)",
+                  border: `1px solid ${modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-border)"}`,
                   padding: "8px 12px",
                   borderRadius: 8,
                   cursor: modalMiembro.miembro.estado !== "ACTIVO" ? "not-allowed" : "pointer",
@@ -831,7 +832,7 @@ export default function EquiposPage() {
                     handleCambiarEstado(equipo, miembro, "ACTIVO");
                   }}
                   disabled={!!accionando || !liderActivoModal}
-                  style={{ background: "white", color: "#166534", border: "1px solid #86efac", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                  style={{ background: "white", color: "var(--color-done)", border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
                 >
                   Volver a activo
                 </button>
@@ -843,7 +844,7 @@ export default function EquiposPage() {
                     abrirModalIndisponible(equipo.id, miembro);
                   }}
                   disabled={!!accionando || !liderActivoModal}
-                  style={{ background: "white", color: "#92400e", border: "1px solid #fde68a", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                  style={{ background: "white", color: "var(--color-waiting)", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, white)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
                 >
                   Inactivar (indisponible)
                 </button>
@@ -857,14 +858,14 @@ export default function EquiposPage() {
                 }}
                 disabled={!!accionando || !liderActivoModal}
                 title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
-                style={{ background: "white", color: "#991b1b", border: "1px solid #fecaca", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                style={{ background: "white", color: "var(--color-danger)", border: "1px solid color-mix(in srgb, var(--color-danger) 28%, white)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
               >
                 Eliminar del grupo
               </button>
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-              <button onClick={() => setModalMiembro(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+              <button onClick={() => setModalMiembro(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
             </div>
           </div>
         </div>
@@ -877,27 +878,27 @@ export default function EquiposPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Inactivar cuenta {modalIndisponible.miembro.rol_en_equipo === "LIDER" ? "(Líder - requiere sub-líder)" : ""}</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Inactivar cuenta {modalIndisponible.miembro.rol_en_equipo === "LIDER" ? "(Líder - requiere sub-líder)" : ""}</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
               {modalIndisponible.miembro.nombres} {modalIndisponible.miembro.apellidos} — se inactivará temporalmente. Si tiene subtareas en desarrollo/en espera, deberás reasignarlas.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                 Fecha inicio
-                <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
+                <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                 Fecha fin
-                <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
+                <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                 Motivo
-                <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. Vacaciones, licencia médica…" style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
+                <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. Vacaciones, licencia médica…" style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
               </label>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalIndisponible(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
-              <button onClick={confirmarIndisponible} style={{ background: "#f59e0b", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Inactivar cuenta</button>
+              <button onClick={() => setModalIndisponible(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button onClick={confirmarIndisponible} style={{ background: "var(--color-waiting)", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Inactivar cuenta</button>
             </div>
           </div>
         </div>
@@ -910,23 +911,23 @@ export default function EquiposPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#991b1b" }}>Subtareas pendientes — reasignación requerida</h3>
-            <p style={{ margin: "6px 0 12px", fontSize: 13, color: "#374151", background: "#fee2e2", padding: 10, borderRadius: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-danger)" }}>Subtareas pendientes — reasignación requerida</h3>
+            <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--color-text)", background: "color-mix(in srgb, var(--color-danger) 10%, white)", padding: 10, borderRadius: 8 }}>
               el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse: <strong>{modalReasignar.usuarioNombre}</strong>
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {modalReasignar.pendientes.map((p) => {
                 const opciones = modalReasignar.equipo.miembros.filter((m) => m.estado === "ACTIVO" && m.id_usuario !== modalReasignar.miembro.id_usuario);
                 return (
-                  <div key={p.subtarea_id} style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10, background: "#fafafa" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{p.descripcion}</div>
-                    <div style={{ fontSize: 11, color: "#6b7280" }}>Tarea #{p.tarea_id} — {p.tarea_asunto} • Estado: {p.estado}</div>
+                  <div key={p.subtarea_id} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: 10, background: "var(--color-surface)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{p.descripcion}</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Tarea #{p.tarea_id} — {p.tarea_asunto} • Estado: {p.estado}</div>
                     <label style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, fontSize: 12, fontWeight: 600 }}>
                       Reasignar a:
                       <select
                         value={reassignments[p.subtarea_id] ?? ""}
                         onChange={(e) => setReassignments((prev) => ({ ...prev, [p.subtarea_id]: Number(e.target.value) }))}
-                        style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
+                        style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
                       >
                         <option value="">— seleccionar —</option>
                         {opciones.map((o) => (
@@ -941,12 +942,12 @@ export default function EquiposPage() {
               })}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-              <button onClick={() => setModalReasignar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
-              <button onClick={confirmarReasignarYMarcar} style={{ background: "#7c3aed", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+              <button onClick={() => setModalReasignar(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+              <button onClick={confirmarReasignarYMarcar} style={{ background: "var(--color-brand)", color: "var(--color-background)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
                 {modalReasignar.extra.esBaja ? "Reasignar y dar de baja" : "Reasignar e inactivar esta cuenta"}
               </button>
             </div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "#6b7280" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>
+            <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-text-secondary)" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>
           </div>
         </div>
       )}
@@ -958,17 +959,17 @@ export default function EquiposPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 560, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Agregar integrante</h3>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Agregar integrante</h3>
             <input
               value={busquedaUsuario}
               onChange={(e) => setBusquedaUsuario(e.target.value)}
               placeholder="Buscar por nombre, email o código"
-              style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
+              style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
             />
 
-            <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid #f3f4f6", borderRadius: 8, padding: 6 }}>
+            <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
               {usuariosFiltrados.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 13, color: "#9ca3af", textAlign: "center" }}>
+                <div style={{ padding: 12, fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>
                   No hay usuarios disponibles para agregar.
                 </div>
               ) : (
@@ -987,22 +988,22 @@ export default function EquiposPage() {
                         gap: 8,
                         width: "100%",
                         textAlign: "left",
-                        background: seleccionado ? "#ede9fe" : "white",
-                        border: `1px solid ${seleccionado ? "#7c3aed" : "#e5e7eb"}`,
+                        background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, white)" : "white",
+                        border: `1px solid ${seleccionado ? "var(--color-detail-header)" : "var(--color-border)"}`,
                         borderRadius: 8,
                         padding: "8px 10px",
                         cursor: "pointer",
                       }}
                     >
                       <span>
-                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                           {u.nombres} {u.apellidos}
                         </span>
-                        <span style={{ display: "block", fontSize: 11, color: "#6b7280" }}>
+                        <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
                           {u.email} • {u.codigo ?? "—"}
                         </span>
                       </span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "#5b21b6" : "#9ca3af" }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
                         {seleccionado ? "Seleccionado" : "Elegir"}
                       </span>
                     </button>
@@ -1011,22 +1012,22 @@ export default function EquiposPage() {
               )}
             </div>
 
-            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "#374151" }}>
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
               o ingresa el código MFS manualmente
               <input
                 value={agregarUsuarioId.toUpperCase().startsWith("MFS-") ? agregarUsuarioId : ""}
                 onChange={(e) => setAgregarUsuarioId(e.target.value.toUpperCase())}
                 placeholder="Ej. MFS-20250830-12345"
-                style={{ width: "100%", marginTop: 4, border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace", fontWeight: 400 }}
+                style={{ width: "100%", marginTop: 4, border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace", fontWeight: 400 }}
               />
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalAgregar(null)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button onClick={() => setModalAgregar(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
               <button
                 onClick={confirmarAgregar}
                 disabled={!agregarUsuarioId || !!accionando}
-                style={{ background: agregarUsuarioId ? "#111827" : "#9ca3af", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
+                style={{ background: agregarUsuarioId ? "var(--color-text)" : "var(--color-text-secondary)", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
               >
                 Agregar al equipo
               </button>
@@ -1042,37 +1043,37 @@ export default function EquiposPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#111827" }}>Crear equipo</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Crear equipo</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
               Selecciona un líder elegible (colaborador con rol que puede liderar, o administrador).
             </p>
 
-            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "#374151" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
               Nombre del equipo
               <input
                 value={nuevo.nombre}
                 onChange={(e) => setNuevo((prev) => ({ ...prev, nombre: e.target.value }))}
                 placeholder="Nombre del equipo"
-                style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
               />
             </label>
 
             {esAdmin && (
               <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Líder del equipo</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Líder del equipo</span>
 
                 <input
                   value={liderBusqueda}
                   onChange={(e) => setLiderBusqueda(e.target.value)}
                   placeholder="Buscar por nombre, email o código"
-                  style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                  style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
                 />
 
                 <div style={{ display: "flex", gap: 8 }}>
                   <select
                     value={liderTipoFiltro}
                     onChange={(e) => setLiderTipoFiltro(e.target.value)}
-                    style={{ flex: 1, border: "1px solid #d1d5db", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
+                    style={{ flex: 1, border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
                   >
                     <option value="todos">Todos los tipos</option>
                     <option value="COLABORADOR">Colaborador</option>
@@ -1082,7 +1083,7 @@ export default function EquiposPage() {
                   <select
                     value={liderRolFiltro}
                     onChange={(e) => setLiderRolFiltro(e.target.value)}
-                    style={{ flex: 1, border: "1px solid #d1d5db", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
+                    style={{ flex: 1, border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
                   >
                     <option value="todos">Todos los roles</option>
                     {rolesLider.map((r) => (
@@ -1091,9 +1092,9 @@ export default function EquiposPage() {
                   </select>
                 </div>
 
-                <div style={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid #f3f4f6", borderRadius: 8, padding: 6 }}>
+                <div style={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
                   {lideresFiltrados.length === 0 ? (
-                    <div style={{ padding: 10, fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
+                    <div style={{ padding: 10, fontSize: 12, color: "var(--color-text-secondary)", textAlign: "center" }}>
                       No hay usuarios elegibles que coincidan.
                     </div>
                   ) : (
@@ -1112,22 +1113,22 @@ export default function EquiposPage() {
                             gap: 8,
                             width: "100%",
                             textAlign: "left",
-                            background: sel ? "#ede9fe" : "white",
-                            border: `1px solid ${sel ? "#7c3aed" : "#e5e7eb"}`,
+                            background: sel ? "color-mix(in srgb, var(--color-detail-header) 10%, white)" : "white",
+                            border: `1px solid ${sel ? "var(--color-detail-header)" : "var(--color-border)"}`,
                             borderRadius: 8,
                             padding: "8px 10px",
                             cursor: "pointer",
                           }}
                         >
                           <span>
-                            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                               {u.nombres} {u.apellidos}
                             </span>
-                            <span style={{ display: "block", fontSize: 11, color: "#6b7280" }}>
+                            <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
                               {u.email} • {(u.roles ?? []).join(", ") || "—"}
                             </span>
                           </span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: sel ? "#5b21b6" : "#9ca3af" }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: sel ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
                             {sel ? "Seleccionado" : "Elegir"}
                           </span>
                         </button>
@@ -1137,7 +1138,7 @@ export default function EquiposPage() {
                 </div>
 
                 {nuevo.lider && (
-                  <span style={{ fontSize: 12, color: "#374151" }}>
+                  <span style={{ fontSize: 12, color: "var(--color-text)" }}>
                     Líder seleccionado:{" "}
                     <strong>
                       {(() => {
@@ -1153,19 +1154,19 @@ export default function EquiposPage() {
             )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalCrear(false)} style={{ background: "white", border: "1px solid #d1d5db", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button onClick={() => setModalCrear(false)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
               <button
                 onClick={crearEquipo}
                 disabled={!nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim())}
                 style={{
-                  background: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "#9ca3af" : "#7c3aed",
-                  color: "white",
-                  border: "none",
+                  background: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "var(--color-disabled)" : "var(--color-brand)",
+                  color: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "var(--color-text-secondary)" : "var(--color-background)",
+                  border: "1px solid var(--color-brand)",
                   padding: "8px 14px",
-                  borderRadius: 8,
+                  borderRadius: "var(--radius-control)",
                   cursor: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "not-allowed" : "pointer",
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                 }}
               >
                 Crear equipo

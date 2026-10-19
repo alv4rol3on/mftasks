@@ -1,24 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import TaskTableEnDesarrollo from "@/components/tareas/TaskTableEnDesarrollo";
-import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
-import { Task } from "@/lib/types";
-import { getUsuarioActual } from "@/lib/auth";
-import { useToast } from "@/components/ui/Toast";
-import Modal from "@/components/ui/Modal";
+import TaskFilters from "@/components/tareas/TaskFilters";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
-import { ESTADOS_TAREA, rangoFechasPorDefecto } from "./utils/tareasFilters";
-import { iniciarTarea, empezarSubtarea as apiEmpezar, completarSubtarea as apiCompletar, cambiarEstadoSubtarea as apiCambiar, reanudarSubtarea as apiReanudarSubtarea, reasignarSubtarea as apiReasignar, inactivarSubtarea as apiInactivar, reactivarSubtarea as apiReactivar, type EstadoFiltro, type CampoFecha, type FiltrosTareas } from "@/lib/services/tareasService";
+import { rangoFechasPorDefecto } from "./utils/tareasFilters";
+import type { CampoFecha, EstadoFiltro, FiltrosTareas } from "@/lib/services/tareasService";
+import styles from "./Tareas.module.css";
+
+const FILTROS_STORAGE_KEY = "mftasks:tareas:filtros";
+
+type FiltrosGuardados = {
+  busqueda: string;
+  estado: EstadoFiltro;
+  campoFecha: CampoFecha;
+  desde: string;
+  hasta: string;
+  campana: number | "";
+  subcampana: number | "";
+};
 
 export default function TareasPage() {
   const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea } = useTasksWebSocket();
-  const { showToast } = useToast();
-  const [accionando, setAccionando] = useState<number | null>(null);
-  const [empezandoId, setEmpezandoId] = useState<number | null>(null);
-  const [completandoId, setCompletandoId] = useState<number | null>(null);
-  const [solicitudResuelta, setSolicitudResuelta] = useState<{ ticket?: string | null; asunto?: string } | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("EN_PROCESO");
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
@@ -27,24 +31,55 @@ export default function TareasPage() {
   const [hasta, setHasta] = useState(rangoInicial.hasta);
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
-  const esAdmin = (getUsuarioActual()?.roles ?? [])
-    .map((r) => r.toLowerCase())
-    .includes("administrador");
+  const primeraPersistencia = useRef(true);
 
   const filtros = useMemo<FiltrosTareas>(
     () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta, campana: filtroCampana, subcampana: filtroSubcampana }),
     [busqueda, filtroEstado, campoFecha, desde, hasta, filtroCampana, filtroSubcampana]
   );
-  const { tareas, cargando, error, cargar, setTareas, setError } = useTareas(filtros);
+  const { tareas, cargando, error, cargar, setTareas } = useTareas(filtros);
 
-  const revelarSolicitudResuelta = (tareaId: number, res?: { solicitud_resuelta?: boolean; tarea_ticket?: string | null }) => {
-    if (!res?.solicitud_resuelta) return;
-    const t = tareas.find((x) => x.id === tareaId);
-    setSolicitudResuelta({ ticket: res.tarea_ticket ?? t?.ticket, asunto: t?.asunto });
-  };
+  // Restaura los filtros al volver del detalle de una solicitud.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(FILTROS_STORAGE_KEY);
+      if (!raw) return;
+      const guardados = JSON.parse(raw) as Partial<FiltrosGuardados>;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (typeof guardados.busqueda === "string") setBusqueda(guardados.busqueda);
+      if (guardados.estado) setFiltroEstado(guardados.estado);
+      if (guardados.campoFecha) setCampoFecha(guardados.campoFecha);
+      if (typeof guardados.desde === "string") setDesde(guardados.desde);
+      if (typeof guardados.hasta === "string") setHasta(guardados.hasta);
+      if (typeof guardados.campana === "number" || guardados.campana === "") setFiltroCampana(guardados.campana);
+      if (typeof guardados.subcampana === "number" || guardados.subcampana === "") setFiltroSubcampana(guardados.subcampana);
+    } catch {
+      // Si el almacenamiento no está disponible, se usan los filtros por defecto.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (primeraPersistencia.current) {
+      primeraPersistencia.current = false;
+      return;
+    }
+    try {
+      const guardados: FiltrosGuardados = {
+        busqueda,
+        estado: filtroEstado,
+        campoFecha,
+        desde,
+        hasta,
+        campana: filtroCampana,
+        subcampana: filtroSubcampana,
+      };
+      sessionStorage.setItem(FILTROS_STORAGE_KEY, JSON.stringify(guardados));
+    } catch {
+      // Sin persistencia si sessionStorage no está disponible.
+    }
+  }, [busqueda, filtroEstado, campoFecha, desde, hasta, filtroCampana, filtroSubcampana]);
 
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
-  const idsTareasKey = idsTareas.join(",");
 
   const rangoDefecto = rangoFechasPorDefecto();
   const hayFiltros =
@@ -54,6 +89,7 @@ export default function TareasPage() {
     hasta !== rangoDefecto.hasta ||
     filtroCampana !== "" ||
     filtroSubcampana !== "";
+
   const limpiarFiltros = () => {
     const r = rangoFechasPorDefecto();
     setFiltroEstado("EN_PROCESO");
@@ -72,8 +108,8 @@ export default function TareasPage() {
     setHasta(r.hasta);
   };
 
-  const handleEstadoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFiltroEstado(e.target.value as EstadoFiltro);
+  const handleEstadoChange = (estado: EstadoFiltro) => {
+    setFiltroEstado(estado);
     aplicarRangoPorDefecto();
   };
 
@@ -83,7 +119,7 @@ export default function TareasPage() {
     return () => {
       idsTareas.forEach((id) => dejarDeObservarTarea(id));
     };
-  }, [idsTareasKey, observarTarea, dejarDeObservarTarea]);
+  }, [idsTareas, observarTarea, dejarDeObservarTarea]);
 
   useEffect(() => {
     if (
@@ -145,202 +181,77 @@ export default function TareasPage() {
     );
   }, [eventos, subtareaEventos, setTareas]);
 
-  const iniciar = async (
-    tarea: Task,
-    payload: { fecha_inicio: string; fecha_entrega_aproximada: string; subtareas: { descripcion: string; asignado: number; peso: number }[]; dependencias: { bloqueada: number; bloqueadora: number }[] }
-  ) => {
-    setAccionando(tarea.id);
-    setError(null);
-    try {
-      await iniciarTarea(tarea.id, payload);
-      showToast("Tarea iniciada correctamente", "success");
-      await cargar();
-    } catch (e) {
-      const msg = (e as Error).message;
-      setError(msg);
-      showToast(msg, "error");
-    } finally {
-      setAccionando(null);
-    }
-  };
-
-  const empezarSubtarea = async (tareaId: number, subtareaId: number) => {
-    setEmpezandoId(subtareaId);
-    try {
-      await apiEmpezar(tareaId, subtareaId);
-      showToast("Subtarea iniciada", "success");
-      await cargar();
-    } catch (e) {
-      showToast((e as Error).message, "error");
-    } finally {
-      setEmpezandoId(null);
-    }
-  };
-
-  const completarSubtarea = async (tareaId: number, subtareaId: number) => {
-    setCompletandoId(subtareaId);
-    try {
-      const res = await apiCompletar(tareaId, subtareaId);
-      showToast("Subtarea completada", "success");
-      await cargar();
-      revelarSolicitudResuelta(tareaId, res);
-    } catch (e) {
-      showToast((e as Error).message, "error");
-    } finally {
-      setCompletandoId(null);
-    }
-  };
-
-  const cambiarEstadoSubtarea = async (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => {
-    const tareaActual = tareas.find((t) => t.id === tareaId);
-    const subActual = tareaActual?.subtareas.find((s) => s.id === subtareaId);
-    const estadoActual = subActual?.estado;
-    try {
-      if (nuevoEstado === "STAND_BY" && !motivo) {
-        showToast("Motivo obligatorio para STAND_BY", "error");
-        return;
-      }
-      const res = await apiCambiar(tareaId, subtareaId, nuevoEstado, motivo, estadoActual);
-      const msgs: Record<string, string> = {
-        STAND_BY: "Subtarea en pausa",
-        EN_DESARROLLO: estadoActual === "STAND_BY" ? "Subtarea reanudada" : "Subtarea iniciada",
-        EN_ESPERA: "Subtarea reanudada a En espera",
-        SOLUCIONADO: "Subtarea solucionada",
-      };
-      showToast(msgs[nuevoEstado] ?? "Estado actualizado", "success");
-      await cargar();
-      revelarSolicitudResuelta(tareaId, res);
-    } catch (e) {
-      showToast((e as Error).message, "error");
-    }
-  };
-
-  const reanudarSubtarea = async (
-    tareaId: number,
-    subtareaId: number,
-    opts?: { modo?: "continuar" | "nueva_fecha" | "mantener"; nuevaFechaEntrega?: string }
-  ) => {
-    try {
-      await apiReanudarSubtarea(tareaId, subtareaId, opts);
-      const msgs: Record<string, string> = {
-        continuar: "Subtarea reanudada: la cuenta regresiva continúa",
-        nueva_fecha: "Subtarea reanudada con nueva fecha de entrega",
-        mantener: "Subtarea reanudada manteniendo la fecha de entrega",
-      };
-      showToast(msgs[opts?.modo ?? "continuar"] ?? "Subtarea reanudada", "success");
-      await cargar();
-    } catch (e) {
-      showToast((e as Error).message, "error");
-      throw e;
-    }
-  };
-
-  const reasignarSubtarea = async (tareaId: number, subtareaId: number, nuevoAsignado: number) => {
-    try {
-      await apiReasignar(tareaId, subtareaId, nuevoAsignado);
-      showToast("Subtarea reasignada", "success");
-      await cargar();
-    } catch (e) {
-      showToast((e as Error).message, "error");
-      throw e;
-    }
-  };
-  const inactivarSubtarea = async (tareaId: number, subtareaId: number) => {
-    try {
-      const res = await apiInactivar(tareaId, subtareaId);
-      showToast("Subtarea inactivada", "success");
-      await cargar();
-      revelarSolicitudResuelta(tareaId, res);
-    } catch (e) {
-      showToast((e as Error).message, "error");
-      throw e;
-    }
-  };
-  const reactivarSubtarea = async (tareaId: number, subtareaId: number) => {
-    try {
-      await apiReactivar(tareaId, subtareaId);
-      showToast("Subtarea reactivada", "success");
-      await cargar();
-    } catch (e) {
-      showToast((e as Error).message, "error");
-      throw e;
-    }
-  };
-
-  if (cargando) return <div>Cargando tareas…</div>;
-  if (error) return <div>Error al cargar las tareas: {error}</div>;
-
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault();
     cargar({ busqueda });
   };
 
-  const selectStyle: React.CSSProperties = { border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white", minWidth: 160 };
-  const inputStyle: React.CSSProperties = { border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" };
-  const fechaLabelStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280" };
-  const clearBtnStyle: React.CSSProperties = { border: "1px solid #d1d5db", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" };
+  const mostrarCargando = cargando && tareas.length === 0;
+  const mostrarError = !!error && tareas.length === 0;
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
-        <h2 className="text-lg font-medium" style={{ margin: 0 }}>Tareas en desarrollo</h2>
-        <span style={{ fontSize: 12, color: "#6b7280" }}>{tareas.length} resultado(s)</span>
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-        <FiltroCampanaSubcampana
-          campanaId={filtroCampana}
-          subcampanaId={filtroSubcampana}
-          onChange={({ campanaId, subcampanaId }) => {
-            setFiltroCampana(campanaId);
-            setFiltroSubcampana(subcampanaId);
-          }}
-          selectStyle={selectStyle}
-        />
-        <select value={filtroEstado} onChange={handleEstadoChange} style={selectStyle} title="Filtrar por estado">
-          {ESTADOS_TAREA.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-        <select value={campoFecha} onChange={(e) => setCampoFecha(e.target.value as CampoFecha)} style={selectStyle} title="Campo de fecha a filtrar">
-          <option value="solicitud">Fecha de solicitud</option>
-          <option value="entrega">Fecha de entrega</option>
-          <option value="aprobacion">Fecha de aprobacion</option>
-        </select>
-        <label style={fechaLabelStyle}>
-          Desde
-          <input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} style={inputStyle} />
-        </label>
-        <label style={fechaLabelStyle}>
-          Hasta
-          <input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} style={inputStyle} />
-        </label>
-        <form onSubmit={handleBuscar} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ ...inputStyle, minWidth: 240 }} />
-        </form>
-        {hayFiltros && (
-          <button type="button" onClick={limpiarFiltros} style={clearBtnStyle}>Limpiar</button>
-        )}
-      </div>
-      <TaskTableEnDesarrollo tareas={tareas} accionando={accionando} empezandoId={empezandoId} completandoId={completandoId} onIniciar={iniciar} onEmpezarSubtarea={empezarSubtarea} onCompletarSubtarea={completarSubtarea} onCambiarEstadoSubtarea={cambiarEstadoSubtarea} onReanudarSubtarea={reanudarSubtarea} onReasignarSubtarea={reasignarSubtarea} onInactivarSubtarea={inactivarSubtarea} onReactivarSubtarea={reactivarSubtarea} onTareaMutated={cargar} soloLectura={esAdmin} />
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <div>
+          <p className={styles.eyebrow}>Solicitudes activas</p>
+          <h2 className={styles.title}>Tareas en desarrollo</h2>
+          <p className={styles.subtitle}>Seguimiento de solicitudes, subtareas, dependencias y tiempos de entrega.</p>
+        </div>
+        <div className={styles.headerMeta}>
+          <span className={styles.resultCount} aria-live="polite">
+            {tareas.length} resultado{tareas.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      </header>
 
-      {solicitudResuelta && (
-        <Modal
-          title="Solicitud resuelta"
-          onClose={() => setSolicitudResuelta(null)}
-          footer={
-            <button
-              type="button"
-              onClick={() => setSolicitudResuelta(null)}
-              style={{ background: "#16a34a", color: "white", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}
-            >
-              Aceptar
+      <TaskFilters
+        campanaId={filtroCampana}
+        subcampanaId={filtroSubcampana}
+        onCampanaChange={({ campanaId, subcampanaId }) => {
+          setFiltroCampana(campanaId);
+          setFiltroSubcampana(subcampanaId);
+        }}
+        estado={filtroEstado}
+        onEstadoChange={handleEstadoChange}
+        campoFecha={campoFecha}
+        onCampoFechaChange={setCampoFecha}
+        desde={desde}
+        onDesdeChange={setDesde}
+        hasta={hasta}
+        onHastaChange={setHasta}
+        busqueda={busqueda}
+        onBusquedaChange={setBusqueda}
+        onBuscar={handleBuscar}
+        onLimpiar={limpiarFiltros}
+        hayFiltros={hayFiltros}
+      />
+
+      {error && tareas.length > 0 && (
+        <div className={styles.inlineError} role="alert">
+          {error}
+        </div>
+      )}
+
+      {mostrarCargando ? (
+        <div className={styles.loadingPanel} aria-label="Cargando tareas">
+          <span className={styles.srOnly}>Cargando tareas…</span>
+          <div className={styles.skeletonRow} />
+          <div className={styles.skeletonRow} />
+          <div className={styles.skeletonRow} />
+          <div className={styles.skeletonRow} />
+        </div>
+      ) : mostrarError ? (
+        <div className={`${styles.statePanel} ${styles.errorPanel}`} role="alert">
+          <div>
+            <strong>No se pudieron cargar las tareas</strong>
+            <p>{error}</p>
+            <button type="button" className={styles.retryButton} onClick={() => cargar()}>
+              Reintentar
             </button>
-          }
-        >
-          <p style={{ margin: 0 }}>
-            {solicitudResuelta.ticket ? `La solicitud ${solicitudResuelta.ticket}` : "La solicitud"} fue resuelta: todas sus subtareas fueron completadas.
-          </p>
-        </Modal>
+          </div>
+        </div>
+      ) : (
+        <TaskTableEnDesarrollo tareas={tareas} />
       )}
     </div>
   );

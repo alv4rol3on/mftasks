@@ -210,14 +210,14 @@ export default function PerfilPage() {
           {campanasAbierto && (
             <div className={styles.alertsBody}>
               {campanasPermitidas.length === 0 ? (
-                <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
                   Sin permisos asignados. Contacta al administrador.
                 </p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {campanasPermitidas.map((campana) => (
                     <div key={campana.id}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
                         {campana.nombre}
                       </div>
                       <div className={styles.badges} style={{ marginTop: 6 }}>
@@ -226,7 +226,7 @@ export default function PerfilPage() {
                             <span key={sub.id} className={styles.badge}>{sub.nombre}</span>
                           ))
                         ) : (
-                          <span style={{ fontSize: 12, color: "#9ca3af" }}>Sin subcampañas activas</span>
+                          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Sin subcampañas activas</span>
                         )}
                       </div>
                     </div>

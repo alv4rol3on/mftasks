@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import TaskModal from "./TaskModal";
-//import TaskIniciarModal from "./TaskIniciarModal";
-import styles from "../shared/SharedTable.module.css";
+import { useRouter } from "next/navigation";
+import styles from "./TaskTableEnDesarrollo.module.css";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import TaskCountdown from "./TaskCountdown";
+import TaskStatusBadge from "./TaskStatusBadge";
 import Pagination from "../ui/Pagination";
 import { ContadoresProvider, useContador } from "./ContadoresProvider";
 
@@ -20,27 +20,56 @@ const fmtSolicitud = new Intl.DateTimeFormat("es-PE", {
   hour12: false,
 });
 
+const fmtFecha = new Intl.DateTimeFormat("es-PE", {
+  timeZone: "America/Lima",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
 function formatearFechaSolicitud(fecha: string | null | undefined): string {
   if (!fecha) return "-";
   const d = new Date(fecha);
   if (isNaN(d.getTime())) return "-";
-  // "07/09/2026, 14:30" -> "07/09/2026 14:30"
   return fmtSolicitud.format(d).replace(",", "");
 }
 
-function estadoBadge(estado: string, fueraDeTiempo = false) {
-  if (fueraDeTiempo && estado === "EN_DESARROLLO") {
-    return { bg: "#fee2e2", color: "#991b1b", border: "#f87171", icon: "⚠", label: "FUERA DE TIEMPO" };
-  }
-  const map: Record<string, { bg: string; color: string; border: string; icon: string; label: string }> = {
-    APROBADO: { bg: "#ede9fe", color: "#5b21b6", border: "#ddd6fe", icon: "✓", label: "APROBADO" },
-    EN_DESARROLLO: { bg: "#dbeafe", color: "#1e3a8a", border: "#2563eb", icon: "▶", label: "EN DESARROLLO" },
-    STAND_BY: { bg: "#fef3c7", color: "#78350f", border: "#d97706", icon: "⏸", label: "STAND BY" },
-    SOLUCIONADO: { bg: "#dcfce7", color: "#14532d", border: "#16a34a", icon: "✓", label: "SOLUCIONADO" },
-    EN_ESPERA: { bg: "#e5e7eb", color: "#1f2937", border: "#9ca3af", icon: "⏳", label: "EN ESPERA" },
-    RECHAZADO: { bg: "#fee2e2", color: "#991b1b", border: "#fecaca", icon: "✕", label: "RECHAZADO" },
-  };
-  return map[estado] ?? { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb", icon: "", label: estado };
+function formatearFechaEntrega(fecha: string | null | undefined): string {
+  if (!fecha) return "Sin fecha";
+  const d = new Date(fecha);
+  if (isNaN(d.getTime())) return "Sin fecha";
+  return fmtFecha.format(d);
+}
+
+function ProgresoTarea({ tarea }: { tarea: Task }) {
+  const activas = (tarea.subtareas ?? []).filter((s) => s.activo !== false);
+  const total = activas.length;
+  const solucionadas = activas.filter((s) => s.estado === "SOLUCIONADO").length;
+  const porcentaje = Math.max(0, Math.min(100, Math.round(Number(tarea.progreso) || 0)));
+
+  return (
+    <div className={styles.progress}>
+      <div className={styles.progressTop}>
+        <span className={styles.progressValue}>{porcentaje}%</span>
+        <span className={styles.progressMeta}>
+          {total === 0 ? "Sin subtareas" : `${solucionadas} de ${total} subtareas`}
+        </span>
+      </div>
+      <div
+        className={styles.progressTrack}
+        role="progressbar"
+        aria-label={`Progreso de ${tarea.ticket ?? `la tarea ${tarea.id}`}`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={porcentaje}
+      >
+        <span
+          className={`${styles.progressBar} ${porcentaje === 100 ? styles.progressBarDone : ""}`}
+          style={{ width: `${porcentaje}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function FilaTarea({
@@ -55,33 +84,19 @@ function FilaTarea({
   const contador = useContador(tarea.id);
   const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!contador?.con_retraso;
 
-  const rowClass =
-    tarea.estado === "SOLUCIONADO"
-      ? styles.rowSolucionado
-      : tarea.estado === "STAND_BY"
-        ? styles.rowStandBy
-        : conPendiente
-          ? styles.rowPendiente
-          : "";
-  const borderLeft =
-    tarea.estado === "SOLUCIONADO"
-      ? "4px solid #22c55e"
-      : tarea.estado === "STAND_BY"
-        ? "4px solid #f59e0b"
-        : fueraDeTiempo
-          ? "4px solid #dc2626"
-          : conPendiente
-            ? "4px solid #050505"
-            : undefined;
-  const b = estadoBadge(tarea.estado, fueraDeTiempo);
+  const rowClass = [
+    styles.taskRow,
+    tarea.estado === "SOLUCIONADO" ? styles.rowSolucionado : "",
+    tarea.estado === "STAND_BY" ? styles.rowStandBy : "",
+    fueraDeTiempo ? styles.rowFueraDeTiempo : "",
+    conPendiente ? styles.rowPendiente : "",
+  ].filter(Boolean).join(" ");
+
+  const mostrarContador = tarea.estado !== "APROBADO" && tarea.estado !== "RECHAZADO";
 
   return (
     <tr
       className={rowClass}
-      style={{
-        ...(borderLeft ? { borderLeft } : undefined),
-        cursor: "pointer",
-      }}
       onClick={() => onSelect(tarea.id)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -102,35 +117,48 @@ function FilaTarea({
               : "Clic para ver detalles"
       }
     >
-      <td data-label="Fecha solicitud" style={{ whiteSpace: "nowrap", fontSize: 13, color: "#374151" }}>
+      <td data-label="Fecha solicitud" data-col="fecha" className={styles.dateCell}>
         {formatearFechaSolicitud(tarea.fecha_creacion)}
       </td>
-      <td data-label="Solicitud" className={styles.taskSubject}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 600, color: "#1d3557" }}>
-            {tarea.subcampana_nombre
-              ? `${tarea.campana_nombre}-${tarea.subcampana_nombre}: ${tarea.asunto}`
-              : `${tarea.campana_nombre ?? "-"}: ${tarea.asunto}`}
-          </span>
+
+      <td data-label="Solicitud" className={styles.subjectCell}>
+        <span className={styles.subjectTitle}>
+          {tarea.subcampana_nombre
+            ? `${tarea.campana_nombre}-${tarea.subcampana_nombre}: ${tarea.asunto}`
+            : `${tarea.campana_nombre ?? "-"}: ${tarea.asunto}`}
         </span>
-        <span style={{ display: "block", fontSize: 11, color: "#6b7280", fontWeight: 400, marginTop: 4 }}>
-          Ticket {tarea.ticket ?? `#${tarea.id}`}
+        <span className={styles.subjectMeta}>
+          <span className={styles.ticket}>{tarea.ticket ?? `#${tarea.id}`}</span>
+          {tarea.campana_nombre && <span>{tarea.campana_nombre}{tarea.subcampana_nombre ? ` / ${tarea.subcampana_nombre}` : ""}</span>}
         </span>
         {conPendiente && (
-          <span style={{ display: "block", fontSize: 11, color: "#92400e", marginTop: 2 }}>
-            Tienes subtareas pendientes por completar
-          </span>
+          <span className={styles.pendingNote}>Tienes subtareas pendientes por completar</span>
         )}
       </td>
-      <td data-label="Estado">
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: b.bg, color: b.color, border: `1px solid ${b.border}`, padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
-          <span aria-hidden="true">{b.icon}</span> {b.label}
+
+      <td data-label="Equipo" data-col="equipo" className={styles.teamCell}>
+        {tarea.equipo_nombre || "Sin equipo"}
+      </td>
+
+      <td data-label="Estado" data-col="estado">
+        <TaskStatusBadge estado={tarea.estado} fueraDeTiempo={fueraDeTiempo} />
+      </td>
+
+      <td data-label="Entrega / tiempo" data-col="entrega" className={styles.deliveryCell}>
+        <span className={styles.deliveryDate}>{formatearFechaEntrega(tarea.fecha_entrega_aproximada)}</span>
+        <span className={styles.counter}>
+          {tarea.estado === "APROBADO"
+            ? "Por asignar"
+            : tarea.estado === "RECHAZADO"
+              ? "Sin contador"
+              : mostrarContador
+                ? <TaskCountdown tareaId={tarea.id} />
+                : null}
         </span>
       </td>
-      <td data-label="Contador" style={{ whiteSpace: "nowrap" }}>
-        {tarea.estado === "APROBADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>Por asignar</span>
-        : tarea.estado === "RECHAZADO" ? <span style={{display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "4px"}}>X</span>
-        : <TaskCountdown tareaId={tarea.id} /> }
+
+      <td data-label="Progreso" data-col="progreso">
+        <ProgresoTarea tarea={tarea} />
       </td>
     </tr>
   );
@@ -138,46 +166,11 @@ function FilaTarea({
 
 export default function TaskTableEnDesarrollo({
   tareas,
-  accionando,
-  empezandoId,
-  completandoId,
-  onIniciar,
-  onEmpezarSubtarea,
-  onCompletarSubtarea,
-  onCambiarEstadoSubtarea,
-  onReanudarSubtarea,
-  onReasignarSubtarea,
-  onInactivarSubtarea,
-  onReactivarSubtarea,
-  onTareaMutated,
-  soloLectura,
 }: {
   tareas: Task[];
-  accionando?: number | null;
-  empezandoId?: number | null;
-  completandoId?: number | null;
-  onIniciar: (
-    tarea: Task,
-    payload: {
-      fecha_inicio: string;
-      fecha_entrega_aproximada: string;
-      subtareas: { descripcion: string; asignado: number; peso: number }[];
-      dependencias: { bloqueada: number; bloqueadora: number }[];
-    }
-  ) => void;
-  onEmpezarSubtarea?: (tareaId: number, subtareaId: number) => void;
-  onCompletarSubtarea?: (tareaId: number, subtareaId: number) => void;
-  onCambiarEstadoSubtarea?: (tareaId: number, subtareaId: number, nuevoEstado: string, motivo?: string) => void;
-  onReanudarSubtarea?: (tareaId: number, subtareaId: number, opts?: { modo?: "continuar" | "nueva_fecha" | "mantener"; nuevaFechaEntrega?: string }) => Promise<void>;
-  onReasignarSubtarea?: (tareaId: number, subtareaId: number, nuevoAsignado: number) => Promise<void>;
-  onInactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
-  onReactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
-  onTareaMutated?: () => void | Promise<void>;
-  soloLectura?: boolean;
 }) {
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
-  //const [taskParaIniciar, setTaskParaIniciar] = useState<Task | null>(null);
-  const selectedTask = tareas.find((tarea) => tarea.id === selectedTaskId) ?? null;
+  const router = useRouter();
+  const abrirTarea = (tareaId: number) => router.push(`/mfpages/tareas/${tareaId}`);
   const usuario = getUsuarioActual();
   const tienePendienteEnTarea = (tarea: Task) =>
     tarea.subtareas.some(
@@ -186,7 +179,6 @@ export default function TaskTableEnDesarrollo({
 
   const tareasVisibles = tareas.filter((tarea) => tarea.estado !== "EN_ESPERA");
 
-  // ordenar del más nuevo al más antiguo por fecha de solicitud (fecha_creacion DESC)
   const tareasOrdenadas = useMemo(
     () => [...tareasVisibles].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()),
     [tareasVisibles]
@@ -202,19 +194,17 @@ export default function TaskTableEnDesarrollo({
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPagina(1);
   }, [tareas.length]);
 
-  // si cambia total y pagina queda fuera de rango, clamp
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (pagina > totalPages) setPagina(totalPages);
   }, [pagina, totalPages]);
 
-  // ids visibles para contadores centralizados (1 poll + 1 tick global)
   const visibleIds = useMemo(() => tareasPaginadas.map((t) => t.id), [tareasPaginadas]);
 
-  // Firma de datos: cambia en cada mutación (estado, progreso, fecha, subtareas) y
-  // dispara un refresco inmediato de los contadores.
   const refreshKey = useMemo(
     () =>
       tareasVisibles
@@ -230,62 +220,47 @@ export default function TaskTableEnDesarrollo({
 
   return (
     <ContadoresProvider ids={visibleIds} refreshKey={refreshKey}>
-      <div className={styles.taskTableContainer}>
+      <div className={styles.tableCard}>
         {tareasVisibles.length === 0 ? (
-          <div className={styles.noTasks}>No hay tareas en desarrollo</div>
+          <div className={styles.emptyState}>
+            <span className={styles.emptyIcon} aria-hidden="true">✓</span>
+            <strong>No hay tareas en desarrollo</strong>
+            <p>Ajusta los filtros o revisa las solicitudes activas del equipo.</p>
+          </div>
         ) : (
-          <table className={styles.taskTable}>
-          <thead>
-            <tr>
-              <th>Fecha solicitud</th>
-              <th>Solicitud</th>
-              <th>Estado</th>
-              <th>Contador</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tareasPaginadas.map((tarea) => (
-              <FilaTarea
-                key={tarea.id}
-                tarea={tarea}
-                conPendiente={tienePendienteEnTarea(tarea)}
-                onSelect={setSelectedTaskId}
-              />
-            ))}
-          </tbody>
-        </table>
+          <div className={styles.tableContainer}>
+            <table className={styles.taskTable}>
+              <caption className={styles.srOnly}>Solicitudes activas con su estado, entrega y progreso</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Fecha solicitud</th>
+                  <th scope="col">Solicitud</th>
+                  <th scope="col" data-col="equipo">Equipo</th>
+                  <th scope="col" data-col="estado">Estado</th>
+                  <th scope="col" data-col="entrega">Entrega / tiempo</th>
+                  <th scope="col" data-col="progreso">Progreso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tareasPaginadas.map((tarea) => (
+                  <FilaTarea
+                    key={tarea.id}
+                    tarea={tarea}
+                    conPendiente={tienePendienteEnTarea(tarea)}
+                    onSelect={abrirTarea}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {tareasOrdenadas.length > 0 && (
+        <div className={styles.paginationWrap}>
+          <Pagination page={paginaClamped} totalPages={totalPages} totalItems={tareasOrdenadas.length} pageSize={pageSize} onPageChange={setPagina} />
+        </div>
       )}
-    </div>
-    {tareasOrdenadas.length > 0 && (
-      <Pagination page={paginaClamped} totalPages={totalPages} totalItems={tareasOrdenadas.length} pageSize={pageSize} onPageChange={setPagina} />
-    )}
-
-    <TaskModal
-      tarea={selectedTask}
-      onClose={() => setSelectedTaskId(null)}
-      onEmpezarTarea={onEmpezarSubtarea}
-      onCompletarSubtarea={onCompletarSubtarea}
-      onCambiarEstadoSubtarea={onCambiarEstadoSubtarea}
-      onReanudarSubtarea={onReanudarSubtarea}
-      empezandoId={empezandoId}
-      completandoId={completandoId}
-      accionando={accionando}
-      onIniciar={onIniciar}
-      onReasignarSubtarea={onReasignarSubtarea}
-      onInactivarSubtarea={onInactivarSubtarea}
-      onReactivarSubtarea={onReactivarSubtarea}
-      onTareaMutated={onTareaMutated}
-      soloLectura={soloLectura}
-    />
-
-    {/*{taskParaIniciar && (
-      <TaskIniciarModal
-        tarea={taskParaIniciar}
-        accionando={accionando === taskParaIniciar.id}
-        onClose={() => setTaskParaIniciar(null)}
-        onSubmit={onIniciar}
-      />
-    )}*/}
     </ContadoresProvider>
   );
 }
