@@ -9,6 +9,7 @@ import TaskCountdown from "./TaskCountdown";
 import TaskStatusBadge from "./TaskStatusBadge";
 import Pagination from "../ui/Pagination";
 import { ContadoresProvider, useContador } from "./ContadoresProvider";
+import { crearSegmentoTarea } from "@/lib/tareaUrl";
 
 const fmtSolicitud = new Intl.DateTimeFormat("es-PE", {
   timeZone: "America/Lima",
@@ -79,7 +80,7 @@ function FilaTarea({
 }: {
   tarea: Task;
   conPendiente: boolean;
-  onSelect: (id: number) => void;
+  onSelect: (tarea: Task) => void;
 }) {
   const contador = useContador(tarea.id);
   const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!contador?.con_retraso;
@@ -97,11 +98,11 @@ function FilaTarea({
   return (
     <tr
       className={rowClass}
-      onClick={() => onSelect(tarea.id)}
+      onClick={() => onSelect(tarea)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onSelect(tarea.id);
+          onSelect(tarea);
         }
       }}
       tabIndex={0}
@@ -170,7 +171,10 @@ export default function TaskTableEnDesarrollo({
   tareas: Task[];
 }) {
   const router = useRouter();
-  const abrirTarea = (tareaId: number) => router.push(`/mfpages/tareas/${tareaId}`);
+  const abrirTarea = (tarea: Task) => {
+    const segmento = crearSegmentoTarea(tarea.asunto, tarea.id);
+    router.push(`/mfpages/tareas/${segmento}`);
+  };
   const usuario = getUsuarioActual();
   const tienePendienteEnTarea = (tarea: Task) =>
     tarea.subtareas.some(
@@ -223,8 +227,7 @@ export default function TaskTableEnDesarrollo({
       <div className={styles.tableCard}>
         {tareasVisibles.length === 0 ? (
           <div className={styles.emptyState}>
-            <span className={styles.emptyIcon} aria-hidden="true">✓</span>
-            <strong>No hay tareas en desarrollo</strong>
+            <strong>No se encontraron solicitudes</strong>
             <p>Ajusta los filtros o revisa las solicitudes activas del equipo.</p>
           </div>
         ) : (

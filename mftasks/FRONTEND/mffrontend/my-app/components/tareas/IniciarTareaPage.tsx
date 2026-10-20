@@ -10,7 +10,13 @@ import TaskIniciarForm from "@/components/tareas/TaskIniciarForm";
 import detailStyles from "./TareaDetalle.module.css";
 import styles from "./IniciarTarea.module.css";
 
-export default function IniciarTareaPage({ tareaId }: { tareaId: number | null }) {
+export default function IniciarTareaPage({
+    tareaId,
+    rutaTarea,
+}: {
+    tareaId: number | null;
+    rutaTarea: string;
+}) {
     const router = useRouter();
     const { showToast } = useToast();
     const { tarea, cargando, error, cargar } = useTareaDetalle(tareaId);
@@ -24,8 +30,11 @@ export default function IniciarTareaPage({ tareaId }: { tareaId: number | null }
     const usuario = getUsuarioActual();
     const esAdmin = (usuario?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
     const volverAlDetalle = () => {
-        if (tareaId) router.push(`/mfpages/tareas/${tareaId}`);
-        else router.push("/mfpages/tareas");
+        if (tareaId) {
+            router.push(`/mfpages/tareas/${rutaTarea}`);
+        } else {
+            router.push("/mfpages/tareas");
+        }
     };
 
     if (tareaId === null) {
@@ -134,7 +143,7 @@ export default function IniciarTareaPage({ tareaId }: { tareaId: number | null }
                     onCancel={volverAlDetalle}
                     onSubmit={async (t, payload) => {
                         await acciones.iniciar(t, payload);
-                        router.replace(`/mfpages/tareas/${t.id}`);
+                        router.replace(`/mfpages/tareas/${rutaTarea}`);
                     }}
                 />
             </div>

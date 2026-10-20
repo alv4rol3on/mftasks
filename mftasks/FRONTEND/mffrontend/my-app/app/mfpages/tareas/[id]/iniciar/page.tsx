@@ -1,4 +1,6 @@
+
 import IniciarTareaPage from "@/components/tareas/IniciarTareaPage";
+import { obtenerTareaId } from "@/lib/tareaUrl";
 
 export default async function Page({
   params,
@@ -6,8 +8,12 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const tareaId = Number(id);
-  const valido = Number.isInteger(tareaId) && tareaId > 0;
+  const tareaId = obtenerTareaId(id);
 
-  return <IniciarTareaPage tareaId={valido ? tareaId : null} />;
+  return (
+    <IniciarTareaPage
+      tareaId={tareaId}
+      rutaTarea={id}
+    />
+  );
 }

@@ -46,13 +46,15 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   const estado = filtros.estado ?? "TODOS";
   if (!q && estado !== "TODOS") params.set("estado", estado);
 
-  
-  if (!q) {
+
+  // Ignorar el rango de fechas al buscar o filtrar por EN_PROCESO.
+  const ignorarFechas = !!q || estado === "EN_PROCESO";
+
+  if (!ignorarFechas) {
     if (filtros.desde) params.set("desde", filtros.desde);
     if (filtros.hasta) params.set("hasta", filtros.hasta);
 
     if (filtros.desde || filtros.hasta) {
-      
       const campoFecha = filtros.campoFecha ?? "solicitud";
 
       const campoFechaBackend: Record<CampoFecha, string> = {
@@ -62,7 +64,6 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
       };
 
       params.set("campo_fecha", campoFechaBackend[campoFecha]);
-
     }
   }
 

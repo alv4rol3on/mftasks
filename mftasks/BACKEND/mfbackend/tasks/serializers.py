@@ -155,7 +155,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
+        fields = ["id", "ticket", "asunto","tipo_solicitud", "detalle_tipo_solicitud", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
         read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por"]
 
     def get_cliente_nombre(self, obj):
@@ -339,4 +339,26 @@ class TaskSerializer(serializers.ModelSerializer):
                     )
             # compat: si viene cliente, ignorar (derivado de subcampana)
             attrs.pop("cliente", None)
+
+                # Validar el tipo de solicitud y su detalle
+        tipo = attrs.get(
+            "tipo_solicitud",
+            getattr(self.instance, "tipo_solicitud", Tarea.TipoSolicitud.OTROS),
+        )
+
+        detalle = attrs.get(
+            "detalle_tipo_solicitud",
+            getattr(self.instance, "detalle_tipo_solicitud", ""),
+        )
+
+        if tipo == Tarea.TipoSolicitud.OTROS and not detalle.strip():
+            raise serializers.ValidationError({
+                "detalle_tipo_solicitud": (
+                    "Debes especificar el detalle cuando el tipo de solicitud es Otros."
+                )
+            })
+
+        if tipo != Tarea.TipoSolicitud.OTROS:
+            attrs["detalle_tipo_solicitud"] = ""
+        
         return attrs

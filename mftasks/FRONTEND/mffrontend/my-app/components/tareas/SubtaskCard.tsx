@@ -32,10 +32,16 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
     const [menuOpen, setMenuOpen] = useState(false);
     const menuWrapRef = useRef<HTMLDivElement>(null);
 
+    const tareaEnStandby = tarea.estado === "STAND_BY";
+
     const autorizado = puedeMover(subtarea);
     const pausada = subtarea.estado === "STAND_BY";
     const solucionada = subtarea.estado === "SOLUCIONADO";
-    const arrastrable = autorizado && !pausada && !solucionada;
+
+    const bloqueadaPorTarea = tareaEnStandby;
+    const arrastrable =
+        autorizado && !pausada && !solucionada && !bloqueadaPorTarea;
+
     const destinos = destinosPermitidos(subtarea.estado);
 
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -71,6 +77,12 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
     );
 
     const ejecutar = (destino: string) => {
+        if (procesando) return;
+
+        if (tareaEnStandby && !(pausada && destino === "EN_DESARROLLO")) {
+            return;
+        }
+
         setMenuOpen(false);
         onMove(subtarea, destino);
     };
@@ -89,7 +101,7 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
                 <span className={styles.subtaskCode}>{subtarea.codigo ?? `#${subtarea.id}`}</span>
 
                 <div className={styles.subtaskCardActions}>
-                    {autorizado && !solucionada && (
+                    {autorizado && !solucionada && (!bloqueadaPorTarea || pausada) && (
                         <div className={styles.cardMenuWrap} ref={menuWrapRef}>
                             <button
                                 type="button"
@@ -185,13 +197,13 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
                 </div>
             )}
 
-            {(subtarea.bloqueada_por?.length ?? 0 ) > 0 && (
-                !solucionada && (
-                 <div className={styles.dependencyLine}>
-                    Depende de: {subtarea.bloqueada_por!.map((b) => `#${b.id} ${b.descripcion}`).join(", ")}
-                </div>   
+            {(subtarea.bloqueada_por?.length ?? 0) > 0 && (
+                bloqueada && (
+                    <div className={styles.dependencyLine}>
+                        Depende de: {subtarea.bloqueada_por!.map((b) => `${b.descripcion}`).join(", ")}
+                    </div>
                 )
-                
+
             )}
 
             {pausada && subtarea.motivo_standby && (
@@ -206,12 +218,14 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
                         <span className={styles.srOnly}>Mover subtarea a otro estado</span>
                         <select
                             value=""
-                            disabled={!autorizado || !!procesando}
+                            disabled={!autorizado || !!procesando || bloqueadaPorTarea}
                             className={styles.moveSelect}
                             onChange={(e) => {
                                 const destino = e.target.value;
                                 e.currentTarget.value = "";
-                                if (destino) onMove(subtarea, destino);
+                                if (destino && !tareaEnStandby && !procesando) {
+                                    onMove(subtarea, destino);
+                                }
                             }}
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}

@@ -135,7 +135,7 @@ export default function SubtaskActionDialog({
 
                 {tipo === "solucionar" && (
                     <p className={styles.dialogText}>
-                        ¿Confirmas que la subtarea está solucionada? Se bloqueará en estado Solucionado y no se podrá reabrir desde el tablero.
+                        ¿Confirmas que la subtarea está solucionada? Se bloqueará en estado Solucionado y no se podrá cambiar su estado.
                     </p>
                 )}
 
@@ -154,20 +154,6 @@ export default function SubtaskActionDialog({
                             <span>
                                 <strong>Continuar cuenta regresiva</strong>
                                 <small>Sigue desde donde se quedó; la entrega se amplía por el tiempo en pausa.</small>
-                            </span>
-                        </label>
-
-                        <label className={styles.radioOption}>
-                            <input
-                                type="radio"
-                                name="modo-reanudar"
-                                checked={modo === "mantener"}
-                                onChange={() => { setModo("mantener"); setError(null); }}
-                                disabled={bloqueado}
-                            />
-                            <span>
-                                <strong>Mantener fecha de entrega</strong>
-                                <small>El tiempo en pausa se descuenta; la fecha general no cambia.</small>
                             </span>
                         </label>
 

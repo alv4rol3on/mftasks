@@ -29,6 +29,8 @@ interface Props {
 export default function CrearSolicitudModal({ open, onClose, onCreated }: Props) {
   const [asunto, setAsunto] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [tipoSolicitud, setTipoSolicitud] = useState("NUEVA_FUNCIONALIDAD");
+  const [detalleTipoSolicitud, setDetalleTipoSolicitud] = useState("");
   const [campanaId, setCampanaId] = useState<number | "">("");
   const [subcampanaId, setSubcampanaId] = useState<number | "">("");
   const [equipoId, setEquipoId] = useState<number | "">("");
@@ -151,9 +153,14 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       !descripcion.trim() ||
       campanaId === "" ||
       subcampanaId === "" ||
-      equipoId === ""
+      equipoId === "" ||
+      (tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim())
     ) {
-      setError("Completa asunto, descripción, campaña, subcampaña y equipo.");
+      setError(
+        tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim()
+          ? "Especifica el detalle del tipo de solicitud."
+          : "Completa asunto, descripción, campaña, subcampaña y equipo."
+      );
       return;
     }
 
@@ -165,6 +172,11 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
       formData.append("asunto", asunto.trim());
       formData.append("descripcion", descripcion.trim());
+      formData.append("tipo_solicitud", tipoSolicitud);
+      formData.append(
+        "detalle_tipo_solicitud",
+        tipoSolicitud === "OTROS" ? detalleTipoSolicitud.trim() : ""
+      );
       formData.append("subcampana", String(subcampanaId));
       formData.append("equipo", String(equipoId));
 
@@ -179,6 +191,8 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
       setAsunto("");
       setDescripcion("");
+      setTipoSolicitud("NUEVA_FUNCIONALIDAD");
+      setDetalleTipoSolicitud("");
       setCampanaId("");
       setSubcampanaId("");
       setEquipoId("");
@@ -248,6 +262,40 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
                 <option key={e.id} value={e.id}>{e.nombre}</option>
               ))}
             </select>
+
+
+            <select
+              id="tipoSolicitud"
+              value={tipoSolicitud}
+              onChange={(e) => {
+                const nuevoTipo = e.target.value;
+                setTipoSolicitud(nuevoTipo);
+
+                if (nuevoTipo !== "OTROS") {
+                  setDetalleTipoSolicitud("");
+                }
+              }}
+              className={styles.inputField}
+            >
+              <option value="NUEVA_FUNCIONALIDAD">Nueva funcionalidad</option>
+              <option value="MEJORA">Mejora</option>
+              <option value="CORRECCION_ERROR">Corrección de error</option>
+              <option value="SOPORTE">Soporte</option>
+              <option value="OTROS">Otros</option>
+            </select>
+
+            {tipoSolicitud === "OTROS" && (
+              <textarea
+                id="detalleTipoSolicitud"
+                value={detalleTipoSolicitud}
+                onChange={(e) => setDetalleTipoSolicitud(e.target.value)}
+                className={styles.inputField}
+                rows={2}
+                maxLength={255}
+                placeholder="Describe qué necesitas solicitar"
+                required
+              />
+            )}
 
             <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />
 

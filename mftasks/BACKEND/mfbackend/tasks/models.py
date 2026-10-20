@@ -19,9 +19,30 @@ class Tarea(models.Model):
         LIDER = "LIDER", "Revisión del líder"
         COMPLETADO = "COMPLETADO", "Completado"
 
+    class TipoSolicitud(models.TextChoices):
+        NUEVA_FUNCIONALIDAD = "NUEVA_FUNCIONALIDAD", "Nueva funcionalidad"
+        REPORTE = "REPORTE", "Creación de reporte"
+        CORRECCION_ERROR = "CORRECCION_ERROR", "Corrección de error"
+        CREACION_BI = "CREACION_BI", "Creación de BI"
+        OTROS = "OTROS", "Otros"
+
     ticket = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
 
     asunto = models.CharField(max_length=200)
+    tipo_solicitud = models.CharField(
+        max_length=30,
+        choices=TipoSolicitud.choices,
+        default=TipoSolicitud.OTROS,
+        db_index=True,
+        verbose_name="Tipo de solicitud",
+    )
+    detalle_tipo_solicitud = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Detalle de otros",
+        help_text="Especificar cuando el tipo de solicitud sea Otros.",
+    )
     descripcion = models.TextField()
 
     estado = models.CharField(
@@ -336,7 +357,7 @@ class Subtarea(models.Model):
 
     def __str__(self):
         return f"[{self.codigo}] {self.descripcion}" if self.codigo else f"#{self.tarea_id} - {self.descripcion}"
-
+    
 
 #LOGS
 class TareaLog(models.Model):

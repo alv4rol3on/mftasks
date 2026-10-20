@@ -193,7 +193,6 @@ export default function TareasPage() {
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>Solicitudes activas</p>
           <h2 className={styles.title}>Tareas en desarrollo</h2>
           <p className={styles.subtitle}>Seguimiento de solicitudes, subtareas, dependencias y tiempos de entrega.</p>
         </div>

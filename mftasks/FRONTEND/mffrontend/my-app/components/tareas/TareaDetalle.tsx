@@ -40,7 +40,13 @@ function bloqueadorasPendientes(subtarea: Subtarea) {
   return (subtarea.bloqueada_por ?? []).filter((b) => b.estado !== "SOLUCIONADO");
 }
 
-export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
+export default function TareaDetalle({
+  tareaId,
+  rutaTarea,
+}: {
+  tareaId: number | null;
+  rutaTarea: string;
+}) {
   const { tarea, cargando, error, cargar, refreshKey } = useTareaDetalle(tareaId);
   const { showToast } = useToast();
   const router = useRouter();
@@ -123,7 +129,7 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
 
     if (destino === "EN_DESARROLLO") {
       if (subtarea.estado === "EN_ESPERA") {
-        void acciones.empezarSubtarea(tarea.id, subtarea.id).catch(() => {});
+        void acciones.empezarSubtarea(tarea.id, subtarea.id).catch(() => { });
         return;
       }
       if (subtarea.estado === "STAND_BY") {
@@ -211,6 +217,7 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
     { key: "historial", label: "Historial" },
   ];
   const tabActual = tabsDisponibles.some((t) => t.key === tab) ? tab : "tablero";
+  const enAprobado = tarea.estado === "APROBADO"
 
   const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     const indice = tabsDisponibles.findIndex((t) => t.key === tabActual);
@@ -260,7 +267,9 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
                 <button
                   type="button"
                   className={styles.startButton}
-                  onClick={() => router.push(`/mfpages/tareas/${tarea.id}/iniciar`)}
+                  onClick={() =>
+                    router.push(`/mfpages/tareas/${rutaTarea}/iniciar`)
+                  }
                 >
                   Iniciar tarea
                 </button>
@@ -283,8 +292,8 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
                 {tarea.fecha_inicio && <tr><td>Inicio</td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>}
                 {tarea.fecha_entrega_aproximada ? (
                   <tr><td>Entrega</td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
-                ):(null)}
-                
+                ) : (null)}
+
               </tbody>
             </table>
           </section>
@@ -304,75 +313,77 @@ export default function TareaDetalle({ tareaId }: { tareaId: number | null }) {
             )}
           </section>
         </div>
-
-        <section className={styles.workspace} aria-labelledby="detalle-trabajo">
-          <div className={styles.workspaceTop}>
-            <div>
-              <h2 className={styles.workspaceTitle} id="detalle-trabajo">Progreso de la solicitud</h2>
+        {!enAprobado && (
+          <section className={styles.workspace} aria-labelledby="detalle-trabajo">
+            <div className={styles.workspaceTop}>
+              <div>
+                <h2 className={styles.workspaceTitle} id="detalle-trabajo">Progreso de la solicitud</h2>
+              </div>
+              <div className={styles.progressSummary}>
+                <span className={styles.progressValue}>{progreso}%</span>
+                <span className={styles.progressMeta}>
+                  {subtareasActivas.length === 0
+                    ? "Sin subtareas activas"
+                    : `${subtareasActivas.filter((s) => s.estado === "SOLUCIONADO").length} de ${subtareasActivas.length} solucionadas`}
+                </span>
+              </div>
             </div>
-            <div className={styles.progressSummary}>
-              <span className={styles.progressValue}>{progreso}%</span>
-              <span className={styles.progressMeta}>
-                {subtareasActivas.length === 0
-                  ? "Sin subtareas activas"
-                  : `${subtareasActivas.filter((s) => s.estado === "SOLUCIONADO").length} de ${subtareasActivas.length} solucionadas`}
-              </span>
+
+            <div className={styles.progressTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progreso} aria-label="Progreso de subtareas">
+              <span className={styles.progressFill} style={{ width: `${progreso}%` }} />
             </div>
-          </div>
 
-          <div className={styles.progressTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progreso} aria-label="Progreso de subtareas">
-            <span className={styles.progressFill} style={{ width: `${progreso}%` }} />
-          </div>
-
-          <div className={styles.tabs} role="tablist" aria-label="Secciones de la solicitud">
-            {tabsDisponibles.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                id={`detalle-tab-${t.key}`}
-                aria-selected={tabActual === t.key}
-                aria-controls={`detalle-panel-${t.key}`}
-                tabIndex={tabActual === t.key ? 0 : -1}
-                className={tabActual === t.key ? styles.tabActive : styles.tab}
-                onClick={() => setTab(t.key)}
-                onKeyDown={handleTabKeyDown}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {tabActual === "tablero" && (
-            <div id="detalle-panel-tablero" role="tabpanel" aria-labelledby="detalle-tab-tablero" className={styles.tabPanel}>
-              <SubtaskBoard
-                tarea={tarea}
-                puedeMover={puedeMoverSubtarea}
-                procesandoId={acciones.subtaskEnMovimiento}
-                onMove={solicitarMovimiento}
-              />
+            <div className={styles.tabs} role="tablist" aria-label="Secciones de la solicitud">
+              {tabsDisponibles.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  id={`detalle-tab-${t.key}`}
+                  aria-selected={tabActual === t.key}
+                  aria-controls={`detalle-panel-${t.key}`}
+                  tabIndex={tabActual === t.key ? 0 : -1}
+                  className={tabActual === t.key ? styles.tabActive : styles.tab}
+                  onClick={() => setTab(t.key)}
+                  onKeyDown={handleTabKeyDown}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
-          )}
 
-          {tabActual === "asignaciones" && (
-            <div id="detalle-panel-asignaciones" role="tabpanel" aria-labelledby="detalle-tab-asignaciones" className={styles.tabPanel}>
-              <AssignmentPanel
-                tarea={tarea}
-                puedeOperar={!soloLectura && !!tarea.puedo_operar}
-                onReasignarSubtarea={acciones.reasignarSubtarea}
-                onInactivarSubtarea={acciones.inactivarSubtarea}
-                onReactivarSubtarea={acciones.reactivarSubtarea}
-                onTareaMutated={cargar}
-              />
-            </div>
-          )}
+            {tabActual === "tablero" && (
+              <div id="detalle-panel-tablero" role="tabpanel" aria-labelledby="detalle-tab-tablero" className={styles.tabPanel}>
+                <SubtaskBoard
+                  tarea={tarea}
+                  puedeMover={puedeMoverSubtarea}
+                  procesandoId={acciones.subtaskEnMovimiento}
+                  onMove={solicitarMovimiento}
+                />
+              </div>
+            )}
 
-          {tabActual === "historial" && (
-            <div id="detalle-panel-historial" role="tabpanel" aria-labelledby="detalle-tab-historial" className={styles.tabPanel}>
-              <HistorialTarea tareaId={tarea.id} />
-            </div>
-          )}
-        </section>
+            {tabActual === "asignaciones" && (
+              <div id="detalle-panel-asignaciones" role="tabpanel" aria-labelledby="detalle-tab-asignaciones" className={styles.tabPanel}>
+                <AssignmentPanel
+                  tarea={tarea}
+                  puedeOperar={!soloLectura && !!tarea.puedo_operar}
+                  onReasignarSubtarea={acciones.reasignarSubtarea}
+                  onInactivarSubtarea={acciones.inactivarSubtarea}
+                  onReactivarSubtarea={acciones.reactivarSubtarea}
+                  onTareaMutated={cargar}
+                />
+              </div>
+            )}
+
+            {tabActual === "historial" && (
+              <div id="detalle-panel-historial" role="tabpanel" aria-labelledby="detalle-tab-historial" className={styles.tabPanel}>
+                <HistorialTarea tareaId={tarea.id} />
+              </div>
+            )}
+          </section>
+        )}
+
       </div>
 
       {accionPendiente && (
