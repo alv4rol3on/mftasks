@@ -41,11 +41,13 @@ from .permissions import (
     es_aprobador_de_tarea,
 )
 from .serializers import SubtareaSerializer, TaskSerializer
+from .services.cancelacion import CancelacionInvalida, cancelar_tarea
 from .services.logs import registrar_log
 from .services.notificaciones import notificar_subtarea, notificar_tarea
 
 from campanas.models import PermisoCampana
 from usuarios.models import Rol
+from usuarios.disponibilidad import esta_disponible, excluir_no_disponibles
 
 def _correos_aprobadores(tarea, evento):
     from .services.notificaciones_email import (
@@ -226,12 +228,21 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        base_qs = Tarea.objects.all().prefetch_related(
-            "subtareas",
-            "equipo",
-            "solicitante",
-            "aprobaciones",
-        ).order_by("-fecha_creacion")
+        base_qs = (
+            Tarea.objects.all()
+            .select_related(
+                "subcampana",
+                "subcampana__campana",
+                "subcampana__campana__entidad",
+            )
+            .prefetch_related(
+                "subtareas",
+                "equipo",
+                "solicitante",
+                "aprobaciones",
+            )
+            .order_by("-fecha_creacion")
+        )
 
         # =========================================================
         # ADMINISTRADOR
@@ -291,6 +302,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     def filter_queryset(self, queryset):
         """Filtros opcionales de listado: search, estado, fecha, exclusión de en espera y antigüedad."""
         params = self.request.query_params
+
+        entidad = params.get("entidad") or params.get("entidad_id")
+        if entidad:
+            queryset = queryset.filter(
+                subcampana__campana__entidad_id=entidad
+            )
 
         campana = params.get("campana") or params.get("campana_id")
         if campana:
@@ -406,6 +423,27 @@ class TaskViewSet(viewsets.ModelViewSet):
             permisos += [EsAdministrador()]
 
         return permisos
+
+    def destroy(self, request, *args, **kwargs):
+        tarea = self.get_object()
+        motivo = (
+            request.data.get("motivo_cancelacion")
+            or request.data.get("motivo")
+            or ""
+        )
+
+        try:
+            tarea = cancelar_tarea(tarea, request.user, motivo)
+        except CancelacionInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            TaskSerializer(tarea, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -738,13 +776,16 @@ class TaskViewSet(viewsets.ModelViewSet):
         equipo = tarea.equipo
 
         from usuarios.models import EquipoMiembro
-        miembros_ids = set(
-            equipo.miembros.filter(
-                estado=EquipoMiembro.EstadoMiembro.ACTIVO
-            ).values_list("usuario_id", flat=True)
+        miembros_qs = excluir_no_disponibles(
+            equipo.miembros.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO),
+            prefix="usuario",
         )
-        # líder siempre asignable si está activo a nivel User
-        miembros_ids.add(equipo.lider_id)
+        miembros_ids = set(
+            miembros_qs.values_list("usuario_id", flat=True)
+        )
+        # líder siempre asignable si está activo y disponible
+        if esta_disponible(equipo.lider):
+            miembros_ids.add(equipo.lider_id)
         # sub-líder activo también ya está en miembros ACTIVO
 
         subtareas_crear = []
@@ -960,12 +1001,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         equipo = tarea.equipo
 
         from usuarios.models import EquipoMiembro
-        miembros_ids = set(
-            equipo.miembros.filter(
-                estado=EquipoMiembro.EstadoMiembro.ACTIVO
-            ).values_list("usuario_id", flat=True)
+        miembros_qs = excluir_no_disponibles(
+            equipo.miembros.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO),
+            prefix="usuario",
         )
-        miembros_ids.add(equipo.lider_id)
+        miembros_ids = set(
+            miembros_qs.values_list("usuario_id", flat=True)
+        )
+        if esta_disponible(equipo.lider):
+            miembros_ids.add(equipo.lider_id)
 
         try:
             asignado_id = int(asignado_id)
@@ -1630,9 +1674,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         from usuarios.models import EquipoMiembro
         equipo = tarea.equipo
         miembros_activos = set(
-            equipo.miembros.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO).values_list("usuario_id", flat=True)
+            excluir_no_disponibles(
+                equipo.miembros.filter(
+                    estado=EquipoMiembro.EstadoMiembro.ACTIVO
+                ),
+                prefix="usuario",
+            ).values_list("usuario_id", flat=True)
         )
-        miembros_activos.add(equipo.lider_id)
+        if esta_disponible(equipo.lider):
+            miembros_activos.add(equipo.lider_id)
         if nuevo_id not in miembros_activos:
             return Response({"detail": f"El usuario {nuevo_id} no es miembro activo del equipo."}, status=status.HTTP_400_BAD_REQUEST)
         try:

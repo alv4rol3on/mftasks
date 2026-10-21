@@ -40,19 +40,12 @@ export default function EquiposPage() {
   const [accionando, setAccionando] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
-  // modal indisponibilidad
-  const [modalIndisponible, setModalIndisponible] = useState<{ equipoId: number; miembro: EquipoMiembroDetallado } | null>(null);
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [motivo, setMotivo] = useState("");
-
-  // modal reasignar por indisponibilidad bloqueada (409) — también para baja INACTIVO
+  // modal reasignar por baja de membresía con subtareas pendientes
   const [modalReasignar, setModalReasignar] = useState<{
     equipo: EquipoInfo;
     miembro: EquipoMiembroDetallado;
     pendientes: Pendiente[];
     usuarioNombre: string;
-    extra: { fechaInicio: string; fechaFin: string; motivo: string; esBaja: boolean };
   } | null>(null);
   const [reassignments, setReassignments] = useState<Record<number, number>>({});
   // modal agregar miembro
@@ -182,7 +175,7 @@ export default function EquiposPage() {
     }
   };
 
-  const handleCambiarEstado = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string; reassignments?: { subtarea_id: number; nuevo_asignado: number }[] }) => {
+  const handleCambiarEstado = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO", extra?: { reassignments?: { subtarea_id: number; nuevo_asignado: number }[] }) => {
     const key = `${equipo.id}-estado-${miembro.id_usuario}-${estado}`;
     setAccionando(key);
     setMensaje(null);
@@ -191,9 +184,6 @@ export default function EquiposPage() {
         method: "POST",
         body: JSON.stringify({
           estado,
-          fecha_inicio_indisponibilidad: extra?.fecha_inicio || undefined,
-          fecha_fin_indisponibilidad: extra?.fecha_fin || undefined,
-          motivo_indisponibilidad: extra?.motivo || undefined,
           reassignments: extra?.reassignments || undefined,
         }),
       });
@@ -230,7 +220,6 @@ export default function EquiposPage() {
               miembro,
               pendientes,
               usuarioNombre: `${miembro.nombres} ${miembro.apellidos}`,
-              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "", esBaja: estado === "INACTIVO" },
             });
             setReassignments({});
             setMensaje(msg);
@@ -245,7 +234,6 @@ export default function EquiposPage() {
           miembro,
           pendientes: data.pendientes,
           usuarioNombre: data.usuario?.nombre ?? `${miembro.nombres} ${miembro.apellidos}`,
-          extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "", esBaja: estado === "INACTIVO" },
         });
         setReassignments({});
       }
@@ -256,36 +244,25 @@ export default function EquiposPage() {
     }
   };
 
-  // Wrapper que intercepta 409 para abrir modal reasignar (también para INACTIVO hard-delete)
-  const handleCambiarEstadoConReasignacion = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado, estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE", extra?: { fecha_inicio?: string; fecha_fin?: string; motivo?: string }) => {
-    const key = `${equipo.id}-estado-${miembro.id_usuario}-${estado}`;
-    if (estado === "INACTIVO" && !confirm(`¿Dar de baja a ${miembro.nombres} ${miembro.apellidos}? Ya no pertenecerá hasta que lo vuelvas a agregar.`)) return;
+  // Baja de membres?a: si tiene subtareas pendientes, abre el reasignador.
+  const handleBajaMiembro = async (
+    equipo: EquipoInfo,
+    miembro: EquipoMiembroDetallado
+  ) => {
+    const key = `${equipo.id}-estado-${miembro.id_usuario}-INACTIVO`;
+    if (!confirm(`?Dar de baja a ${miembro.nombres} ${miembro.apellidos}? Ya no pertenecer? hasta que lo vuelvas a agregar.`)) return;
     setAccionando(key);
     setMensaje(null);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") : null;
-      // usar apiFetch pero capturar error 409 con detalle
       await apiFetch(`/api/usuarios/equipos/${equipo.id}/miembros/${miembro.id_usuario}/estado/`, {
         method: "POST",
-        body: JSON.stringify({
-          estado,
-          fecha_inicio_indisponibilidad: extra?.fecha_inicio || undefined,
-          fecha_fin_indisponibilidad: extra?.fecha_fin || undefined,
-          motivo_indisponibilidad: extra?.motivo || undefined,
-        }),
+        body: JSON.stringify({ estado: "INACTIVO" }),
       });
-      setMensaje(
-        estado === "INACTIVO"
-          ? `${miembro.nombres} ${miembro.apellidos} fue eliminado del equipo.`
-          : `Estado de ${miembro.nombres} cambiado a ${estado}`
-      );
+      setMensaje(`${miembro.nombres} ${miembro.apellidos} fue eliminado del equipo.`);
       await recargar();
     } catch (e: any) {
       const raw = (e as Error).message;
-      // apiFetch lanza con message = detail o JSON stringify; intentar detectar 409
-      // Hacer intento directo con fetch para obtener JSON completo si apiFetch ocultó detalle
-      let shouldOpenModal = raw.includes("pendientes") || raw.includes("reasign");
-      if (shouldOpenModal) {
+      if (raw.includes("pendientes") || raw.includes("reasign")) {
         try {
           const detalle = await apiFetch<any>(`/api/usuarios/equipos/${equipo.id}/miembros/${miembro.id_usuario}/subtareas-pendientes/`);
           const pendientes: Pendiente[] = (detalle.pendientes ?? []).map((p: any) => ({
@@ -301,11 +278,9 @@ export default function EquiposPage() {
               miembro,
               pendientes,
               usuarioNombre: `${miembro.nombres} ${miembro.apellidos}`,
-              extra: { fechaInicio: extra?.fecha_inicio ?? "", fechaFin: extra?.fecha_fin ?? "", motivo: extra?.motivo ?? "", esBaja: estado === "INACTIVO" },
             });
             setReassignments({});
-            setMensaje(`Error: ${raw} — el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse`);
-            setAccionando(null);
+            setMensaje(`Error: ${raw} - el usuario tiene subtareas pendientes, estas deben completarse o reasignarse`);
             return;
           }
         } catch { }
@@ -316,43 +291,20 @@ export default function EquiposPage() {
     }
   };
 
-  const abrirModalIndisponible = (equipoId: number, miembro: EquipoMiembroDetallado) => {
-    setFechaInicio(miembro.fecha_inicio_indisponibilidad ?? "");
-    setFechaFin(miembro.fecha_fin_indisponibilidad ?? "");
-    setMotivo(miembro.motivo_indisponibilidad ?? "");
-    setModalIndisponible({ equipoId, miembro });
-  };
-
-  const confirmarIndisponible = async () => {
-    if (!modalIndisponible) return;
-    const equipo = equipos.find((e) => e.id === modalIndisponible.equipoId);
-    if (!equipo) return;
-    setModalIndisponible(null);
-    await handleCambiarEstadoConReasignacion(equipo, modalIndisponible.miembro, "INDISPONIBLE", {
-      fecha_inicio: fechaInicio,
-      fecha_fin: fechaFin,
-      motivo,
-    });
-  };
-
   const confirmarReasignarYMarcar = async () => {
     if (!modalReasignar) return;
-    const { equipo, miembro, pendientes, extra } = modalReasignar;
+    const { equipo, miembro, pendientes } = modalReasignar;
     const reassignList = pendientes.map((p) => ({
       subtarea_id: p.subtarea_id,
       nuevo_asignado: reassignments[p.subtarea_id],
     }));
     const sinAsignar = reassignList.filter((r) => !r.nuevo_asignado);
     if (sinAsignar.length > 0) {
-      setMensaje(extra.esBaja ? "Error: debes reasignar todas las subtareas antes de dar de baja." : "Error: debes reasignar todas las subtareas pendientes antes de marcar indisponible.");
+      setMensaje("Error: debes reasignar todas las subtareas antes de dar de baja.");
       return;
     }
-    const estadoFinal = extra.esBaja ? "INACTIVO" : "INDISPONIBLE";
-    const ok = await handleCambiarEstado(equipo, miembro, estadoFinal as any, {
-      fecha_inicio: extra.fechaInicio,
-      fecha_fin: extra.fechaFin,
-      motivo: extra.motivo,
-      reassignments: reassignList as any,
+    const ok = await handleCambiarEstado(equipo, miembro, "INACTIVO", {
+      reassignments: reassignList,
     });
     if (ok) setModalReasignar(null);
   };
@@ -445,10 +397,16 @@ export default function EquiposPage() {
   };
 
   const badgeEstado = (estado: string) => {
-    if (estado === "ACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Activo</span>;
-    if (estado === "INDISPONIBLE") return <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", color: "var(--color-waiting)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Indisponible</span>;
+    if (estado === "ACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Miembro activo</span>;
     if (estado === "INACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Inactivo</span>;
     return <span style={{ background: "var(--color-border)", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>{estado}</span>;
+  };
+
+  const badgeDisponibilidad = (miembro?: EquipoMiembroDetallado | null) => {
+    if (miembro?.disponibilidad?.estado === "INDISPONIBLE") {
+      return <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", color: "var(--color-waiting)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Indisponible</span>;
+    }
+    return <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Disponible</span>;
   };
 
   const esLiderDeEquipo = (equipo: EquipoInfo) => equipo.lider?.id === usuario?.id || esAdmin;
@@ -602,8 +560,7 @@ export default function EquiposPage() {
             const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";
             const liderNombre = equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "—";
             const totalActivos = equipo.miembros.filter((m) => m.estado === "ACTIVO").length;
-            const totalIndisponibles = equipo.miembros.filter((m) => m.estado === "INDISPONIBLE").length;
-            const tieneSubLiderActivo = equipo.miembros.some((m) => m.rol_en_equipo === "SUB_LIDER" && m.estado === "ACTIVO");
+            const totalIndisponibles = equipo.miembros.filter((m) => m.disponibilidad?.estado === "INDISPONIBLE").length;
             const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
             const liderActivo = liderMiembro?.estado === "ACTIVO";
             const puedoGestionar = Boolean(equipo.puedo_gestionar) && liderActivo;
@@ -645,48 +602,21 @@ export default function EquiposPage() {
 
                 {expandido && (
                   <div className={styles.expand}>
-                    {/* Fila líder con disponibilidad */}
-                    <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                    {/* Fila l?der */}
+                    <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center" }}>
-                          {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeEstado(liderMiembro.estado)}
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeEstado(liderMiembro.estado)} {liderMiembro && badgeDisponibilidad(liderMiembro)}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `• ${equipo.lider.cargo}` : ""}</div>
-                        {liderMiembro?.estado === "INDISPONIBLE" && (liderMiembro.fecha_inicio_indisponibilidad || liderMiembro.motivo_indisponibilidad) && (
+                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `? ${equipo.lider.cargo}` : ""}</div>
+                        {liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" && (
                           <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
-                            {liderMiembro.motivo_indisponibilidad ? `Motivo: ${liderMiembro.motivo_indisponibilidad}` : ""}
-                            {liderMiembro.fecha_inicio_indisponibilidad ? ` • ${liderMiembro.fecha_inicio_indisponibilidad}` : ""}
-                            {liderMiembro.fecha_fin_indisponibilidad ? ` → ${liderMiembro.fecha_fin_indisponibilidad}` : ""}
+                            {liderMiembro.disponibilidad.motivo ? `Motivo: ${liderMiembro.disponibilidad.motivo}` : ""}
+                            {liderMiembro.disponibilidad.fecha_inicio ? ` ? ${liderMiembro.disponibilidad.fecha_inicio}` : ""}
+                            {liderMiembro.disponibilidad.fecha_fin ? ` ? ${liderMiembro.disponibilidad.fecha_fin}` : ""}
                           </div>
                         )}
                       </div>
-                      {soyLider &&
-                        <>
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                            {liderMiembro && liderMiembro.estado !== "INDISPONIBLE" ? (
-                              <button
-                                onClick={() => {
-                                  if (!tieneSubLiderActivo) { setMensaje("Error: No puedes marcar al líder como indisponible si no hay un sub-líder activo."); return; }
-                                  abrirModalIndisponible(equipo.id, liderMiembro);
-                                }}
-                                disabled={!!accionando || !tieneSubLiderActivo}
-                                title={!tieneSubLiderActivo ? "CONDICION: Debe haber un sub-líder asignado en el equipo" : "Inactivar cuenta"}
-                                style={{ background: tieneSubLiderActivo ? "white" : "var(--color-surface)", color: tieneSubLiderActivo ? "var(--color-waiting)" : "var(--color-text-secondary)", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, white)", padding: "6px 10px", borderRadius: 6, cursor: tieneSubLiderActivo ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 600 }}
-                              >
-                                Inactivar cuenta
-                              </button>
-                            ) : liderMiembro ? (
-                              <button
-                                onClick={() => handleCambiarEstado(equipo, liderMiembro, "ACTIVO")}
-                                disabled={!!accionando}
-                                style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
-                              >
-                                Volver a estado activo
-                              </button>
-                            ) : null}
-                          </div>
-                        </>
-                      }
                     </div>
 
                     <div className={styles.expandToolbar}>
@@ -729,24 +659,24 @@ export default function EquiposPage() {
                                   key={m.id}
                                   onClick={() => { if (puedoGestionar) setModalMiembro({ equipo, miembro: m }); }}
                                   title={puedoGestionar ? "Clic para gestionar al integrante" : undefined}
-                                  style={{ borderTop: "1px solid var(--color-border)", fontSize: 13, background: m.estado === "INACTIVO" ? "color-mix(in srgb, var(--color-danger) 8%, white)" : m.estado === "INDISPONIBLE" ? "color-mix(in srgb, var(--color-waiting) 10%, white)" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1, cursor: puedoGestionar ? "pointer" : "default" }}
+                                  style={{ borderTop: "1px solid var(--color-border)", fontSize: 13, background: m.estado === "INACTIVO" ? "color-mix(in srgb, var(--color-danger) 8%, white)" : m.disponibilidad?.estado === "INDISPONIBLE" ? "color-mix(in srgb, var(--color-waiting) 10%, white)" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1, cursor: puedoGestionar ? "pointer" : "default" }}
                                 >
                                   <td style={{ padding: "10px 12px" }}>
                                     <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
                                       {m.nombres} {m.apellidos} {esYo && <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", color: "var(--color-in-progress)", padding: "1px 6px", borderRadius: 999, fontSize: 11, marginLeft: 6 }}>Tú</span>}
                                     </div>
                                     <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{m.cargo || "—"}</div>
-                                    {m.estado === "INDISPONIBLE" && (m.fecha_inicio_indisponibilidad || m.motivo_indisponibilidad) && (
+                                    {m.disponibilidad?.estado === "INDISPONIBLE" && (
                                       <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
-                                        {m.motivo_indisponibilidad ? `Motivo: ${m.motivo_indisponibilidad}` : ""}
-                                        {m.fecha_inicio_indisponibilidad ? ` • ${m.fecha_inicio_indisponibilidad}` : ""}
-                                        {m.fecha_fin_indisponibilidad ? ` → ${m.fecha_fin_indisponibilidad}` : ""}
+                                        {m.disponibilidad.motivo ? `Motivo: ${m.disponibilidad.motivo}` : ""}
+                                        {m.disponibilidad.fecha_inicio ? ` · ${m.disponibilidad.fecha_inicio}` : ""}
+                                        {m.disponibilidad.fecha_fin ? ` → ${m.disponibilidad.fecha_fin}` : ""}
                                       </div>
                                     )}
                                   </td>
                                   <td style={{ padding: "10px 12px", color: "var(--color-text)", fontSize: 12 }}>{m.email}</td>
                                   <td style={{ padding: "10px 12px" }}>{badgeRol(m.rol_en_equipo)}</td>
-                                  <td style={{ padding: "10px 12px" }}>{badgeEstado(m.estado)}</td>
+                                  <td style={{ padding: "10px 12px", display: "flex", gap: 6, flexWrap: "wrap" }}>{badgeEstado(m.estado)}{badgeDisponibilidad(m)}</td>
                                 </tr>
                               );
                             })
@@ -784,13 +714,14 @@ export default function EquiposPage() {
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               {badgeRol(modalMiembro.miembro.rol_en_equipo)}
               {badgeEstado(modalMiembro.miembro.estado)}
+              {badgeDisponibilidad(modalMiembro.miembro)}
             </div>
 
-            {modalMiembro.miembro.estado === "INDISPONIBLE" && (modalMiembro.miembro.fecha_inicio_indisponibilidad || modalMiembro.miembro.motivo_indisponibilidad) && (
+            {modalMiembro.miembro.disponibilidad?.estado === "INDISPONIBLE" && (
               <div style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 10, background: "color-mix(in srgb, var(--color-waiting) 10%, white)", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, white)", borderRadius: 8, padding: 8 }}>
-                {modalMiembro.miembro.motivo_indisponibilidad ? `Motivo: ${modalMiembro.miembro.motivo_indisponibilidad}` : ""}
-                {modalMiembro.miembro.fecha_inicio_indisponibilidad ? ` • ${modalMiembro.miembro.fecha_inicio_indisponibilidad}` : ""}
-                {modalMiembro.miembro.fecha_fin_indisponibilidad ? ` → ${modalMiembro.miembro.fecha_fin_indisponibilidad}` : ""}
+                {modalMiembro.miembro.disponibilidad.motivo ? `Motivo: ${modalMiembro.miembro.disponibilidad.motivo}` : ""}
+                {modalMiembro.miembro.disponibilidad.fecha_inicio ? ` · ${modalMiembro.miembro.disponibilidad.fecha_inicio}` : ""}
+                {modalMiembro.miembro.disponibilidad.fecha_fin ? ` → ${modalMiembro.miembro.disponibilidad.fecha_fin}` : ""}
               </div>
             )}
 
@@ -824,37 +755,11 @@ export default function EquiposPage() {
                 {modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "Revocar sub-líder" : "Hacer sub-líder"}
               </button>
 
-              {modalMiembro.miembro.estado === "INDISPONIBLE" || modalMiembro.miembro.estado === "INACTIVO" ? (
-                <button
-                  onClick={() => {
-                    const { equipo, miembro } = modalMiembro;
-                    setModalMiembro(null);
-                    handleCambiarEstado(equipo, miembro, "ACTIVO");
-                  }}
-                  disabled={!!accionando || !liderActivoModal}
-                  style={{ background: "white", color: "var(--color-done)", border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-                >
-                  Volver a activo
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    const { equipo, miembro } = modalMiembro;
-                    setModalMiembro(null);
-                    abrirModalIndisponible(equipo.id, miembro);
-                  }}
-                  disabled={!!accionando || !liderActivoModal}
-                  style={{ background: "white", color: "var(--color-waiting)", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, white)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-                >
-                  Inactivar (indisponible)
-                </button>
-              )}
-
               <button
                 onClick={() => {
                   const { equipo, miembro } = modalMiembro;
                   setModalMiembro(null);
-                  handleCambiarEstadoConReasignacion(equipo, miembro, "INACTIVO");
+                  handleBajaMiembro(equipo, miembro);
                 }}
                 disabled={!!accionando || !liderActivoModal}
                 title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
@@ -866,39 +771,6 @@ export default function EquiposPage() {
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
               <button onClick={() => setModalMiembro(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal indisponibilidad */}
-      {modalIndisponible && (
-        <div
-          onClick={() => setModalIndisponible(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Inactivar cuenta {modalIndisponible.miembro.rol_en_equipo === "LIDER" ? "(Líder - requiere sub-líder)" : ""}</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-              {modalIndisponible.miembro.nombres} {modalIndisponible.miembro.apellidos} — se inactivará temporalmente. Si tiene subtareas en desarrollo/en espera, deberás reasignarlas.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                Fecha inicio
-                <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                Fecha fin
-                <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                Motivo
-                <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. Vacaciones, licencia médica…" style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }} />
-              </label>
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalIndisponible(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
-              <button onClick={confirmarIndisponible} style={{ background: "var(--color-waiting)", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Inactivar cuenta</button>
             </div>
           </div>
         </div>
@@ -944,7 +816,7 @@ export default function EquiposPage() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
               <button onClick={() => setModalReasignar(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
               <button onClick={confirmarReasignarYMarcar} style={{ background: "var(--color-brand)", color: "var(--color-background)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
-                {modalReasignar.extra.esBaja ? "Reasignar y dar de baja" : "Reasignar e inactivar esta cuenta"}
+                Reasignar y dar de baja
               </button>
             </div>
             <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-text-secondary)" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>

@@ -2,6 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from clientes.models import Entidad
 from usuarios.models import User
 
 from .models import Campana, SubCampana, PermisoCampana
@@ -69,3 +70,48 @@ class MisPermisosTestCase(APITestCase):
         res = self._get()
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(res.data, [])
+
+    def test_mis_permisos_incluye_entidad(self):
+        self.client.force_authenticate(user=self.usuario)
+        res = self._get()
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertIn("entidad_nombre", res.data[0])
+        self.assertTrue(res.data[0]["entidad_nombre"])
+
+
+class CampanaJerarquiaTestCase(APITestCase):
+
+    def setUp(self):
+        self.admin = _crear_usuario("admin-entidad@empresa.com", tipo="ADMINISTRADOR")
+        self.entidad = Entidad.objects.create(
+            nombre="Entidad API", razon_social="Entidad API SAC"
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_crear_campana_requiere_entidad(self):
+        res = self.client.post(
+            reverse("campana-list"),
+            {"nombre": "Campa?a sin entidad"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_crear_campana_con_entidad(self):
+        res = self.client.post(
+            reverse("campana-list"),
+            {"entidad": self.entidad.id, "nombre": "Campa?a API"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        campana = Campana.objects.get(id=res.data["id"])
+        self.assertEqual(campana.entidad_id, self.entidad.id)
+        self.assertEqual(res.data["entidad_nombre"], self.entidad.nombre)
+
+    def test_no_permite_mismo_nombre_en_entidad(self):
+        Campana.objects.create(entidad=self.entidad, nombre="Repetida")
+        res = self.client.post(
+            reverse("campana-list"),
+            {"entidad": self.entidad.id, "nombre": "repetida"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)

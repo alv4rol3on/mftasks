@@ -15,6 +15,13 @@ export interface DatosUsuario {
     tipo_usuario?: TipoUsuario;
     roles?: string[];
     es_aprobador?: boolean;
+    disponibilidad?: {
+        estado: "DISPONIBLE" | "INDISPONIBLE";
+        fecha_inicio?: string | null;
+        fecha_fin?: string | null;
+        motivo?: string;
+        fecha_actualizacion?: string;
+    } | null;
 }
 
 export class ErrorDeSesion extends Error {}

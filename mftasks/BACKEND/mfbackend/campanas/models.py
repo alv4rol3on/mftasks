@@ -4,28 +4,48 @@ from django.db.models import Q, CheckConstraint, UniqueConstraint
 
 
 class Campana(models.Model):
-    nombre = models.CharField(max_length=100, unique=True)
+    entidad = models.ForeignKey(
+        "clientes.Entidad",
+        on_delete=models.PROTECT,
+        related_name="campanas",
+    )
+    nombre = models.CharField(max_length=100)
     codigo = models.CharField(max_length=30, unique=True, blank=True)
-    ruc = models.CharField(max_length=20, blank=True, null=True, unique=True)
-    razon_social = models.CharField(max_length=200, blank=True)
-    correo = models.EmailField(blank=True)
-    telefono = models.CharField(max_length=20, blank=True)
-    direccion = models.CharField(max_length=255, blank=True)
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["entidad", "nombre"],
+                name="uniq_campana_entidad_nombre",
+            ),
+        ]
         indexes = [
             models.Index(fields=["activo"]),
+            models.Index(
+                fields=["entidad", "activo"],
+                name="campanas_entidad_activo_idx",
+            ),
         ]
 
     def __str__(self):
-        return self.nombre
+        return f"{self.entidad} / {self.nombre}"
 
     def save(self, *args, **kwargs):
+        if not self.entidad_id:
+            from clientes.models import Entidad
+
+            entidad, _ = Entidad.objects.get_or_create(
+                nombre=self.nombre,
+                defaults={"razon_social": self.nombre},
+            )
+            self.entidad = entidad
+
         if not self.codigo:
             base = f"{self.nombre[:15]}".upper().replace(" ", "_")
             self.codigo = base[:30]
+
         super().save(*args, **kwargs)
 
 

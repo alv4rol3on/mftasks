@@ -1,8 +1,22 @@
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.db.models import Q, CheckConstraint, UniqueConstraint
+from django.db.models import Q, CheckConstraint
 
 from usuarios.models import User, Equipo
+
+
+class SecuenciaTicket(models.Model):
+    fecha = models.DateField(unique=True)
+    ultimo = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Secuencia de ticket"
+        verbose_name_plural = "Secuencias de ticket"
+
+    def __str__(self):
+        return f"{self.fecha:%Y%m%d}: {self.ultimo}"
+
 
 class Tarea(models.Model):
 
@@ -13,6 +27,7 @@ class Tarea(models.Model):
         RECHAZADO = "RECHAZADO", "Rechazado"
         SOLUCIONADO = "SOLUCIONADO", "Solucionado"
         STAND_BY = "STAND_BY", "En pausa"
+        CANCELADO = "CANCELADO", "Cancelado"
 
     class PasoAprobacion(models.TextChoices):
         APROBADORES = "APROBADORES", "Aprobadores"
@@ -87,6 +102,7 @@ class Tarea(models.Model):
     )
 
     motivo_rechazo = models.TextField(blank=True)
+    motivo_cancelacion = models.TextField(blank=True)
 
     motivo_standby = models.TextField(blank=True)
     fecha_standby = models.DateTimeField(null=True, blank=True)
@@ -142,8 +158,6 @@ class Tarea(models.Model):
             models.Index(fields=["solicitante", "estado"]),
             models.Index(fields=["subcampana", "estado"]),
             models.Index(fields=["fecha_creacion"]),
-            models.Index(fields=["ticket"]),
-            models.Index(fields=["activo"]),
         ]
         constraints = [
             CheckConstraint(check=Q(progreso__gte=0, progreso__lte=100), name="chk_tarea_progreso_0_100"),
@@ -171,41 +185,10 @@ class Tarea(models.Model):
             ):
                 self.paso_aprobacion = self.PasoAprobacion.LIDER
         if not self.ticket:
-            from django.utils import timezone
-            from django.db import transaction
-            # YYYYMMDD00001 basado en fecha_creacion (America/Lima)
-            if not self.fecha_creacion:
-                base_date = timezone.localtime(timezone.now())
-            else:
-                try:
-                    base_date = timezone.localtime(self.fecha_creacion) if timezone.is_naive(self.fecha_creacion) or self.fecha_creacion.tzinfo else self.fecha_creacion
-                except Exception:
-                    base_date = timezone.localtime(timezone.now())
-            prefix = base_date.strftime('%Y%m%d')
-            # Usar transacción atómica + MAX para correlativo diario y retry por unique
-            for _ in range(5):
-                # Buscar último ticket del día
-                try:
-                    with transaction.atomic():
-                        # Lock: select max dentro de transacción para evitar carrera en SQLite
-                        max_ticket = Tarea.objects.filter(ticket__startswith=prefix).order_by('-ticket').values_list('ticket', flat=True).first()
-                        if max_ticket and len(max_ticket) >= 13 and max_ticket[:8] == prefix:
-                            try:
-                                seq = int(max_ticket[8:13]) + 1
-                            except ValueError:
-                                seq = 1
-                        else:
-                            # fallback: contar
-                            seq = Tarea.objects.filter(ticket__startswith=prefix).count() + 1
-                        candidate = f"{prefix}{seq:05d}"
-                        if not Tarea.objects.filter(ticket=candidate).exists():
-                            self.ticket = candidate
-                            break
-                except Exception:
-                    continue
-            if not self.ticket:
-                import uuid
-                self.ticket = f"{prefix}{uuid.uuid4().int % 90000 + 10000:05d}"
+            from .services.tickets import asignar_ticket_tarea
+
+            asignar_ticket_tarea(self)
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -308,51 +291,31 @@ class Subtarea(models.Model):
             models.Index(fields=["tarea", "estado"]),
             models.Index(fields=["asignado", "estado"]),
             models.Index(fields=["tarea", "activo"]),
-            models.Index(fields=["activo"]),
-            models.Index(fields=["codigo"]),
         ]
         constraints = [
             CheckConstraint(check=Q(peso__gte=1), name="chk_subtarea_peso_gte1"),
             CheckConstraint(
-                check=Q(estado="STAND_BY", motivo_standby__isnull=False) | ~Q(estado="STAND_BY") | Q(motivo_standby=""),
-                name="chk_standby_motivo_lenient",
+                check=~Q(estado="STAND_BY") | ~Q(motivo_standby=""),
+                name="chk_standby_motivo",
             ),
         ]
 
+    def clean(self):
+        super().clean()
+        if (
+            self.estado == self.Estado.STAND_BY
+            and not (self.motivo_standby or "").strip()
+        ):
+            raise ValidationError({
+                "motivo_standby": "El motivo es obligatorio en STAND_BY."
+            })
+
     def save(self, *args, **kwargs):
         if not self.codigo and self.tarea_id:
-            # Generar codigo YYYYMMDD00001-001 basado en ticket de la tarea
-            from django.db import transaction
-            for _ in range(5):
-                try:
-                    with transaction.atomic():
-                        tarea_ticket = None
-                        if hasattr(self, 'tarea') and self.tarea_id:
-                            try:
-                                tarea_ticket = self.tarea.ticket if hasattr(self.tarea, 'ticket') and self.tarea.ticket else None
-                            except Exception:
-                                tarea_ticket = None
-                        if not tarea_ticket:
-                            tarea_ticket = Tarea.objects.filter(id=self.tarea_id).values_list('ticket', flat=True).first()
-                        if not tarea_ticket:
-                            break
-                        # correlativo por tarea
-                        existing = Subtarea.objects.filter(tarea_id=self.tarea_id).exclude(pk=self.pk)
-                        # buscar max seq
-                        max_codigo = existing.filter(codigo__startswith=f"{tarea_ticket}-").order_by('-codigo').values_list('codigo', flat=True).first()
-                        if max_codigo and '-' in max_codigo:
-                            try:
-                                seq = int(max_codigo.split('-')[-1]) + 1
-                            except ValueError:
-                                seq = existing.count() + 1
-                        else:
-                            seq = existing.count() + 1
-                        candidate = f"{tarea_ticket}-{seq:03d}"
-                        if not Subtarea.objects.filter(codigo=candidate).exists():
-                            self.codigo = candidate
-                            break
-                except Exception:
-                    continue
+            from .services.tickets import asignar_codigo_subtarea
+
+            asignar_codigo_subtarea(self)
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -371,6 +334,7 @@ class TareaLog(models.Model):
         FIN = "FIN", "Fin"
         CAMBIO_ASIGNADO = "CAMBIO_ASIGNADO", "Cambio de asignado"
         CAMBIO_PROGRESO = "CAMBIO_PROGRESO", "Cambio de progreso"
+        CANCELACION = "CANCELACION", "Cancelación"
 
     tarea = models.ForeignKey(
         Tarea,

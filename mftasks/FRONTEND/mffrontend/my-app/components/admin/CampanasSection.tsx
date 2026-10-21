@@ -17,8 +17,16 @@ type Subcampana = {
   campana: number;
 };
 
+type EntidadPerm = {
+  id: number;
+  nombre: string;
+  activo: boolean;
+};
+
 type CampanaPerm = {
   id: number;
+  entidad: number;
+  entidad_nombre: string;
   nombre: string;
   codigo: string;
   subcampanas: Subcampana[];
@@ -33,9 +41,11 @@ const PAGE_SIZE_CAMPANAS = 6;
 
 export default function CampanasSection({ setMsg }: Props) {
   const [campanas, setCampanas] = useState<CampanaPerm[]>([]);
+  const [entidades, setEntidades] = useState<EntidadPerm[]>([]);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const [filtroCampana, setFiltroCampana] = useState("");
+  const [filtroEntidad, setFiltroEntidad] = useState("");
 
   const [filtroActivoCampana, setFiltroActivoCampana] = useState<
     "activos" | "inactivos" | "todos"
@@ -53,15 +63,25 @@ export default function CampanasSection({ setMsg }: Props) {
 
   const cargarCampanas = async () => {
     try {
-      const data = await apiFetch<
-        CampanaPerm[] | { results: CampanaPerm[] }
-      >("/api/campanas/campanas/");
+      const [data, dataEntidades] = await Promise.all([
+        apiFetch<CampanaPerm[] | { results: CampanaPerm[] }>(
+          "/api/campanas/campanas/"
+        ),
+        apiFetch<EntidadPerm[] | { results: EntidadPerm[] }>(
+          "/api/entidades/entidades/"
+        ),
+      ]);
 
       const arr = Array.isArray(data) ? data : data.results ?? [];
+      const arrEntidades = Array.isArray(dataEntidades)
+        ? dataEntidades
+        : dataEntidades.results ?? [];
 
       setCampanas(arr);
+      setEntidades(arrEntidades);
     } catch {
       setCampanas([]);
+      setEntidades([]);
     }
   };
 
@@ -100,6 +120,10 @@ export default function CampanasSection({ setMsg }: Props) {
   // --------------------------------------------------
 
   const campanasFiltradas = campanas.filter(campana => {
+    if (filtroEntidad && String(campana.entidad) !== filtroEntidad) {
+      return false;
+    }
+
     if (filtroActivoCampana === "activos" && !campana.activo) {
       return false;
     }
@@ -116,6 +140,7 @@ export default function CampanasSection({ setMsg }: Props) {
 
     return (
       campana.nombre.toLowerCase().includes(q) ||
+      (campana.entidad_nombre ?? "").toLowerCase().includes(q) ||
       campana.codigo.toLowerCase().includes(q) ||
       campana.subcampanas.some(
         sub =>
@@ -141,7 +166,7 @@ export default function CampanasSection({ setMsg }: Props) {
 
   useEffect(() => {
     setPageCampanas(1);
-  }, [filtroCampana, filtroActivoCampana]);
+  }, [filtroCampana, filtroEntidad, filtroActivoCampana]);
 
   useEffect(() => {
     if (pageCampanas > totalPagesCampanas) {
@@ -268,7 +293,7 @@ export default function CampanasSection({ setMsg }: Props) {
       <div className={styles.card}>
         <div className={styles.usersHeader}>
           <h3 className={styles.cardTitle} style={{ margin: 0 }}>
-            Estados de Campañas / Subcampañas
+            Entidades / Campa?as / Subcampa?as
           </h3>
 
           <button
@@ -276,7 +301,7 @@ export default function CampanasSection({ setMsg }: Props) {
             className={styles.btnPrimary}
             onClick={() => setModalOpen(true)}
           >
-            + Crear campaña/subcampaña
+            + Crear entidad / campa?a
           </button>
         </div>
 
@@ -292,6 +317,22 @@ export default function CampanasSection({ setMsg }: Props) {
               onChange={e => setFiltroCampana(e.target.value)}
               className={styles.input}
             />
+          </div>
+
+          <div className={styles.permisosField} style={{ maxWidth: 260 }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>Entidad</label>
+            <select
+              value={filtroEntidad}
+              onChange={(e) => setFiltroEntidad(e.target.value)}
+              className={styles.select}
+            >
+              <option value="">Todas las entidades</option>
+              {entidades.map((entidad) => (
+                <option key={entidad.id} value={entidad.id}>
+                  {entidad.nombre}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className={styles.permisosField} style={{ maxWidth: 220 }}>
@@ -377,7 +418,7 @@ export default function CampanasSection({ setMsg }: Props) {
                   >
                     <div>
                       <span className={styles.campanaTitle}>
-                        {camp.nombre}
+                        {camp.entidad_nombre} · {camp.nombre}
                       </span>{" "}
                       {/*<span className={styles.campanaCode}>
                         ({camp.codigo})
@@ -532,6 +573,7 @@ export default function CampanasSection({ setMsg }: Props) {
 
       {modalOpen && (
         <CampanaModal
+          entidades={entidades}
           campanas={campanas}
           onClose={() => setModalOpen(false)}
           onSaved={async (m) => {

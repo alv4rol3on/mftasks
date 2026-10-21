@@ -1,12 +1,14 @@
 from django.contrib import admin
-from .models import Campana, SubCampana, PermisoCampana
+
+from .models import Campana, PermisoCampana, SubCampana
 
 
 @admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
-    list_display = ("codigo", "nombre", "ruc", "activo")
-    list_filter = ("activo",)
-    search_fields = ("nombre", "codigo", "ruc", "razon_social")
+    list_display = ("codigo", "nombre", "entidad", "activo")
+    list_filter = ("activo", "entidad")
+    search_fields = ("nombre", "codigo", "entidad__nombre", "entidad__ruc")
+    autocomplete_fields = ("entidad",)
 
 
 @admin.register(SubCampana)

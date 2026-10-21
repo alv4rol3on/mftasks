@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import SearchableSelect, {
   SearchableOption,
 } from "@/components/ui/SearchableSelect";
+import type { CampanaInfo, EntidadInfo, SubCampanaInfo } from "@/lib/types";
 
 import {
   existeNombreNormalizado,
@@ -15,61 +16,83 @@ import {
 
 import styles from "./AdminSections.module.css";
 
-type Subcampana = {
-  id: number;
-  nombre: string;
-  codigo: string;
-  activo: boolean;
-  campana: number;
-};
-
-type CampanaPerm = {
-  id: number;
-  nombre: string;
-  codigo: string;
-  subcampanas: Subcampana[];
-  activo: boolean;
-};
-
 type Props = {
-  campanas: CampanaPerm[];
+  entidades: EntidadInfo[];
+  campanas: CampanaInfo[];
   onClose: () => void;
   onSaved: (msg: string) => void | Promise<void>;
 };
 
-export default function CampanaModal({ campanas, onClose, onSaved }: Props) {
-  const [tipoCreacion, setTipoCreacion] = useState<"campana" | "subcampana">(
-    "campana"
-  );
-  const [nuevaCampanaNombre, setNuevaCampanaNombre] = useState("");
+type TipoCreacion = "entidad" | "campana" | "subcampana";
+
+export default function CampanaModal({
+  entidades,
+  campanas,
+  onClose,
+  onSaved,
+}: Props) {
+  const [tipoCreacion, setTipoCreacion] = useState<TipoCreacion>("entidad");
+  const [creando, setCreando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [nuevaEntidad, setNuevaEntidad] = useState({
+    nombre: "",
+    razon_social: "",
+    ruc: "",
+    correo: "",
+    telefono: "",
+    direccion: "",
+  });
+
+  const [nuevaCampana, setNuevaCampana] = useState({
+    entidadId: "",
+    nombre: "",
+  });
+
   const [nuevaSubcampana, setNuevaSubcampana] = useState({
     campanaId: "",
     nombre: "",
   });
-  const [creando, setCreando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const campanasDeEntidad = useMemo(() => {
+    if (!nuevaCampana.entidadId) return [];
+    return campanas.filter(
+      (campana) => String(campana.entidad) === nuevaCampana.entidadId
+    );
+  }, [campanas, nuevaCampana.entidadId]);
 
   const subcampanasPadre = useMemo(() => {
-    if (!nuevaSubcampana.campanaId) return [];
+    if (!nuevaSubcampana.campanaId) return [] as SubCampanaInfo[];
     const padre = campanas.find(
-      (c) => String(c.id) === nuevaSubcampana.campanaId
+      (campana) => String(campana.id) === nuevaSubcampana.campanaId
     );
     return padre?.subcampanas ?? [];
   }, [campanas, nuevaSubcampana.campanaId]);
 
-  const sugerenciasCampana = useMemo(
-    () => nombresSimilares(nuevaCampanaNombre, campanas),
-    [nuevaCampanaNombre, campanas]
+  const entidadDuplicada = useMemo(
+    () =>
+      Boolean(
+        existeNombreNormalizado(nuevaEntidad.nombre, entidades)
+      ),
+    [nuevaEntidad.nombre, entidades]
+  );
+
+  const sugerenciasEntidad = useMemo(
+    () => nombresSimilares(nuevaEntidad.nombre, entidades),
+    [nuevaEntidad.nombre, entidades]
   );
 
   const campanaDuplicada = useMemo(
-    () => Boolean(existeNombreNormalizado(nuevaCampanaNombre, campanas)),
-    [nuevaCampanaNombre, campanas]
+    () =>
+      Boolean(
+        existeNombreNormalizado(nuevaCampana.nombre, campanasDeEntidad)
+      ),
+    [nuevaCampana.nombre, campanasDeEntidad]
   );
 
-  const sugerenciasSubcampana = useMemo(
-    () => nombresSimilares(nuevaSubcampana.nombre, subcampanasPadre),
-    [nuevaSubcampana.nombre, subcampanasPadre]
+  const sugerenciasCampana = useMemo(
+    () => nombresSimilares(nuevaCampana.nombre, campanasDeEntidad),
+    [nuevaCampana.nombre, campanasDeEntidad]
   );
 
   const subcampanaDuplicada = useMemo(
@@ -80,30 +103,76 @@ export default function CampanaModal({ campanas, onClose, onSaved }: Props) {
     [nuevaSubcampana.nombre, subcampanasPadre]
   );
 
-  const opcionesCampana: SearchableOption[] = useMemo(
+  const sugerenciasSubcampana = useMemo(
+    () => nombresSimilares(nuevaSubcampana.nombre, subcampanasPadre),
+    [nuevaSubcampana.nombre, subcampanasPadre]
+  );
+
+  const opcionesEntidad: SearchableOption[] = useMemo(
     () =>
-      campanas.map((campana) => ({
-        value: String(campana.id),
-        label: `${campana.nombre} (${campana.codigo})`,
-        sublabel: campana.activo ? undefined : "inactiva",
+      entidades.map((entidad) => ({
+        value: String(entidad.id),
+        label: entidad.nombre,
+        sublabel: entidad.activo ? undefined : "inactiva",
       })),
-    [campanas]
+    [entidades]
   );
 
   const puedeCrear =
-    tipoCreacion === "campana"
-      ? Boolean(nuevaCampanaNombre.trim()) && !campanaDuplicada
-      : Boolean(nuevaSubcampana.campanaId) &&
-        Boolean(nuevaSubcampana.nombre.trim()) &&
-        !subcampanaDuplicada;
+    tipoCreacion === "entidad"
+      ? Boolean(nuevaEntidad.nombre.trim()) && !entidadDuplicada
+      : tipoCreacion === "campana"
+        ? Boolean(nuevaCampana.entidadId) &&
+          Boolean(nuevaCampana.nombre.trim()) &&
+          !campanaDuplicada
+        : Boolean(nuevaSubcampana.campanaId) &&
+          Boolean(nuevaSubcampana.nombre.trim()) &&
+          !subcampanaDuplicada;
+
+  const crearEntidad = async () => {
+    if (!nuevaEntidad.nombre.trim()) {
+      setError("El nombre de la entidad es obligatorio.");
+      return;
+    }
+    if (entidadDuplicada) {
+      setError("Ya existe una entidad con un nombre igual o similar.");
+      return;
+    }
+
+    setCreando(true);
+    setError(null);
+    try {
+      await apiFetch("/api/entidades/entidades/", {
+        method: "POST",
+        body: JSON.stringify({
+          nombre: nuevaEntidad.nombre.trim(),
+          razon_social: nuevaEntidad.razon_social.trim(),
+          ruc: nuevaEntidad.ruc.trim() || null,
+          correo: nuevaEntidad.correo.trim(),
+          telefono: nuevaEntidad.telefono.trim(),
+          direccion: nuevaEntidad.direccion.trim(),
+        }),
+      });
+      await onSaved(`Entidad "${nuevaEntidad.nombre.trim()}" creada`);
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setCreando(false);
+    }
+  };
 
   const crearCampana = async () => {
-    if (!nuevaCampanaNombre.trim()) {
+    if (!nuevaCampana.entidadId) {
+      setError("Selecciona una entidad.");
+      return;
+    }
+    if (!nuevaCampana.nombre.trim()) {
       setError("El nombre de la campaña es obligatorio.");
       return;
     }
     if (campanaDuplicada) {
-      setError("Ya existe una campaña con un nombre igual o similar.");
+      setError("Ya existe una campaña con ese nombre en la entidad.");
       return;
     }
 
@@ -112,9 +181,12 @@ export default function CampanaModal({ campanas, onClose, onSaved }: Props) {
     try {
       await apiFetch("/api/campanas/campanas/", {
         method: "POST",
-        body: JSON.stringify({ nombre: nuevaCampanaNombre.trim() }),
+        body: JSON.stringify({
+          entidad: Number(nuevaCampana.entidadId),
+          nombre: nuevaCampana.nombre.trim(),
+        }),
       });
-      await onSaved(`Campaña "${nuevaCampanaNombre.trim()}" creada`);
+      await onSaved(`Campaña "${nuevaCampana.nombre.trim()}" creada`);
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -133,9 +205,7 @@ export default function CampanaModal({ campanas, onClose, onSaved }: Props) {
       return;
     }
     if (subcampanaDuplicada) {
-      setError(
-        "Ya existe una subcampaña con ese nombre en la campaña seleccionada."
-      );
+      setError("Ya existe una subcampaña con ese nombre en la campaña.");
       return;
     }
 
@@ -158,114 +228,222 @@ export default function CampanaModal({ campanas, onClose, onSaved }: Props) {
     }
   };
 
-  const footer = (
-    <>
-      <button
-        type="button"
-        className={styles.btnSecondary}
-        onClick={onClose}
-        disabled={creando}
-      >
-        Cancelar
-      </button>
-      <button
-        type="button"
-        className={styles.btnPrimary}
-        onClick={tipoCreacion === "campana" ? crearCampana : crearSubcampana}
-        disabled={creando || !puedeCrear}
-      >
-        {creando
-          ? "Creando..."
-          : tipoCreacion === "campana"
-            ? "Crear campaña"
-            : "Crear subcampaña"}
-      </button>
-    </>
-  );
+  const crear = () => {
+    if (tipoCreacion === "entidad") return crearEntidad();
+    if (tipoCreacion === "campana") return crearCampana();
+    return crearSubcampana();
+  };
 
   return (
     <Modal
-      title="Registrar campaña / subcampaña"
+      title="Registrar entidad, campaña o subcampaña"
       onClose={onClose}
-      footer={footer}
+      footer={
+        <>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={onClose}
+            disabled={creando}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className={styles.btnPrimary}
+            onClick={crear}
+            disabled={creando || !puedeCrear}
+          >
+            {creando
+              ? "Creando..."
+              : tipoCreacion === "entidad"
+                ? "Crear entidad"
+                : tipoCreacion === "campana"
+                  ? "Crear campaña"
+                  : "Crear subcampaña"}
+          </button>
+        </>
+      }
     >
       <div className={styles.createToggle}>
-        <button
-          type="button"
-          onClick={() => setTipoCreacion("campana")}
-          className={
-            tipoCreacion === "campana"
-              ? styles.createToggleActive
-              : styles.createToggleBtn
-          }
-        >
-          Nueva campaña
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTipoCreacion("subcampana")}
-          className={
-            tipoCreacion === "subcampana"
-              ? styles.createToggleActive
-              : styles.createToggleBtn
-          }
-        >
-          Nueva subcampaña
-        </button>
+        {(["entidad", "campana", "subcampana"] as TipoCreacion[]).map(
+          (tipo) => (
+            <button
+              key={tipo}
+              type="button"
+              onClick={() => {
+                setTipoCreacion(tipo);
+                setError(null);
+              }}
+              className={
+                tipoCreacion === tipo
+                  ? styles.createToggleActive
+                  : styles.createToggleBtn
+              }
+            >
+              {tipo === "entidad"
+                ? "Nueva entidad"
+                : tipo === "campana"
+                  ? "Nueva campaña"
+                  : "Nueva subcampaña"}
+            </button>
+          )
+        )}
       </div>
 
-      {tipoCreacion === "campana" ? (
+      {tipoCreacion === "entidad" && (
         <div className={styles.createForm} style={{ maxWidth: "100%" }}>
           <div className={styles.createField} style={{ position: "relative" }}>
-            <label style={{ color: "black" }}>Nombre campaña *</label>
-
+            <label style={{ color: "black" }}>Nombre entidad *</label>
             <input
-              placeholder="Ej: BBVA, CSC, BCP..."
-              value={nuevaCampanaNombre}
-              onChange={(e) => setNuevaCampanaNombre(e.target.value)}
+              placeholder="Ej: BBVA, Scotiabank..."
+              value={nuevaEntidad.nombre}
+              onChange={(e) =>
+                setNuevaEntidad({ ...nuevaEntidad, nombre: e.target.value })
+              }
               className={styles.input}
             />
-
-            {campanaDuplicada && (
+            {entidadDuplicada && (
               <div className={styles.dupWarning}>
-                Ya existe una campaña con ese nombre.
+                Ya existe una entidad con ese nombre.
               </div>
             )}
+            {!entidadDuplicada && sugerenciasEntidad.length > 0 && (
+              <div className={styles.sugerencias}>
+                <div className={styles.sugerenciasTitle}>
+                  Entidades existentes similares:
+                </div>
+                {sugerenciasEntidad.map((entidad) => (
+                  <div key={entidad.id} className={styles.sugerenciaItem}>
+                    {entidad.nombre}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className={styles.createField}>
+            <label style={{ color: "black" }}>Razón social</label>
+            <input
+              value={nuevaEntidad.razon_social}
+              onChange={(e) =>
+                setNuevaEntidad({
+                  ...nuevaEntidad,
+                  razon_social: e.target.value,
+                })
+              }
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.createField}>
+            <label style={{ color: "black" }}>RUC</label>
+            <input
+              value={nuevaEntidad.ruc}
+              onChange={(e) =>
+                setNuevaEntidad({ ...nuevaEntidad, ruc: e.target.value })
+              }
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.createField}>
+            <label style={{ color: "black" }}>Correo</label>
+            <input
+              type="email"
+              value={nuevaEntidad.correo}
+              onChange={(e) =>
+                setNuevaEntidad({ ...nuevaEntidad, correo: e.target.value })
+              }
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.createField}>
+            <label style={{ color: "black" }}>Teléfono</label>
+            <input
+              value={nuevaEntidad.telefono}
+              onChange={(e) =>
+                setNuevaEntidad({ ...nuevaEntidad, telefono: e.target.value })
+              }
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.createField}>
+            <label style={{ color: "black" }}>Dirección</label>
+            <input
+              value={nuevaEntidad.direccion}
+              onChange={(e) =>
+                setNuevaEntidad({ ...nuevaEntidad, direccion: e.target.value })
+              }
+              className={styles.input}
+            />
+          </div>
+        </div>
+      )}
 
+      {tipoCreacion === "campana" && (
+        <div className={styles.createForm} style={{ maxWidth: "100%" }}>
+          <div className={styles.createField}>
+            <label style={{ color: "black" }}>Entidad *</label>
+            <SearchableSelect
+              value={nuevaCampana.entidadId}
+              onChange={(value) =>
+                setNuevaCampana({ entidadId: value, nombre: "" })
+              }
+              options={opcionesEntidad}
+              placeholder="Buscar entidad..."
+            />
+          </div>
+          <div className={styles.createField} style={{ position: "relative" }}>
+            <label style={{ color: "black" }}>Nombre campaña *</label>
+            <input
+              placeholder="Ej: Campaña Outbound"
+              value={nuevaCampana.nombre}
+              onChange={(e) =>
+                setNuevaCampana({ ...nuevaCampana, nombre: e.target.value })
+              }
+              className={styles.input}
+            />
+            {campanaDuplicada && (
+              <div className={styles.dupWarning}>
+                Ya existe una campaña con ese nombre en la entidad.
+              </div>
+            )}
             {!campanaDuplicada && sugerenciasCampana.length > 0 && (
               <div className={styles.sugerencias}>
                 <div className={styles.sugerenciasTitle}>
                   Campañas existentes similares:
                 </div>
-                {sugerenciasCampana.map((c) => (
-                  <div key={c.id} className={styles.sugerenciaItem}>
-                    {c.nombre}{" "}
-                    <span className={styles.sugerenciaCode}>({c.codigo})</span>{" "}
-                    {!c.activo && "— inactiva"}
+                {sugerenciasCampana.map((campana) => (
+                  <div key={campana.id} className={styles.sugerenciaItem}>
+                    {campana.nombre}{" "}
+                    <span className={styles.sugerenciaCode}>
+                      ({campana.codigo})
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </div>
-      ) : (
+      )}
+
+      {tipoCreacion === "subcampana" && (
         <div className={styles.createForm} style={{ maxWidth: "100%" }}>
           <div className={styles.createField}>
             <label style={{ color: "black" }}>Campaña padre *</label>
             <SearchableSelect
               value={nuevaSubcampana.campanaId}
-              onChange={(v) =>
-                setNuevaSubcampana({ ...nuevaSubcampana, campanaId: v })
+              onChange={(value) =>
+                setNuevaSubcampana({ campanaId: value, nombre: "" })
               }
-              options={opcionesCampana}
-              placeholder="Buscar campaña por nombre o código..."
+              options={campanas.map((campana) => ({
+                value: String(campana.id),
+                label: `${campana.entidad_nombre ?? ""} · ${campana.nombre}`,
+                sublabel: campana.activo ? undefined : "inactiva",
+              }))}
+              placeholder="Buscar campaña..."
             />
           </div>
-
           <div className={styles.createField} style={{ position: "relative" }}>
             <label style={{ color: "black" }}>Nombre subcampaña *</label>
-
             <input
               placeholder="Ej: Tarjetas Out, Digital..."
               value={nuevaSubcampana.nombre}
@@ -277,28 +455,25 @@ export default function CampanaModal({ campanas, onClose, onSaved }: Props) {
               }
               className={styles.input}
             />
-
             <span className={styles.createHint}>
               El código se genera como CODIGO_CAMPANA_NOMBRE.
             </span>
-
             {subcampanaDuplicada && (
               <div className={styles.dupWarning}>
-                Ya existe una subcampaña con ese nombre en la campaña
-                seleccionada.
+                Ya existe una subcampaña con ese nombre en la campaña.
               </div>
             )}
-
             {!subcampanaDuplicada && sugerenciasSubcampana.length > 0 && (
               <div className={styles.sugerencias}>
                 <div className={styles.sugerenciasTitle}>
                   Subcampañas existentes similares:
                 </div>
-                {sugerenciasSubcampana.map((s) => (
-                  <div key={s.id} className={styles.sugerenciaItem}>
-                    {s.nombre}{" "}
-                    <span className={styles.sugerenciaCode}>({s.codigo})</span>{" "}
-                    {!s.activo && "— inactiva"}
+                {sugerenciasSubcampana.map((subcampana) => (
+                  <div key={subcampana.id} className={styles.sugerenciaItem}>
+                    {subcampana.nombre}{" "}
+                    <span className={styles.sugerenciaCode}>
+                      ({subcampana.codigo})
+                    </span>
                   </div>
                 ))}
               </div>
@@ -308,7 +483,10 @@ export default function CampanaModal({ campanas, onClose, onSaved }: Props) {
       )}
 
       {error && (
-        <div className={`${styles.msg} ${styles.msgError}`} style={{ marginTop: 12 }}>
+        <div
+          className={`${styles.msg} ${styles.msgError}`}
+          style={{ marginTop: 12 }}
+        >
           {error}
         </div>
       )}

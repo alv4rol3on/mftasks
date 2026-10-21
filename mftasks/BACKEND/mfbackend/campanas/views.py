@@ -16,6 +16,8 @@ from .serializers import CampanaSerializer, SubCampanaSerializer, PermisoCampana
 def _serializar_subcampana(sub):
     return {
         "id": sub.id,
+        "entidad": sub.campana.entidad_id,
+        "entidad_nombre": sub.campana.entidad.nombre,
         "campana": sub.campana_id,
         "campana_nombre": sub.campana.nombre,
         "nombre": sub.nombre,
@@ -25,7 +27,7 @@ def _serializar_subcampana(sub):
 
 
 class CampanaViewSet(ModelViewSet):
-    queryset = Campana.objects.all().prefetch_related("subcampanas")
+    queryset = Campana.objects.all().select_related("entidad").prefetch_related("subcampanas")
     serializer_class = CampanaSerializer
     permission_classes = [IsAuthenticatedActivo]
 
@@ -51,6 +53,8 @@ class CampanaViewSet(ModelViewSet):
                 campana.id,
                 {
                     "id": campana.id,
+                    "entidad": campana.entidad_id,
+                    "entidad_nombre": campana.entidad.nombre,
                     "nombre": campana.nombre,
                     "codigo": campana.codigo,
                     "activo": campana.activo,
@@ -63,7 +67,11 @@ class CampanaViewSet(ModelViewSet):
             entrada["_subcampanas"][sub.id] = _serializar_subcampana(sub)
 
         if es_administrador(user):
-            for campana in Campana.objects.filter(activo=True).prefetch_related("subcampanas"):
+            for campana in (
+                Campana.objects.filter(activo=True)
+                .select_related("entidad")
+                .prefetch_related("subcampanas")
+            ):
                 for sub in campana.subcampanas.all():
                     if sub.activo:
                         _agregar_subcampana(campana, sub)
@@ -71,7 +79,13 @@ class CampanaViewSet(ModelViewSet):
             permisos = (
                 PermisoCampana.objects
                 .filter(usuario=user)
-                .select_related("campana", "subcampana", "subcampana__campana")
+                .select_related(
+                    "campana",
+                    "campana__entidad",
+                    "subcampana",
+                    "subcampana__campana",
+                    "subcampana__campana__entidad",
+                )
             )
             for permiso in permisos:
                 sub = permiso.subcampana
@@ -97,7 +111,11 @@ class CampanaViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Campana.objects.all().prefetch_related("subcampanas")
+        qs = (
+            Campana.objects.all()
+            .select_related("entidad")
+            .prefetch_related("subcampanas")
+        )
         if not user or not user.is_authenticated:
             return Campana.objects.none()
         if es_administrador(user):
@@ -114,7 +132,7 @@ class CampanaViewSet(ModelViewSet):
 
 
 class SubCampanaViewSet(ModelViewSet):
-    queryset = SubCampana.objects.all().select_related("campana")
+    queryset = SubCampana.objects.all().select_related("campana", "campana__entidad")
     serializer_class = SubCampanaSerializer
     permission_classes = [IsAuthenticatedActivo]
 
@@ -126,8 +144,11 @@ class SubCampanaViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = SubCampana.objects.all().select_related("campana")
+        qs = SubCampana.objects.all().select_related("campana", "campana__entidad")
         campana_id = self.request.query_params.get("campana_id") or self.request.query_params.get("campana")
+        entidad_id = self.request.query_params.get("entidad_id") or self.request.query_params.get("entidad")
+        if entidad_id:
+            qs = qs.filter(campana__entidad_id=entidad_id)
         if campana_id:
             qs = qs.filter(campana_id=campana_id)
         if not user or not user.is_authenticated:
@@ -142,7 +163,14 @@ class SubCampanaViewSet(ModelViewSet):
 
 
 class PermisoCampanaViewSet(ModelViewSet):
-    queryset = PermisoCampana.objects.all().select_related("usuario", "campana", "subcampana")
+    queryset = PermisoCampana.objects.all().select_related(
+        "usuario",
+        "campana",
+        "campana__entidad",
+        "subcampana",
+        "subcampana__campana",
+        "subcampana__campana__entidad",
+    )
     serializer_class = PermisoCampanaSerializer
     permission_classes = [IsAuthenticatedActivo, EsAdministrador]
 

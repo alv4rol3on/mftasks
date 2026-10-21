@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import type { CampanaInfo, SubCampanaInfo } from "@/lib/types";
 
 interface Props {
   campanaId: number | "";
   subcampanaId: number | "";
+  entidadId?: number | "";
+  onEntidadChange?: (entidadId: number | "") => void;
   onChange: (next: { campanaId: number | ""; subcampanaId: number | "" }) => void;
   selectStyle?: React.CSSProperties;
   selectClassName?: string;
@@ -21,6 +23,8 @@ interface Props {
 export default function FiltroCampanaSubcampana({
   campanaId,
   subcampanaId,
+  entidadId,
+  onEntidadChange,
   onChange,
   selectStyle,
   selectClassName,
@@ -29,6 +33,26 @@ export default function FiltroCampanaSubcampana({
 }: Props) {
   const [campanas, setCampanas] = useState<CampanaInfo[]>([]);
   const [subcampanas, setSubcampanas] = useState<SubCampanaInfo[]>([]);
+
+  const entidades = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const campana of campanas) {
+      if (typeof campana.entidad === "number") {
+        map.set(campana.entidad, campana.entidad_nombre ?? `Entidad ${campana.entidad}`);
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [campanas]);
+
+  const campanasVisibles = useMemo(
+    () =>
+      entidadId === undefined || entidadId === ""
+        ? campanas
+        : campanas.filter((campana) => campana.entidad === entidadId),
+    [campanas, entidadId]
+  );
 
   useEffect(() => {
     let cancel = false;
@@ -77,6 +101,25 @@ export default function FiltroCampanaSubcampana({
 
   return (
     <>
+      {onEntidadChange && (
+        <select
+          value={entidadId ?? ""}
+          onChange={(e) => {
+            onEntidadChange(e.target.value ? Number(e.target.value) : "");
+            onChange({ campanaId: "", subcampanaId: "" });
+          }}
+          style={base}
+          className={selectClassName}
+          title="Filtrar por entidad"
+          aria-label="Filtrar por entidad"
+        >
+          <option value="">Todas las entidades</option>
+          {entidades.map((entidad) => (
+            <option key={entidad.id} value={entidad.id}>{entidad.nombre}</option>
+          ))}
+        </select>
+      )}
+
       <select
         value={campanaId}
         onChange={(e) =>
@@ -91,7 +134,7 @@ export default function FiltroCampanaSubcampana({
         aria-label={campanaAriaLabel}
       >
         <option value="">Todas las campañas</option>
-        {campanas.map((c) => (
+        {campanasVisibles.map((c) => (
           <option key={c.id} value={c.id}>{c.nombre}</option>
         ))}
       </select>

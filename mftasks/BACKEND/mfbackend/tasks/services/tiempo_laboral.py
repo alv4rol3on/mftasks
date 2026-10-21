@@ -690,6 +690,17 @@ def obtener_contador_tarea(
             "servidor_ahora": ahora.isoformat(),
         }
 
+    if tarea.estado == Tarea.Estado.CANCELADO:
+        return {
+            "activo": False,
+            "pausado": False,
+            "finalizado": True,
+            "segundos_restantes": 0,
+            "tiempo_tomado_segundos": None,
+            "incluye_sabado": incluye,
+            "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
+        }
+
     if tarea.estado == Tarea.Estado.RECHAZADO:
         return {
             "activo": False,

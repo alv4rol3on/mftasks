@@ -64,7 +64,8 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                 <h3>Información</h3>
                 <table className={styles.infoTable}>
                   <tbody>
-                    <tr><td><strong>Campaña</strong></td><td>{tarea.campana_nombre ?? tarea.cliente_nombre}</td></tr>
+                    <tr><td><strong>Entidad</strong></td><td>{tarea.entidad_nombre ?? tarea.cliente_nombre ?? "-"}</td></tr>
+                    <tr><td><strong>Campaña</strong></td><td>{tarea.campana_nombre ?? "-"}</td></tr>
                     <tr><td><strong>Subcampaña</strong></td><td>{tarea.subcampana_nombre ?? "-"}</td></tr>
                     <tr><td><strong>Equipo</strong></td><td>{tarea.equipo_nombre}</td></tr>
                     <tr><td><strong>Estado</strong></td><td><TaskStatusBadge estado={tarea.estado} compact /></td></tr>
@@ -94,6 +95,13 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
                   <>
                     <h3>Motivo de rechazo</h3>
                     <div className={styles.descriptionBox}>{tarea.motivo_rechazo}</div>
+                  </>
+                )}
+
+                {tarea.estado === "CANCELADO" && (
+                  <>
+                    <h3>Motivo de cancelación</h3>
+                    <div className={styles.descriptionBox}>{tarea.motivo_cancelacion || "Sin motivo registrado."}</div>
                   </>
                 )}
 

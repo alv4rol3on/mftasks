@@ -27,10 +27,22 @@ def _existe_nombre(qs, nombre, exclude_pk=None):
 
 class SubCampanaSerializer(serializers.ModelSerializer):
     campana_nombre = serializers.CharField(source="campana.nombre", read_only=True)
+    entidad = serializers.IntegerField(source="campana.entidad_id", read_only=True)
+    entidad_nombre = serializers.CharField(source="campana.entidad.nombre", read_only=True)
 
     class Meta:
         model = SubCampana
-        fields = ["id", "campana", "campana_nombre", "nombre", "codigo", "activo", "fecha_creacion"]
+        fields = [
+            "id",
+            "entidad",
+            "entidad_nombre",
+            "campana",
+            "campana_nombre",
+            "nombre",
+            "codigo",
+            "activo",
+            "fecha_creacion",
+        ]
         read_only_fields = ["codigo"]
 
     def validate(self, attrs):
@@ -48,30 +60,53 @@ class SubCampanaSerializer(serializers.ModelSerializer):
 
 
 class CampanaSerializer(serializers.ModelSerializer):
+    entidad_nombre = serializers.CharField(source="entidad.nombre", read_only=True)
     subcampanas = SubCampanaSerializer(many=True, read_only=True)
 
     class Meta:
         model = Campana
-        fields = ["id", "nombre", "codigo", "ruc", "razon_social", "correo", "telefono", "direccion", "activo", "fecha_creacion", "subcampanas"]
+        fields = [
+            "id",
+            "entidad",
+            "entidad_nombre",
+            "nombre",
+            "codigo",
+            "activo",
+            "fecha_creacion",
+            "subcampanas",
+        ]
         read_only_fields = ["codigo"]
 
-    def validate_nombre(self, value):
-        exclude_pk = self.instance.pk if self.instance is not None else None
-        if _existe_nombre(Campana.objects.all(), value, exclude_pk):
-            raise serializers.ValidationError(
-                "Ya existe una campaña con un nombre igual o similar."
-            )
-        return value
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        entidad = attrs.get("entidad", getattr(self.instance, "entidad", None))
+        nombre = attrs.get("nombre", getattr(self.instance, "nombre", ""))
+        if entidad and nombre:
+            qs = Campana.objects.filter(entidad=entidad)
+            exclude_pk = self.instance.pk if self.instance is not None else None
+            if _existe_nombre(qs, nombre, exclude_pk):
+                raise serializers.ValidationError({
+                    "nombre": "Ya existe una campaña con ese nombre en la entidad."
+                })
+        return attrs
 
 
 class PermisoCampanaSerializer(serializers.ModelSerializer):
     usuario_email = serializers.CharField(source="usuario.email", read_only=True)
     campana_nombre = serializers.CharField(source="campana.nombre", read_only=True)
     subcampana_nombre = serializers.CharField(source="subcampana.nombre", read_only=True)
+    entidad_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = PermisoCampana
-        fields = ["id", "usuario", "usuario_email", "campana", "campana_nombre", "subcampana", "subcampana_nombre", "fecha_otorgado"]
+        fields = ["id", "usuario", "usuario_email", "entidad_nombre", "campana", "campana_nombre", "subcampana", "subcampana_nombre", "fecha_otorgado"]
+
+    def get_entidad_nombre(self, obj):
+        if obj.subcampana_id and obj.subcampana:
+            return obj.subcampana.campana.entidad.nombre
+        if obj.campana_id and obj.campana:
+            return obj.campana.entidad.nombre
+        return None
 
     def validate(self, attrs):
         campana = attrs.get("campana")

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { obtenerDatosMe, DatosUsuario } from "@/lib/auth";
-import type { CampanaPermitida, EquipoInfo } from "@/lib/types";
+import type { CampanaPermitida, DisponibilidadUsuario, EquipoInfo } from "@/lib/types";
+import { guardarDisponibilidad, obtenerDisponibilidad } from "@/lib/disponibilidad";
 import Switch from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -71,6 +72,8 @@ export default function PerfilPage() {
   const [prefs, setPrefs] = useState<PreferenciasNotificacion | null>(null);
   const [prefsGuardadas, setPrefsGuardadas] = useState<PreferenciasNotificacion | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [disponibilidad, setDisponibilidad] = useState<DisponibilidadUsuario | null>(null);
+  const [guardandoDisponibilidad, setGuardandoDisponibilidad] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -105,6 +108,10 @@ export default function PerfilPage() {
       })
       .catch(() => { /* sin preferencias: no se muestra la sección */ });
 
+    obtenerDisponibilidad()
+      .then((d) => { if (!cancel) setDisponibilidad(d); })
+      .catch(() => { /* se mantiene disponible por defecto */ });
+
     return () => { cancel = true; };
   }, []);
 
@@ -128,6 +135,37 @@ export default function PerfilPage() {
 
   const actualizarPref = (campo: CampoBooleano, valor: boolean) => {
     setPrefs((prev) => (prev ? { ...prev, [campo]: valor } : prev));
+  };
+
+  const actualizarDisponibilidad = (cambios: Partial<DisponibilidadUsuario>) => {
+    setDisponibilidad((prev) => ({
+      estado: prev?.estado ?? "DISPONIBLE",
+      fecha_inicio: prev?.fecha_inicio ?? null,
+      fecha_fin: prev?.fecha_fin ?? null,
+      motivo: prev?.motivo ?? "",
+      ...cambios,
+    }));
+  };
+
+  const guardarMiDisponibilidad = async () => {
+    if (!disponibilidad) return;
+    setGuardandoDisponibilidad(true);
+    try {
+      const actualizada = await guardarDisponibilidad(disponibilidad);
+      setDisponibilidad(actualizada);
+      showToast("Disponibilidad actualizada", "success");
+
+      const conAviso = actualizada as DisponibilidadUsuario & {
+        advertencia?: string;
+      };
+      if (conAviso.advertencia) {
+        showToast(conAviso.advertencia, "info");
+      }
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setGuardandoDisponibilidad(false);
+    }
   };
 
   const guardarPrefs = async () => {
@@ -196,6 +234,92 @@ export default function PerfilPage() {
         </div>
       </section>
 
+      <section className={styles.card}>
+        <h3 className={styles.cardTitle}>Disponibilidad</h3>
+        {disponibilidad ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className={styles.dataGrid}>
+              <label className={styles.field}>
+                <span className={styles.label}>Estado</span>
+                <select
+                  value={disponibilidad.estado}
+                  onChange={(e) =>
+                    actualizarDisponibilidad({
+                      estado: e.target.value as DisponibilidadUsuario["estado"],
+                      ...(e.target.value === "DISPONIBLE"
+                        ? { fecha_inicio: null, fecha_fin: null, motivo: "" }
+                        : {}),
+                    })
+                  }
+                  style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                >
+                  <option value="DISPONIBLE">Disponible</option>
+                  <option value="INDISPONIBLE">Indisponible</option>
+                </select>
+              </label>
+
+              {disponibilidad.estado === "INDISPONIBLE" && (
+                <>
+                  <label className={styles.field}>
+                    <span className={styles.label}>Desde</span>
+                    <input
+                      type="date"
+                      value={disponibilidad.fecha_inicio ?? ""}
+                      onChange={(e) =>
+                        actualizarDisponibilidad({
+                          fecha_inicio: e.target.value || null,
+                        })
+                      }
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.label}>Hasta</span>
+                    <input
+                      type="date"
+                      value={disponibilidad.fecha_fin ?? ""}
+                      min={disponibilidad.fecha_inicio ?? undefined}
+                      onChange={(e) =>
+                        actualizarDisponibilidad({
+                          fecha_fin: e.target.value || null,
+                        })
+                      }
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.label}>Motivo *</span>
+                    <input
+                      type="text"
+                      value={disponibilidad.motivo ?? ""}
+                      maxLength={255}
+                      onChange={(e) =>
+                        actualizarDisponibilidad({ motivo: e.target.value })
+                      }
+                      placeholder="Motivo de la indisponibilidad"
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className={styles.btnGuardar}
+                disabled={guardandoDisponibilidad}
+                onClick={guardarMiDisponibilidad}
+              >
+                {guardandoDisponibilidad ? "Guardando…" : "Guardar disponibilidad"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className={styles.empty}>Cargando disponibilidad…</p>
+        )}
+      </section>
+
       {!esAdmin &&
         <section className={styles.alertsCard}>
           <button
@@ -204,7 +328,7 @@ export default function PerfilPage() {
             aria-expanded={campanasAbierto}
             onClick={() => setCampanasAbierto((v) => !v)}
           >
-            <span>Campañas permitidas</span>
+            <span>Entidades permitidas</span>
             <span className={`${styles.chevron} ${campanasAbierto ? styles.chevronOpen : ""}`}>▸</span>
           </button>
           {campanasAbierto && (
@@ -218,7 +342,7 @@ export default function PerfilPage() {
                   {campanasPermitidas.map((campana) => (
                     <div key={campana.id}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                        {campana.nombre}
+                        {campana.entidad_nombre ? `${campana.entidad_nombre} ? ${campana.nombre}` : campana.nombre}
                       </div>
                       <div className={styles.badges} style={{ marginTop: 6 }}>
                         {campana.subcampanas.length > 0 ? (

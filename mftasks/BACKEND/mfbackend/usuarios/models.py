@@ -99,6 +99,74 @@ class User(AbstractUser):
         return f"{self.nombres} {self.apellidos} [{self.codigo}]" if self.codigo else f"{self.nombres} {self.apellidos}"
 
 
+class DisponibilidadUsuario(models.Model):
+    class Estado(models.TextChoices):
+        DISPONIBLE = "DISPONIBLE", "Disponible"
+        INDISPONIBLE = "INDISPONIBLE", "Indisponible"
+
+    usuario = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="disponibilidad",
+    )
+
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.DISPONIBLE,
+        db_index=True,
+    )
+
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_fin = models.DateField(null=True, blank=True)
+
+    motivo = models.CharField(max_length=255, blank=True)
+
+    actualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="disponibilidades_actualizadas",
+    )
+
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            CheckConstraint(
+                check=(
+                    Q(fecha_inicio__lte=models.F("fecha_fin"))
+                    | Q(fecha_inicio__isnull=True)
+                    | Q(fecha_fin__isnull=True)
+                ),
+                name="chk_disponibilidad_fechas",
+            ),
+            CheckConstraint(
+                check=~Q(estado="INDISPONIBLE") | ~Q(motivo=""),
+                name="chk_disponibilidad_motivo",
+            ),
+        ]
+        verbose_name = "Disponibilidad de usuario"
+        verbose_name_plural = "Disponibilidades de usuario"
+
+    def esta_disponible(self, fecha=None):
+        if self.estado == self.Estado.DISPONIBLE:
+            return True
+
+        from django.utils import timezone
+
+        fecha = fecha or timezone.localdate()
+        if self.fecha_inicio and fecha < self.fecha_inicio:
+            return True
+        if self.fecha_fin and fecha > self.fecha_fin:
+            return True
+        return False
+
+    def __str__(self):
+        return f"{self.usuario} - {self.estado}"
+
+
 class Rol(models.Model):
 
     nombre = models.CharField(
@@ -321,7 +389,6 @@ class EquipoMiembro(models.Model):
     class EstadoMiembro(models.TextChoices):
         ACTIVO = "ACTIVO", "Activo"
         INACTIVO = "INACTIVO", "Inactivo"
-        INDISPONIBLE = "INDISPONIBLE", "Indisponible"
 
     equipo = models.ForeignKey(
         Equipo,
@@ -347,18 +414,6 @@ class EquipoMiembro(models.Model):
         default=EstadoMiembro.ACTIVO,
     )
 
-    fecha_inicio_indisponibilidad = models.DateField(
-        null=True, blank=True
-    )
-
-    fecha_fin_indisponibilidad = models.DateField(
-        null=True, blank=True
-    )
-
-    motivo_indisponibilidad = models.CharField(
-        max_length=255, blank=True
-    )
-
     fecha_ingreso = models.DateTimeField(
         auto_now_add=True
     )
@@ -373,10 +428,6 @@ class EquipoMiembro(models.Model):
                 fields=["equipo"],
                 condition=Q(rol_en_equipo="LIDER"),
                 name="unico_lider_por_equipo",
-            ),
-            CheckConstraint(
-                check=Q(fecha_inicio_indisponibilidad__lte=models.F("fecha_fin_indisponibilidad")) | Q(fecha_inicio_indisponibilidad__isnull=True) | Q(fecha_fin_indisponibilidad__isnull=True),
-                name="chk_fechas_indisponibilidad",
             ),
         ]
         indexes = [

@@ -49,6 +49,58 @@ class RolSerializer(serializers.ModelSerializer):
             actual = actual.superior
         return attrs
 
+class DisponibilidadUsuarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DisponibilidadUsuario
+        fields = [
+            "estado",
+            "fecha_inicio",
+            "fecha_fin",
+            "motivo",
+            "fecha_actualizacion",
+        ]
+        read_only_fields = ["fecha_actualizacion"]
+
+    def validate(self, attrs):
+        estado = attrs.get(
+            "estado",
+            getattr(self.instance, "estado", DisponibilidadUsuario.Estado.DISPONIBLE),
+        )
+        motivo = (
+            attrs.get(
+                "motivo",
+                getattr(self.instance, "motivo", ""),
+            )
+            or ""
+        ).strip()
+        inicio = attrs.get(
+            "fecha_inicio",
+            getattr(self.instance, "fecha_inicio", None),
+        )
+        fin = attrs.get(
+            "fecha_fin",
+            getattr(self.instance, "fecha_fin", None),
+        )
+
+        if estado == DisponibilidadUsuario.Estado.INDISPONIBLE and not motivo:
+            raise serializers.ValidationError({
+                "motivo": "El motivo es obligatorio al marcarse indisponible."
+            })
+
+        if inicio and fin and inicio > fin:
+            raise serializers.ValidationError({
+                "fecha_fin": "La fecha fin no puede ser anterior a la fecha inicio."
+            })
+
+        attrs["motivo"] = motivo
+        if estado == DisponibilidadUsuario.Estado.DISPONIBLE:
+            attrs["motivo"] = ""
+            attrs["fecha_inicio"] = None
+            attrs["fecha_fin"] = None
+
+        return attrs
+
+
 class UserSerializer(serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
@@ -225,6 +277,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     es_aprobador = serializers.SerializerMethodField()
 
+    disponibilidad = serializers.SerializerMethodField()
+
     class Meta:
 
         model = User
@@ -241,8 +295,16 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "telefono",
             "tipo_usuario",
             "roles",
-            "es_aprobador"
+            "es_aprobador",
+            "disponibilidad",
         ]
+
+    def get_disponibilidad(self, obj):
+        try:
+            disponibilidad = obj.disponibilidad
+        except DisponibilidadUsuario.DoesNotExist:
+            return None
+        return DisponibilidadUsuarioSerializer(disponibilidad).data
 
     def get_roles(self, obj):
 
@@ -284,6 +346,7 @@ class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
     apellidos = serializers.CharField(source="usuario.apellidos", read_only=True)
     dni = serializers.CharField(source="usuario.dni")
     cargo = serializers.CharField(source="usuario.cargo", read_only=True)
+    disponibilidad = serializers.SerializerMethodField()
 
     class Meta:
         model = EquipoMiembro
@@ -299,11 +362,16 @@ class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
             "cargo",
             "rol_en_equipo",
             "estado",
-            "fecha_inicio_indisponibilidad",
-            "fecha_fin_indisponibilidad",
-            "motivo_indisponibilidad",
+            "disponibilidad",
             "fecha_ingreso",
         ]
+
+    def get_disponibilidad(self, obj):
+        try:
+            disponibilidad = obj.usuario.disponibilidad
+        except DisponibilidadUsuario.DoesNotExist:
+            return None
+        return DisponibilidadUsuarioSerializer(disponibilidad).data
 
 class EquipoDetailSerializer(serializers.ModelSerializer):
 
@@ -346,7 +414,7 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     def get_miembros(self, obj):
         request = self.context.get("request")
-        qs = obj.miembros.select_related("usuario").all()
+        qs = obj.miembros.select_related("usuario", "usuario__disponibilidad").all()
         # Para cliente o usuario sin permiso de gestión, ocultar inactivos
         user = getattr(request, "user", None) if request else None
         if user and not user.is_authenticated:
@@ -356,7 +424,7 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             # si no puede gestionar y no es miembro activo del equipo, ocultar inactivos
             try:
                 if not puede_gestionar_miembros(user, obj):
-                    # miembros ven activos + indisponibles, no inactivos
+                    # miembros ven activos (la disponibilidad es independiente);
                     # clientes ven solo activos
                     is_member = qs.filter(usuario=user).exists() or obj.lider_id == user.id
                     if not is_member:

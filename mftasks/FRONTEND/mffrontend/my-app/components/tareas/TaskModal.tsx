@@ -314,12 +314,18 @@ export default function TaskModal({
     // opciones asignables (miembros ACTIVO + lider)
     const opcionesAsignables = useMemo(() => {
         const map = new Map<number, string>();
-        if (liderInfo) map.set(liderInfo.id, `${liderInfo.nombres} ${liderInfo.apellidos} (Líder)`);
+        if (liderInfo) {
+            const lider = miembros.find((m) => m.id_usuario === liderInfo.id);
+            if (!lider || lider.disponibilidad?.estado !== "INDISPONIBLE") {
+                map.set(liderInfo.id, `${liderInfo.nombres} ${liderInfo.apellidos} (L��der)`);
+            }
+        }
         miembros.forEach(m => {
-            if (m.estado === "ACTIVO") {
+            if (
+                m.estado === "ACTIVO" &&
+                m.disponibilidad?.estado !== "INDISPONIBLE"
+            ) {
                 map.set(m.usuario.id, `${m.usuario.nombres} ${m.usuario.apellidos}`);
-            } else if (m.estado === "INDISPONIBLE") {
-                // no incluir indisponibles
             }
         });
         // también incluir miembros aunque no estén en lista pero ya asignados (fallback)
@@ -419,6 +425,12 @@ export default function TaskModal({
                         <div className={styles.descCard}>
                             <h3 className={styles.cardTitle}>Descripción</h3>
                             <div className={styles.descriptionBox} style={{ marginBottom: 12 }}>{tarea.descripcion}</div>
+                            {tarea.estado === "CANCELADO" && (
+                                <div style={{ marginBottom: 12 }}>
+                                    <h3 className={styles.cardTitle}>Motivo de cancelación</h3>
+                                    <div className={styles.descriptionBox}>{tarea.motivo_cancelacion || "Sin motivo registrado."}</div>
+                                </div>
+                            )}
                             <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} />
                             {/*{noEstaEnDesarrollo ? (null):(
                                 <div className={styles.infoCard} style={{ padding: 12 }}>

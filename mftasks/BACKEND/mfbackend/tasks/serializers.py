@@ -121,6 +121,8 @@ class ArchivoTareaSerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
 
     cliente_nombre = serializers.SerializerMethodField()
+    entidad = serializers.SerializerMethodField()
+    entidad_nombre = serializers.SerializerMethodField()
     campana_nombre = serializers.SerializerMethodField()
     subcampana_nombre = serializers.CharField(source="subcampana.nombre", read_only=True, default=None)
     # alias cliente para compat frontend que aún envía cliente
@@ -155,12 +157,23 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto","tipo_solicitud", "detalle_tipo_solicitud", "descripcion", "cliente", "cliente_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
-        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por"]
+        fields = ["id", "ticket", "asunto","tipo_solicitud", "detalle_tipo_solicitud", "descripcion", "cliente", "cliente_nombre", "entidad", "entidad_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_cancelacion", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "subtareas", "puedo_operar", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
+        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "motivo_cancelacion", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por"]
 
     def get_cliente_nombre(self, obj):
         if obj.subcampana and obj.subcampana.campana:
             return obj.subcampana.campana.nombre
+        return None
+
+    def get_entidad(self, obj):
+        if obj.subcampana and obj.subcampana.campana:
+            return obj.subcampana.campana.entidad_id
+        return None
+
+    def get_entidad_nombre(self, obj):
+        if obj.subcampana and obj.subcampana.campana:
+            entidad = getattr(obj.subcampana.campana, "entidad", None)
+            return entidad.nombre if entidad else None
         return None
 
     def get_campana_nombre(self, obj):

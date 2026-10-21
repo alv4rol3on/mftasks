@@ -15,6 +15,7 @@ const ESTADOS: Record<string, EstadoInfo> = {
     SOLUCIONADO: { label: "Solucionado", icon: "✓", tone: "solucionado" },
     APROBADO: { label: "Aprobado", icon: "✓", tone: "aprobado" },
     RECHAZADO: { label: "Rechazado", icon: "✕", tone: "rechazado" },
+    CANCELADO: { label: "Cancelada", icon: "×", tone: "neutro" },
     INACTIVO: { label: "Inactiva", icon: "○", tone: "neutro" },
 };
 

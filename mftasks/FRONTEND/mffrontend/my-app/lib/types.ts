@@ -1,3 +1,11 @@
+export interface DisponibilidadUsuario {
+    estado: "DISPONIBLE" | "INDISPONIBLE";
+    fecha_inicio?: string | null;
+    fecha_fin?: string | null;
+    motivo?: string;
+    fecha_actualizacion?: string;
+}
+
 export interface Subtarea {
     id: number;
     codigo?: string | null;
@@ -47,6 +55,8 @@ export interface Task {
     descripcion: string;
     cliente: number;
     cliente_nombre: string;
+    entidad?: number | null;
+    entidad_nombre?: string | null;
     equipo: number;
     equipo_nombre: string;
     subcampana?: number | null;
@@ -63,6 +73,7 @@ export interface Task {
     puedo_aprobar?: boolean;
     auto_aprobada?: boolean;
     motivo_rechazo: string;
+    motivo_cancelacion?: string | null;
     motivo_standby?: string | null;
     fecha_standby?: string | null;
     fecha_fin_standby?: string | null;
@@ -89,7 +100,9 @@ export interface Task {
 
 export interface CampanaInfo {
     id: number;
-    cliente: number;
+    entidad: number;
+    entidad_nombre?: string;
+    cliente?: number;
     cliente_nombre?: string;
     nombre: string;
     codigo: string;
@@ -99,6 +112,8 @@ export interface CampanaInfo {
 
 export interface SubCampanaInfo {
     id: number;
+    entidad?: number;
+    entidad_nombre?: string;
     campana: number;
     campana_nombre?: string;
     nombre: string;
@@ -108,10 +123,24 @@ export interface SubCampanaInfo {
 
 export interface CampanaPermitida {
     id: number;
+    entidad?: number;
+    entidad_nombre?: string;
     nombre: string;
     codigo: string;
     activo: boolean;
     subcampanas: SubCampanaInfo[];
+}
+
+export interface EntidadInfo {
+    id: number;
+    nombre: string;
+    razon_social?: string;
+    ruc?: string | null;
+    correo?: string;
+    telefono?: string;
+    direccion?: string;
+    activo: boolean;
+    fecha_creacion?: string;
 }
 
 export interface ResumenCliente {
@@ -182,10 +211,8 @@ export interface EquipoMiembroDetallado {
     apellidos: string;
     cargo?: string;
     rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER"; // SUB_LIDER deprecado, mapea a MIEMBRO
-    estado: "ACTIVO" | "INACTIVO" | "INDISPONIBLE";
-    fecha_inicio_indisponibilidad?: string | null;
-    fecha_fin_indisponibilidad?: string | null;
-    motivo_indisponibilidad?: string;
+    estado: "ACTIVO" | "INACTIVO";
+    disponibilidad?: DisponibilidadUsuario | null;
     fecha_ingreso: string;
 }
 

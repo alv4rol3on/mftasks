@@ -22,7 +22,7 @@ export default function SolicitudesPage() {
   const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
   const isAdmin = rolesLower.includes("administrador");
 
-  const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO"] as const;
+  const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO", "CANCELADO"] as const;
   const etiquetaEstado = (estado: string) => {
     if (estado === "TODOS") return "Todos los estados";
     if (estado === "EN_PROCESO") return "EN PROCESO";
@@ -36,6 +36,7 @@ export default function SolicitudesPage() {
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
   const [desde, setDesde] = useState(rangoInicial.desde);
   const [hasta, setHasta] = useState(rangoInicial.hasta);
+  const [filtroEntidad, setFiltroEntidad] = useState<number | "">("");
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
 
@@ -52,6 +53,7 @@ export default function SolicitudesPage() {
     // La bandeja de aprobación (no-admin) solo muestra EN_ESPERA.
     // El Centro de solicitudes (admin) trae todos los estados.
     if (!isAdmin) params.set("estado", "EN_ESPERA");
+    if (filtroEntidad) params.set("entidad", String(filtroEntidad));
     if (filtroCampana) params.set("campana", String(filtroCampana));
     if (filtroSubcampana) params.set("subcampana", String(filtroSubcampana));
     apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`)
@@ -62,7 +64,7 @@ export default function SolicitudesPage() {
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setCargando(false));
-  }, [filtroCampana, filtroSubcampana, isAdmin]);
+  }, [filtroEntidad, filtroCampana, filtroSubcampana, isAdmin]);
 
   {/*const aprobar = async (tarea: Task) => {
     setError(null);
@@ -133,6 +135,7 @@ export default function SolicitudesPage() {
     Boolean(busqueda) ||
     desde !== rangoInicial.desde ||
     hasta !== rangoInicial.hasta ||
+    filtroEntidad !== "" ||
     filtroCampana !== "" ||
     filtroSubcampana !== "";
 
@@ -140,6 +143,7 @@ export default function SolicitudesPage() {
     setFiltroEstado(estadoPorDefecto);
     setBusqueda("");
     setCampoFecha("solicitud");
+    setFiltroEntidad("");
     setFiltroCampana("");
     setFiltroSubcampana("");
     const r = rangoFechasPorDefecto();
@@ -186,6 +190,8 @@ export default function SolicitudesPage() {
   const filtrosUI = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
       <FiltroCampanaSubcampana
+        entidadId={filtroEntidad}
+        onEntidadChange={setFiltroEntidad}
         campanaId={filtroCampana}
         subcampanaId={filtroSubcampana}
         onChange={({ campanaId, subcampanaId }) => {

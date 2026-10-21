@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
 from django.test import TestCase, override_settings
@@ -206,7 +207,7 @@ class TareaFlujoTestCase(APITestCase):
         self.tarea1.estado = Tarea.Estado.EN_DESARROLLO
         self.tarea1.save()
 
-        self.client.force_authenticate(user=self.asignador1)
+        self.client.force_authenticate(user=self.lider1)
 
         res = self.client.post(
             reverse("task-agregar-subtarea", args=[self.tarea1.id]),
@@ -230,6 +231,7 @@ class TareaFlujoTestCase(APITestCase):
             {
                 "asunto": "X",
                 "descripcion": "x",
+                "tipo_solicitud": "REPORTE",
                 "subcampana": self.subcampana.id,
                 "equipo": self.equipo1.id,
                 "activo": False,
@@ -700,6 +702,7 @@ class CrearSolicitudConAdjuntoTestCase(APITestCase):
         data = {
             "asunto": "Solicitud con adjunto",
             "descripcion": "detalle",
+            "tipo_solicitud": "REPORTE",
             "subcampana": self.sub.id,
             "equipo": self.equipo.id,
         }
@@ -1204,3 +1207,190 @@ class AprobacionPorEquipoTestCase(APITestCase):
         self.client.force_authenticate(user=self.gerente)
         res = self.client.get(reverse("task-list"), {"estado": "EN_ESPERA"})
         self.assertNotIn(self.tarea.id, {t["id"] for t in res.data})
+
+
+class TicketSecuencialTestCase(TestCase):
+
+    def setUp(self):
+        self.lider = _crear_usuario("lider-ticket@empresa.com")
+        campana = Campana.objects.create(nombre="Campana Ticket", codigo="CAMP_TICKET")
+        self.subcampana = SubCampana.objects.create(
+            campana=campana, nombre="Sub Ticket", codigo="SUB_TICKET"
+        )
+        self.equipo = Equipo.objects.create(nombre="Equipo Ticket", lider=self.lider)
+
+    def _crear_tarea(self, asunto="Ticket"):
+        return Tarea.objects.create(
+            asunto=asunto,
+            descripcion="d",
+            subcampana=self.subcampana,
+            equipo=self.equipo,
+        )
+
+    def test_tickets_diarios_secuenciales_y_unicos(self):
+        tareas = [self._crear_tarea(f"Ticket {i}") for i in range(5)]
+
+        tickets = [t.ticket for t in tareas]
+        self.assertEqual(len(tickets), len(set(tickets)))
+        self.assertTrue(all(ticket.startswith(tickets[0][:8]) for ticket in tickets))
+
+        secuencias = [int(ticket[8:]) for ticket in tickets]
+        self.assertEqual(secuencias, list(range(secuencias[0], secuencias[0] + 5)))
+
+    def test_continua_desde_el_maximo_ticket_existente(self):
+        prefijo = timezone.localdate().strftime("%Y%m%d")
+        Tarea.objects.create(
+            asunto="Histórica",
+            descripcion="d",
+            subcampana=self.subcampana,
+            equipo=self.equipo,
+            ticket=f"{prefijo}00042",
+        )
+
+        nueva = self._crear_tarea()
+
+        self.assertEqual(nueva.ticket, f"{prefijo}00043")
+
+    def test_codigos_de_subtarea_secuenciales_por_tarea(self):
+        tarea = self._crear_tarea()
+
+        primera = Subtarea.objects.create(
+            tarea=tarea, descripcion="Primera", asignado=self.lider, peso=1
+        )
+        segunda = Subtarea.objects.create(
+            tarea=tarea, descripcion="Segunda", asignado=self.lider, peso=1
+        )
+
+        self.assertEqual(primera.codigo, f"{tarea.ticket}-001")
+        self.assertEqual(segunda.codigo, f"{tarea.ticket}-002")
+
+    def test_standby_exige_motivo(self):
+        tarea = self._crear_tarea()
+        subtarea = Subtarea(
+            tarea=tarea,
+            descripcion="Pausa",
+            asignado=self.lider,
+            peso=1,
+            estado=Subtarea.Estado.STAND_BY,
+            motivo_standby="",
+        )
+
+        with self.assertRaises(ValidationError):
+            subtarea.full_clean()
+
+
+class CancelacionTareaTestCase(APITestCase):
+
+    def setUp(self):
+        self.admin = _crear_usuario("admin-cancel@empresa.com")
+        _asignar_rol(self.admin, "Administrador")
+        self.miembro = _crear_usuario("miembro-cancel@empresa.com")
+
+        campana = Campana.objects.create(nombre="Campana Cancel", codigo="CAMP_CANCEL")
+        self.subcampana = SubCampana.objects.create(
+            campana=campana, nombre="Sub Cancel", codigo="SUB_CANCEL"
+        )
+        self.equipo = Equipo.objects.create(
+            nombre="Equipo Cancel", lider=self.miembro
+        )
+        self.tarea = Tarea.objects.create(
+            asunto="Solicitud cancelable",
+            descripcion="d",
+            subcampana=self.subcampana,
+            equipo=self.equipo,
+            estado=Tarea.Estado.EN_ESPERA,
+        )
+
+    def _url(self):
+        return reverse("task-detail", args=[self.tarea.id])
+
+    def test_admin_cancela_logicamente_sin_borrar(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.delete(
+            self._url(),
+            {"motivo_cancelacion": "Duplicada"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertTrue(Tarea.objects.filter(pk=self.tarea.pk).exists())
+
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.estado, Tarea.Estado.CANCELADO)
+        self.assertFalse(self.tarea.activo)
+        self.assertEqual(self.tarea.motivo_cancelacion, "Duplicada")
+        self.assertEqual(self.tarea.inactivada_por, self.admin)
+        self.assertIsNotNone(self.tarea.fecha_inactivacion)
+        self.assertEqual(res.data["motivo_cancelacion"], "Duplicada")
+
+        self.assertTrue(
+            TareaLog.objects.filter(
+                tarea=self.tarea,
+                tipo_evento=TareaLog.TipoEvento.CANCELACION,
+            ).exists()
+        )
+
+    def test_no_admin_no_puede_cancelar(self):
+        self.client.force_authenticate(user=self.miembro)
+
+        res = self.client.delete(
+            self._url(),
+            {"motivo_cancelacion": "No permitido"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.estado, Tarea.Estado.EN_ESPERA)
+
+    def test_cancelar_exige_motivo(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.delete(self._url(), {}, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.estado, Tarea.Estado.EN_ESPERA)
+
+    def test_no_cancela_solucionada_ni_repetida(self):
+        self.client.force_authenticate(user=self.admin)
+
+        self.tarea.estado = Tarea.Estado.SOLUCIONADO
+        self.tarea.save(update_fields=["estado"])
+
+        res = self.client.delete(
+            self._url(),
+            {"motivo_cancelacion": "Ya terminó"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.tarea.estado = Tarea.Estado.EN_DESARROLLO
+        self.tarea.save(update_fields=["estado"])
+
+        res = self.client.delete(
+            self._url(),
+            {"motivo_cancelacion": "Primera cancelación"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        res = self.client.delete(
+            self._url(),
+            {"motivo_cancelacion": "Segunda cancelación"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_contador_de_tarea_cancelada_esta_inactivo(self):
+        from .services.cancelacion import cancelar_tarea
+        from .services.tiempo_laboral import obtener_contador_tarea
+
+        cancelada = cancelar_tarea(self.tarea, self.admin, "Cancelada en prueba")
+        contador = obtener_contador_tarea(cancelada)
+
+        self.assertFalse(contador["activo"])
+        self.assertTrue(contador["finalizado"])
+        self.assertEqual(contador["segundos_restantes"], 0)
+        self.assertIsNone(contador["tiempo_tomado_segundos"])

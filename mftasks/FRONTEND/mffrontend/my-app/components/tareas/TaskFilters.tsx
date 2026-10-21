@@ -6,6 +6,8 @@ import type { CampoFecha, EstadoFiltro } from "@/lib/services/tareasService";
 import styles from "./TaskFilters.module.css";
 
 type Props = {
+    entidadId?: number | "";
+    onEntidadChange?: (entidadId: number | "") => void;
     campanaId: number | "";
     subcampanaId: number | "";
     onCampanaChange: (next: { campanaId: number | ""; subcampanaId: number | "" }) => void;
@@ -37,6 +39,8 @@ const selectStyle: React.CSSProperties = {
 };
 
 export default function TaskFilters({
+    entidadId,
+    onEntidadChange,
     campanaId,
     subcampanaId,
     onCampanaChange,
@@ -57,9 +61,11 @@ export default function TaskFilters({
     return (
         <section className={styles.filters} aria-label="Filtros de tareas">
             <div className={`${styles.field} ${styles.span2}`}>
-                <span className={styles.label}>Campaña y subcampaña</span>
+                <span className={styles.label}>Entidad, campa?a y subcampa?a</span>
                 <div className={styles.campaignRow}>
                     <FiltroCampanaSubcampana
+                        entidadId={entidadId}
+                        onEntidadChange={onEntidadChange}
                         campanaId={campanaId}
                         subcampanaId={subcampanaId}
                         onChange={onCampanaChange}

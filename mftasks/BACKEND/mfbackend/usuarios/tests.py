@@ -9,7 +9,15 @@ from rest_framework.test import APITestCase
 from campanas.models import Campana, SubCampana
 
 from .azure import AzureTokenValidationError
-from .models import Equipo, EquipoMiembro, Rol, User, UserRol
+from .disponibilidad import excluir_no_disponibles
+from .models import (
+    DisponibilidadUsuario,
+    Equipo,
+    EquipoMiembro,
+    Rol,
+    User,
+    UserRol,
+)
 
 
 def _crear_usuario(email, nombres="X", apellidos="Y"):
@@ -578,3 +586,143 @@ class JerarquiaDinamicaTestCase(TestCase):
         equipo = Equipo.objects.create(nombre="Equipo Cadena", lider=lider)
         nombres = {r.nombre.upper() for r in roles_aprobador_de_equipo(equipo)}
         self.assertEqual(nombres, {"JEFE", "SUBGERENTE", "GERENTE"})
+
+class DisponibilidadUsuarioTestCase(APITestCase):
+
+    def setUp(self):
+        self.usuario = _crear_usuario("disponibilidad@empresa.com")
+        self.url = reverse("mi-disponibilidad")
+
+    def test_get_crea_disponibilidad_disponible(self):
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["estado"], "DISPONIBLE")
+        self.assertTrue(
+            DisponibilidadUsuario.objects.filter(usuario=self.usuario).exists()
+        )
+
+    def test_indisponible_exige_motivo(self):
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.patch(
+            self.url,
+            {"estado": "INDISPONIBLE"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("motivo", res.data)
+
+    def test_cambia_indisponible_y_vuelve_a_disponible(self):
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.patch(
+            self.url,
+            {
+                "estado": "INDISPONIBLE",
+                "fecha_inicio": "2026-10-21",
+                "fecha_fin": "2026-10-25",
+                "motivo": "Vacaciones",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        disponibilidad = DisponibilidadUsuario.objects.get(usuario=self.usuario)
+        self.assertEqual(disponibilidad.estado, "INDISPONIBLE")
+        self.assertEqual(disponibilidad.motivo, "Vacaciones")
+        self.assertEqual(disponibilidad.actualizado_por, self.usuario)
+
+        res = self.client.patch(
+            self.url,
+            {"estado": "DISPONIBLE"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        disponibilidad.refresh_from_db()
+        self.assertEqual(disponibilidad.estado, "DISPONIBLE")
+        self.assertEqual(disponibilidad.motivo, "")
+        self.assertIsNone(disponibilidad.fecha_inicio)
+        self.assertIsNone(disponibilidad.fecha_fin)
+
+    def test_rechaza_fechas_invertidas(self):
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.patch(
+            self.url,
+            {
+                "estado": "INDISPONIBLE",
+                "fecha_inicio": "2026-10-25",
+                "fecha_fin": "2026-10-21",
+                "motivo": "Licencia",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("fecha_fin", res.data)
+
+    def test_requiere_autenticacion(self):
+        res = self.client.get(self.url)
+        self.assertIn(
+            res.status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
+
+    def test_advertencia_si_tiene_subtareas_pendientes(self):
+        from tasks.models import Subtarea, Tarea
+
+        campana = Campana.objects.create(nombre="Entidad Disp", codigo="CAMP_DISP")
+        subcampana = SubCampana.objects.create(
+            campana=campana, nombre="Sub Disp", codigo="SUB_DISP"
+        )
+        equipo = Equipo.objects.create(
+            nombre="Equipo Disp", lider=self.usuario
+        )
+        tarea = Tarea.objects.create(
+            asunto="Pendiente",
+            descripcion="d",
+            subcampana=subcampana,
+            equipo=equipo,
+            estado=Tarea.Estado.EN_DESARROLLO,
+        )
+        Subtarea.objects.create(
+            tarea=tarea,
+            descripcion="Pendiente",
+            asignado=self.usuario,
+            peso=1,
+            estado=Subtarea.Estado.EN_ESPERA,
+        )
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.patch(
+            self.url,
+            {"estado": "INDISPONIBLE", "motivo": "Tr?mite"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertIn("advertencia", res.data)
+        self.assertEqual(len(res.data["subtareas_pendientes"]), 1)
+
+
+class DisponibilidadAsignacionTestCase(TestCase):
+
+    def test_excluye_usuarios_indisponibles(self):
+        lider = _crear_usuario("liderdisp@empresa.com")
+        disponible = _crear_usuario("disponible@empresa.com")
+        ausente = _crear_usuario("ausente@empresa.com")
+
+        equipo = Equipo.objects.create(nombre="Equipo Asig", lider=lider)
+        EquipoMiembro.objects.create(equipo=equipo, usuario=disponible)
+        EquipoMiembro.objects.create(equipo=equipo, usuario=ausente)
+
+        DisponibilidadUsuario.objects.create(
+            usuario=ausente,
+            estado=DisponibilidadUsuario.Estado.INDISPONIBLE,
+            motivo="Vacaciones",
+        )
+
+        ids = set(
+            excluir_no_disponibles(
+                EquipoMiembro.objects.filter(equipo=equipo),
+                prefix="usuario",
+            ).values_list("usuario_id", flat=True)
+        )
+
+        self.assertIn(disponible.id, ids)
+        self.assertNotIn(ausente.id, ids)

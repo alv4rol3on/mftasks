@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import stylesSuccess from "./SolicitudGenerada.module.css";
@@ -31,6 +31,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [descripcion, setDescripcion] = useState("");
   const [tipoSolicitud, setTipoSolicitud] = useState("NUEVA_FUNCIONALIDAD");
   const [detalleTipoSolicitud, setDetalleTipoSolicitud] = useState("");
+  const [entidadId, setEntidadId] = useState<number | "">("");
   const [campanaId, setCampanaId] = useState<number | "">("");
   const [subcampanaId, setSubcampanaId] = useState<number | "">("");
   const [equipoId, setEquipoId] = useState<number | "">("");
@@ -41,6 +42,26 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<{ ticket: string | null; asunto: string } | null>(null);
+
+  const entidades = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const campana of campanas) {
+      if (typeof campana.entidad === "number") {
+        map.set(campana.entidad, campana.entidad_nombre ?? `Entidad ${campana.entidad}`);
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [campanas]);
+
+  const campanasFiltradas = useMemo(
+    () =>
+      entidadId === ""
+        ? campanas
+        : campanas.filter((campana) => campana.entidad === entidadId),
+    [campanas, entidadId]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -151,6 +172,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
     if (
       !asunto.trim() ||
       !descripcion.trim() ||
+      entidadId === "" ||
       campanaId === "" ||
       subcampanaId === "" ||
       equipoId === "" ||
@@ -159,7 +181,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       setError(
         tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim()
           ? "Especifica el detalle del tipo de solicitud."
-          : "Completa asunto, descripción, campaña, subcampaña y equipo."
+          : "Completa asunto, descripci?n, entidad, campa?a, subcampa?a y equipo."
       );
       return;
     }
@@ -193,6 +215,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       setDescripcion("");
       setTipoSolicitud("NUEVA_FUNCIONALIDAD");
       setDetalleTipoSolicitud("");
+      setEntidadId("");
       setCampanaId("");
       setSubcampanaId("");
       setEquipoId("");
@@ -224,6 +247,23 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
           <div className={styles.crearGrid}>
             <select
+              value={entidadId}
+              onChange={(e) => {
+                setEntidadId(e.target.value ? Number(e.target.value) : "");
+                setCampanaId("");
+                setSubcampanaId("");
+                setEquipoId("");
+                setEquipos([]);
+              }}
+              className={styles.inputField}
+            >
+              <option value="">Seleccionar Entidad</option>
+              {entidades.map((entidad) => (
+                <option key={entidad.id} value={entidad.id}>{entidad.nombre}</option>
+              ))}
+            </select>
+
+            <select
               value={campanaId}
               onChange={(e) => {
                 setCampanaId(e.target.value ? Number(e.target.value) : "");
@@ -232,9 +272,10 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
                 setEquipos([]);
               }}
               className={styles.inputField}
+              disabled={!entidadId}
             >
-              <option value="">Seleccionar Campaña</option>
-              {campanas.map((c) => (
+              <option value="">{entidadId ? "Seleccionar Campaña" : "Elige entidad primero"}</option>
+              {campanasFiltradas.map((c) => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>

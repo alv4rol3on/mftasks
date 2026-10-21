@@ -44,8 +44,7 @@ def check_inicios_programados():
     count = 0
     for tarea in candidatas:
         # respetar horario laboral: solo inicia si ahora está en jornada
-        incluye = bool(getattr(tarea, "incluye_sabado", False))
-        if not esta_en_jornada(ahora, incluye_sabado=incluye):
+        if not esta_en_jornada(ahora):
             continue
         # dependencias
         from .views import _tiene_dependencias_pendientes_tarea
@@ -60,7 +59,7 @@ def check_inicios_programados():
                     continue
                 if t.fecha_inicio is None or t.fecha_inicio > timezone.localtime(timezone.now()):
                     continue
-                if not esta_en_jornada(timezone.localtime(timezone.now()), incluye_sabado=bool(t.incluye_sabado)):
+                if not esta_en_jornada(timezone.localtime(timezone.now())):
                     continue
                 estado_ant = t.estado
                 t.estado = Tarea.Estado.EN_DESARROLLO

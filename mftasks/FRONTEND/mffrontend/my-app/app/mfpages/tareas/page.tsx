@@ -17,6 +17,7 @@ type FiltrosGuardados = {
   campoFecha: CampoFecha;
   desde: string;
   hasta: string;
+  entidad: number | "";
   campana: number | "";
   subcampana: number | "";
 };
@@ -29,13 +30,14 @@ export default function TareasPage() {
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
   const [desde, setDesde] = useState(rangoInicial.desde);
   const [hasta, setHasta] = useState(rangoInicial.hasta);
+  const [filtroEntidad, setFiltroEntidad] = useState<number | "">("");
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
   const primeraPersistencia = useRef(true);
 
   const filtros = useMemo<FiltrosTareas>(
-    () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta, campana: filtroCampana, subcampana: filtroSubcampana }),
-    [busqueda, filtroEstado, campoFecha, desde, hasta, filtroCampana, filtroSubcampana]
+    () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta, entidad: filtroEntidad, campana: filtroCampana, subcampana: filtroSubcampana }),
+    [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana]
   );
   const { tareas, cargando, error, cargar, setTareas } = useTareas(filtros);
 
@@ -51,6 +53,7 @@ export default function TareasPage() {
       if (guardados.campoFecha) setCampoFecha(guardados.campoFecha);
       if (typeof guardados.desde === "string") setDesde(guardados.desde);
       if (typeof guardados.hasta === "string") setHasta(guardados.hasta);
+      if (typeof guardados.entidad === "number" || guardados.entidad === "") setFiltroEntidad(guardados.entidad);
       if (typeof guardados.campana === "number" || guardados.campana === "") setFiltroCampana(guardados.campana);
       if (typeof guardados.subcampana === "number" || guardados.subcampana === "") setFiltroSubcampana(guardados.subcampana);
     } catch {
@@ -70,6 +73,7 @@ export default function TareasPage() {
         campoFecha,
         desde,
         hasta,
+        entidad: filtroEntidad,
         campana: filtroCampana,
         subcampana: filtroSubcampana,
       };
@@ -77,7 +81,7 @@ export default function TareasPage() {
     } catch {
       // Sin persistencia si sessionStorage no está disponible.
     }
-  }, [busqueda, filtroEstado, campoFecha, desde, hasta, filtroCampana, filtroSubcampana]);
+  }, [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana]);
 
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
 
@@ -87,6 +91,7 @@ export default function TareasPage() {
     !!busqueda ||
     desde !== rangoDefecto.desde ||
     hasta !== rangoDefecto.hasta ||
+    filtroEntidad !== "" ||
     filtroCampana !== "" ||
     filtroSubcampana !== "";
 
@@ -97,9 +102,10 @@ export default function TareasPage() {
     setDesde(r.desde);
     setHasta(r.hasta);
     setBusqueda("");
+    setFiltroEntidad("");
     setFiltroCampana("");
     setFiltroSubcampana("");
-    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta, campana: "", subcampana: "" });
+    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta, entidad: "", campana: "", subcampana: "" });
   };
 
   const aplicarRangoPorDefecto = () => {
@@ -204,6 +210,8 @@ export default function TareasPage() {
       </header>
 
       <TaskFilters
+        entidadId={filtroEntidad}
+        onEntidadChange={setFiltroEntidad}
         campanaId={filtroCampana}
         subcampanaId={filtroSubcampana}
         onCampanaChange={({ campanaId, subcampanaId }) => {

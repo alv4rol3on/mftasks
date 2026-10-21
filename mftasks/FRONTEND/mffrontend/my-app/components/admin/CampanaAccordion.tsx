@@ -14,6 +14,7 @@ type Subcampana = {
 
 type Campana = {
   id: number;
+  entidad_nombre?: string;
   nombre: string;
   codigo: string;
   activo: boolean;
@@ -56,7 +57,7 @@ export default function CampanaAccordion({
       >
         <div>
           <span className={styles.campanaTitle}>
-            {campana.nombre}
+            {campana.entidad_nombre ? `${campana.entidad_nombre} ? ` : ""}{campana.nombre}
           </span>{" "}
 
           {/*<span className={styles.campanaCode}>
