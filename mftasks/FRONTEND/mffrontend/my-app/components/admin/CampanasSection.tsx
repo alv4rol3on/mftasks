@@ -293,7 +293,7 @@ export default function CampanasSection({ setMsg }: Props) {
       <div className={styles.card}>
         <div className={styles.usersHeader}>
           <h3 className={styles.cardTitle} style={{ margin: 0 }}>
-            Entidades / Campa?as / Subcampa?as
+            Entidades / Campañas / Subcampañas
           </h3>
 
           <button
@@ -301,7 +301,7 @@ export default function CampanasSection({ setMsg }: Props) {
             className={styles.btnPrimary}
             onClick={() => setModalOpen(true)}
           >
-            + Crear entidad / campa?a
+            + Crear
           </button>
         </div>
 

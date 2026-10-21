@@ -29,7 +29,7 @@ interface Props {
 export default function CrearSolicitudModal({ open, onClose, onCreated }: Props) {
   const [asunto, setAsunto] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [tipoSolicitud, setTipoSolicitud] = useState("NUEVA_FUNCIONALIDAD");
+  const [tipoSolicitud, setTipoSolicitud] = useState("");
   const [detalleTipoSolicitud, setDetalleTipoSolicitud] = useState("");
   const [entidadId, setEntidadId] = useState<number | "">("");
   const [campanaId, setCampanaId] = useState<number | "">("");
@@ -176,12 +176,15 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       campanaId === "" ||
       subcampanaId === "" ||
       equipoId === "" ||
+      !tipoSolicitud ||
       (tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim())
     ) {
       setError(
         tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim()
           ? "Especifica el detalle del tipo de solicitud."
-          : "Completa asunto, descripci?n, entidad, campa?a, subcampa?a y equipo."
+          : !tipoSolicitud
+            ? "--Elige el tipo de solicitud.--"
+            : "Completa asunto, descripción, entidad, campaña, subcampaña y equipo."
       );
       return;
     }
@@ -213,7 +216,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
       setAsunto("");
       setDescripcion("");
-      setTipoSolicitud("NUEVA_FUNCIONALIDAD");
+      setTipoSolicitud("");
       setDetalleTipoSolicitud("");
       setEntidadId("");
       setCampanaId("");
@@ -274,7 +277,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
               className={styles.inputField}
               disabled={!entidadId}
             >
-              <option value="">{entidadId ? "Seleccionar Campaña" : "Elige entidad primero"}</option>
+              <option value="">{entidadId ? "Seleccionar Campaña" : "--Elige entidad primero--"}</option>
               {campanasFiltradas.map((c) => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
@@ -290,7 +293,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
               className={styles.inputField}
               disabled={!campanaId}
             >
-              <option value="">{campanaId ? "Seleccionar Subcampaña" : "Elige campaña primero"}</option>
+              <option value="">{campanaId ? "Seleccionar Subcampaña" : "--Elige campaña primero--"}</option>
               {subcampanas.map((s) => (
                 <option key={s.id} value={s.id}>{s.nombre}</option>
               ))}
@@ -298,11 +301,12 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
 
             <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!subcampanaId}>
-              <option value="">{subcampanaId ? "Selecciona Equipo" : "Elige subcampaña primero"}</option>
+              <option value="">{subcampanaId ? "Selecciona Equipo" : "--Elige subcampaña primero--"}</option>
               {equipos.map((e) => (
                 <option key={e.id} value={e.id}>{e.nombre}</option>
               ))}
             </select>
+
 
 
             <select
@@ -318,6 +322,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
               }}
               className={styles.inputField}
             >
+              <option value="">--Elige el tipo de solicitud--</option>
               <option value="NUEVA_FUNCIONALIDAD">Nueva funcionalidad</option>
               <option value="MEJORA">Mejora</option>
               <option value="CORRECCION_ERROR">Corrección de error</option>
@@ -325,15 +330,15 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
               <option value="OTROS">Otros</option>
             </select>
 
+
             {tipoSolicitud === "OTROS" && (
-              <textarea
+              <input
                 id="detalleTipoSolicitud"
                 value={detalleTipoSolicitud}
                 onChange={(e) => setDetalleTipoSolicitud(e.target.value)}
                 className={styles.inputField}
-                rows={2}
-                maxLength={255}
-                placeholder="Describe qué necesitas solicitar"
+                maxLength={70}
+                placeholder="Describe el tipo de solicitud"
                 required
               />
             )}

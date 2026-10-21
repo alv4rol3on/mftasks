@@ -342,7 +342,7 @@ export default function PerfilPage() {
                   {campanasPermitidas.map((campana) => (
                     <div key={campana.id}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                        {campana.entidad_nombre ? `${campana.entidad_nombre} ? ${campana.nombre}` : campana.nombre}
+                        {campana.entidad_nombre ? `${campana.entidad_nombre} ▸ ${campana.nombre}` : campana.nombre}
                       </div>
                       <div className={styles.badges} style={{ marginTop: 6 }}>
                         {campana.subcampanas.length > 0 ? (

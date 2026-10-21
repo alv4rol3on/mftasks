@@ -1,8 +1,2 @@
-nueva idea:
-- los clientes deben tener un mejor diseño para la interfaz de seguimiento de solicitudes
-- el cambio de disponibilidad ya no deberia depender del lider de equipo, el mismo usuario desde su perfil deberia poder configurar esto(por ende, añadiremos "disponibilidad del usuario")
-- si el administrador decide "eliminar" una solicitud de otros desde su cuenta, esta no será borrada del sistema, sera inhabilitada y pasará a estar en estado "CANCELADO" y el motivo de la cancelacion
-- se deberia reestructurar los models de solicitudes?
-- la opcion de "mantener fecha de entrega"(cuando se sale del stand-by) no aparecerá si la fecha de entrega ya ha sido superada
-- cliente deberia llamarse "entidad" y en base a ello crear Entidad/campaña/subcampaña 
+- corregir la logica de estado disponibilidad
 zcQJcdC52ik123
