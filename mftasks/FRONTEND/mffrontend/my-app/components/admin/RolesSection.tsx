@@ -338,7 +338,7 @@ export default function RolesSection({ setMsg }: Props) {
                   {/*<th>Cadena de aprobación</th>*/}
                   <th>Lidera</th>
                   <th>Autoaprob.</th>
-                  <th>Usuarios</th>
+                  <th># Usuarios</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -347,7 +347,7 @@ export default function RolesSection({ setMsg }: Props) {
                 {filas.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={6}
                       style={{
                         textAlign: "center",
                         padding: 16,

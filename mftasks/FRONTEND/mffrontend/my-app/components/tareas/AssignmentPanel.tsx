@@ -63,7 +63,7 @@ export default function AssignmentPanel({
         setAsigErr(null);
     }, [tarea.id]);
 
-    const opcionesAsignables = useMemo(() => {
+    {/*const opcionesAsignables = useMemo(() => {
         const map = new Map<number, string>();
         if (liderInfo) map.set(liderInfo.id, `${liderInfo.nombres} ${liderInfo.apellidos} (Líder)`);
         miembros.forEach((m) => {
@@ -72,6 +72,42 @@ export default function AssignmentPanel({
             }
         });
         return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre }));
+    }, [miembros, liderInfo]);*/}
+
+    const opcionesAsignables = useMemo(() => {
+        const map = new Map<number, string>();
+
+        if (
+            liderInfo &&
+            miembros.some(
+                (m) =>
+                    m.usuario.id === liderInfo.id &&
+                    m.estado === "ACTIVO" &&
+                    m.disponibilidad?.estado === "DISPONIBLE"
+            )
+        ) {
+            map.set(
+                liderInfo.id,
+                `${liderInfo.nombres} ${liderInfo.apellidos} (Líder)`
+            );
+        }
+
+        miembros.forEach((m) => {
+            if (
+                m.estado === "ACTIVO" &&
+                m.disponibilidad?.estado === "DISPONIBLE"
+            ) {
+                map.set(
+                    m.usuario.id,
+                    `${m.usuario.nombres} ${m.usuario.apellidos}`
+                );
+            }
+        });
+
+        return Array.from(map.entries()).map(([id, nombre]) => ({
+            id,
+            nombre,
+        }));
     }, [miembros, liderInfo]);
 
     const hayCambiosAsignacion = tarea.subtareas.some((s) => {

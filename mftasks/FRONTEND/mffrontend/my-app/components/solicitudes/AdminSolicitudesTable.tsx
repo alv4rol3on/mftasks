@@ -102,7 +102,7 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     <td data-label="Fecha solicitud" style={{ whiteSpace: "nowrap", fontSize: 12 }}>{fmtFecha(t.fecha_creacion)}</td>
                     <td data-label="Solicitud">
                       <div className={styles.taskSubject}>
-                        {t.entidad_nombre ?? "-"} ? {t.campana_nombre ?? "-"} {t.subcampana_nombre ? `? ${t.subcampana_nombre}` : ""}: {t.asunto}
+                        {t.asunto}
                         <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`}</span>
                       </div>
                     </td>
@@ -113,12 +113,12 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     <td data-label="Equipo" style={{ fontSize: 12 }}>{t.equipo_nombre}</td>
                     <td data-label="Acciones" style={{ whiteSpace: "nowrap" }}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <IconButton
+                        {/*<IconButton
                           icon="eye"
                           variant="info"
                           title="Ver solicitud"
                           onClick={() => setSelected(t)}
-                        />
+                        />*/}
                         {ESTADOS_CANCELABLES.has(t.estado) && (
                           <span onClick={(e) => e.stopPropagation()}>
                             <IconButton

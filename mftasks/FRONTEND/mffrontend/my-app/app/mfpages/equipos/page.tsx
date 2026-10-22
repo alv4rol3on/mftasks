@@ -608,7 +608,7 @@ export default function EquiposPage() {
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeEstado(liderMiembro.estado)} {liderMiembro && badgeDisponibilidad(liderMiembro)}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `? ${equipo.lider.cargo}` : ""}</div>
+                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `▸ ${equipo.lider.cargo}` : ""}</div>
                         {liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" && (
                           <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
                             {liderMiembro.disponibilidad.motivo ? `Motivo: ${liderMiembro.disponibilidad.motivo}` : ""}
@@ -641,13 +641,12 @@ export default function EquiposPage() {
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Integrante</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Email</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
-                            <th style={{ padding: "10px 12px", fontWeight: 600 }}>Estado</th>
                           </tr>
                         </thead>
                         <tbody>
                           {equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").length === 0 ? (
                             <tr>
-                              <td colSpan={4} style={{ padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                              <td colSpan={3} style={{ padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
                                 Sin integrantes adicionales (solo líder)
                               </td>
                             </tr>
@@ -662,8 +661,50 @@ export default function EquiposPage() {
                                   style={{ borderTop: "1px solid var(--color-border)", fontSize: 13, background: m.estado === "INACTIVO" ? "color-mix(in srgb, var(--color-danger) 8%, white)" : m.disponibilidad?.estado === "INDISPONIBLE" ? "color-mix(in srgb, var(--color-waiting) 10%, white)" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1, cursor: puedoGestionar ? "pointer" : "default" }}
                                 >
                                   <td style={{ padding: "10px 12px" }}>
-                                    <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
-                                      {m.nombres} {m.apellidos} {esYo && <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", color: "var(--color-in-progress)", padding: "1px 6px", borderRadius: 999, fontSize: 11, marginLeft: 6 }}>Tú</span>}
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        fontWeight: 600,
+                                        color: "var(--color-text)",
+                                      }}
+                                    >
+                                      <span
+                                        className={
+                                          m.disponibilidad?.estado === "INDISPONIBLE"
+                                            ? styles.disponibilidadNoDisponible
+                                            : styles.disponibilidadDisponible
+                                        }
+                                        title={
+                                          m.disponibilidad?.estado === "INDISPONIBLE"
+                                            ? "No disponible"
+                                            : "Disponible"
+                                        }
+                                        aria-label={
+                                          m.disponibilidad?.estado === "INDISPONIBLE"
+                                            ? "No disponible"
+                                            : "Disponible"
+                                        }
+                                      />
+
+                                      <span>
+                                        {m.nombres} {m.apellidos}
+                                        {esYo && (
+                                          <span
+                                            style={{
+                                              background: "color-mix(in srgb, var(--color-in-progress) 12%, white)",
+                                              color: "var(--color-in-progress)",
+                                              padding: "1px 6px",
+                                              borderRadius: 999,
+                                              fontSize: 11,
+                                              marginLeft: 6,
+                                            }}
+                                          >
+                                            Tú
+                                          </span>
+                                        )}
+                                      </span>
                                     </div>
                                     <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{m.cargo || "—"}</div>
                                     {m.disponibilidad?.estado === "INDISPONIBLE" && (
@@ -676,7 +717,6 @@ export default function EquiposPage() {
                                   </td>
                                   <td style={{ padding: "10px 12px", color: "var(--color-text)", fontSize: 12 }}>{m.email}</td>
                                   <td style={{ padding: "10px 12px" }}>{badgeRol(m.rol_en_equipo)}</td>
-                                  <td style={{ padding: "10px 12px", display: "flex", gap: 6, flexWrap: "wrap" }}>{badgeEstado(m.estado)}{badgeDisponibilidad(m)}</td>
                                 </tr>
                               );
                             })

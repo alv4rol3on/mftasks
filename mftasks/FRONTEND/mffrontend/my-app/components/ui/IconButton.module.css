@@ -51,13 +51,14 @@
 }
 
 .danger {
-  background: var(--color-background);
-  color: var(--color-danger);
+  background: var(--color-danger);
+  color: white;
   border-color: color-mix(in srgb, var(--color-danger) 30%, white);
 }
 
 .danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-danger) 8%, white);
+  color: var(--color-danger);
 }
 
 .success {

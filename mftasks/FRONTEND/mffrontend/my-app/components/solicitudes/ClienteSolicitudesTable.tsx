@@ -51,7 +51,6 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
                 <th>Solicitud</th>
                 <th>Estado</th>
                 <th>Progreso</th>
-                <th>Acción</th>
               </tr>
             </thead>
             <tbody>
@@ -76,14 +75,6 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
                     </td>
                     <td data-label="Progreso" style={{ whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
                       {parseFloat(String(t.progreso ?? 0)).toFixed(1)}%
-                    </td>
-                    <td data-label="Acción" style={{ whiteSpace: "nowrap" }}>
-                      <IconButton
-                        icon="eye"
-                        variant="info"
-                        title="Ver detalle"
-                        onClick={() => onSelect(t)}
-                      />
                     </td>
                   </tr>
                 );

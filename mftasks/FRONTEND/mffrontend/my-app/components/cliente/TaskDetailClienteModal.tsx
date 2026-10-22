@@ -37,7 +37,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <div>
-            <h2>Solicitud #{tarea.id}</h2>
+            <h2>Solicitud #{tarea.ticket}</h2>
             <p>{tarea.asunto} — <TaskStatusBadge estado={tarea.estado} compact /></p>
           </div>
           <button className={styles.close} onClick={onClose}>✕</button>

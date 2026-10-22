@@ -205,154 +205,157 @@ export default function PerfilPage() {
         >
           Información
         </button>
-        <button
-          type="button"
-          role="tab"
-          id="perfil-tab-preferencias"
-          aria-selected={tabPerfil === "preferencias"}
-          aria-controls="perfil-panel-preferencias"
-          className={tabPerfil === "preferencias" ? styles.tabActive : styles.tab}
-          onClick={() => setTabPerfil("preferencias")}
-        >
-          Preferencias
-        </button>
+        {!esAdmin && (
+          <button
+            type="button"
+            role="tab"
+            id="perfil-tab-preferencias"
+            aria-selected={tabPerfil === "preferencias"}
+            aria-controls="perfil-panel-preferencias"
+            className={tabPerfil === "preferencias" ? styles.tabActive : styles.tab}
+            onClick={() => setTabPerfil("preferencias")}
+          >
+            Preferencias
+          </button>
+        )}
+
       </div>
 
       {tabPerfil === "informacion" && (
-      <section
-        className={styles.card}
-        id="perfil-panel-informacion"
-        role="tabpanel"
-        aria-labelledby="perfil-tab-informacion"
-      >
-        <h3 className={styles.cardTitle}>Información de la cuenta</h3>
-        <div className={styles.dataGrid}>
-          <div className={styles.field}>
-            <span className={styles.label}>Nombres y apellidos</span>
-            <span className={styles.value}>
-              {usuario ? `${usuario.nombres} ${usuario.apellidos}` : "—"}
-            </span>
+        <section
+          className={styles.card}
+          id="perfil-panel-informacion"
+          role="tabpanel"
+          aria-labelledby="perfil-tab-informacion"
+        >
+          <h3 className={styles.cardTitle}>Información de la cuenta</h3>
+          <div className={styles.dataGrid}>
+            <div className={styles.field}>
+              <span className={styles.label}>Nombres y apellidos</span>
+              <span className={styles.value}>
+                {usuario ? `${usuario.nombres} ${usuario.apellidos}` : "—"}
+              </span>
+            </div>
+            <div className={styles.field}>
+              <span className={styles.label}>Correo</span>
+              <span className={styles.value}>{usuario?.email ?? "—"}</span>
+            </div>
+            <div className={styles.field}>
+              <span className={styles.label}>Código</span>
+              <span className={styles.valueMono}>{usuario?.codigo ?? "—"}</span>
+            </div>
+            <div className={styles.field}>
+              <span className={styles.label}>Rol(es)</span>
+              <span className={styles.badges}>
+                {roles.length > 0
+                  ? roles.map((r) => <span key={r} className={styles.badge}>{r}</span>)
+                  : <span className={styles.value}>—</span>}
+              </span>
+            </div>
           </div>
-          <div className={styles.field}>
-            <span className={styles.label}>Correo</span>
-            <span className={styles.value}>{usuario?.email ?? "—"}</span>
-          </div>
-          <div className={styles.field}>
-            <span className={styles.label}>Código</span>
-            <span className={styles.valueMono}>{usuario?.codigo ?? "—"}</span>
-          </div>
-          <div className={styles.field}>
-            <span className={styles.label}>Rol(es)</span>
-            <span className={styles.badges}>
-              {roles.length > 0
-                ? roles.map((r) => <span key={r} className={styles.badge}>{r}</span>)
-                : <span className={styles.value}>—</span>}
-            </span>
-          </div>
-        </div>
-      </section>
+        </section>
       )}
 
       {tabPerfil === "preferencias" && (
-      <section
-        className={styles.card}
-        id="perfil-panel-preferencias"
-        role="tabpanel"
-        aria-labelledby="perfil-tab-preferencias"
-      >
-        <h3 className={styles.cardTitle}>Disponibilidad</h3>
-        {disponibilidad ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div className={styles.dataGrid}>
-              <label className={styles.field}>
-                <span className={styles.label}>Estado</span>
-                <select
-                  value={disponibilidad.estado}
-                  onChange={(e) => {
-                    const nuevoEstado = e.target
-                      .value as DisponibilidadUsuario["estado"];
-                    if (
-                      nuevoEstado === "INDISPONIBLE" &&
-                      (disponibilidad.subtareas_pendientes?.length ?? 0) > 0
-                    ) {
-                      setModalPendientesAbierto(true);
-                      return;
-                    }
-                    actualizarDisponibilidad({
-                      estado: nuevoEstado,
-                      ...(nuevoEstado === "DISPONIBLE"
-                        ? { fecha_inicio: null, fecha_fin: null, motivo: "" }
-                        : {}),
-                    });
-                  }}
-                  style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+        <section
+          className={styles.card}
+          id="perfil-panel-preferencias"
+          role="tabpanel"
+          aria-labelledby="perfil-tab-preferencias"
+        >
+          <h3 className={styles.cardTitle}>Disponibilidad</h3>
+          {disponibilidad ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className={styles.dataGrid}>
+                <label className={styles.field}>
+                  <span className={styles.label}>Estado</span>
+                  <select
+                    value={disponibilidad.estado}
+                    onChange={(e) => {
+                      const nuevoEstado = e.target
+                        .value as DisponibilidadUsuario["estado"];
+                      if (
+                        nuevoEstado === "INDISPONIBLE" &&
+                        (disponibilidad.subtareas_pendientes?.length ?? 0) > 0
+                      ) {
+                        setModalPendientesAbierto(true);
+                        return;
+                      }
+                      actualizarDisponibilidad({
+                        estado: nuevoEstado,
+                        ...(nuevoEstado === "DISPONIBLE"
+                          ? { fecha_inicio: null, fecha_fin: null, motivo: "" }
+                          : {}),
+                      });
+                    }}
+                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                  >
+                    <option value="DISPONIBLE">Disponible</option>
+                    <option value="INDISPONIBLE">Indisponible</option>
+                  </select>
+                </label>
+
+                {disponibilidad.estado === "INDISPONIBLE" && (
+                  <>
+                    <label className={styles.field}>
+                      <span className={styles.label}>Desde</span>
+                      <input
+                        type="date"
+                        value={disponibilidad.fecha_inicio ?? ""}
+                        onChange={(e) =>
+                          actualizarDisponibilidad({
+                            fecha_inicio: e.target.value || null,
+                          })
+                        }
+                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.label}>Hasta</span>
+                      <input
+                        type="date"
+                        value={disponibilidad.fecha_fin ?? ""}
+                        min={disponibilidad.fecha_inicio ?? undefined}
+                        onChange={(e) =>
+                          actualizarDisponibilidad({
+                            fecha_fin: e.target.value || null,
+                          })
+                        }
+                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.label}>Motivo *</span>
+                      <input
+                        type="text"
+                        value={disponibilidad.motivo ?? ""}
+                        maxLength={255}
+                        onChange={(e) =>
+                          actualizarDisponibilidad({ motivo: e.target.value })
+                        }
+                        placeholder="Motivo de la indisponibilidad"
+                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  className={styles.btnGuardar}
+                  disabled={guardandoDisponibilidad}
+                  onClick={guardarMiDisponibilidad}
                 >
-                  <option value="DISPONIBLE">Disponible</option>
-                  <option value="INDISPONIBLE">Indisponible</option>
-                </select>
-              </label>
-
-              {disponibilidad.estado === "INDISPONIBLE" && (
-                <>
-                  <label className={styles.field}>
-                    <span className={styles.label}>Desde</span>
-                    <input
-                      type="date"
-                      value={disponibilidad.fecha_inicio ?? ""}
-                      onChange={(e) =>
-                        actualizarDisponibilidad({
-                          fecha_inicio: e.target.value || null,
-                        })
-                      }
-                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.label}>Hasta</span>
-                    <input
-                      type="date"
-                      value={disponibilidad.fecha_fin ?? ""}
-                      min={disponibilidad.fecha_inicio ?? undefined}
-                      onChange={(e) =>
-                        actualizarDisponibilidad({
-                          fecha_fin: e.target.value || null,
-                        })
-                      }
-                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.label}>Motivo *</span>
-                    <input
-                      type="text"
-                      value={disponibilidad.motivo ?? ""}
-                      maxLength={255}
-                      onChange={(e) =>
-                        actualizarDisponibilidad({ motivo: e.target.value })
-                      }
-                      placeholder="Motivo de la indisponibilidad"
-                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
-                    />
-                  </label>
-                </>
-              )}
+                  {guardandoDisponibilidad ? "Guardando…" : "Guardar disponibilidad"}
+                </button>
+              </div>
             </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                className={styles.btnGuardar}
-                disabled={guardandoDisponibilidad}
-                onClick={guardarMiDisponibilidad}
-              >
-                {guardandoDisponibilidad ? "Guardando…" : "Guardar disponibilidad"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className={styles.empty}>Cargando disponibilidad…</p>
-        )}
-      </section>
+          ) : (
+            <p className={styles.empty}>Cargando disponibilidad…</p>
+          )}
+        </section>
       )}
 
       {tabPerfil === "informacion" && !esAdmin &&
@@ -481,7 +484,7 @@ export default function PerfilPage() {
         >
           <p className={styles.pendingIntro}>
             No puedes marcarte como indisponible mientras tengas subtareas
-            pendientes. Coordina con tu líder para reasignarlas.
+            pendientes. Coordina sus reasignaciones.
           </p>
           <ul className={styles.pendingList}>
             {(disponibilidad?.subtareas_pendientes ?? []).map((subtarea) => (

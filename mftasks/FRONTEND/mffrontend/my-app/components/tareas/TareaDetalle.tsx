@@ -53,6 +53,7 @@ export default function TareaDetalle({
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("tablero");
   const [accionPendiente, setAccionPendiente] = useState<AccionPendiente>(null);
+  const [descripcionExpandida, setDescripcionExpandida] = useState(false);
   const usuario = getUsuarioActual();
   const esAdmin = (usuario?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
   const soloLectura = esAdmin;
@@ -307,7 +308,21 @@ export default function TareaDetalle({
 
           <section className={styles.overviewCard} aria-labelledby="detalle-descripcion">
             <h2 className={styles.cardTitle} id="detalle-descripcion">Descripción</h2>
-            <div className={styles.descriptionBox}>{tarea.descripcion}</div>
+            <div
+              className={`${styles.descriptionBox} ${!descripcionExpandida ? styles.descriptionBoxCollapsed : ""
+                }`}
+            >
+              {tarea.descripcion}
+            </div>
+
+            <button
+              type="button"
+              className={styles.descriptionToggle}
+              onClick={() => setDescripcionExpandida((actual) => !actual)}
+              aria-expanded={descripcionExpandida}
+            >
+              {descripcionExpandida ? "Ver menos ▲" : "Ver más ▼"}
+            </button>
             <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} />
             {tarea.estado === "RECHAZADO" && tarea.motivo_rechazo && (
               <div className={styles.alertBox}>

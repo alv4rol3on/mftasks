@@ -104,64 +104,6 @@ export default function DependencyPanel({
 
   return (
     <div>
-      <div className={styles.assignmentHeader}>
-        <div>
-          <h3 className={styles.sectionTitle}>Dependencias</h3>
-          <p className={styles.sectionHint}>
-            Relaciones entre subtareas: la primera no puede avanzar hasta que
-            la segunda esté solucionada.
-          </p>
-        </div>
-      </div>
-
-      {error && <p className={styles.errorNotice}>{error}</p>}
-      {mensaje && <p className={styles.successNotice}>{mensaje}</p>}
-
-      {dependencias.length === 0 ? (
-        <p className={styles.mutedText}>Sin dependencias registradas.</p>
-      ) : (
-        <ul className={styles.dependencyList}>
-          {dependencias.map((dep) => (
-            <li key={dep.key} className={styles.dependencyItem}>
-              <div className={styles.dependencyItemTitle}>
-                {dep.bloqueada.codigo && (
-                  <span className={styles.subtaskCode}>
-                    {dep.bloqueada.codigo}
-                  </span>
-                )}
-                <span>{dep.bloqueada.descripcion}</span>
-                <span className={styles.dependencyLabel}>depende de</span>
-                {dep.codigoBloqueadora && (
-                  <span className={styles.subtaskCode}>
-                    {dep.codigoBloqueadora}
-                  </span>
-                )}
-                <span>{dep.bloqueadora.descripcion}</span>
-              </div>
-              <div className={styles.dependencyItemMeta}>
-                <span>{dep.bloqueadora.estado}</span>
-                {puedeOperar && (
-                  <IconButton
-                    icon="trash"
-                    variant="danger"
-                    title="Eliminar dependencia"
-                    disabled={eliminando === dep.key}
-                    onClick={() =>
-                      void borrarDependencia(
-                        dep.bloqueada.id,
-                        dep.bloqueadora.id,
-                        dep.bloqueada.descripcion,
-                        dep.bloqueadora.descripcion
-                      )
-                    }
-                  />
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
       {puedeOperar && subtareasActivas.length > 1 && (
         <div className={styles.dependencyEditor}>
           <h4 className={styles.dependencyTitle}>Crear dependencia</h4>
@@ -221,6 +163,67 @@ export default function DependencyPanel({
           </div>
         </div>
       )}
+
+
+      <div className={styles.assignmentHeader}>
+        <div>
+          <h3 className={styles.sectionTitle}>Lista de Dependencias</h3>
+          <p className={styles.sectionHint}>
+            Relaciones entre subtareas: la primera no puede avanzar hasta que
+            la segunda esté solucionada.
+          </p>
+        </div>
+      </div>
+
+      {error && <p className={styles.errorNotice}>{error}</p>}
+      {mensaje && <p className={styles.successNotice}>{mensaje}</p>}
+
+      {dependencias.length === 0 ? (
+        <p className={styles.mutedText}>Sin dependencias registradas.</p>
+      ) : (
+        <ul className={styles.dependencyList}>
+          {dependencias.map((dep) => (
+            <li key={dep.key} className={styles.dependencyItem}>
+              <div className={styles.dependencyItemTitle}>
+                {dep.bloqueada.codigo && (
+                  <span className={styles.subtaskCode}>
+                    {dep.bloqueada.codigo}
+                  </span>
+                )}
+                <span>{dep.bloqueada.descripcion}</span>
+                <span className={styles.dependencyLabel}>depende de</span>
+                {dep.codigoBloqueadora && (
+                  <span className={styles.subtaskCode}>
+                    {dep.codigoBloqueadora}
+                  </span>
+                )}
+                <span>{dep.bloqueadora.descripcion}</span>
+              </div>
+              <div className={styles.dependencyItemMeta}>
+                <span>{dep.bloqueadora.estado}</span>
+                {puedeOperar && (
+                  <IconButton
+                    icon="trash"
+                    variant="danger"
+                    title="Eliminar dependencia"
+                    disabled={eliminando === dep.key || dep.bloqueadora.estado == 'SOLUCIONADO'}
+                    onClick={() =>
+                      void borrarDependencia(
+                        dep.bloqueada.id,
+                        dep.bloqueadora.id,
+                        dep.bloqueada.descripcion,
+                        dep.bloqueadora.descripcion
+                      )
+                    }
+                  />
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+
     </div>
   );
 }

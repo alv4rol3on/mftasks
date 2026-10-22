@@ -237,3 +237,22 @@
     font-size: 14px;
   }
 }
+
+/* Indicador de disponibilidad junto al nombre */
+.disponibilidadDisponible,
+.disponibilidadNoDisponible {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.disponibilidadDisponible {
+  background-color: #22c55e;
+}
+
+.disponibilidadNoDisponible {
+  background-color: #f59e0b;
+}

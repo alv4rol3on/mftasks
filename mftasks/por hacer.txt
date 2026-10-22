@@ -1,2 +1,2 @@
-- corregir la logica de estado disponibilidad
+descripcion que al crear la solicitud aguante elementos html, imagenes y que en "tareas en desarrollo" sea desplegable
 zcQJcdC52ik123
