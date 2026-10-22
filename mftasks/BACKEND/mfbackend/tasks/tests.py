@@ -221,6 +221,46 @@ class TareaFlujoTestCase(APITestCase):
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
+    def test_eliminar_dependencia_subtarea(self):
+        from .models import DependenciaSubtarea
+
+        self.tarea1.estado = Tarea.Estado.EN_DESARROLLO
+        self.tarea1.save()
+        bloqueada = Subtarea.objects.create(
+            tarea=self.tarea1,
+            descripcion="Bloqueada",
+            asignado=self.miembro1,
+            peso=1,
+            estado=Subtarea.Estado.EN_ESPERA,
+        )
+        bloqueadora = Subtarea.objects.create(
+            tarea=self.tarea1,
+            descripcion="Bloqueadora",
+            asignado=self.miembro1,
+            peso=1,
+            estado=Subtarea.Estado.SOLUCIONADO,
+        )
+        DependenciaSubtarea.objects.create(
+            bloqueada=bloqueada,
+            bloqueadora=bloqueadora,
+        )
+
+        self.client.force_authenticate(user=self.lider1)
+        res = self.client.delete(
+            reverse(
+                "task-eliminar-dependencia-subtarea",
+                args=[self.tarea1.id, bloqueada.id, bloqueadora.id],
+            )
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            DependenciaSubtarea.objects.filter(
+                bloqueada=bloqueada,
+                bloqueadora=bloqueadora,
+            ).exists()
+        )
+
     def test_crear_ignora_activo_false(self):
         # El campo activo es de solo lectura: un payload con activo=False no debe
         # crear la solicitud inactiva.

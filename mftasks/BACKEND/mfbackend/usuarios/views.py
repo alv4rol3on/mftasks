@@ -13,7 +13,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import RetrieveUpdateAPIView
 
 from .azure import AzureTokenValidationError, AzureTokenValidator
-from .disponibilidad import esta_disponible, excluir_no_disponibles
+from .disponibilidad import (
+    esta_disponible,
+    excluir_no_disponibles,
+    serializar_subtareas_pendientes,
+    subtareas_pendientes_usuario,
+)
 
 from .models import (
     DisponibilidadUsuario,
@@ -186,43 +191,53 @@ class MiDisponibilidadView(RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         serializer.save(actualizado_por=self.request.user)
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = dict(serializer.data)
+        data["subtareas_pendientes"] = serializar_subtareas_pendientes(
+            subtareas_pendientes_usuario(request.user)
+        )
+        return Response(data)
+
     def update(self, request, *args, **kwargs):
-        response = super().update(request, *args, **kwargs)
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial
+        )
+        serializer.is_valid(raise_exception=True)
 
-        if response.data.get("estado") != DisponibilidadUsuario.Estado.INDISPONIBLE:
-            return response
-
-        from tasks.models import Subtarea, Tarea
-
-        pendientes = (
-            Subtarea.objects.filter(
-                asignado=request.user,
-                estado__in=[
-                    Subtarea.Estado.EN_ESPERA,
-                    Subtarea.Estado.EN_DESARROLLO,
-                ],
-                tarea__estado=Tarea.Estado.EN_DESARROLLO,
-            )
-            .select_related("tarea")
-            .order_by("tarea_id", "id")
+        nuevo_estado = serializer.validated_data.get("estado", instance.estado)
+        transicion_indisponible = (
+            nuevo_estado == DisponibilidadUsuario.Estado.INDISPONIBLE
+            and instance.estado != DisponibilidadUsuario.Estado.INDISPONIBLE
         )
 
-        if pendientes.exists():
-            response.data["advertencia"] = (
-                "Tienes subtareas pendientes. Coordina con tu líder para "
-                "reasignarlas."
-            )
-            response.data["subtareas_pendientes"] = [
-                {
-                    "id": subtarea.id,
-                    "descripcion": subtarea.descripcion,
-                    "tarea_id": subtarea.tarea_id,
-                    "tarea_ticket": subtarea.tarea.ticket,
-                }
-                for subtarea in pendientes
-            ]
+        if transicion_indisponible:
+            pendientes = subtareas_pendientes_usuario(request.user)
+            if pendientes.exists():
+                return Response(
+                    {
+                        "detail": (
+                            "No puedes marcarte como indisponible mientras "
+                            "tengas subtareas pendientes. Coordina con tu "
+                            "líder para reasignarlas."
+                        ),
+                        "subtareas_pendientes": serializar_subtareas_pendientes(
+                            pendientes
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        return response
+        self.perform_update(serializer)
+
+        data = dict(serializer.data)
+        data["subtareas_pendientes"] = serializar_subtareas_pendientes(
+            subtareas_pendientes_usuario(request.user)
+        )
+        return Response(data)
 
 
 class UserViewSet(ModelViewSet):

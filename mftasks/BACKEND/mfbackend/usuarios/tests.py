@@ -664,40 +664,90 @@ class DisponibilidadUsuarioTestCase(APITestCase):
             (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
         )
 
-    def test_advertencia_si_tiene_subtareas_pendientes(self):
+    def _crear_tarea_con_subtarea(self, estado):
         from tasks.models import Subtarea, Tarea
 
-        campana = Campana.objects.create(nombre="Entidad Disp", codigo="CAMP_DISP")
+        campana = Campana.objects.create(
+            nombre=f"Entidad Disp {estado}", codigo=f"CAMP_DISP_{estado}"
+        )
         subcampana = SubCampana.objects.create(
-            campana=campana, nombre="Sub Disp", codigo="SUB_DISP"
+            campana=campana,
+            nombre=f"Sub Disp {estado}",
+            codigo=f"SUB_DISP_{estado}",
         )
         equipo = Equipo.objects.create(
-            nombre="Equipo Disp", lider=self.usuario
+            nombre=f"Equipo Disp {estado}", lider=self.usuario
         )
         tarea = Tarea.objects.create(
-            asunto="Pendiente",
+            asunto=f"Pendiente {estado}",
             descripcion="d",
             subcampana=subcampana,
             equipo=equipo,
             estado=Tarea.Estado.EN_DESARROLLO,
         )
-        Subtarea.objects.create(
+        extra = {"motivo_standby": "Pausa"} if estado == "STAND_BY" else {}
+        return Subtarea.objects.create(
             tarea=tarea,
-            descripcion="Pendiente",
+            descripcion=f"Pendiente {estado}",
             asignado=self.usuario,
             peso=1,
-            estado=Subtarea.Estado.EN_ESPERA,
+            estado=estado,
+            **extra,
         )
+
+    def test_bloquea_indisponible_si_tiene_subtareas_pendientes(self):
+        from tasks.models import Subtarea
+
+        for estado in (
+            Subtarea.Estado.EN_ESPERA,
+            Subtarea.Estado.EN_DESARROLLO,
+            Subtarea.Estado.STAND_BY,
+        ):
+            with self.subTest(estado=estado):
+                self._crear_tarea_con_subtarea(estado)
 
         self.client.force_authenticate(user=self.usuario)
         res = self.client.patch(
             self.url,
-            {"estado": "INDISPONIBLE", "motivo": "Tr?mite"},
+            {"estado": "INDISPONIBLE", "motivo": "Trámite"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+        self.assertIn("detail", res.data)
+        self.assertEqual(len(res.data["subtareas_pendientes"]), 3)
+        self.assertEqual(
+            DisponibilidadUsuario.objects.get(usuario=self.usuario).estado,
+            DisponibilidadUsuario.Estado.DISPONIBLE,
+        )
+
+    def test_get_incluye_subtareas_pendientes(self):
+        from tasks.models import Subtarea
+
+        self._crear_tarea_con_subtarea(Subtarea.Estado.EN_ESPERA)
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["subtareas_pendientes"]), 1)
+        self.assertEqual(
+            res.data["subtareas_pendientes"][0]["tarea_asunto"],
+            "Pendiente EN_ESPERA",
+        )
+
+    def test_permite_indisponible_sin_subtareas_pendientes(self):
+        from tasks.models import Subtarea
+
+        subtarea = self._crear_tarea_con_subtarea(Subtarea.Estado.SOLUCIONADO)
+        self.assertEqual(subtarea.estado, Subtarea.Estado.SOLUCIONADO)
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.patch(
+            self.url,
+            {"estado": "INDISPONIBLE", "motivo": "Trámite"},
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
-        self.assertIn("advertencia", res.data)
-        self.assertEqual(len(res.data["subtareas_pendientes"]), 1)
+        self.assertEqual(res.data["estado"], "INDISPONIBLE")
+        self.assertEqual(res.data["subtareas_pendientes"], [])
 
 
 class DisponibilidadAsignacionTestCase(TestCase):

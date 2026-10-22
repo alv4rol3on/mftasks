@@ -34,10 +34,6 @@ export default function AssignmentPanel({
     const [asigMsg, setAsigMsg] = useState<string | null>(null);
     const [asigErr, setAsigErr] = useState<string | null>(null);
 
-    const [depBloqueada, setDepBloqueada] = useState<number | "">("");
-    const [depBloqueadora, setDepBloqueadora] = useState<number | "">("");
-    const [depMsg, setDepMsg] = useState<string | null>(null);
-
     const cargarMiembros = async () => {
         setMiembrosLoading(true);
         setMiembrosError(null);
@@ -65,7 +61,6 @@ export default function AssignmentPanel({
         setDraftAsignado({});
         setAsigMsg(null);
         setAsigErr(null);
-        setDepMsg(null);
     }, [tarea.id]);
 
     const opcionesAsignables = useMemo(() => {
@@ -173,37 +168,12 @@ export default function AssignmentPanel({
         }
     };
 
-    const agregarDependencia = async () => {
-        if (depBloqueada === "" || depBloqueadora === "") {
-            setDepMsg("Selecciona ambas subtareas");
-            return;
-        }
-        if (depBloqueada === depBloqueadora) {
-            setDepMsg("No puede depender de sí misma");
-            return;
-        }
-        try {
-            await apiFetch(`/api/tasks/tasks/${tarea.id}/subtareas/${depBloqueada}/dependencias/`, {
-                method: "POST",
-                body: JSON.stringify({ bloqueadora_id: depBloqueadora }),
-            });
-            setDepMsg("Dependencia creada.");
-            setDepBloqueada("");
-            setDepBloqueadora("");
-            await onTareaMutated?.();
-        } catch (e) {
-            setDepMsg((e as Error).message);
-        }
-    };
-
-    const subtareasActivas = tarea.subtareas.filter((s) => s.activo !== false);
-
     return (
         <div>
             <div className={styles.assignmentHeader}>
                 <div>
                     <h3 className={styles.sectionTitle}>Asignaciones</h3>
-                    <p className={styles.sectionHint}>Cambia el asignado, inactiva subtareas o crea dependencias entre ellas.</p>
+                    <p className={styles.sectionHint}>Cambia el asignado o inactiva subtareas.</p>
                 </div>
                 <div className={styles.assignmentActions}>
                     <RefreshButton onClick={cargarMiembros} loading={miembrosLoading} variant="outline" title="Recargar equipo" />
@@ -297,52 +267,6 @@ export default function AssignmentPanel({
                             })}
                         </tbody>
                     </table>
-                </div>
-            )}
-
-            {subtareasActivas.length > 1 && puedeOperar && (
-                <div className={styles.dependencyEditor}>
-                    <h4 className={styles.dependencyTitle}>Crear dependencia</h4>
-                    <p className={styles.sectionHint}>Selecciona qué subtarea debe esperar a otra.</p>
-                    <div className={styles.dependencyRow}>
-                        <select
-                            value={depBloqueada}
-                            onChange={(e) => {
-                                const v = e.target.value ? Number(e.target.value) : "";
-                                setDepBloqueada(v);
-                                if (v !== "" && v === depBloqueadora) setDepBloqueadora("");
-                            }}
-                            className={styles.selectField}
-                            aria-label="Subtarea que depende de otra"
-                        >
-                            <option value="">— subtarea —</option>
-                            {subtareasActivas.filter((s) => s.id !== depBloqueadora).map((s) => (
-                                <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>
-                            ))}
-                        </select>
-                        <span className={styles.dependencyLabel}>depende de</span>
-                        <select
-                            value={depBloqueadora}
-                            onChange={(e) => {
-                                const v = e.target.value ? Number(e.target.value) : "";
-                                setDepBloqueadora(v);
-                                if (v !== "" && v === depBloqueada) setDepBloqueada("");
-                            }}
-                            className={styles.selectField}
-                            aria-label="Subtarea que debe solucionarse primero"
-                        >
-                            <option value="">— subtarea —</option>
-                            {subtareasActivas.filter((s) => s.id !== depBloqueada).map((s) => (
-                                <option key={s.id} value={s.id}>{s.id} - {s.descripcion.slice(0, 30)}</option>
-                            ))}
-                        </select>
-                        <button type="button" onClick={() => void agregarDependencia()} className={styles.addDependencyButton}>
-                            Agregar
-                        </button>
-                    </div>
-                    {depMsg && (
-                        <p className={depMsg.includes("creada") ? styles.successNotice : styles.errorNotice}>{depMsg}</p>
-                    )}
                 </div>
             )}
         </div>

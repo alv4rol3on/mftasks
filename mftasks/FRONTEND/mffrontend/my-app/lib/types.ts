@@ -1,9 +1,20 @@
+export interface SubtareaPendiente {
+    id: number;
+    codigo?: string | null;
+    descripcion: string;
+    estado: string;
+    tarea_id: number;
+    tarea_ticket?: string | null;
+    tarea_asunto: string;
+}
+
 export interface DisponibilidadUsuario {
     estado: "DISPONIBLE" | "INDISPONIBLE";
     fecha_inicio?: string | null;
     fecha_fin?: string | null;
     motivo?: string;
     fecha_actualizacion?: string;
+    subtareas_pendientes?: SubtareaPendiente[];
 }
 
 export interface Subtarea {
@@ -22,7 +33,7 @@ export interface Subtarea {
     fecha_standby?: string | null;
     fecha_fin_standby?: string | null;
     standby_por?: number | null;
-    bloqueada_por?: { id: number; estado: string; descripcion: string }[];
+    bloqueada_por?: { id: number; codigo?: string | null; estado: string; descripcion: string }[];
     dependencias?: number[];
     tiempo_tomado_segundos?: number | null;
     tiempo_tomado_horas?: number | null;

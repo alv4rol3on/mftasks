@@ -32,3 +32,37 @@ def esta_disponible(usuario, fecha=None):
         return True
 
     return disponibilidad.esta_disponible(fecha)
+
+
+def subtareas_pendientes_usuario(usuario):
+    """Subtareas activas no solucionadas de tareas en desarrollo."""
+    from tasks.models import Subtarea, Tarea
+
+    if usuario is None:
+        return Subtarea.objects.none()
+
+    return (
+        Subtarea.objects.filter(
+            asignado=usuario,
+            activo=True,
+            tarea__estado=Tarea.Estado.EN_DESARROLLO,
+        )
+        .exclude(estado=Subtarea.Estado.SOLUCIONADO)
+        .select_related("tarea")
+        .order_by("tarea_id", "id")
+    )
+
+
+def serializar_subtareas_pendientes(subtareas):
+    return [
+        {
+            "id": subtarea.id,
+            "codigo": subtarea.codigo,
+            "descripcion": subtarea.descripcion,
+            "estado": subtarea.estado,
+            "tarea_id": subtarea.tarea_id,
+            "tarea_ticket": subtarea.tarea.ticket,
+            "tarea_asunto": subtarea.tarea.asunto,
+        }
+        for subtarea in subtareas
+    ]

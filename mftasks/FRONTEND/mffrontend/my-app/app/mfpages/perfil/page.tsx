@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { obtenerDatosMe, DatosUsuario } from "@/lib/auth";
 import type { CampanaPermitida, DisponibilidadUsuario, EquipoInfo } from "@/lib/types";
 import { guardarDisponibilidad, obtenerDisponibilidad } from "@/lib/disponibilidad";
+import { crearSegmentoTarea } from "@/lib/tareaUrl";
 import Switch from "@/components/ui/Switch";
+import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import {
   obtenerPreferenciasNotificacion,
   guardarPreferenciasNotificacion,
   PreferenciasNotificacion,
 } from "@/lib/notificaciones";
-import AlertasResumen from "@/components/perfil/AlertasResumen";
 import styles from "./Perfil.module.css";
 
 type CampoBooleano = Exclude<keyof PreferenciasNotificacion, "fecha_actualizacion">;
+type TabPerfil = "informacion" | "preferencias";
 
 const CAMPOS_CLIENTE: { key: CampoBooleano; label: string }[] = [
   { key: "cliente_solicitud_creada", label: "Solicitud creada" },
@@ -65,8 +68,7 @@ export default function PerfilPage() {
   const [usuario, setUsuario] = useState<DatosUsuario | null>(null);
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
   const [campanasPermitidas, setCampanasPermitidas] = useState<CampanaPermitida[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [alertasAbierto, setAlertasAbierto] = useState(false);
+  const [tabPerfil, setTabPerfil] = useState<TabPerfil>("informacion");
   const [campanasAbierto, setCampanasAbierto] = useState(true);
   const [notifAbierto, setNotifAbierto] = useState(true);
   const [prefs, setPrefs] = useState<PreferenciasNotificacion | null>(null);
@@ -74,6 +76,7 @@ export default function PerfilPage() {
   const [guardando, setGuardando] = useState(false);
   const [disponibilidad, setDisponibilidad] = useState<DisponibilidadUsuario | null>(null);
   const [guardandoDisponibilidad, setGuardandoDisponibilidad] = useState(false);
+  const [modalPendientesAbierto, setModalPendientesAbierto] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -89,8 +92,7 @@ export default function PerfilPage() {
         const arr = Array.isArray(data) ? data : (data as { results: EquipoInfo[] }).results ?? [];
         setEquipos(arr);
       })
-      .catch(() => { if (!cancel) setEquipos([]); })
-      .finally(() => { if (!cancel) setCargando(false); });
+      .catch(() => { if (!cancel) setEquipos([]); });
 
     apiFetch<CampanaPermitida[] | { results: CampanaPermitida[] }>("/api/campanas/campanas/mis-permisos/")
       .then((data) => {
@@ -154,15 +156,19 @@ export default function PerfilPage() {
       const actualizada = await guardarDisponibilidad(disponibilidad);
       setDisponibilidad(actualizada);
       showToast("Disponibilidad actualizada", "success");
-
-      const conAviso = actualizada as DisponibilidadUsuario & {
-        advertencia?: string;
-      };
-      if (conAviso.advertencia) {
-        showToast(conAviso.advertencia, "info");
-      }
     } catch (e) {
-      showToast((e as Error).message, "error");
+      const mensaje = (e as Error).message;
+      if (mensaje.toLowerCase().includes("subtareas pendientes")) {
+        try {
+          const actual = await obtenerDisponibilidad();
+          setDisponibilidad(actual);
+          setModalPendientesAbierto(true);
+        } catch {
+          showToast(mensaje, "error");
+        }
+      } else {
+        showToast(mensaje, "error");
+      }
     } finally {
       setGuardandoDisponibilidad(false);
     }
@@ -187,26 +193,38 @@ export default function PerfilPage() {
     <div className={styles.container}>
       <h2 className={styles.title}>Perfil</h2>
 
-      {!esAdmin || !esCliente && (
-        <section className={styles.alertsCard}>
-          <button
-            type="button"
-            className={styles.alertsHeader}
-            aria-expanded={alertasAbierto}
-            onClick={() => setAlertasAbierto((v) => !v)}
-          >
-            <span>Alertas</span>
-            <span className={`${styles.chevron} ${alertasAbierto ? styles.chevronOpen : ""}`}>▸</span>
-          </button>
-          {alertasAbierto && (
-            <div className={styles.alertsBody}>
-              <AlertasResumen />
-            </div>
-          )}
-        </section>
-      )}
+      <div className={styles.tabs} role="tablist" aria-label="Secciones del perfil">
+        <button
+          type="button"
+          role="tab"
+          id="perfil-tab-informacion"
+          aria-selected={tabPerfil === "informacion"}
+          aria-controls="perfil-panel-informacion"
+          className={tabPerfil === "informacion" ? styles.tabActive : styles.tab}
+          onClick={() => setTabPerfil("informacion")}
+        >
+          Información
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="perfil-tab-preferencias"
+          aria-selected={tabPerfil === "preferencias"}
+          aria-controls="perfil-panel-preferencias"
+          className={tabPerfil === "preferencias" ? styles.tabActive : styles.tab}
+          onClick={() => setTabPerfil("preferencias")}
+        >
+          Preferencias
+        </button>
+      </div>
 
-      <section className={styles.card}>
+      {tabPerfil === "informacion" && (
+      <section
+        className={styles.card}
+        id="perfil-panel-informacion"
+        role="tabpanel"
+        aria-labelledby="perfil-tab-informacion"
+      >
         <h3 className={styles.cardTitle}>Información de la cuenta</h3>
         <div className={styles.dataGrid}>
           <div className={styles.field}>
@@ -233,8 +251,15 @@ export default function PerfilPage() {
           </div>
         </div>
       </section>
+      )}
 
-      <section className={styles.card}>
+      {tabPerfil === "preferencias" && (
+      <section
+        className={styles.card}
+        id="perfil-panel-preferencias"
+        role="tabpanel"
+        aria-labelledby="perfil-tab-preferencias"
+      >
         <h3 className={styles.cardTitle}>Disponibilidad</h3>
         {disponibilidad ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -243,14 +268,23 @@ export default function PerfilPage() {
                 <span className={styles.label}>Estado</span>
                 <select
                   value={disponibilidad.estado}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const nuevoEstado = e.target
+                      .value as DisponibilidadUsuario["estado"];
+                    if (
+                      nuevoEstado === "INDISPONIBLE" &&
+                      (disponibilidad.subtareas_pendientes?.length ?? 0) > 0
+                    ) {
+                      setModalPendientesAbierto(true);
+                      return;
+                    }
                     actualizarDisponibilidad({
-                      estado: e.target.value as DisponibilidadUsuario["estado"],
-                      ...(e.target.value === "DISPONIBLE"
+                      estado: nuevoEstado,
+                      ...(nuevoEstado === "DISPONIBLE"
                         ? { fecha_inicio: null, fecha_fin: null, motivo: "" }
                         : {}),
-                    })
-                  }
+                    });
+                  }}
                   style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
                 >
                   <option value="DISPONIBLE">Disponible</option>
@@ -319,8 +353,9 @@ export default function PerfilPage() {
           <p className={styles.empty}>Cargando disponibilidad…</p>
         )}
       </section>
+      )}
 
-      {!esAdmin &&
+      {tabPerfil === "informacion" && !esAdmin &&
         <section className={styles.alertsCard}>
           <button
             type="button"
@@ -363,7 +398,7 @@ export default function PerfilPage() {
       }
 
 
-      {prefs && (esCliente || esEquipo) && (
+      {tabPerfil === "preferencias" && prefs && (esCliente || esEquipo) && (
         <section className={styles.alertsCard}>
           <button
             type="button"
@@ -428,6 +463,54 @@ export default function PerfilPage() {
             </div>
           )}
         </section>
+      )}
+
+      {modalPendientesAbierto && (
+        <Modal
+          title="Subtareas pendientes"
+          onClose={() => setModalPendientesAbierto(false)}
+          footer={
+            <button
+              type="button"
+              className={styles.btnGuardar}
+              onClick={() => setModalPendientesAbierto(false)}
+            >
+              Entendido
+            </button>
+          }
+        >
+          <p className={styles.pendingIntro}>
+            No puedes marcarte como indisponible mientras tengas subtareas
+            pendientes. Coordina con tu líder para reasignarlas.
+          </p>
+          <ul className={styles.pendingList}>
+            {(disponibilidad?.subtareas_pendientes ?? []).map((subtarea) => (
+              <li key={subtarea.id} className={styles.pendingItem}>
+                <div className={styles.pendingTitle}>
+                  {subtarea.codigo && (
+                    <span className={styles.pendingCode}>{subtarea.codigo}</span>
+                  )}
+                  <span>{subtarea.descripcion}</span>
+                </div>
+                <div className={styles.pendingMeta}>
+                  <span>{subtarea.estado}</span>
+                  <Link
+                    href={`/mfpages/tareas/${crearSegmentoTarea(
+                      subtarea.tarea_asunto,
+                      subtarea.tarea_id
+                    )}`}
+                    className={styles.pendingLink}
+                    onClick={() => setModalPendientesAbierto(false)}
+                  >
+                    {subtarea.tarea_ticket ?? `Solicitud #${subtarea.tarea_id}`}
+                    {" · "}
+                    {subtarea.tarea_asunto}
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Modal>
       )}
     </div>
   );

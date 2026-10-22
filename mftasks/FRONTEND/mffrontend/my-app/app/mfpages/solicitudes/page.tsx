@@ -133,8 +133,10 @@ export default function SolicitudesPage() {
   const hayFiltros =
     filtroEstado !== estadoPorDefecto ||
     Boolean(busqueda) ||
-    desde !== rangoInicial.desde ||
-    hasta !== rangoInicial.hasta ||
+    (isAdmin &&
+      (campoFecha !== "solicitud" ||
+        desde !== rangoInicial.desde ||
+        hasta !== rangoInicial.hasta)) ||
     filtroEntidad !== "" ||
     filtroCampana !== "" ||
     filtroSubcampana !== "";
@@ -165,13 +167,15 @@ export default function SolicitudesPage() {
               : t.estado === filtroEstado;
       if (!coincideEstado) return false;
 
-      const fecha = campoFecha === "entrega" ? t.fecha_entrega_aproximada : t.fecha_creacion;
-      const fechaIso = fechaEnLima(fecha);
-      if (!fechaIso) {
-        if (desde || hasta) return false;
-      } else {
-        if (desde && fechaIso < desde) return false;
-        if (hasta && fechaIso > hasta) return false;
+      if (isAdmin) {
+        const fecha = campoFecha === "entrega" ? t.fecha_entrega_aproximada : t.fecha_creacion;
+        const fechaIso = fechaEnLima(fecha);
+        if (!fechaIso) {
+          if (desde || hasta) return false;
+        } else {
+          if (desde && fechaIso < desde) return false;
+          if (hasta && fechaIso > hasta) return false;
+        }
       }
 
       if (!texto) return true;
@@ -185,7 +189,7 @@ export default function SolicitudesPage() {
         String(t.equipo_nombre ?? "").toLowerCase().includes(texto)
       );
     });
-  }, [tareas, filtroEstado, busqueda, campoFecha, desde, hasta]);
+  }, [tareas, filtroEstado, busqueda, campoFecha, desde, hasta, isAdmin]);
 
   const filtrosUI = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
@@ -210,35 +214,40 @@ export default function SolicitudesPage() {
           ))}
         </select>
       )}
-      {/*<select
-        value={campoFecha}
-        onChange={(e) => setCampoFecha(e.target.value as "solicitud" | "entrega")}
-        title="Campo de fecha a filtrar"
-        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
-      >
-        <option value="solicitud">Fecha de solicitud</option>
-        <option value="entrega">Fecha de entrega</option>
-      </select>
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
-        Desde
-        <input
-          type="date"
-          value={desde}
-          max={hasta || undefined}
-          onChange={(e) => setDesde(e.target.value)}
-          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
-        />
-      </label>
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
-        Hasta
-        <input
-          type="date"
-          value={hasta}
-          min={desde || undefined}
-          onChange={(e) => setHasta(e.target.value)}
-          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
-        />
-      </label>*/}
+      {isAdmin && (
+        <>
+          <select
+            value={campoFecha}
+            onChange={(e) => setCampoFecha(e.target.value as "solicitud" | "entrega")}
+            title="Campo de fecha a filtrar"
+            aria-label="Campo de fecha a filtrar"
+            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+          >
+            <option value="solicitud">Fecha de solicitud</option>
+            <option value="entrega">Fecha de entrega</option>
+          </select>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
+            Desde
+            <input
+              type="date"
+              value={desde}
+              max={hasta || undefined}
+              onChange={(e) => setDesde(e.target.value)}
+              style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+            />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
+            Hasta
+            <input
+              type="date"
+              value={hasta}
+              min={desde || undefined}
+              onChange={(e) => setHasta(e.target.value)}
+              style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+            />
+          </label>
+        </>
+      )}
       <input
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}

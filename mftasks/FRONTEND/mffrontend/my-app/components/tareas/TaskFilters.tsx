@@ -60,7 +60,7 @@ export default function TaskFilters({
 }: Props) {
     return (
         <section className={styles.filters} aria-label="Filtros de tareas">
-            <div className={`${styles.field} ${styles.span2}`}>
+            <div className={`${styles.field} ${styles.campaignField}`}>
                 <span className={styles.label}>Entidad, campa?a y subcampa?a</span>
                 <div className={styles.campaignRow}>
                     <FiltroCampanaSubcampana
@@ -77,7 +77,7 @@ export default function TaskFilters({
                 </div>
             </div>
 
-            <label className={styles.field}>
+            <label className={`${styles.field} ${styles.shortField}`}>
                 <span className={styles.label}>Estado</span>
                 <select
                     value={estado}
@@ -91,7 +91,7 @@ export default function TaskFilters({
                 </select>
             </label>
 
-            <label className={styles.field}>
+            <label className={`${styles.field} ${styles.shortField}`}>
                 <span className={styles.label}>Fecha de</span>
                 <select
                     value={campoFecha}
@@ -105,7 +105,7 @@ export default function TaskFilters({
                 </select>
             </label>
 
-            <label className={styles.field}>
+            <label className={`${styles.field} ${styles.shortField}`}>
                 <span className={styles.label}>Desde</span>
                 <input
                     type="date"
@@ -116,7 +116,7 @@ export default function TaskFilters({
                 />
             </label>
 
-            <label className={styles.field}>
+            <label className={`${styles.field} ${styles.shortField}`}>
                 <span className={styles.label}>Hasta</span>
                 <input
                     type="date"
@@ -127,7 +127,7 @@ export default function TaskFilters({
                 />
             </label>
 
-            <form className={`${styles.field} ${styles.span2}`} onSubmit={onBuscar} role="search">
+            <form className={`${styles.field} ${styles.searchField}`} onSubmit={onBuscar} role="search">
                 <label className={styles.label} htmlFor="buscar-tarea">Buscar</label>
                 <div className={styles.searchRow}>
                     <input

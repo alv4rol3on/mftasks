@@ -195,6 +195,12 @@ export async function crearDependencia(tareaId: number, bloqueadaId: number, blo
   });
 }
 
+export async function eliminarDependencia(tareaId: number, bloqueadaId: number, bloqueadoraId: number): Promise<void> {
+  await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${bloqueadaId}/dependencias/${bloqueadoraId}/`, {
+    method: "DELETE",
+  });
+}
+
 export async function reasignarSubtarea(tareaId: number, subtareaId: number, nuevoAsignado: number): Promise<void> {
   await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reasignar/`, {
     method: "POST",

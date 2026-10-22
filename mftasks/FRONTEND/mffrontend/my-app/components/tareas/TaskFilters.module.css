@@ -1,6 +1,6 @@
 .filters {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 12px;
     align-items: end;
     padding: 14px;
@@ -16,8 +16,16 @@
     min-width: 0;
 }
 
-.span2 {
+.campaignField {
+    grid-column: span 8;
+}
+
+.shortField {
     grid-column: span 2;
+}
+
+.searchField {
+    grid-column: span 5;
 }
 
 .label {
@@ -54,7 +62,7 @@
 
 .campaignRow {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
 }
 
@@ -104,20 +112,30 @@
 
 .actions {
     display: flex;
+    grid-column: span 3;
     justify-content: flex-end;
     align-items: end;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
     .filters {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 
-    .span2 {
+    .campaignField {
+        grid-column: span 6;
+    }
+
+    .shortField {
         grid-column: span 3;
     }
 
+    .searchField {
+        grid-column: span 6;
+    }
+
     .actions {
+        grid-column: span 6;
         justify-content: flex-start;
     }
 }
@@ -129,8 +147,14 @@
         padding: 12px;
     }
 
-    .span2 {
+    .campaignField,
+    .searchField,
+    .actions {
         grid-column: span 2;
+    }
+
+    .shortField {
+        grid-column: span 1;
     }
 
     .campaignRow {
@@ -145,10 +169,6 @@
         width: 100%;
     }
 
-    .actions {
-        grid-column: span 2;
-    }
-
     .clearButton {
         width: 100%;
     }
@@ -159,7 +179,9 @@
         grid-template-columns: 1fr;
     }
 
-    .span2,
+    .campaignField,
+    .shortField,
+    .searchField,
     .actions {
         grid-column: span 1;
     }

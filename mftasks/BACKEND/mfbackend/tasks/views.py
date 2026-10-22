@@ -2237,6 +2237,23 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Dependencia ya existe."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Dependencia creada.", "bloqueada": subtarea.id, "bloqueadora": bloqueadora_id}, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["delete"], permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea], url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/dependencias/(?P<bloqueadora_id>[^/.]+)")
+    def eliminar_dependencia_subtarea(self, request, pk=None, subtarea_id=None, bloqueadora_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        from .models import DependenciaSubtarea
+
+        eliminadas, _ = DependenciaSubtarea.objects.filter(
+            bloqueada=subtarea,
+            bloqueadora_id=bloqueadora_id,
+        ).delete()
+        if not eliminadas:
+            return Response(
+                {"detail": "Dependencia no existe."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea], url_path="dependencias-tarea")
     def agregar_dependencia_tarea(self, request, pk=None):
         tarea = self.get_object()

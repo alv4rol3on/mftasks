@@ -42,9 +42,17 @@ class SubtareaSerializer(serializers.ModelSerializer):
         read_only_fields = ["codigo", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "fecha_inactivacion", "inactivada_por"]
 
     def get_bloqueada_por(self, obj):
-        # lista de ids bloqueadoras no solucionadas
+        # lista de subtareas bloqueadoras
         deps = obj.dependencias_origen.select_related("bloqueadora").all()
-        return [{"id": d.bloqueadora_id, "estado": d.bloqueadora.estado, "descripcion": d.bloqueadora.descripcion} for d in deps]
+        return [
+            {
+                "id": d.bloqueadora_id,
+                "codigo": d.bloqueadora.codigo,
+                "estado": d.bloqueadora.estado,
+                "descripcion": d.bloqueadora.descripcion,
+            }
+            for d in deps
+        ]
 
     def get_asignado_nombre(self, obj):
         return f"{obj.asignado.nombres} {obj.asignado.apellidos}"

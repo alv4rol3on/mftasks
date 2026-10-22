@@ -13,11 +13,12 @@ import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 import HistorialTarea from "@/components/tareas/HistorialTarea";
 import SubtaskBoard from "@/components/tareas/SubtaskBoard";
 import AssignmentPanel from "@/components/tareas/AssignmentPanel";
+import DependencyPanel from "@/components/tareas/DependencyPanel";
 import SubtaskActionDialog from "@/components/tareas/SubtaskActionDialog";
 import type { Subtarea } from "@/lib/types";
 import styles from "./TareaDetalle.module.css";
 
-type TabKey = "tablero" | "asignaciones" | "historial";
+type TabKey = "tablero" | "asignaciones" | "dependencias" | "historial";
 type AccionPendiente = { tipo: "pausa" | "solucionar" | "reanudar"; subtarea: Subtarea } | null;
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -211,9 +212,15 @@ export default function TareaDetalle({
   const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!tarea.fuera_de_tiempo;
   const puedeVerAsignaciones = !soloLectura && !!tarea.puedo_operar && tarea.estado !== "APROBADO" && tarea.estado !== "SOLUCIONADO";
   const puedeIniciar = tarea.estado === "APROBADO" && !soloLectura && tarea.puedo_operar && tarea.subtareas.length === 0;
+  const puedeOperarDependencias =
+    !soloLectura &&
+    !!tarea.puedo_operar &&
+    tarea.estado !== "APROBADO" &&
+    tarea.estado !== "SOLUCIONADO";
   const tabsDisponibles: { key: TabKey; label: string }[] = [
     { key: "tablero", label: "Tablero" },
     ...(puedeVerAsignaciones ? [{ key: "asignaciones" as TabKey, label: "Asignaciones" }] : []),
+    { key: "dependencias", label: "Dependencias" },
     { key: "historial", label: "Historial" },
   ];
   const tabActual = tabsDisponibles.some((t) => t.key === tab) ? tab : "tablero";
@@ -371,6 +378,16 @@ export default function TareaDetalle({
                   onReasignarSubtarea={acciones.reasignarSubtarea}
                   onInactivarSubtarea={acciones.inactivarSubtarea}
                   onReactivarSubtarea={acciones.reactivarSubtarea}
+                  onTareaMutated={cargar}
+                />
+              </div>
+            )}
+
+            {tabActual === "dependencias" && (
+              <div id="detalle-panel-dependencias" role="tabpanel" aria-labelledby="detalle-tab-dependencias" className={styles.tabPanel}>
+                <DependencyPanel
+                  tarea={tarea}
+                  puedeOperar={puedeOperarDependencias}
                   onTareaMutated={cargar}
                 />
               </div>
