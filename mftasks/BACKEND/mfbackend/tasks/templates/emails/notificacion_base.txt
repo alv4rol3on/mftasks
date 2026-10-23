@@ -12,8 +12,8 @@ Asunto: {{ titulo }}
 Estado: {{ estado }}
 {% endif %}
 
-{% if descripcion %}
-Descripción: {{ descripcion }}
+{% if descripcion_texto %}
+Descripción: {{ descripcion_texto }}
 {% endif %}
 
 {% if campana %}

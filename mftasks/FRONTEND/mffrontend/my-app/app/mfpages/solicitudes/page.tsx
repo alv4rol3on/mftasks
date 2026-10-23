@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
+import { stripHtml } from "@/lib/richText";
 import RefreshButton from "@/components/ui/RefreshButton";
 import PageLoader from "@/components/ui/PageLoader";
 
@@ -182,7 +183,7 @@ export default function SolicitudesPage() {
       return (
         (t.ticket ?? "").toLowerCase().includes(texto) ||
         String(t.asunto ?? "").toLowerCase().includes(texto) ||
-        String(t.descripcion ?? "").toLowerCase().includes(texto) ||
+        stripHtml(t.descripcion).toLowerCase().includes(texto) ||
         String(t.campana_nombre ?? "").toLowerCase().includes(texto) ||
         String(t.subcampana_nombre ?? "").toLowerCase().includes(texto) ||
         String(t.solicitante_nombre ?? "").toLowerCase().includes(texto) ||

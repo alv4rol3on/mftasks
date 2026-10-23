@@ -120,6 +120,9 @@ DATABASES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+# URL pública del backend para enlaces e imágenes absolutas en correos.
+MF_BACKEND_URL = os.environ.get("MF_BACKEND_URL", "")
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 

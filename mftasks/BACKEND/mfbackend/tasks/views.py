@@ -1,8 +1,10 @@
 from datetime import datetime, time, timedelta
 import io
 import os
+import uuid
 import zipfile
 
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.functions import Coalesce
@@ -546,6 +548,80 @@ class TaskViewSet(viewsets.ModelViewSet):
 
             # Aviso a los aprobadores asignados del equipo (fase inicial).
             _notificar_fase(tarea, tarea.paso_aprobacion)
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="imagenes",
+        permission_classes=[IsAuthenticatedActivo],
+    )
+    def subir_imagen(self, request):
+        """Sube una imagen usada dentro de la descripción enriquecida."""
+
+        if not (es_cliente(request.user) or es_administrador(request.user)):
+            return Response(
+                {"detail": "No tienes permiso para subir imágenes."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        imagen = request.FILES.get("imagen") or request.FILES.get("archivo")
+
+        if imagen is None:
+            return Response(
+                {"detail": "Debes adjuntar una imagen."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if imagen.size > 5 * 1024 * 1024:
+            return Response(
+                {"detail": "La imagen no puede superar los 5 MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        extension = (
+            imagen.name.rsplit(".", 1)[-1].lower()
+            if "." in imagen.name
+            else ""
+        )
+
+        if extension not in {"png", "jpg", "jpeg", "gif", "webp"}:
+            return Response(
+                {"detail": "El formato de la imagen no está permitido."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        content_type = (imagen.content_type or "").lower()
+
+        if content_type and not content_type.startswith("image/"):
+            return Response(
+                {"detail": "El archivo enviado no es una imagen."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cabecera = imagen.read(12)
+        imagen.seek(0)
+
+        firmas = {
+            "png": (b"\x89PNG\r\n\x1a\n",),
+            "jpg": (b"\xff\xd8\xff",),
+            "jpeg": (b"\xff\xd8\xff",),
+            "gif": (b"GIF87a", b"GIF89a"),
+            "webp": (b"RIFF",),
+        }
+
+        if not any(cabecera.startswith(firma) for firma in firmas[extension]):
+            return Response(
+                {"detail": "El archivo no parece ser una imagen válida."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nombre = f"descripciones/{uuid.uuid4().hex}.{extension}"
+        guardado = default_storage.save(nombre, imagen)
+
+        return Response(
+            {"url": default_storage.url(guardado)},
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(
         detail=True,

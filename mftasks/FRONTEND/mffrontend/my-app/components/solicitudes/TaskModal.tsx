@@ -5,6 +5,7 @@ import styles from "./TaskModalSolicitudes.module.css";
 import { Task } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
+import RichTextView from "@/components/shared/RichTextView";
 
 type EventoSeguimiento = {
     id: number;
@@ -308,9 +309,10 @@ export default function TaskModal({
                     <div className={styles.modalColumn}>
                         <h3>Descripción</h3>
 
-                        <div className={styles.descriptionBox}>
-                            {tarea.descripcion}
-                        </div>
+                        <RichTextView
+                            html={tarea.descripcion}
+                            className={styles.descriptionBox}
+                        />
                     </div>
 
                     {/* Flujo de aprobación */}

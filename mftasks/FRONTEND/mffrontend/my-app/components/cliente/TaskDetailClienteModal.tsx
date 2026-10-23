@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Task } from "@/lib/types";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
+import RichTextView from "@/components/shared/RichTextView";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import HistorialTarea from "../tareas/HistorialTarea";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
@@ -89,7 +90,10 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
               </div>
               <div className={styles.modalColumn}>
                 <h3>Descripción</h3>
-                <div className={styles.descriptionBox}>{tarea.descripcion}</div>
+                <RichTextView
+                  html={tarea.descripcion}
+                  className={styles.descriptionBox}
+                />
 
                 {tarea.estado == "RECHAZADO" && (
                   <>

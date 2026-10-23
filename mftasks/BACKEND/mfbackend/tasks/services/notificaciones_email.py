@@ -5,6 +5,8 @@ from django.db import transaction
 
 from tasks.tasks import enviar_notificacion_email
 
+from .rich_text import html_a_texto, html_para_correo
+
 
 logger = logging.getLogger(__name__)
 
@@ -210,11 +212,14 @@ def contexto_detalles_tarea(tarea):
     except Exception:
         adjuntos = []
 
+    descripcion = getattr(tarea, "descripcion", "") or ""
+
     return {
         "codigo": obtener_codigo_tarea(tarea),
         "titulo": obtener_titulo_tarea(tarea),
         "estado": obtener_estado_tarea(tarea),
-        "descripcion": getattr(tarea, "descripcion", "") or "",
+        "descripcion": html_para_correo(descripcion),
+        "descripcion_texto": html_a_texto(descripcion),
         "campana": campana,
         "subcampana": subcampana,
         "equipo_nombre": getattr(equipo, "nombre", "") or "",

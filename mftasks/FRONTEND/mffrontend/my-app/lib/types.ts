@@ -8,6 +8,11 @@ export interface SubtareaPendiente {
     tarea_asunto: string;
 }
 
+export interface EquipoSinSublider {
+    id: number;
+    nombre: string;
+}
+
 export interface DisponibilidadUsuario {
     estado: "DISPONIBLE" | "INDISPONIBLE";
     fecha_inicio?: string | null;
@@ -15,6 +20,8 @@ export interface DisponibilidadUsuario {
     motivo?: string;
     fecha_actualizacion?: string;
     subtareas_pendientes?: SubtareaPendiente[];
+    equipos_sin_sublider?: EquipoSinSublider[];
+    equipos_sin_cobertura?: EquipoSinSublider[];
 }
 
 export interface Subtarea {
@@ -221,7 +228,7 @@ export interface EquipoMiembroDetallado {
     nombres: string;
     apellidos: string;
     cargo?: string;
-    rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER"; // SUB_LIDER deprecado, mapea a MIEMBRO
+    rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER";
     estado: "ACTIVO" | "INACTIVO";
     disponibilidad?: DisponibilidadUsuario | null;
     fecha_ingreso: string;

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from usuarios.permissions import es_administrador, es_cliente
 from .models import ArchivoTarea, Subtarea, Tarea
 from .permissions import es_asignador_del_equipo, tiene_permiso_subcampana
+from .services.rich_text import html_a_texto, sanitizar_html
 
 
 class SubtareaSerializer(serializers.ModelSerializer):
@@ -299,6 +300,14 @@ class TaskSerializer(serializers.ModelSerializer):
             return bool(esta_fuera_de_tiempo_tarea(obj))
         except Exception:
             return None
+
+    def validate_descripcion(self, value):
+        limpio = sanitizar_html(value)
+        if not html_a_texto(limpio):
+            raise serializers.ValidationError(
+                "La descripción no puede estar vacía."
+            )
+        return limpio
 
     def validate(self, attrs):
         request = self.context.get("request")

@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { normalizeMediaUrls, tieneContenido } from "@/lib/richText";
+import RichTextEditor from "@/components/shared/RichTextEditor";
+import SuccessModal from "@/components/shared/SuccessModal";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
-import stylesSuccess from "./SolicitudGenerada.module.css";
 import { CampanaInfo, EquipoInfo, SubCampanaInfo, Task } from "@/lib/types";
 
 const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
@@ -108,30 +110,15 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
   if (creada) {
     return (
-      <div className={stylesSuccess.overlay}>
-        <div className={stylesSuccess.card}>
-          <div className={stylesSuccess.circle}>
-            <svg className={stylesSuccess.check} viewBox="0 0 52 52" aria-hidden="true">
-              <path d="M14 27 L23 36 L38 18" />
-            </svg>
-          </div>
-          <h2 className={stylesSuccess.title}>¡Solicitud generada exitosamente!</h2>
-          {creada.ticket && (
-            <p className={stylesSuccess.ticket}>N.º {creada.ticket}</p>
-          )}
-          <p className={stylesSuccess.asunto}>{creada.asunto}</p>
-          <button
-            type="button"
-            className={stylesSuccess.button}
-            onClick={() => {
-              setCreada(null);
-              onClose();
-            }}
-          >
-            Aceptar
-          </button>
-        </div>
-      </div>
+      <SuccessModal
+        title="¡Solicitud generada exitosamente!"
+        ticket={creada.ticket}
+        asunto={creada.asunto}
+        onClose={() => {
+          setCreada(null);
+          onClose();
+        }}
+      />
     );
   }
 
@@ -171,7 +158,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const enviar = async () => {
     if (
       !asunto.trim() ||
-      !descripcion.trim() ||
+      !tieneContenido(descripcion) ||
       entidadId === "" ||
       campanaId === "" ||
       subcampanaId === "" ||
@@ -196,7 +183,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       const formData = new FormData();
 
       formData.append("asunto", asunto.trim());
-      formData.append("descripcion", descripcion.trim());
+      formData.append("descripcion", normalizeMediaUrls(descripcion));
       formData.append("tipo_solicitud", tipoSolicitud);
       formData.append(
         "detalle_tipo_solicitud",
@@ -345,7 +332,12 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
             <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />
 
-            <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={styles.inputField} rows={4} placeholder="Detalla la solicitud" />
+            <RichTextEditor
+              value={descripcion}
+              onChange={setDescripcion}
+              placeholder="Detalla la solicitud"
+              disabled={enviando}
+            />
 
             <div className={styles.fileField}>
               <label htmlFor="archivo">Archivos adjuntos (opcional) — máx. 10 MB en total</label>

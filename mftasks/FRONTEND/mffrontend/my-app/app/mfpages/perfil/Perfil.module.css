@@ -297,6 +297,21 @@
   }
 }
 
+.requirementsBox {
+  border: 1px solid color-mix(in srgb, var(--color-waiting) 35%, white);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-waiting) 8%, white);
+  padding: 12px;
+}
+
+.requirementsTitle {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 .pendingIntro {
   margin: 0 0 12px;
   font-size: 13px;

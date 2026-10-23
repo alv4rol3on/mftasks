@@ -383,7 +383,7 @@ class EquipoMiembro(models.Model):
     class RolEnEquipo(models.TextChoices):
         LIDER = "LIDER", "Líder"
         MIEMBRO = "MIEMBRO", "Miembro"
-        # Deprecado: se conserva por compatibilidad de datos, no se ofrece en UI.
+        # Cubre al líder cuando está indisponible; es requisito para su ausencia.
         SUB_LIDER = "SUB_LIDER", "Sub-líder"
 
     class EstadoMiembro(models.TextChoices):

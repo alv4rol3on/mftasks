@@ -135,6 +135,10 @@ export default function PerfilPage() {
     prefs != null && prefsGuardadas != null &&
     JSON.stringify(prefs) !== JSON.stringify(prefsGuardadas);
 
+  const equiposSinSublider = disponibilidad?.equipos_sin_sublider ?? [];
+  const equiposSinCobertura = disponibilidad?.equipos_sin_cobertura ?? [];
+  const subtareasPendientes = disponibilidad?.subtareas_pendientes ?? [];
+
   const actualizarPref = (campo: CampoBooleano, valor: boolean) => {
     setPrefs((prev) => (prev ? { ...prev, [campo]: valor } : prev));
   };
@@ -158,7 +162,11 @@ export default function PerfilPage() {
       showToast("Disponibilidad actualizada", "success");
     } catch (e) {
       const mensaje = (e as Error).message;
-      if (mensaje.toLowerCase().includes("subtareas pendientes")) {
+      const esBloqueo = /no puedes marcarte como indisponible|sub-?l[ií]der|subtareas pendientes/i.test(
+        mensaje
+      );
+
+      if (esBloqueo) {
         try {
           const actual = await obtenerDisponibilidad();
           setDisponibilidad(actual);
@@ -271,16 +279,35 @@ export default function PerfilPage() {
                   <span className={styles.label}>Estado</span>
                   <select
                     value={disponibilidad.estado}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const nuevoEstado = e.target
                         .value as DisponibilidadUsuario["estado"];
-                      if (
-                        nuevoEstado === "INDISPONIBLE" &&
-                        (disponibilidad.subtareas_pendientes?.length ?? 0) > 0
-                      ) {
-                        setModalPendientesAbierto(true);
-                        return;
+
+                      if (nuevoEstado === "INDISPONIBLE") {
+                        let actual = disponibilidad;
+
+                        try {
+                          const fresca = await obtenerDisponibilidad();
+                          actual = fresca;
+                          setDisponibilidad(fresca);
+                        } catch {
+                          // Se valida igualmente al guardar.
+                        }
+
+                        if (
+                          actual &&
+                          ((actual.subtareas_pendientes?.length ?? 0) > 0 ||
+                            (actual.equipos_sin_sublider?.length ?? 0) > 0 ||
+                            (actual.equipos_sin_cobertura?.length ?? 0) > 0)
+                        ) {
+                          setDisponibilidad((prev) =>
+                            prev ? { ...prev } : prev
+                          );
+                          setModalPendientesAbierto(true);
+                          return;
+                        }
                       }
+
                       actualizarDisponibilidad({
                         estado: nuevoEstado,
                         ...(nuevoEstado === "DISPONIBLE"
@@ -340,6 +367,33 @@ export default function PerfilPage() {
                   </>
                 )}
               </div>
+
+              {equiposSinSublider.length > 0 && (
+                <div className={styles.requirementsBox}>
+                  <strong className={styles.requirementsTitle}>
+                    Equipos sin sub-líder
+                  </strong>
+                  <p className={styles.pendingIntro}>
+                    Para marcarte como indisponible necesitas un sub-líder
+                    activo y disponible en cada equipo que lideras.
+                  </p>
+                  <ul className={styles.pendingList}>
+                    {equiposSinSublider.map((equipo) => (
+                      <li key={equipo.id} className={styles.pendingItem}>
+                        <div className={styles.pendingTitle}>
+                          {equipo.nombre}
+                        </div>
+                        <Link
+                          href="/mfpages/equipos"
+                          className={styles.pendingLink}
+                        >
+                          Ir a Equipos para asignar sub-líder
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button
@@ -470,49 +524,119 @@ export default function PerfilPage() {
 
       {modalPendientesAbierto && (
         <Modal
-          title="Subtareas pendientes"
+          title="Requisitos para marcarte indisponible"
           onClose={() => setModalPendientesAbierto(false)}
           footer={
-            <button
-              type="button"
-              className={styles.btnGuardar}
-              onClick={() => setModalPendientesAbierto(false)}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
             >
-              Entendido
-            </button>
+              {equiposSinSublider.length > 0 && (
+                <Link
+                  href="/mfpages/equipos"
+                  className={styles.pendingLink}
+                  onClick={() => setModalPendientesAbierto(false)}
+                >
+                  Ir a Equipos
+                </Link>
+              )}
+              <button
+                type="button"
+                className={styles.btnGuardar}
+                onClick={() => setModalPendientesAbierto(false)}
+              >
+                Entendido
+              </button>
+            </div>
           }
         >
           <p className={styles.pendingIntro}>
-            No puedes marcarte como indisponible mientras tengas subtareas
-            pendientes. Coordina sus reasignaciones.
+            No puedes marcarte como indisponible hasta cumplir estos
+            requisitos:
           </p>
-          <ul className={styles.pendingList}>
-            {(disponibilidad?.subtareas_pendientes ?? []).map((subtarea) => (
-              <li key={subtarea.id} className={styles.pendingItem}>
-                <div className={styles.pendingTitle}>
-                  {subtarea.codigo && (
-                    <span className={styles.pendingCode}>{subtarea.codigo}</span>
-                  )}
-                  <span>{subtarea.descripcion}</span>
-                </div>
-                <div className={styles.pendingMeta}>
-                  <span>{subtarea.estado}</span>
-                  <Link
-                    href={`/mfpages/tareas/${crearSegmentoTarea(
-                      subtarea.tarea_asunto,
-                      subtarea.tarea_id
-                    )}`}
-                    className={styles.pendingLink}
-                    onClick={() => setModalPendientesAbierto(false)}
-                  >
-                    {subtarea.tarea_ticket ?? `Solicitud #${subtarea.tarea_id}`}
-                    {" · "}
-                    {subtarea.tarea_asunto}
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+
+          {equiposSinSublider.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <strong className={styles.requirementsTitle}>
+                Equipos sin sub-líder
+              </strong>
+              <ul className={styles.pendingList}>
+                {equiposSinSublider.map((equipo) => (
+                  <li key={equipo.id} className={styles.pendingItem}>
+                    <div className={styles.pendingTitle}>{equipo.nombre}</div>
+                    <div className={styles.pendingMeta}>
+                      Asigna un sub-líder activo y disponible en Equipos.
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {equiposSinCobertura.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <strong className={styles.requirementsTitle}>
+                Equipos sin cobertura
+              </strong>
+              <p className={styles.pendingIntro}>
+                Eres el último sub-líder disponible. Solicita a tu líder o al
+                administrador que asigne otro sub-líder antes de ausentarte.
+              </p>
+              <ul className={styles.pendingList}>
+                {equiposSinCobertura.map((equipo) => (
+                  <li key={equipo.id} className={styles.pendingItem}>
+                    <div className={styles.pendingTitle}>{equipo.nombre}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {subtareasPendientes.length > 0 && (
+            <div>
+              <strong className={styles.requirementsTitle}>
+                Subtareas pendientes
+              </strong>
+              <p className={styles.pendingIntro}>
+                Coordina la reasignación o solución de estas subtareas.
+              </p>
+              <ul className={styles.pendingList}>
+                {subtareasPendientes.map((subtarea) => (
+                  <li key={subtarea.id} className={styles.pendingItem}>
+                    <div className={styles.pendingTitle}>
+                      {subtarea.codigo && (
+                        <span className={styles.pendingCode}>
+                          {subtarea.codigo}
+                        </span>
+                      )}
+                      <span>{subtarea.descripcion}</span>
+                    </div>
+                    <div className={styles.pendingMeta}>
+                      <span>{subtarea.estado}</span>
+                      <Link
+                        href={`/mfpages/tareas/${crearSegmentoTarea(
+                          subtarea.tarea_asunto,
+                          subtarea.tarea_id
+                        )}`}
+                        className={styles.pendingLink}
+                        onClick={() => setModalPendientesAbierto(false)}
+                      >
+                        {subtarea.tarea_ticket ??
+                          `Solicitud #${subtarea.tarea_id}`}
+                        {" · "}
+                        {subtarea.tarea_asunto}
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Modal>
       )}
     </div>

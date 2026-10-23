@@ -593,6 +593,38 @@ class DisponibilidadUsuarioTestCase(APITestCase):
         self.usuario = _crear_usuario("disponibilidad@empresa.com")
         self.url = reverse("mi-disponibilidad")
 
+    def _crear_equipo(self, nombre):
+        return Equipo.objects.create(nombre=nombre, lider=self.usuario)
+
+    def _crear_sublider(
+        self,
+        equipo,
+        email,
+        estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        disponible=True,
+    ):
+        usuario = _crear_usuario(email)
+        EquipoMiembro.objects.create(
+            equipo=equipo,
+            usuario=usuario,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+            estado=estado,
+        )
+        if not disponible:
+            DisponibilidadUsuario.objects.create(
+                usuario=usuario,
+                estado=DisponibilidadUsuario.Estado.INDISPONIBLE,
+                motivo="Ausencia",
+            )
+        return usuario
+
+    def _marcar_indisponible(self, motivo="Trámite"):
+        return self.client.patch(
+            self.url,
+            {"estado": "INDISPONIBLE", "motivo": motivo},
+            format="json",
+        )
+
     def test_get_crea_disponibilidad_disponible(self):
         self.client.force_authenticate(user=self.usuario)
         res = self.client.get(self.url)
@@ -738,16 +770,179 @@ class DisponibilidadUsuarioTestCase(APITestCase):
 
         subtarea = self._crear_tarea_con_subtarea(Subtarea.Estado.SOLUCIONADO)
         self.assertEqual(subtarea.estado, Subtarea.Estado.SOLUCIONADO)
+        self._crear_sublider(
+            subtarea.tarea.equipo,
+            "sublider-permite@empresa.com",
+        )
 
         self.client.force_authenticate(user=self.usuario)
-        res = self.client.patch(
-            self.url,
-            {"estado": "INDISPONIBLE", "motivo": "Trámite"},
-            format="json",
-        )
+        res = self._marcar_indisponible()
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertEqual(res.data["estado"], "INDISPONIBLE")
         self.assertEqual(res.data["subtareas_pendientes"], [])
+
+    def test_get_incluye_equipos_sin_sublider(self):
+        equipo = self._crear_equipo("Equipo Sin Sub Get")
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self.client.get(self.url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            res.data["equipos_sin_sublider"],
+            [{"id": equipo.id, "nombre": equipo.nombre}],
+        )
+
+    def test_lider_sin_sublider_no_puede_marcarse_indisponible(self):
+        equipo = self._crear_equipo("Equipo Sin Sub Bloqueo")
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._marcar_indisponible()
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("sub-líder", res.data["detail"])
+        self.assertEqual(
+            res.data["equipos_sin_sublider"],
+            [{"id": equipo.id, "nombre": equipo.nombre}],
+        )
+        self.assertEqual(
+            DisponibilidadUsuario.objects.get(usuario=self.usuario).estado,
+            DisponibilidadUsuario.Estado.DISPONIBLE,
+        )
+
+    def test_lider_con_sublider_disponible_puede_marcarse_indisponible(self):
+        equipo = self._crear_equipo("Equipo Con Sub")
+        self._crear_sublider(equipo, "sublider-ok@empresa.com")
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._marcar_indisponible()
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data["estado"], "INDISPONIBLE")
+        self.assertEqual(res.data["equipos_sin_sublider"], [])
+
+    def test_sublider_inactivo_o_indisponible_no_cuenta(self):
+        self.client.force_authenticate(user=self.usuario)
+
+        for indice, (estado, disponible) in enumerate(
+            (
+                (EquipoMiembro.EstadoMiembro.INACTIVO, True),
+                (EquipoMiembro.EstadoMiembro.ACTIVO, False),
+            )
+        ):
+            equipo = self._crear_equipo(f"Equipo Sub No Cuenta {indice}")
+            self._crear_sublider(
+                equipo,
+                f"sublider-nocuenta-{indice}@empresa.com",
+                estado=estado,
+                disponible=disponible,
+            )
+
+            with self.subTest(estado=estado, disponible=disponible):
+                res = self._marcar_indisponible()
+
+                self.assertEqual(
+                    res.status_code,
+                    status.HTTP_400_BAD_REQUEST,
+                    res.data,
+                )
+                self.assertIn(
+                    {"id": equipo.id, "nombre": equipo.nombre},
+                    res.data["equipos_sin_sublider"],
+                )
+
+    def test_exige_sublider_en_cada_equipo_liderado(self):
+        equipo_ok = self._crear_equipo("Equipo A Con Sub")
+        equipo_falta = self._crear_equipo("Equipo B Sin Sub")
+        self._crear_sublider(equipo_ok, "sublider-a@empresa.com")
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._marcar_indisponible()
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            res.data["equipos_sin_sublider"],
+            [{"id": equipo_falta.id, "nombre": equipo_falta.nombre}],
+        )
+
+    def test_equipo_inactivo_no_exige_sublider(self):
+        Equipo.objects.create(
+            nombre="Equipo Inactivo",
+            lider=self.usuario,
+            activo=False,
+        )
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._marcar_indisponible()
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_no_puede_revocar_ultimo_sublider_si_lider_indisponible(self):
+        equipo = self._crear_equipo("Equipo Revocar Sub")
+        sublider = self._crear_sublider(equipo, "sublider-revocar@empresa.com")
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._marcar_indisponible()
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        res = self.client.post(
+            reverse("equipo-gestionar-rol", args=[equipo.id, sublider.id]),
+            {"rol_en_equipo": "MIEMBRO"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(
+            EquipoMiembro.objects.filter(
+                equipo=equipo,
+                usuario=sublider,
+                rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+            ).exists()
+        )
+
+    def test_puede_revocar_sublider_si_hay_otro_disponible(self):
+        equipo = self._crear_equipo("Equipo Revocar Con Respaldo")
+        sublider = self._crear_sublider(equipo, "sublider-1@empresa.com")
+        self._crear_sublider(equipo, "sublider-2@empresa.com")
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._marcar_indisponible()
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        res = self.client.post(
+            reverse("equipo-gestionar-rol", args=[equipo.id, sublider.id]),
+            {"rol_en_equipo": "MIEMBRO"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+    def test_ultimo_sublider_no_puede_marcarse_indisponible(self):
+        equipo = self._crear_equipo("Equipo Ultimo Sub")
+        sublider = self._crear_sublider(equipo, "sublider-ultimo@empresa.com")
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._marcar_indisponible()
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        self.client.force_authenticate(user=sublider)
+        res = self.client.get(self.url)
+        self.assertEqual(
+            res.data["equipos_sin_cobertura"],
+            [{"id": equipo.id, "nombre": equipo.nombre}],
+        )
+
+        res = self._marcar_indisponible()
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            res.data["equipos_sin_cobertura"],
+            [{"id": equipo.id, "nombre": equipo.nombre}],
+        )
+        self.assertEqual(
+            DisponibilidadUsuario.objects.get(usuario=sublider).estado,
+            DisponibilidadUsuario.Estado.DISPONIBLE,
+        )
 
 
 class DisponibilidadAsignacionTestCase(TestCase):

@@ -14,9 +14,13 @@ from rest_framework.generics import RetrieveUpdateAPIView
 
 from .azure import AzureTokenValidationError, AzureTokenValidator
 from .disponibilidad import (
+    equipos_donde_es_ultimo_sublider_disponible,
+    equipos_liderados_sin_sublider,
     esta_disponible,
     excluir_no_disponibles,
+    serializar_equipos,
     serializar_subtareas_pendientes,
+    sublideres_disponibles_de_equipo,
     subtareas_pendientes_usuario,
 )
 
@@ -191,14 +195,25 @@ class MiDisponibilidadView(RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         serializer.save(actualizado_por=self.request.user)
 
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        data = dict(serializer.data)
+    def _datos_disponibilidad(self, request, data):
+        data = dict(data)
         data["subtareas_pendientes"] = serializar_subtareas_pendientes(
             subtareas_pendientes_usuario(request.user)
         )
-        return Response(data)
+        data["equipos_sin_sublider"] = serializar_equipos(
+            equipos_liderados_sin_sublider(request.user)
+        )
+        data["equipos_sin_cobertura"] = serializar_equipos(
+            equipos_donde_es_ultimo_sublider_disponible(request.user)
+        )
+        return data
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(
+            self._datos_disponibilidad(request, serializer.data)
+        )
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -215,17 +230,55 @@ class MiDisponibilidadView(RetrieveUpdateAPIView):
         )
 
         if transicion_indisponible:
-            pendientes = subtareas_pendientes_usuario(request.user)
-            if pendientes.exists():
+            pendientes = list(subtareas_pendientes_usuario(request.user))
+            equipos_sin_sublider = equipos_liderados_sin_sublider(
+                request.user
+            )
+            equipos_sin_cobertura = (
+                equipos_donde_es_ultimo_sublider_disponible(request.user)
+            )
+
+            if pendientes or equipos_sin_sublider or equipos_sin_cobertura:
+                motivos = []
+
+                if pendientes:
+                    motivos.append(
+                        "Tienes subtareas pendientes; coordina con tu líder "
+                        "para reasignarlas."
+                    )
+
+                if equipos_sin_sublider:
+                    nombres = ", ".join(
+                        equipo.nombre for equipo in equipos_sin_sublider
+                    )
+                    motivos.append(
+                        "Debes asignar un sub-líder activo y disponible en: "
+                        f"{nombres}."
+                    )
+
+                if equipos_sin_cobertura:
+                    nombres = ", ".join(
+                        equipo.nombre for equipo in equipos_sin_cobertura
+                    )
+                    motivos.append(
+                        "Eres el último sub-líder disponible de: "
+                        f"{nombres}; primero asigna otro sub-líder."
+                    )
+
                 return Response(
                     {
                         "detail": (
-                            "No puedes marcarte como indisponible mientras "
-                            "tengas subtareas pendientes. Coordina con tu "
-                            "líder para reasignarlas."
+                            "No puedes marcarte como indisponible. "
+                            + " ".join(motivos)
                         ),
-                        "subtareas_pendientes": serializar_subtareas_pendientes(
-                            pendientes
+                        "subtareas_pendientes": (
+                            serializar_subtareas_pendientes(pendientes)
+                        ),
+                        "equipos_sin_sublider": serializar_equipos(
+                            equipos_sin_sublider
+                        ),
+                        "equipos_sin_cobertura": serializar_equipos(
+                            equipos_sin_cobertura
                         ),
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -233,11 +286,9 @@ class MiDisponibilidadView(RetrieveUpdateAPIView):
 
         self.perform_update(serializer)
 
-        data = dict(serializer.data)
-        data["subtareas_pendientes"] = serializar_subtareas_pendientes(
-            subtareas_pendientes_usuario(request.user)
+        return Response(
+            self._datos_disponibilidad(request, serializer.data)
         )
-        return Response(data)
 
 
 class UserViewSet(ModelViewSet):
@@ -490,6 +541,24 @@ class EquipoViewSet(ModelViewSet):
             return Response({"detail": "Rol inválido. Use MIEMBRO o SUB_LIDER."}, status=status.HTTP_400_BAD_REQUEST)
         if miembro.estado == EquipoMiembro.EstadoMiembro.INACTIVO and nuevo_rol == EquipoMiembro.RolEnEquipo.SUB_LIDER:
             return Response({"detail": "No se puede otorgar SUB_LIDER a un miembro inactivo."}, status=status.HTTP_400_BAD_REQUEST)
+        if (
+            miembro.rol_en_equipo == EquipoMiembro.RolEnEquipo.SUB_LIDER
+            and nuevo_rol != EquipoMiembro.RolEnEquipo.SUB_LIDER
+            and not esta_disponible(equipo.lider)
+            and not sublideres_disponibles_de_equipo(
+                equipo,
+                excluir_usuario_id=miembro.usuario_id,
+            )
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "No puedes revocar al último sub-líder disponible "
+                        "mientras el líder del equipo está indisponible."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         miembro.rol_en_equipo = nuevo_rol
         miembro.save(update_fields=["rol_en_equipo"])
         return Response({"detail": "Rol actualizado.", "rol_en_equipo": miembro.rol_en_equipo}, status=status.HTTP_200_OK)
@@ -512,6 +581,24 @@ class EquipoViewSet(ModelViewSet):
         if estado == EquipoMiembro.EstadoMiembro.INACTIVO:
             if es_lider_objetivo:
                 return Response({"detail": "No se puede inactivar al líder del equipo. Transfiera el liderazgo primero."}, status=status.HTTP_400_BAD_REQUEST)
+            if (
+                miembro.rol_en_equipo == EquipoMiembro.RolEnEquipo.SUB_LIDER
+                and not esta_disponible(equipo.lider)
+                and not sublideres_disponibles_de_equipo(
+                    equipo,
+                    excluir_usuario_id=miembro.usuario_id,
+                )
+            ):
+                return Response(
+                    {
+                        "detail": (
+                            "No puedes dar de baja al último sub-líder "
+                            "disponible mientras el líder del equipo está "
+                            "indisponible."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             from tasks.models import Subtarea as _SubTarea, Tarea as _Tarea
             pendientes_qs = _SubTarea.objects.filter(
                 asignado_id=miembro.usuario_id,

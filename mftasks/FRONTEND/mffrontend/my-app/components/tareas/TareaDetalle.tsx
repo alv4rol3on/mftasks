@@ -10,6 +10,8 @@ import { ContadoresProvider } from "@/components/tareas/ContadoresProvider";
 import TaskCountdown from "@/components/tareas/TaskCountdown";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
+import RichTextView from "@/components/shared/RichTextView";
+import SuccessModal from "@/components/shared/SuccessModal";
 import HistorialTarea from "@/components/tareas/HistorialTarea";
 import SubtaskBoard from "@/components/tareas/SubtaskBoard";
 import AssignmentPanel from "@/components/tareas/AssignmentPanel";
@@ -54,6 +56,10 @@ export default function TareaDetalle({
   const [tab, setTab] = useState<TabKey>("tablero");
   const [accionPendiente, setAccionPendiente] = useState<AccionPendiente>(null);
   const [descripcionExpandida, setDescripcionExpandida] = useState(false);
+  const [solicitudResuelta, setSolicitudResuelta] = useState<{
+    ticket: string | null;
+    asunto: string;
+  } | null>(null);
   const usuario = getUsuarioActual();
   const esAdmin = (usuario?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
   const soloLectura = esAdmin;
@@ -62,12 +68,10 @@ export default function TareaDetalle({
     cargar,
     onSolicitudResuelta: (_id, res) => {
       if (!res?.solicitud_resuelta) return;
-      showToast(
-        res.tarea_ticket
-          ? `La solicitud ${res.tarea_ticket} fue resuelta: todas sus subtareas están completadas.`
-          : "La solicitud fue resuelta: todas sus subtareas están completadas.",
-        "success"
-      );
+      setSolicitudResuelta({
+        ticket: res.tarea_ticket ?? null,
+        asunto: tarea?.asunto ?? "",
+      });
     },
   });
 
@@ -312,7 +316,7 @@ export default function TareaDetalle({
               className={`${styles.descriptionBox} ${!descripcionExpandida ? styles.descriptionBoxCollapsed : ""
                 }`}
             >
-              {tarea.descripcion}
+              <RichTextView html={tarea.descripcion} />
             </div>
 
             <button
@@ -428,6 +432,15 @@ export default function TareaDetalle({
           onPausa={confirmarPausa}
           onSolucionar={confirmarSolucion}
           onReanudar={confirmarReanudar}
+        />
+      )}
+
+      {solicitudResuelta && (
+        <SuccessModal
+          title="¡Solicitud solucionada exitosamente!"
+          ticket={solicitudResuelta.ticket}
+          asunto={solicitudResuelta.asunto}
+          onClose={() => setSolicitudResuelta(null)}
         />
       )}
     </ContadoresProvider>

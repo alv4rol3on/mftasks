@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import SubtaskCountdown from "./SubtaskCountdown";
 import TaskIniciarModal from "./TaskIniciarModal";
 import AdjuntosTarea from "../adjuntos/AdjuntosTarea";
+import RichTextView from "../shared/RichTextView";
 import RefreshButton from "../ui/RefreshButton";
 import IconButton from "../ui/IconButton";
 import { useContador } from "./ContadoresProvider";
@@ -424,7 +425,10 @@ export default function TaskModal({
 
                         <div className={styles.descCard}>
                             <h3 className={styles.cardTitle}>Descripción</h3>
-                            <div className={styles.descriptionBox} style={{ marginBottom: 12 }}>{tarea.descripcion}</div>
+                            <RichTextView
+                                html={tarea.descripcion}
+                                className={styles.descriptionBox}
+                            />
                             {tarea.estado === "CANCELADO" && (
                                 <div style={{ marginBottom: 12 }}>
                                     <h3 className={styles.cardTitle}>Motivo de cancelación</h3>

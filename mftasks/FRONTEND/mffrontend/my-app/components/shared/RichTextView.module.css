@@ -1,0 +1,94 @@
+.plain {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.rich {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.rich p {
+  margin: 0 0 8px;
+}
+
+.rich p:last-child {
+  margin-bottom: 0;
+}
+
+.rich h1,
+.rich h2,
+.rich h3,
+.rich h4 {
+  margin: 12px 0 6px;
+  line-height: 1.25;
+}
+
+.rich h1 {
+  font-size: 1.5em;
+}
+
+.rich h2 {
+  font-size: 1.3em;
+}
+
+.rich h3 {
+  font-size: 1.15em;
+}
+
+.rich h4 {
+  font-size: 1.05em;
+}
+
+.rich ul,
+.rich ol {
+  margin: 6px 0 10px;
+  padding-left: 24px;
+}
+
+.rich blockquote {
+  margin: 8px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--color-detail-header, #2f5d8a);
+  background: #f5f7fa;
+  color: #555;
+}
+
+.rich pre {
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: #f4f4f4;
+  overflow-x: auto;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+}
+
+.rich code {
+  background: #f1f1f1;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 0.9em;
+}
+
+.rich a {
+  color: var(--color-detail-header, #2f5d8a);
+  text-decoration: underline;
+}
+
+.rich img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
+  border-radius: 6px;
+}
+
+.rich hr {
+  border: none;
+  border-top: 1px solid var(--color-border, #ddd);
+  margin: 12px 0;
+}

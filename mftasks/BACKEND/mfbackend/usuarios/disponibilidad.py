@@ -66,3 +66,93 @@ def serializar_subtareas_pendientes(subtareas):
         }
         for subtarea in subtareas
     ]
+
+
+def sublideres_disponibles_de_equipo(equipo, excluir_usuario_id=None):
+    """Sub-líderes activos y disponibles de un equipo."""
+
+    from usuarios.models import EquipoMiembro
+
+    if equipo is None:
+        return []
+
+    miembros = (
+        EquipoMiembro.objects
+        .filter(
+            equipo=equipo,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+            usuario__is_active=True,
+        )
+        .select_related("usuario", "usuario__disponibilidad")
+    )
+
+    if excluir_usuario_id is not None:
+        miembros = miembros.exclude(usuario_id=excluir_usuario_id)
+
+    return [
+        miembro.usuario
+        for miembro in miembros
+        if esta_disponible(miembro.usuario)
+    ]
+
+
+def equipos_liderados_sin_sublider(usuario):
+    """Equipos activos liderados por el usuario sin sub-líder disponible."""
+
+    from usuarios.models import Equipo
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return []
+
+    equipos = Equipo.objects.filter(lider=usuario, activo=True).order_by("nombre")
+
+    return [
+        equipo
+        for equipo in equipos
+        if not sublideres_disponibles_de_equipo(equipo)
+    ]
+
+
+def equipos_donde_es_ultimo_sublider_disponible(usuario):
+    """Equipos con líder ausente donde el usuario es el último sub-líder."""
+
+    from usuarios.models import Equipo, EquipoMiembro
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return []
+
+    equipos = (
+        Equipo.objects
+        .filter(
+            activo=True,
+            miembros__usuario=usuario,
+            miembros__rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+            miembros__estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        )
+        .distinct()
+        .order_by("nombre")
+    )
+
+    resultado = []
+
+    for equipo in equipos:
+        if esta_disponible(equipo.lider):
+            continue
+
+        if sublideres_disponibles_de_equipo(
+            equipo,
+            excluir_usuario_id=usuario.id,
+        ):
+            continue
+
+        resultado.append(equipo)
+
+    return resultado
+
+
+def serializar_equipos(equipos):
+    return [
+        {"id": equipo.id, "nombre": equipo.nombre}
+        for equipo in equipos
+    ]

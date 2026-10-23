@@ -771,6 +771,105 @@ class CrearSolicitudConAdjuntoTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("archivo", res.data)
 
+    def test_crear_solicitud_sanitiza_html(self):
+        data = self._payload()
+        data["descripcion"] = (
+            '<p>Hola <strong>mundo</strong></p>'
+            '<script>alert(1)</script>'
+            '<img src="/media/x.png" onerror="alert(1)">'
+        )
+
+        res = self.client.post(reverse("task-list"), data, format="multipart")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        tarea = Tarea.objects.get(id=res.data["id"])
+        self.assertIn("<strong>mundo</strong>", tarea.descripcion)
+        self.assertIn('src="/media/x.png"', tarea.descripcion)
+        self.assertNotIn("<script", tarea.descripcion)
+        self.assertNotIn("onerror", tarea.descripcion)
+
+    def test_conserva_descripcion_en_texto_plano(self):
+        data = self._payload()
+        data["descripcion"] = "Tom & Jerry <3"
+
+        res = self.client.post(reverse("task-list"), data, format="multipart")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        tarea = Tarea.objects.get(id=res.data["id"])
+        self.assertEqual(tarea.descripcion, "Tom & Jerry <3")
+
+    def test_rechaza_descripcion_html_vacia(self):
+        data = self._payload()
+        data["descripcion"] = "<p><br></p>"
+
+        res = self.client.post(reverse("task-list"), data, format="multipart")
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("descripcion", res.data)
+
+    def test_subir_imagen_para_descripcion(self):
+        imagen = SimpleUploadedFile(
+            "foto.png",
+            b"\x89PNG\r\n\x1a\n" + b"contenido-imagen",
+            content_type="image/png",
+        )
+
+        res = self.client.post(
+            reverse("task-subir-imagen"),
+            {"imagen": imagen},
+            format="multipart",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        self.assertTrue(res.data["url"].startswith("/media/descripciones/"))
+
+    def test_rechaza_imagen_con_formato_invalido(self):
+        archivo = SimpleUploadedFile(
+            "mal.exe",
+            b"no-es-imagen",
+            content_type="application/octet-stream",
+        )
+
+        res = self.client.post(
+            reverse("task-subir-imagen"),
+            {"imagen": archivo},
+            format="multipart",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rechaza_imagen_con_contenido_invalido(self):
+        archivo = SimpleUploadedFile(
+            "falsa.png",
+            b"no-es-una-imagen",
+            content_type="image/png",
+        )
+
+        res = self.client.post(
+            reverse("task-subir-imagen"),
+            {"imagen": archivo},
+            format="multipart",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_solo_cliente_o_admin_sube_imagenes(self):
+        self.client.force_authenticate(user=self.lider)
+
+        res = self.client.post(
+            reverse("task-subir-imagen"),
+            {
+                "imagen": SimpleUploadedFile(
+                    "foto.png",
+                    b"\x89PNG\r\n\x1a\n" + b"contenido-imagen",
+                    content_type="image/png",
+                )
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
 
 class NotificacionesDiariasTestCase(APITestCase):
 
