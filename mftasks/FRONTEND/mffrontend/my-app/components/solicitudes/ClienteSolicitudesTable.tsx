@@ -66,7 +66,7 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
                     <td data-label="Fecha solicitud" style={{ whiteSpace: "nowrap", fontSize: 12 }}>{fmtFecha(t.fecha_creacion)}</td>
                     <td data-label="Solicitud">
                       <div className={styles.taskSubject}>
-                        {t.entidad_nombre ?? "-"} ? {t.campana_nombre ?? "-"} {t.subcampana_nombre ? `? ${t.subcampana_nombre}` : ""}: {t.asunto}
+                        {t.entidad_nombre ?? "-"} ▸ {t.campana_nombre ?? "-"} {t.subcampana_nombre ? `▸ ${t.subcampana_nombre}` : ""}: {t.asunto}
                         <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 400 }}>{t.ticket ?? `#${t.id}`} • {t.equipo_nombre}</span>
                       </div>
                     </td>

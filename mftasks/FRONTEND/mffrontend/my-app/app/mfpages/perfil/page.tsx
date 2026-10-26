@@ -252,7 +252,7 @@ export default function PerfilPage() {
               <span className={styles.valueMono}>{usuario?.codigo ?? "—"}</span>
             </div>
             <div className={styles.field}>
-              <span className={styles.label}>Rol(es)</span>
+              <span className={styles.label}>Rol</span>
               <span className={styles.badges}>
                 {roles.length > 0
                   ? roles.map((r) => <span key={r} className={styles.badge}>{r}</span>)
