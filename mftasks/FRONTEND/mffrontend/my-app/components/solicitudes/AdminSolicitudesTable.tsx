@@ -112,14 +112,10 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     {/*<td data-label="Solicitante" style={{ fontSize: 12 }}>{t.solicitante_nombre ?? "-"}</td>*/}
                     <td data-label="Equipo" style={{ fontSize: 12 }}>{t.equipo_nombre}</td>
                     <td data-label="Acciones" style={{ whiteSpace: "nowrap" }}>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {/*<IconButton
-                          icon="eye"
-                          variant="info"
-                          title="Ver solicitud"
-                          onClick={() => setSelected(t)}
-                        />*/}
-                        {ESTADOS_CANCELABLES.has(t.estado) && (
+                      {t.estado === "CANCELADO" ? (
+                        "-"
+                      ) : ESTADOS_CANCELABLES.has(t.estado) ? (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                           <span onClick={(e) => e.stopPropagation()}>
                             <IconButton
                               icon="trash"
@@ -128,9 +124,12 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                               onClick={() => setCancelando(t)}
                             />
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </td>
+
                   </tr>
                 );
               })}

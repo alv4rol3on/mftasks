@@ -211,6 +211,14 @@
     transition: width .25s ease;
 }
 
+.progressBarCancelado {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-danger);
+    transition: width .25s ease;
+}
+
 .progressBarDone {
     background: var(--mf-done);
 }

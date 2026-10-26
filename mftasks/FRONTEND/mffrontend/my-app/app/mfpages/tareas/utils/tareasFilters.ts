@@ -10,4 +10,5 @@ export const ESTADOS_TAREA: { value: EstadoFiltro; label: string }[] = [
   { value: "FUERA_DE_TIEMPO", label: "FUERA DE TIEMPO" },
   { value: "SOLUCIONADO", label: "SOLUCIONADO" },
   { value: "RECHAZADO", label: "RECHAZADO" },
+  { value: "CANCELADO", label: "CANCELADO" }
 ];

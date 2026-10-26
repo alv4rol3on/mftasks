@@ -65,7 +65,7 @@ function ProgresoTarea({ tarea }: { tarea: Task }) {
         aria-valuenow={porcentaje}
       >
         <span
-          className={`${styles.progressBar} ${porcentaje === 100 ? styles.progressBarDone : ""}`}
+          className={`${tarea.estado === "CANCELADO" ? styles.progressBarCancelado : styles.progressBar } ${porcentaje === 100 ? styles.progressBarDone : ""}`}
           style={{ width: `${porcentaje}%` }}
         />
       </div>
@@ -93,7 +93,7 @@ function FilaTarea({
     conPendiente ? styles.rowPendiente : "",
   ].filter(Boolean).join(" ");
 
-  const mostrarContador = tarea.estado !== "APROBADO" && tarea.estado !== "RECHAZADO";
+  const mostrarContador = tarea.estado !== "APROBADO" && tarea.estado !== "RECHAZADO" && tarea.estado !== "CANCELADO";
 
   return (
     <tr
@@ -146,12 +146,20 @@ function FilaTarea({
       </td>
 
       <td data-label="Entrega / tiempo" data-col="entrega" className={styles.deliveryCell}>
-        <span className={styles.deliveryDate}>{formatearFechaEntrega(tarea.fecha_entrega_aproximada)}</span>
+       {tarea.estado === "SOLUCIONADO" ?(
+        <span className={styles.deliveryDate}>Solucionado: {formatearFechaEntrega(tarea.fecha_solucion)}</span>
+       ):
+       tarea.estado === "CANCELADO" ?(
+        <span className={styles.deliveryDate}>-</span>
+       ):
+       (
+        <span className={styles.deliveryDate}>Entrega aprox: {formatearFechaEntrega(tarea.fecha_entrega_aproximada)}</span>
+       )}
         <span className={styles.counter}>
           {tarea.estado === "APROBADO"
             ? "Por asignar"
             : tarea.estado === "RECHAZADO"
-              ? "Sin contador"
+              ? "Rechazado"
               : mostrarContador
                 ? <TaskCountdown tareaId={tarea.id} />
                 : null}

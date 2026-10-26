@@ -1,2 +1,4 @@
-descripcion que al crear la solicitud aguante elementos html, imagenes y que en "tareas en desarrollo" sea desplegable
+proceso de cancelacion de solicitud
+en el filtro de busqueda añadir estado CANCELADO
+
 zcQJcdC52ik123

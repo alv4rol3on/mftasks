@@ -16,7 +16,8 @@ export type EstadoFiltro =
   | "STAND_BY"
   | "SOLUCIONADO"
   | "RECHAZADO"
-  | "FUERA_DE_TIEMPO";
+  | "FUERA_DE_TIEMPO"
+  | "CANCELADO";
 
 export type CampoFecha = "solicitud" | "entrega" | "aprobacion";
 

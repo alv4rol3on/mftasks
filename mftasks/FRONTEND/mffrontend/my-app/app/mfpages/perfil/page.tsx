@@ -70,7 +70,6 @@ export default function PerfilPage() {
   const [campanasPermitidas, setCampanasPermitidas] = useState<CampanaPermitida[]>([]);
   const [tabPerfil, setTabPerfil] = useState<TabPerfil>("informacion");
   const [campanasAbierto, setCampanasAbierto] = useState(true);
-  const [notifAbierto, setNotifAbierto] = useState(true);
   const [prefs, setPrefs] = useState<PreferenciasNotificacion | null>(null);
   const [prefsGuardadas, setPrefsGuardadas] = useState<PreferenciasNotificacion | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -457,68 +456,61 @@ export default function PerfilPage() {
 
       {tabPerfil === "preferencias" && prefs && (esCliente || esEquipo) && (
         <section className={styles.alertsCard}>
-          <button
-            type="button"
-            className={styles.alertsHeader}
-            aria-expanded={notifAbierto}
-            onClick={() => setNotifAbierto((v) => !v)}
-          >
+          <div className={styles.alertsHeader}>
             <span>Notificaciones por correo</span>
-            <span className={`${styles.chevron} ${notifAbierto ? styles.chevronOpen : ""}`}>▸</span>
-          </button>
-          {notifAbierto && (
-            <div className={styles.alertsBody}>
+          </div>
 
-              <CampoNotificacion
-                titulo="Recibir correos"
-                descripcion="Activa o desactiva todas las notificaciones por correo."
-                checked={prefs.recibir_correos}
-                onChange={(v) => actualizarPref("recibir_correos", v)}
-              />
+          <div className={styles.alertsBody}>
 
-              {esCliente && (
-                <div className={styles.notifGroup}>
-                  <h4 className={styles.notifGroupTitle}>Como cliente</h4>
-                  {CAMPOS_CLIENTE.map((campo) => (
-                    <CampoNotificacion
-                      key={campo.key}
-                      titulo={campo.label}
-                      checked={Boolean(prefs[campo.key])}
-                      disabled={!prefs.recibir_correos}
-                      onChange={(v) => actualizarPref(campo.key, v)}
-                    />
-                  ))}
-                </div>
-              )}
+            <CampoNotificacion
+              titulo="Recibir correos"
+              descripcion="Activa o desactiva todas las notificaciones por correo."
+              checked={prefs.recibir_correos}
+              onChange={(v) => actualizarPref("recibir_correos", v)}
+            />
 
-              {esEquipo && (
-                <div className={styles.notifGroup}>
-                  <h4 className={styles.notifGroupTitle}>Como líder / miembro</h4>
-                  {CAMPOS_EQUIPO.map((campo) => (
-                    <CampoNotificacion
-                      key={campo.key}
-                      titulo={campo.label}
-                      descripcion={campo.descripcion}
-                      checked={Boolean(prefs[campo.key])}
-                      disabled={!prefs.recibir_correos}
-                      onChange={(v) => actualizarPref(campo.key, v)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              <div className={styles.notifActions}>
-                <button
-                  type="button"
-                  className={styles.btnGuardar}
-                  disabled={!prefsSucias || guardando}
-                  onClick={guardarPrefs}
-                >
-                  {guardando ? "Guardando…" : "Guardar cambios"}
-                </button>
+            {esCliente && (
+              <div className={styles.notifGroup}>
+                <h4 className={styles.notifGroupTitle}>Como cliente</h4>
+                {CAMPOS_CLIENTE.map((campo) => (
+                  <CampoNotificacion
+                    key={campo.key}
+                    titulo={campo.label}
+                    checked={Boolean(prefs[campo.key])}
+                    disabled={!prefs.recibir_correos}
+                    onChange={(v) => actualizarPref(campo.key, v)}
+                  />
+                ))}
               </div>
+            )}
+
+            {esEquipo && (
+              <div className={styles.notifGroup}>
+                <h4 className={styles.notifGroupTitle}>Como líder / miembro</h4>
+                {CAMPOS_EQUIPO.map((campo) => (
+                  <CampoNotificacion
+                    key={campo.key}
+                    titulo={campo.label}
+                    descripcion={campo.descripcion}
+                    checked={Boolean(prefs[campo.key])}
+                    disabled={!prefs.recibir_correos}
+                    onChange={(v) => actualizarPref(campo.key, v)}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className={styles.notifActions}>
+              <button
+                type="button"
+                className={styles.btnGuardar}
+                disabled={!prefsSucias || guardando}
+                onClick={guardarPrefs}
+              >
+                {guardando ? "Guardando…" : "Guardar cambios"}
+              </button>
             </div>
-          )}
+          </div>
         </section>
       )}
 

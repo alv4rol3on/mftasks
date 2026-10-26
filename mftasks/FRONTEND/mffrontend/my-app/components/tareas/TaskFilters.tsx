@@ -61,7 +61,7 @@ export default function TaskFilters({
     return (
         <section className={styles.filters} aria-label="Filtros de tareas">
             <div className={`${styles.field} ${styles.campaignField}`}>
-                <span className={styles.label}>Entidad, campa?a y subcampa?a</span>
+                <span className={styles.label}>Entidad, campaña y subcampaña</span>
                 <div className={styles.campaignRow}>
                     <FiltroCampanaSubcampana
                         entidadId={entidadId}

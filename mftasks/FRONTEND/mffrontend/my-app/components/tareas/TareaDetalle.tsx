@@ -229,7 +229,7 @@ export default function TareaDetalle({
     { key: "historial", label: "Historial" },
   ];
   const tabActual = tabsDisponibles.some((t) => t.key === tab) ? tab : "tablero";
-  const enAprobado = tarea.estado === "APROBADO"
+  const hayTareas = tarea.subtareas.length > 0
 
   const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     const indice = tabsDisponibles.findIndex((t) => t.key === tabActual);
@@ -302,9 +302,12 @@ export default function TareaDetalle({
                 <tr><td>Equipo</td><td>{tarea.equipo_nombre || "-"}</td></tr>
                 <tr><td>Fecha solicitud</td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
                 {tarea.fecha_inicio && <tr><td>Inicio</td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>}
-                {tarea.fecha_entrega_aproximada ? (
-                  <tr><td>Entrega</td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
-                ) : (null)}
+                {tarea.estado == "SOLUCIONADO" ? (
+                  <tr><td>Fecha de solución</td><td>{formatearFecha(tarea.fecha_solucion)}</td></tr>
+                ) : (
+                  <tr><td>Fecha de entrega aproximada</td><td>{formatearFecha(tarea.fecha_entrega_aproximada)}</td></tr>
+
+                )}
 
               </tbody>
             </table>
@@ -339,7 +342,7 @@ export default function TareaDetalle({
             )}
           </section>
         </div>
-        {!enAprobado && (
+        {hayTareas && (
           <section className={styles.workspace} aria-labelledby="detalle-trabajo">
             <div className={styles.workspaceTop}>
               <div>

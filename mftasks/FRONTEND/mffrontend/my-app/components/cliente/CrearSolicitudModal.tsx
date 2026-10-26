@@ -44,6 +44,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<{ ticket: string | null; asunto: string } | null>(null);
+  const [arrastrando, setArrastrando] = useState(false);
 
   const entidades = useMemo(() => {
     const map = new Map<number, string>();
@@ -339,43 +340,60 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
               disabled={enviando}
             />
 
+
             <div className={styles.fileField}>
-              <label htmlFor="archivo">Archivos adjuntos (opcional) — máx. 10 MB en total</label>
+              <label>Archivos adjuntos (opcional) — máx. 10 MB en total</label>
 
-              <input
-                id="archivo"
-                type="file"
-                multiple
-                accept={ACCEPT_ARCHIVOS}
-                onChange={(e) => {
-                  agregarArchivos(e.target.files);
-                  e.currentTarget.value = "";
+              <div
+                className={`${styles.dropZone} ${arrastrando ? styles.dropZoneActive : ""
+                  }`}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setArrastrando(true);
                 }}
-              />
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setArrastrando(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
 
-              {archivos.length > 0 && (
-                <>
-                  <ul className={styles.fileList}>
-                    {archivos.map((f, i) => (
-                      <li key={`${f.name}-${f.size}-${f.lastModified}-${i}`} className={styles.fileItem}>
-                        <span className={styles.fileName}>📎 {f.name}</span>
-                        <span className={styles.fileSize}>{formatearBytes(f.size)}</span>
-                        <button
-                          type="button"
-                          className={styles.fileRemove}
-                          onClick={() => quitarArchivo(i)}
-                          title="Quitar archivo"
-                          aria-label={`Quitar ${f.name}`}
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className={styles.fileHint}>{formatearBytes(totalBytes)} de 10 MB</div>
-                </>
-              )}
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setArrastrando(false);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setArrastrando(false);
+                  agregarArchivos(e.dataTransfer.files);
+                }}
+              >
+                <p>
+                  Arrastra tus archivos aquí
+                </p>
+
+                <label htmlFor="archivo" className={styles.dropZoneLink}>
+                  o haz clic para seleccionarlos
+                </label>
+
+                <input
+                  id="archivo"
+                  type="file"
+                  multiple
+                  accept={ACCEPT_ARCHIVOS}
+                  className={styles.fileInput}
+                  onChange={(e) => {
+                    agregarArchivos(e.target.files);
+                    e.currentTarget.value = "";
+                  }}
+                />
+
+                <small>PDF, Word, Excel, TXT, imágenes o ZIP</small>
+              </div>
+
+              {/* Conserva aquí tu lista actual de archivos adjuntos */}
             </div>
+
 
 
           </div>

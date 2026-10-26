@@ -51,9 +51,9 @@
   padding: 0 16px 16px;
   border-top: 1px solid var(--color-border);
   padding-top: 12px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding-right: 8px;
+  max-height: none;
+  overflow-y: visible;
+  padding-right: 16px;
 }
 
 .alertsBody::-webkit-scrollbar {
