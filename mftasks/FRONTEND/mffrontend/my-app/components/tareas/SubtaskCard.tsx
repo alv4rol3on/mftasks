@@ -33,6 +33,7 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
     const menuWrapRef = useRef<HTMLDivElement>(null);
 
     const tareaEnStandby = tarea.estado === "STAND_BY";
+    const tareaProgramada = tarea.estado === "APROBADO";
 
     const autorizado = puedeMover(subtarea);
     const pausada = subtarea.estado === "STAND_BY";
@@ -139,14 +140,16 @@ export default function SubtaskCard({ subtarea, tarea, puedeMover, procesando, o
                                                     Mover a {COLUMNAS_TABLERO.find((c) => c.key === destino)?.label}
                                                 </button>
                                             ))}
-                                            <button
-                                                type="button"
-                                                role="menuitem"
-                                                className={styles.menuItem}
-                                                onClick={() => ejecutar("STAND_BY")}
-                                            >
-                                                Pausar (Stand-by)
-                                            </button>
+                                            {!tareaProgramada && (
+                                                <button
+                                                    type="button"
+                                                    role="menuitem"
+                                                    className={styles.menuItem}
+                                                    onClick={() => ejecutar("STAND_BY")}
+                                                >
+                                                    Pausar (Stand-by)
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                 </div>

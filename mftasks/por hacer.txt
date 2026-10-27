@@ -1,5 +1,1 @@
-proceso de cancelacion de solicitud desde la interfaz cliente
-si no perteneces a ningun equipo, en la parte TAREAS EN DESARROLLO y BANDEJA DE SOLICITUDES debe aparecerte "Necesitas unirte a un equipo para recibir y/o resolver solicitudes"
-debe habilitarse el inicio anticipado: poder iniciar una subtarea de una solicitud que originalmente se puso para empezar tiempo despues
-
 zcQJcdC52ik123

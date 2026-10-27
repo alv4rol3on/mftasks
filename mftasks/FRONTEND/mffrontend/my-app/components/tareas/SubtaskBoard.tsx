@@ -149,7 +149,9 @@ export default function SubtaskBoard({ tarea, puedeMover, procesandoId, onMove }
     return (
         <div>
             <p className={styles.boardHint}>
-                Arrastra las tarjetas entre columnas para modificar su estado
+                {tarea.estado === "APROBADO"
+                    ? "Solicitud programada: puedes iniciar una subtarea antes de la hora establecida."
+                    : "Arrastra las tarjetas entre columnas para modificar su estado"}
             </p>
             <DndContext
                 sensors={sensors}

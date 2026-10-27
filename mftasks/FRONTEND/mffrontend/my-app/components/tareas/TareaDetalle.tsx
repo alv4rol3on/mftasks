@@ -85,7 +85,9 @@ export default function TareaDetalle({
 
   const puedeMoverSubtarea = (subtarea: Subtarea) => {
     if (!tarea || soloLectura) return false;
-    if (tarea.estado === "SOLUCIONADO" || tarea.estado === "RECHAZADO" || tarea.estado === "APROBADO") return false;
+    if (tarea.estado === "SOLUCIONADO" || tarea.estado === "RECHAZADO") return false;
+    // Solicitud programada: se permite iniciar anticipadamente una subtarea en espera.
+    if (tarea.estado === "APROBADO" && subtarea.estado !== "EN_ESPERA") return false;
     if (subtarea.activo === false) return false;
     if (bloqueadorasPendientes(subtarea).length > 0) return false;
     return subtarea.asignado === usuario?.id;
@@ -95,6 +97,10 @@ export default function TareaDetalle({
     if (!tarea) return;
     if (!puedeMoverSubtarea(subtarea)) {
       showToast("Solo el usuario asignado puede mover esta subtarea.", "error");
+      return;
+    }
+    if (tarea.estado === "APROBADO" && destino !== "EN_DESARROLLO") {
+      showToast("La solicitud está programada; solo puedes iniciar una subtarea anticipadamente.", "error");
       return;
     }
     if (subtarea.estado === destino) return;

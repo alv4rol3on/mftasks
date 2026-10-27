@@ -163,6 +163,39 @@ class TareaFlujoTestCase(APITestCase):
             1,
         )
 
+    def test_empezar_subtarea_anticipada_promueve_tarea(self):
+
+        ahora = timezone.localtime(timezone.now())
+        self.tarea1.estado = Tarea.Estado.APROBADO
+        self.tarea1.fecha_inicio = ahora + timedelta(hours=2)
+        self.tarea1.fecha_entrega_aproximada = ahora + timedelta(days=2)
+        self.tarea1.save()
+
+        subtarea = Subtarea.objects.create(
+            tarea=self.tarea1,
+            descripcion="Inicio anticipado",
+            asignado=self.miembro1,
+            peso=1,
+        )
+
+        self.client.force_authenticate(user=self.miembro1)
+
+        res = self.client.post(
+            reverse(
+                "task-empezar-subtarea",
+                args=[self.tarea1.id, subtarea.id],
+            ),
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        subtarea.refresh_from_db()
+        self.tarea1.refresh_from_db()
+
+        self.assertEqual(subtarea.estado, Subtarea.Estado.EN_DESARROLLO)
+        self.assertIsNotNone(subtarea.fecha_inicio)
+        self.assertEqual(self.tarea1.estado, Tarea.Estado.EN_DESARROLLO)
+
     def test_iniciar_rechaza_asignado_fuera_del_equipo(self):
 
         self.tarea1.estado = Tarea.Estado.APROBADO
