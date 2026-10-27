@@ -238,6 +238,7 @@ export default function CampanaModal({
     <Modal
       title="Registrar entidad, campaña o subcampaña"
       onClose={onClose}
+      maxWidth={720}
       footer={
         <>
           <button

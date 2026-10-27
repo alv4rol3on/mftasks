@@ -603,6 +603,22 @@ export default function EquiposPage() {
                 {expandido && (
                   <div className={styles.expand}>
                     {/* Fila l?der */}
+                    <div className={styles.expandToolbar}>
+                      <h4 className={styles.expandToolbarTitle}>Integrantes — {equipo.miembros.length} miembros</h4>
+                      <div className={styles.expandToolbarActions}>
+                        {soyLider && (
+                          <button
+                            onClick={() => abrirModalAgregar(equipo)}
+                            disabled={!!accionando || !liderActivo}
+                            className={styles.btnAgregar}
+                            title={!liderActivo ? "El líder está inactivo" : "Agregar integrante"}
+                          >
+                            + Agregar integrante
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                     <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -619,26 +635,12 @@ export default function EquiposPage() {
                       </div>
                     </div>
 
-                    <div className={styles.expandToolbar}>
-                      <h4 className={styles.expandToolbarTitle}>Integrantes — {equipo.miembros.length} miembros</h4>
-                      <div className={styles.expandToolbarActions}>
-                        {soyLider && (
-                          <button
-                            onClick={() => abrirModalAgregar(equipo)}
-                            disabled={!!accionando || !liderActivo}
-                            className={styles.btnAgregar}
-                            title={!liderActivo ? "El líder está inactivo" : "Agregar integrante"}
-                          >
-                            + Agregar integrante
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    
                     <div style={{ overflowX: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse", background: "white", borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border)" }}>
                         <thead>
                           <tr style={{ background: "var(--color-surface)", textAlign: "left", fontSize: 12, color: "var(--color-text-secondary)" }}>
-                            <th style={{ padding: "10px 12px", fontWeight: 600 }}>Integrante</th>
+                            <th style={{ padding: "10px 12px", fontWeight: 600 }}>Miembro</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Email</th>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
                           </tr>
