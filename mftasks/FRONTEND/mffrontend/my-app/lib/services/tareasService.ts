@@ -21,6 +21,13 @@ export type EstadoFiltro =
 
 export type CampoFecha = "solicitud" | "entrega" | "aprobacion";
 
+const ESTADOS_SIN_RANGO_FECHA: ReadonlySet<EstadoFiltro> = new Set(["EN_PROCESO"]);
+
+/** Indica si el estado seleccionado ignora el rango de fechas del listado. */
+export function estadoIgnoraRangoFechas(estado: EstadoFiltro | undefined): boolean {
+  return estado ? ESTADOS_SIN_RANGO_FECHA.has(estado) : false;
+}
+
 export interface FiltrosTareas {
   busqueda?: string;
   estado?: EstadoFiltro;
@@ -49,8 +56,8 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   if (!q && estado !== "TODOS") params.set("estado", estado);
 
 
-  // Ignorar el rango de fechas al buscar o filtrar por EN_PROCESO.
-  const ignorarFechas = !!q || estado === "EN_PROCESO";
+  // Ignorar el rango de fechas al buscar o con estados que no usan fechas.
+  const ignorarFechas = !!q || estadoIgnoraRangoFechas(estado);
 
   if (!ignorarFechas) {
     if (filtros.desde) params.set("desde", filtros.desde);

@@ -6,6 +6,7 @@ import TaskFilters from "@/components/tareas/TaskFilters";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { rangoFechasPorDefecto } from "./utils/tareasFilters";
+import { estadoIgnoraRangoFechas } from "@/lib/services/tareasService";
 import type { CampoFecha, EstadoFiltro, FiltrosTareas } from "@/lib/services/tareasService";
 import styles from "./Tareas.module.css";
 
@@ -86,11 +87,11 @@ export default function TareasPage() {
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
 
   const rangoDefecto = rangoFechasPorDefecto();
+  const usaRangoFechas = !estadoIgnoraRangoFechas(filtroEstado);
   const hayFiltros =
     filtroEstado !== "TODOS" ||
     !!busqueda ||
-    desde !== rangoDefecto.desde ||
-    hasta !== rangoDefecto.hasta ||
+    (usaRangoFechas && (desde !== rangoDefecto.desde || hasta !== rangoDefecto.hasta)) ||
     filtroEntidad !== "" ||
     filtroCampana !== "" ||
     filtroSubcampana !== "";

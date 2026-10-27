@@ -2,6 +2,7 @@
 
 import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
 import { ESTADOS_TAREA } from "@/app/mfpages/tareas/utils/tareasFilters";
+import { estadoIgnoraRangoFechas } from "@/lib/services/tareasService";
 import type { CampoFecha, EstadoFiltro } from "@/lib/services/tareasService";
 import styles from "./TaskFilters.module.css";
 
@@ -58,6 +59,11 @@ export default function TaskFilters({
     onLimpiar,
     hayFiltros,
 }: Props) {
+    const fechaDeshabilitada = estadoIgnoraRangoFechas(estado);
+    const tituloFecha = fechaDeshabilitada
+        ? "Este estado no usa rango de fechas"
+        : "Campo de fecha a filtrar";
+
     return (
         <section className={styles.filters} aria-label="Filtros de tareas">
             <div className={`${styles.field} ${styles.campaignField}`}>
@@ -97,7 +103,8 @@ export default function TaskFilters({
                     value={campoFecha}
                     onChange={(e) => onCampoFechaChange(e.target.value as CampoFecha)}
                     className={styles.control}
-                    title="Campo de fecha a filtrar"
+                    title={tituloFecha}
+                    disabled={fechaDeshabilitada}
                 >
                     <option value="solicitud">Solicitud</option>
                     <option value="entrega">Entrega</option>
@@ -113,6 +120,8 @@ export default function TaskFilters({
                     max={hasta || undefined}
                     onChange={(e) => onDesdeChange(e.target.value)}
                     className={styles.control}
+                    title={tituloFecha}
+                    disabled={fechaDeshabilitada}
                 />
             </label>
 
@@ -124,6 +133,8 @@ export default function TaskFilters({
                     min={desde || undefined}
                     onChange={(e) => onHastaChange(e.target.value)}
                     className={styles.control}
+                    title={tituloFecha}
+                    disabled={fechaDeshabilitada}
                 />
             </label>
 
