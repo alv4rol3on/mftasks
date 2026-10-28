@@ -64,7 +64,7 @@
 }
 
 .taskRow:hover {
-    background: #f7fafc;
+    background: #828485;
 }
 
 .taskRow:focus-visible {
@@ -104,7 +104,7 @@
 
 .subjectTitle {
     display: block;
-    color: #12263f;
+    color: 1px solid var(--color-text-secondary);
     font-size: 13.5px;
     font-weight: 700;
     line-height: 1.35;
@@ -428,6 +428,7 @@
 
     .subjectTitle {
         font-size: 13px;
+        color: 1px solid var(--color-text-secondary);
     }
 
     .progress {

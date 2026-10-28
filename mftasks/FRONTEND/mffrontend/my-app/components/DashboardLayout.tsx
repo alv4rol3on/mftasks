@@ -8,9 +8,9 @@ import CapacidadesProvider from "./CapacidadesProvider";
 import GuardRuta from "./GuardRuta";
 import "../components/DashboardLayout.css";
 import {
-    cerrarSesion,
-    isAutenticado,
-    obtenerDatosMe,
+  cerrarSesion,
+  isAutenticado,
+  obtenerDatosMe,
 } from "../lib/auth";
 
 interface DashboardLayoutProps {
@@ -28,6 +28,27 @@ export default function DashboardLayout({
   const [menuOpen, setMenuOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState<string | null>(null);
+
+  const [tema, setTema] = useState<"light" | "dark">("light");
+
+
+
+  useEffect(() => {
+    const temaGuardado = localStorage.getItem("tema");
+    const temaInicial = temaGuardado === "dark" ? "dark" : "light";
+
+    document.documentElement.dataset.theme = temaInicial;
+    setTema(temaInicial);
+  }, []);
+
+  const alternarTema = () => {
+    const nuevoTema = tema === "dark" ? "light" : "dark";
+
+    document.documentElement.dataset.theme = nuevoTema;
+    localStorage.setItem("tema", nuevoTema);
+    setTema(nuevoTema);
+  };
+
 
   useEffect(() => {
     if (!isAutenticado()) {
@@ -78,13 +99,35 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="dashboard-logout"
-            >
-              Cerrar sesión
-            </button>
+
+            <div className="dashboard-header-actions">
+              <button
+                type="button"
+                className="dashboard-theme-toggle"
+                onClick={alternarTema}
+                aria-label={
+                  tema === "dark"
+                    ? "Activar modo claro"
+                    : "Activar modo noche"
+                }
+                title={
+                  tema === "dark"
+                    ? "Activar modo claro"
+                    : "Activar modo noche"
+                }
+              >
+                {tema === "dark" ? "🌙" : "☀️"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="dashboard-logout"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+
           </header>
 
           <section key={pathname} className="dashboard-content">

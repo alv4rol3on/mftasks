@@ -190,3 +190,50 @@
         animation: none;
     }
 }
+
+
+.dashboard-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.dashboard-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: var(--radius-control);
+    background: var(--modo);
+    color: #FFFFFF;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dashboard-theme-toggle:hover {
+    background: rgb(235, 118, 22);
+}
+
+.dashboard-theme-toggle:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+    .dashboard-header-actions {
+        gap: 5px;
+    }
+
+    .dashboard-theme-toggle {
+        padding: 7px;
+    }
+
+    .dashboard-theme-toggle span {
+        display: none;
+    }
+}

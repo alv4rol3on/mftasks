@@ -84,7 +84,7 @@
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 700;
-  color: #050505;
+  color: var(--color-background-2);
 }
 
 .dataGrid {
@@ -103,7 +103,7 @@
 .label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--color-background-2);
 }
 
 .value {
@@ -134,7 +134,7 @@
 
 .badge {
   background: var(--color-badge);
-  color: var(--color-background);
+  color: var(--color-background-2);
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;
