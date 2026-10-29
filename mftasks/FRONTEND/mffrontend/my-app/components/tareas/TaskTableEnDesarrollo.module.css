@@ -61,10 +61,11 @@
 .taskRow {
     cursor: pointer;
     transition: background .15s, box-shadow .15s;
+    background: var(--color-solicitudes);
 }
 
 .taskRow:hover {
-    background: #828485;
+    background: #7fadc4;
 }
 
 .taskRow:focus-visible {
@@ -73,17 +74,22 @@
 }
 
 .rowSolucionado {
-    background: #f6fbf8;
+    background: var(--color-solucionado);
     box-shadow: inset 3px 0 0 var(--color-done);
 }
 
 .rowStandBy {
-    background: #fffbf3;
+    background: var(--color-standby);
+    box-shadow: inset 3px 0 0 var(--color-waiting);
+}
+
+.rowRechazado {
+    background: var(--color-rechazado);
     box-shadow: inset 3px 0 0 var(--color-waiting);
 }
 
 .rowFueraDeTiempo {
-    background: #fff8f7;
+    background: var(--color-fueradetiempo);
     box-shadow: inset 3px 0 0 var(--color-danger);
 }
 
@@ -376,7 +382,7 @@
     .taskTable tbody td[data-label="Solicitud"] {
         display: block;
         padding: 13px 14px;
-        background: #fbfcfd;
+        background: var(--color-background);        
         border-bottom: 1px solid var(--color-border);
         text-align: left;
     }

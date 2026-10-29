@@ -89,6 +89,7 @@ function FilaTarea({
     styles.taskRow,
     tarea.estado === "SOLUCIONADO" ? styles.rowSolucionado : "",
     tarea.estado === "STAND_BY" ? styles.rowStandBy : "",
+    tarea.estado === "RECHAZADO" ? styles.rowRechazado : "",
     fueraDeTiempo ? styles.rowFueraDeTiempo : "",
     conPendiente ? styles.rowPendiente : "",
   ].filter(Boolean).join(" ");

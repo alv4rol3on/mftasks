@@ -208,7 +208,7 @@ export default function SolicitudesPage() {
         <select
           value={filtroEstado}
           onChange={(e) => setFiltroEstado(e.target.value)}
-          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: ("white") }}
         >
           {ESTADOS.map((s) => (
             <option key={s} value={s}>{etiquetaEstado(s)}</option>

@@ -94,7 +94,7 @@ export default function FiltroCampanaSubcampana({
     borderRadius: 8,
     padding: "8px 12px",
     fontSize: 13,
-    background: "white",
+    background: "var(--color-select)",
     minWidth: 170,
     ...selectStyle,
   };

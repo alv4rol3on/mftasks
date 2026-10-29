@@ -507,8 +507,8 @@ export default function EquiposPage() {
             onClick={() => setSoloMios((v) => !v)}
             style={{
               border: "1px solid var(--color-border)",
-              background: soloMios ? "var(--color-text)" : "white",
-              color: soloMios ? "white" : "var(--color-text)",
+              background: soloMios ? "var(--color-solomios)" : "var(--color-background)",
+              color: soloMios ? "var(--color-background-2)" : "var(---color-solomios)",
               borderRadius: 8,
               padding: "8px 14px",
               fontSize: 13,

@@ -314,7 +314,7 @@ export default function PerfilPage() {
                           : {}),
                       });
                     }}
-                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-select)" }}
                   >
                     <option value="DISPONIBLE">Disponible</option>
                     <option value="INDISPONIBLE">Indisponible</option>
