@@ -9,7 +9,7 @@
     --color-background-2: #000000;
     --color-surface: #F2F3F5;
     --color-border: #E0E3E8;
-    --color-select: #383838;
+    --color-select: #F2F3F5;
     --color-text: #101828;
     --color-text-secondary: #64748B;
     --color-badge: #adadad;
@@ -37,7 +37,7 @@
 
     --modo: #65ceff;
 
-
+    --color-table-row: #FFFFFF;
     --radius-panel: 12px;
     --radius-control: 8px;
     --spacing-page: 20px;
@@ -70,10 +70,10 @@
     --color-rechazado:var(--color-background);
 
     --color-waiting: #E0A33B;
-    --color-in-progress: #60A5FA;
+    --color-in-progress: #1769AA;
     --color-paused: #9CA3AF;
-    --color-done: #4ADE80;
-    --color-done-hover: #22C55E;
+    --color-done: #25855A;
+    --color-done-hover: rgb(28, 175, 82);
     --color-disabled: #333333;
     --color-solomios: #A91F0A;
 
@@ -83,6 +83,8 @@
     --color-overlay: rgba(0, 0, 0, .7);
 
     --modo: #0b0642;
+
+    --color-table-row: #2B2B2B;
 }
 
 /* Transición suave al cambiar de tema */
@@ -111,4 +113,29 @@ body {
     color: var(--color-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+}
+
+/* Tablas de solicitudes */
+.solicitudes-page table tbody tr {
+    background: var(--color-table-row) !important;
+    color: var(--color-text);
+}
+
+.solicitudes-page table tbody td {
+    background: inherit !important;
+    color: var(--color-text);
+}
+
+/* Select y fechas */
+.solicitudes-page select,
+.solicitudes-page input[type="date"] {
+    background-color: var(--color-select) !important;
+    color: var(--color-text) !important;
+    color-scheme: light dark;
+}
+
+.solicitudes-page select:disabled,
+.solicitudes-page input[type="date"]:disabled {
+    background-color: var(--color-select) !important;
+    opacity: 1;
 }

@@ -291,7 +291,7 @@ export default function UsuariosSection({ setMsg }: Props) {
 
                 <tbody
                   style={{
-                    backgroundColor: "white",
+                    backgroundColor: "var(--color-background)",
                   }}
                 >
                   {usuariosPaginados.length === 0 ? (

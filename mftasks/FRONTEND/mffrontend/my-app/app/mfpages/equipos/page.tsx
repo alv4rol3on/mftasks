@@ -397,8 +397,19 @@ export default function EquiposPage() {
   };
 
   const badgeEstado = (estado: string) => {
-    if (estado === "ACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Miembro activo</span>;
-    if (estado === "INACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Inactivo</span>;
+    if (estado === "ACTIVO")
+      return (
+        <span style={{
+          background: "var(--color-done)",
+          color: "white",
+          padding: "2px 8px",
+          borderRadius: 999,
+          fontSize: 11,
+          fontWeight: 600
+        }}>
+          Miembro activo
+        </span>
+      ); if (estado === "INACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Inactivo</span>;
     return <span style={{ background: "var(--color-border)", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>{estado}</span>;
   };
 
@@ -406,7 +417,18 @@ export default function EquiposPage() {
     if (miembro?.disponibilidad?.estado === "INDISPONIBLE") {
       return <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", color: "var(--color-waiting)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Indisponible</span>;
     }
-    return <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Disponible</span>;
+    return (
+      <span style={{
+        background: "var(--color-done)",
+        color: "white",
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 600
+      }}>
+        Disponible
+      </span>
+    );
   };
 
   const esLiderDeEquipo = (equipo: EquipoInfo) => equipo.lider?.id === usuario?.id || esAdmin;
@@ -491,7 +513,7 @@ export default function EquiposPage() {
           {puedeCrearEquipo && !esClientePuro && (
             <button
               onClick={abrirModalCrear}
-              style={{ background: "var(--color-brand)", color: "var(--color-background)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}
+              style={{ background: "var(--color-brand)", color: "white", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}
             >
               + Crear equipo
             </button>
@@ -619,12 +641,12 @@ export default function EquiposPage() {
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: 12, background: "white", border: `1px solid ${liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ marginBottom: 12, background: "var(--color-background)", border: `1px solid ${liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeEstado(liderMiembro.estado)} {liderMiembro && badgeDisponibilidad(liderMiembro)}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `▸ ${equipo.lider.cargo}` : ""}</div>
+                        <div style={{ fontSize: 12, color: "var(--color-background-2)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `▸ ${equipo.lider.cargo}` : ""}</div>
                         {liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" && (
                           <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
                             {liderMiembro.disponibilidad.motivo ? `Motivo: ${liderMiembro.disponibilidad.motivo}` : ""}
@@ -635,9 +657,9 @@ export default function EquiposPage() {
                       </div>
                     </div>
 
-                    
+
                     <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", background: "white", borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border)" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--color-background)", borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border)" }}>
                         <thead>
                           <tr style={{ background: "var(--color-surface)", textAlign: "left", fontSize: 12, color: "var(--color-text-secondary)" }}>
                             <th style={{ padding: "10px 12px", fontWeight: 600 }}>Miembro</th>
@@ -660,8 +682,13 @@ export default function EquiposPage() {
                                   key={m.id}
                                   onClick={() => { if (puedoGestionar) setModalMiembro({ equipo, miembro: m }); }}
                                   title={puedoGestionar ? "Clic para gestionar al integrante" : undefined}
-                                  style={{ borderTop: "1px solid var(--color-border)", fontSize: 13, background: m.estado === "INACTIVO" ? "color-mix(in srgb, var(--color-danger) 8%, white)" : m.disponibilidad?.estado === "INDISPONIBLE" ? "color-mix(in srgb, var(--color-waiting) 10%, white)" : "white", opacity: m.estado === "INACTIVO" ? 0.7 : 1, cursor: puedoGestionar ? "pointer" : "default" }}
-                                >
+                                  style={{
+                                    borderTop: "1px solid var(--color-border)",
+                                    fontSize: 13,
+                                    background: "var(--color-background)",
+                                    opacity: m.estado === "INACTIVO" ? 0.7 : 1,
+                                    cursor: puedoGestionar ? "pointer" : "default"
+                                  }}                                >
                                   <td style={{ padding: "10px 12px" }}>
                                     <div
                                       style={{

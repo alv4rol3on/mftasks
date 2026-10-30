@@ -188,3 +188,17 @@
         animation: none;
     }
 }
+
+.page select:disabled {
+    background-color: var(--color-select) !important;
+    color: var(--color-text-secondary);
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.page input[type="date"]:disabled {
+    background-color: var(--color-select) !important;
+    color: var(--color-text-secondary);
+    opacity: 1;
+    cursor: not-allowed;
+}

@@ -67,7 +67,7 @@
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 700;
-  color: rgb(5, 5, 5);
+  color: var(--color-background-2);
 }
 
 .formGrid {
@@ -93,7 +93,7 @@
   font-size: 13px;
   width: 100%;
   min-width: 0;
-  background: white;
+  background: var(--color-select);
 }
 
 .select:disabled {
@@ -104,7 +104,7 @@
 
 .btnPrimary {
   background: var(--color-brand);
-  color: var(--color-background);
+  color: white;
   border: 1px solid var(--color-brand);
   padding: 8px 14px;
   border-radius: var(--radius-control);
@@ -212,7 +212,7 @@
   padding: 6px 10px;
   font-size: 13px;
   min-width: 240px;
-  background: white;
+  background: var(--color-select);
 }
 
 .usersFilters {

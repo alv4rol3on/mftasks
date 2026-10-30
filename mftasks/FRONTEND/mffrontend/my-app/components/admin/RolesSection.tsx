@@ -343,7 +343,7 @@ export default function RolesSection({ setMsg }: Props) {
                 </tr>
               </thead>
 
-              <tbody style={{ backgroundColor: "white" }}>
+              <tbody style={{ backgroundColor: "var(--color-table-row)" }}>
                 {filas.length === 0 ? (
                   <tr>
                     <td
