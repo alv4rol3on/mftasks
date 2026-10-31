@@ -47,18 +47,6 @@ class Tarea(models.Model):
         ALTA = "ALTA", "Alta"
         URGENTE = "URGENTE", "Urgente"
 
-    class Severidad(models.TextChoices):
-        BAJA = "BAJA", "Baja"
-        MEDIA = "MEDIA", "Media"
-        ALTA = "ALTA", "Alta"
-        CRITICA = "CRITICA", "Crítica"
-
-    class Impacto(models.TextChoices):
-        BAJO = "BAJO", "Bajo"
-        MEDIO = "MEDIO", "Medio"
-        ALTO = "ALTO", "Alto"
-        CRITICO = "CRITICO", "Crítico"
-
 
     ticket = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
 
@@ -84,16 +72,6 @@ class Tarea(models.Model):
         choices=Prioridad.choices,
         default=Prioridad.MEDIA,
         db_index=True,
-    )
-    severidad = models.CharField(
-        max_length=20,
-        choices=Severidad.choices,
-        default=Severidad.MEDIA,
-    )
-    impacto = models.CharField(
-        max_length=20,
-        choices=Impacto.choices,
-        default=Impacto.MEDIO,
     )
 
     estado = models.CharField(

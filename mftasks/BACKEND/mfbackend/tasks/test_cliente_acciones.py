@@ -264,16 +264,12 @@ class ClienteAccionesTestCase(APITestCase):
             f"/api/tasks/tasks/{self.tarea.id}/triage/",
             {
                 "prioridad": "ALTA",
-                "severidad": "CRITICA",
-                "impacto": "ALTO",
             },
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.tarea.refresh_from_db()
         self.assertEqual(self.tarea.prioridad, "ALTA")
-        self.assertEqual(self.tarea.severidad, "CRITICA")
-        self.assertEqual(self.tarea.impacto, "ALTO")
         self.assertTrue(
             TareaLog.objects.filter(
                 tarea=self.tarea,

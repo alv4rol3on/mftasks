@@ -111,8 +111,6 @@ def generar_constancia_pdf(tarea: Tarea) -> bytes:
                 [_parrafo("Tipo", small), _parrafo(tarea.get_tipo_solicitud_display(), normal)],
                 [_parrafo("Estado", small), _parrafo(tarea.get_estado_display(), normal)],
                 [_parrafo("Prioridad", small), _parrafo(tarea.get_prioridad_display(), normal)],
-                [_parrafo("Severidad", small), _parrafo(tarea.get_severidad_display(), normal)],
-                [_parrafo("Impacto", small), _parrafo(tarea.get_impacto_display(), normal)],
                 [_parrafo("Entidad", small), _parrafo(getattr(entidad, "nombre", "-"), normal)],
                 [_parrafo("Campaña", small), _parrafo(getattr(campana, "nombre", "-"), normal)],
                 [_parrafo("Subcampaña", small), _parrafo(getattr(subcampana, "nombre", "-"), normal)],

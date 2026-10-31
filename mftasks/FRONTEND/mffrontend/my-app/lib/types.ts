@@ -92,8 +92,6 @@ export interface Task {
     auto_aprobada?: boolean;
     puede_triar?: boolean;
     prioridad?: "BAJA" | "MEDIA" | "ALTA" | "URGENTE";
-    severidad?: "BAJA" | "MEDIA" | "ALTA" | "CRITICA";
-    impacto?: "BAJO" | "MEDIO" | "ALTO" | "CRITICO";
     puede_cancelar?: boolean;
     puede_agregar_informacion?: boolean;
     puede_confirmar_solucion?: boolean;

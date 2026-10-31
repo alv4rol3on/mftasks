@@ -362,14 +362,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         if prioridad and prioridad in Tarea.Prioridad.values:
             queryset = queryset.filter(prioridad=prioridad)
 
-        severidad = (params.get("severidad") or "").upper()
-        if severidad and severidad in Tarea.Severidad.values:
-            queryset = queryset.filter(severidad=severidad)
-
-        impacto = (params.get("impacto") or "").upper()
-        if impacto and impacto in Tarea.Impacto.values:
-            queryset = queryset.filter(impacto=impacto)
-
         if params.get("excluir_espera") in ("1", "true", "yes"):
             queryset = queryset.exclude(estado=Tarea.Estado.EN_ESPERA)
 
@@ -1070,8 +1062,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         for campo, valores, etiqueta in (
             ("prioridad", Tarea.Prioridad.values, "Prioridad"),
-            ("severidad", Tarea.Severidad.values, "Severidad"),
-            ("impacto", Tarea.Impacto.values, "Impacto"),
         ):
             if campo not in request.data:
                 continue

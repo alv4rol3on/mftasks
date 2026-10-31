@@ -34,8 +34,6 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [tipoSolicitud, setTipoSolicitud] = useState("");
   const [detalleTipoSolicitud, setDetalleTipoSolicitud] = useState("");
   const [prioridad, setPrioridad] = useState("MEDIA");
-  const [severidad, setSeveridad] = useState("MEDIA");
-  const [impacto, setImpacto] = useState("MEDIO");
   const [entidadId, setEntidadId] = useState<number | "">("");
   const [campanaId, setCampanaId] = useState<number | "">("");
   const [subcampanaId, setSubcampanaId] = useState<number | "">("");
@@ -190,8 +188,6 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       formData.append("descripcion", normalizeMediaUrls(descripcion));
       formData.append("tipo_solicitud", tipoSolicitud);
       formData.append("prioridad", prioridad);
-      formData.append("severidad", severidad);
-      formData.append("impacto", impacto);
       formData.append(
         "detalle_tipo_solicitud",
         tipoSolicitud === "OTROS" ? detalleTipoSolicitud.trim() : ""
@@ -213,8 +209,6 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       setTipoSolicitud("");
       setDetalleTipoSolicitud("");
       setPrioridad("MEDIA");
-      setSeveridad("MEDIA");
-      setImpacto("MEDIO");
       setEntidadId("");
       setCampanaId("");
       setSubcampanaId("");
@@ -351,32 +345,6 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
               <option value="MEDIA">Prioridad: Media</option>
               <option value="ALTA">Prioridad: Alta</option>
               <option value="URGENTE">Prioridad: Urgente</option>
-            </select>
-
-            <select
-              aria-label="Severidad propuesta"
-              value={severidad}
-              onChange={(e) => setSeveridad(e.target.value)}
-              className={styles.inputField}
-              title="Severidad propuesta por el cliente"
-            >
-              <option value="BAJA">Severidad: Baja</option>
-              <option value="MEDIA">Severidad: Media</option>
-              <option value="ALTA">Severidad: Alta</option>
-              <option value="CRITICA">Severidad: Crítica</option>
-            </select>
-
-            <select
-              aria-label="Impacto propuesto"
-              value={impacto}
-              onChange={(e) => setImpacto(e.target.value)}
-              className={styles.inputField}
-              title="Impacto propuesto por el cliente"
-            >
-              <option value="BAJO">Impacto: Bajo</option>
-              <option value="MEDIO">Impacto: Medio</option>
-              <option value="ALTO">Impacto: Alto</option>
-              <option value="CRITICO">Impacto: Crítico</option>
             </select>
 
             <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />

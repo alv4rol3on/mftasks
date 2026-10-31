@@ -115,7 +115,7 @@ export interface SugerenciaAsignacion {
 
 export async function actualizarTriage(
   tareaId: number,
-  payload: { prioridad?: string; severidad?: string; impacto?: string }
+  payload: { prioridad?: string }
 ): Promise<Task> {
   return apiFetch<Task>(`/api/tasks/tasks/${tareaId}/triage/`, {
     method: "PATCH",
