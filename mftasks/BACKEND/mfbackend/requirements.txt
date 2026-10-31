@@ -17,3 +17,4 @@ celery
 redis
 django-anymail[resend]
 bleach==6.2.0
+reportlab==4.2.5

@@ -36,14 +36,27 @@ from usuarios.permissions import (
     es_lider_de_equipo
 )
 
-from .models import AprobacionTarea, ArchivoTarea, Subtarea, Tarea, TareaLog
+from .models import AprobacionTarea, Subtarea, Tarea, TareaLog
 from .permissions import (
     EsAsignadorDeEquipoDeTarea,
+    EsSolicitanteDeTarea,
     PuedeAprobarPasoDeTarea,
     es_aprobador_de_tarea,
 )
 from .serializers import SubtareaSerializer, TaskSerializer
+from .services.archivos import guardar_archivos, validar_archivos
 from .services.cancelacion import CancelacionInvalida, cancelar_tarea
+from .services.cliente_acciones import (
+    InformacionInvalida,
+    agregar_informacion,
+)
+from .services.confirmacion import (
+    ConfirmacionInvalida,
+    confirmar_solucion as confirmar_solucion_cliente,
+    programar_confirmacion,
+    reabrir_tarea,
+)
+from .services.constancia_pdf import generar_constancia_pdf
 from .services.logs import registrar_log
 from .services.notificaciones import notificar_subtarea, notificar_tarea
 
@@ -420,9 +433,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         elif self.action in (
             "update",
             "partial_update",
-            "destroy",
         ):
             permisos += [EsAdministrador()]
+        elif self.action == "destroy":
+            permisos = [IsAuthenticatedActivo(), EsSolicitanteDeTarea()]
 
         return permisos
 
@@ -435,7 +449,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
 
         try:
-            tarea = cancelar_tarea(tarea, request.user, motivo)
+            tarea = cancelar_tarea(
+                tarea,
+                request.user,
+                motivo,
+                solo_antes_de_iniciar=(
+                    es_cliente(request.user)
+                    and not es_administrador(request.user)
+                ),
+            )
         except CancelacionInvalida as exc:
             return Response(
                 {"detail": str(exc)},
@@ -456,43 +478,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
 
         if archivos:
-            max_total = 10 * 1024 * 1024
-
-            if sum(archivo.size for archivo in archivos) > max_total:
-                raise ValidationError({
-                    "archivo": (
-                        "Los archivos adjuntos no pueden superar "
-                        "los 10 MB en total."
-                    )
-                })
-
-            extensiones_permitidas = {
-                "pdf",
-                "doc",
-                "docx",
-                "xls",
-                "xlsx",
-                "txt",
-                "png",
-                "jpg",
-                "jpeg",
-                "zip",
-            }
-
-            for archivo in archivos:
-                extension = (
-                    archivo.name.rsplit(".", 1)[-1].lower()
-                    if "." in archivo.name
-                    else ""
-                )
-
-                if extension not in extensiones_permitidas:
-                    raise ValidationError({
-                        "archivo": (
-                            f"El formato del archivo "
-                            f"'{archivo.name}' no está permitido."
-                        )
-                    })
+            validar_archivos(archivos)
 
         with transaction.atomic():
             if es_cliente(user):
@@ -508,13 +494,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                     activo=True,
                 )
 
-            for archivo in archivos:
-                ArchivoTarea.objects.create(
-                    tarea=tarea,
-                    archivo=archivo,
-                    nombre=archivo.name,
-                    subido_por=user,
-                )
+            guardar_archivos(tarea, archivos, user)
 
             registrar_log(
                 tarea=tarea,
@@ -1107,6 +1087,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             asignado_id=asignado_id,
             peso=peso,
         )
+        _recalcular_progreso_tarea(tarea)
+        tarea.save(update_fields=["progreso"])
 
         return Response(
             SubtareaSerializer(subtarea).data,
@@ -1461,6 +1443,106 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
         return respuesta
 
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsSolicitanteDeTarea],
+        url_path="informacion-adicional",
+    )
+    def informacion_adicional(self, request, pk=None):
+        tarea = self.get_object()
+        detalle = request.data.get("detalle") or request.data.get("informacion") or ""
+        archivos = (
+            request.FILES.getlist("archivos")
+            or request.FILES.getlist("archivo")
+        )
+
+        try:
+            agregar_informacion(tarea, request.user, detalle, archivos)
+        except InformacionInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tarea.refresh_from_db()
+        return Response(
+            TaskSerializer(tarea, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsSolicitanteDeTarea],
+        url_path="confirmar-solucion",
+    )
+    def confirmar_solucion(self, request, pk=None):
+        tarea = self.get_object()
+
+        try:
+            tarea = confirmar_solucion_cliente(tarea, request.user)
+        except ConfirmacionInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        programar_correo_equipo(
+            evento="SOLICITUD_CONFIRMADA",
+            tarea=tarea,
+            mensaje="El cliente confirmó que la solución fue satisfactoria.",
+        )
+
+        return Response(
+            TaskSerializer(tarea, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsSolicitanteDeTarea],
+        url_path="reabrir",
+    )
+    def reabrir(self, request, pk=None):
+        tarea = self.get_object()
+        motivo = request.data.get("motivo") or request.data.get("motivo_reapertura") or ""
+
+        try:
+            tarea = reabrir_tarea(tarea, request.user, motivo)
+        except ConfirmacionInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        programar_correo_equipo(
+            evento="SOLICITUD_REABIERTA",
+            tarea=tarea,
+            mensaje=f"El cliente reabrió la solicitud. Motivo: {motivo}",
+        )
+
+        return Response(
+            TaskSerializer(tarea, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo, EsSolicitanteDeTarea],
+        url_path="constancia",
+    )
+    def constancia(self, request, pk=None):
+        tarea = self.get_object()
+        pdf = generar_constancia_pdf(tarea)
+        respuesta = HttpResponse(pdf, content_type="application/pdf")
+        respuesta["Content-Disposition"] = (
+            f'attachment; filename="constancia-{tarea.ticket or tarea.id}.pdf"'
+        )
+        return respuesta
+
 
     @action(
         detail=True,
@@ -1689,6 +1771,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea.save()
 
         if tarea.estado == Tarea.Estado.SOLUCIONADO and estado_tarea_anterior != Tarea.Estado.SOLUCIONADO:
+            programar_confirmacion(tarea)
+
             registrar_log(
                 tarea=tarea,
                 usuario=request.user,
@@ -1702,7 +1786,10 @@ class TaskViewSet(viewsets.ModelViewSet):
                 evento="SOLICITUD_FINALIZADA",
                 tarea=tarea,
                 usuario_destinatario=tarea.solicitante,
-                mensaje="Tu solicitud fue solucionada.",
+                mensaje=(
+                    "Tu solicitud fue solucionada. Puedes confirmarla o reabrirla "
+                    "desde el detalle de la solicitud."
+                ),
             )
 
         _notificar_reanudacion(tarea, estado_tarea_anterior)

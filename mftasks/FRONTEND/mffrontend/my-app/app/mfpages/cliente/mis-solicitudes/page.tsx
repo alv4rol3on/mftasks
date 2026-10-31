@@ -333,6 +333,7 @@ export default function MisSolicitudesPage() {
         key={selected?.id ?? "none"}
         tarea={selected}
         onClose={() => setSelectedId(null)}
+        onRefresh={cargar}
       />
     </div>
   );

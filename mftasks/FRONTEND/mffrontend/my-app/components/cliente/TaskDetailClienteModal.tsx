@@ -1,11 +1,16 @@
 "use client";
 import { useState } from "react";
 import { Task } from "@/lib/types";
+import { apiFetchBlob } from "@/lib/api";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 import RichTextView from "@/components/shared/RichTextView";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import HistorialTarea from "../tareas/HistorialTarea";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
+import CancelarSolicitudModal from "@/components/solicitudes/CancelarSolicitudModal";
+import AgregarInformacionModal from "./AgregarInformacionModal";
+import ConfirmarSolucionModal from "./ConfirmarSolucionModal";
+import ReabrirSolicitudModal from "./ReabrirSolicitudModal";
 
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -23,15 +28,128 @@ const fmt = (f: string | null | undefined) => {
   return isNaN(d.getTime()) ? "-" : formatter.format(d);
 };
 
-type Props = { tarea: Task | null; onClose: () => void };
+const accionBtn = {
+  background: "var(--color-background)",
+  color: "var(--color-text)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 8,
+  padding: "7px 12px",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 600,
+};
 
-export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
+type Props = {
+  tarea: Task | null;
+  onClose: () => void;
+  onRefresh: () => void | Promise<void>;
+};
+
+type Accion = "cancelar" | "informacion" | "confirmar" | "reabrir" | null;
+
+export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Props) {
   const [tab, setTab] = useState<"detalle" | "historial">("detalle");
+  const [accion, setAccion] = useState<Accion>(null);
+  const [descargando, setDescargando] = useState(false);
+  const [descargaError, setDescargaError] = useState<string | null>(null);
 
   if (!tarea) return null;
   const progresoNum = parseFloat(String(tarea.progreso ?? 0)) || 0;
 
   const sinAprobar = tarea.estado === "EN_ESPERA" || tarea.estado === "RECHAZADO"
+
+  const descargarConstancia = async () => {
+    setDescargando(true);
+    setDescargaError(null);
+    try {
+      const blob = await apiFetchBlob(
+        `/api/tasks/tasks/${tarea.id}/constancia/`
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `constancia-${tarea.ticket ?? tarea.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setDescargaError((e as Error).message);
+    } finally {
+      setDescargando(false);
+    }
+  };
+
+  const refrescar = () => {
+    setAccion(null);
+    void onRefresh();
+  };
+
+  const puedeCancelar = tarea.puede_cancelar ?? false;
+  const puedeAgregarInfo = tarea.puede_agregar_informacion ?? false;
+  const puedeConfirmar = tarea.puede_confirmar_solucion ?? false;
+  const puedeReabrir = tarea.puede_reabrir ?? false;
+
+  const acciones = (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 8,
+        padding: "0 22px 16px",
+      }}
+    >
+      {puedeAgregarInfo && (
+        <button
+          type="button"
+          onClick={() => setAccion("informacion")}
+          style={accionBtn}
+        >
+          + Agregar información
+        </button>
+      )}
+      {puedeConfirmar && (
+        <button
+          type="button"
+          onClick={() => setAccion("confirmar")}
+          style={{ ...accionBtn, background: "var(--color-done)", color: "var(--color-on-accent)", borderColor: "var(--color-done)" }}
+        >
+          Confirmar solución
+        </button>
+      )}
+      {puedeReabrir && (
+        <button
+          type="button"
+          onClick={() => setAccion("reabrir")}
+          style={{ ...accionBtn, color: "var(--color-waiting)", borderColor: "var(--color-waiting)" }}
+        >
+          Reabrir solicitud
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => void descargarConstancia()}
+        disabled={descargando}
+        style={accionBtn}
+      >
+        {descargando ? "Generando PDF…" : "Descargar constancia PDF"}
+      </button>
+      {puedeCancelar && (
+        <button
+          type="button"
+          onClick={() => setAccion("cancelar")}
+          style={{ ...accionBtn, color: "var(--color-danger)", borderColor: "var(--color-danger)" }}
+        >
+          Cancelar solicitud
+        </button>
+      )}
+      {descargaError && (
+        <span style={{ fontSize: 12, color: "var(--color-danger)", alignSelf: "center" }}>
+          {descargaError}
+        </span>
+      )}
+    </div>
+  );
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -43,6 +161,7 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
           </div>
           <button className={styles.close} onClick={onClose}>✕</button>
         </div>
+        {acciones}
         <div className={styles.modalBody}>
           <div className={styles.tabsHeader} style={{ gridColumn: "1 / -1" }}>
             <button
@@ -61,6 +180,52 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
 
           {tab === "detalle" ? (
             <>
+              {(tarea.estado_explicado || tarea.siguiente_paso || tarea.motivo_demora) && (
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 10,
+                    background: "var(--color-surface)",
+                    padding: "12px 14px",
+                    display: "grid",
+                    gap: 4,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <strong style={{ fontSize: 13 }}>Estado actual</strong>
+                    <TaskStatusBadge estado={tarea.estado} compact />
+                  </div>
+                  {tarea.estado_explicado && (
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--color-text)" }}>
+                      {tarea.estado_explicado}
+                    </p>
+                  )}
+                  {tarea.siguiente_paso && (
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      <strong style={{ color: "var(--color-text)" }}>Siguiente paso:</strong>{" "}
+                      {tarea.siguiente_paso}
+                    </p>
+                  )}
+                  {tarea.motivo_demora && (
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--color-waiting)" }}>
+                      <strong>Motivo:</strong> {tarea.motivo_demora}
+                    </p>
+                  )}
+                  {tarea.equipo_lider_nombre && (
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      Responsable del equipo: <strong>{tarea.equipo_lider_nombre}</strong>
+                    </p>
+                  )}
+                  {tarea.fecha_limite_confirmacion &&
+                    tarea.confirmacion_cliente === "PENDIENTE" && (
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
+                        Confirma o reabre antes del{" "}
+                        <strong>{fmt(tarea.fecha_limite_confirmacion)}</strong>.
+                      </p>
+                    )}
+                </div>
+              )}
               <div className={styles.modalColumn}>
                 <h3>Información</h3>
                 <table className={styles.infoTable}>
@@ -181,6 +346,35 @@ export default function TaskDetailClienteModal({ tarea, onClose }: Props) {
           )}
         </div>
       </div>
+
+      {accion === "cancelar" && (
+        <CancelarSolicitudModal
+          tarea={tarea}
+          onClose={() => setAccion(null)}
+          onCancelled={refrescar}
+        />
+      )}
+      {accion === "informacion" && (
+        <AgregarInformacionModal
+          tarea={tarea}
+          onClose={() => setAccion(null)}
+          onSaved={refrescar}
+        />
+      )}
+      {accion === "confirmar" && (
+        <ConfirmarSolucionModal
+          tarea={tarea}
+          onClose={() => setAccion(null)}
+          onSaved={refrescar}
+        />
+      )}
+      {accion === "reabrir" && (
+        <ReabrirSolicitudModal
+          tarea={tarea}
+          onClose={() => setAccion(null)}
+          onSaved={refrescar}
+        />
+      )}
     </div >
   );
 }

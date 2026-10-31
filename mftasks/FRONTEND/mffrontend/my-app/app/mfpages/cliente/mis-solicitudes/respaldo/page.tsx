@@ -102,7 +102,7 @@ export default function MisSolicitudesPage() {
       )}
 
       <CrearSolicitudModal open={openCrear} onClose={() => setOpenCrear(false)} onCreated={() => { cargar(); }} />
-      <TaskDetailClienteModal tarea={selected} onClose={() => setSelected(null)} />
+      <TaskDetailClienteModal tarea={selected} onClose={() => setSelected(null)} onRefresh={cargar} />
     </div>
   );
 }

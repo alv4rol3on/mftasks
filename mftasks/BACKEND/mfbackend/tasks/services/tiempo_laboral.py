@@ -184,6 +184,26 @@ def sumar_tiempo_laboral(
     return cursor
 
 
+def sumar_dias_habiles(base: datetime, dias: int) -> datetime:
+    """Suma días hábiles (lunes a viernes) conservando la hora de `base`."""
+    if not base:
+        return base
+
+    if base.tzinfo is None:
+        base = timezone.make_aware(base, timezone.get_current_timezone())
+
+    base = timezone.localtime(base)
+    cursor = base
+    restantes = max(0, int(dias or 0))
+
+    while restantes > 0:
+        cursor += timedelta(days=1)
+        if cursor.weekday() < 5:
+            restantes -= 1
+
+    return cursor
+
+
 def _merge_intervalos(intervalos: list) -> list:
     """Une intervalos solapados/contiguos."""
     if not intervalos:

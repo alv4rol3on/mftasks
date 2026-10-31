@@ -34,6 +34,11 @@ const ETIQUETAS_EVENTO: Record<string, string> = {
     FIN: "Fin",
     CAMBIO_ASIGNADO: "Reasignación",
     CAMBIO_PROGRESO: "Cambio de progreso",
+    CANCELACION: "Cancelación",
+    INFORMACION_ADICIONAL: "Información adicional",
+    CONFIRMACION_CLIENTE: "Confirmación del cliente",
+    CONFIRMACION_AUTOMATICA: "Confirmación automática",
+    REAPERTURA: "Reapertura",
 };
 
 type Props = {

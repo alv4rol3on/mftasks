@@ -312,9 +312,9 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
             >
               <option value="">--Elige el tipo de solicitud--</option>
               <option value="NUEVA_FUNCIONALIDAD">Nueva funcionalidad</option>
-              <option value="MEJORA">Mejora</option>
+              <option value="REPORTE">Creación de reporte</option>
               <option value="CORRECCION_ERROR">Corrección de error</option>
-              <option value="SOPORTE">Soporte</option>
+              <option value="CREACION_BI">Creación de BI</option>
               <option value="OTROS">Otros</option>
             </select>
 

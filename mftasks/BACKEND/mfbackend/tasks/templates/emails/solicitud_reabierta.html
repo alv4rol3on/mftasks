@@ -1,0 +1,11 @@
+{% extends "emails/notificacion_base.html" %}
+
+{% block titulo_documento %}Solicitud reabierta{% endblock %}
+{% block encabezado %}Solicitud reabierta{% endblock %}
+
+{% block extra %}
+<p style="color: #616161; font-size: 13px;">
+    El cliente reabrió la solicitud porque la solución no fue satisfactoria.
+    Se creó una subtarea de reapertura pendiente para el líder del equipo.
+</p>
+{% endblock %}

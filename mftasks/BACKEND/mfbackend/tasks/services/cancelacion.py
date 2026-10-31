@@ -18,7 +18,7 @@ class CancelacionInvalida(Exception):
     pass
 
 
-def cancelar_tarea(tarea, usuario, motivo):
+def cancelar_tarea(tarea, usuario, motivo, solo_antes_de_iniciar=False):
     motivo = (motivo or "").strip()
     if not motivo:
         raise CancelacionInvalida("El motivo de cancelación es obligatorio.")
@@ -33,6 +33,14 @@ def cancelar_tarea(tarea, usuario, motivo):
         if actual.estado not in ESTADOS_CANCELABLES:
             raise CancelacionInvalida(
                 "Solo se pueden cancelar solicitudes abiertas."
+            )
+        if solo_antes_de_iniciar and actual.estado not in (
+            Tarea.Estado.EN_ESPERA,
+            Tarea.Estado.APROBADO,
+        ):
+            raise CancelacionInvalida(
+                "Solo puedes cancelar la solicitud antes de que el equipo "
+                "inicie el trabajo."
             )
 
         estado_anterior = actual.estado

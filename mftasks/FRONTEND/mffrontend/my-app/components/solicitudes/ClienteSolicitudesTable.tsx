@@ -72,6 +72,16 @@ export default function ClienteSolicitudesTable({ tareas, onSelect }: Props) {
                     </td>
                     <td data-label="Estado">
                       <TaskStatusBadge estado={t.estado} compact />
+                      {t.confirmacion_cliente === "PENDIENTE" && (
+                        <span style={{ display: "block", marginTop: 4, fontSize: 10.5, color: "var(--color-waiting)", fontWeight: 700 }}>
+                          Por confirmar
+                        </span>
+                      )}
+                      {t.confirmacion_cliente === "REABIERTA" && (
+                        <span style={{ display: "block", marginTop: 4, fontSize: 10.5, color: "var(--color-in-progress)", fontWeight: 700 }}>
+                          Reabierta
+                        </span>
+                      )}
                     </td>
                     <td data-label="Progreso" style={{ whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
                       {parseFloat(String(t.progreso ?? 0)).toFixed(1)}%

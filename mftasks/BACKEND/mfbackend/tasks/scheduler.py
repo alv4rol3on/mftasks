@@ -80,6 +80,35 @@ def check_inicios_programados():
         logger.info(f"APScheduler: {count} tareas iniciadas automáticamente.")
 
 
+def check_confirmaciones_vencidas():
+    """Confirma automáticamente las soluciones cuyo plazo del cliente venció."""
+    from .models import Tarea
+    from .services.confirmacion import confirmar_automaticamente
+
+    ahora = timezone.now()
+    candidatas = Tarea.objects.filter(
+        estado=Tarea.Estado.SOLUCIONADO,
+        confirmacion_cliente=Tarea.ConfirmacionCliente.PENDIENTE,
+        fecha_limite_confirmacion__lte=ahora,
+    )
+
+    count = 0
+    for tarea in candidatas:
+        try:
+            confirmar_automaticamente(tarea)
+            count += 1
+        except Exception as e:
+            logger.exception(
+                f"Error al auto-confirmar la solicitud {tarea.pk}: {e}"
+            )
+
+    if count:
+        logger.info(
+            "APScheduler: %s soluciones confirmadas automáticamente.",
+            count,
+        )
+
+
 def enviar_digest_miembros():
     """09:00 -> a miembros activos (no líderes): solicitudes sin solucionar."""
     from .models import Tarea
@@ -212,6 +241,14 @@ def start_scheduler():
             check_inicios_programados,
             trigger=IntervalTrigger(seconds=60),
             id="check_inicios_programados",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+        _scheduler.add_job(
+            check_confirmaciones_vencidas,
+            trigger=IntervalTrigger(minutes=15),
+            id="check_confirmaciones_vencidas",
             max_instances=1,
             coalesce=True,
             replace_existing=True,

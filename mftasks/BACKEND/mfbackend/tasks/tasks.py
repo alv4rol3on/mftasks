@@ -40,6 +40,14 @@ EVENTOS_EMAIL = {
         "asunto": "Solicitud {codigo} solucionada",
         "template": "emails/solicitud_finalizada.html",
     },
+    "SOLICITUD_REABIERTA": {
+        "asunto": "Solicitud {codigo} reabierta por el cliente",
+        "template": "emails/solicitud_reabierta.html",
+    },
+    "SOLICITUD_CONFIRMADA": {
+        "asunto": "Solicitud {codigo} confirmada por el cliente",
+        "template": "emails/solicitud_confirmada.html",
+    },
     "EQUIPO_NUEVA_SOLICITUD": {
         "asunto": "Nueva solicitud en tu equipo: {codigo}",
         "template": "emails/equipo_nueva_solicitud.html",

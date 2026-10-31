@@ -116,6 +116,33 @@ class Tarea(models.Model):
     )
     fecha_solucion = models.DateTimeField(null=True, blank=True)
 
+    class ConfirmacionCliente(models.TextChoices):
+        PENDIENTE = "PENDIENTE", "Pendiente"
+        CONFIRMADA = "CONFIRMADA", "Confirmada"
+        REABIERTA = "REABIERTA", "Reabierta"
+
+    confirmacion_cliente = models.CharField(
+        max_length=20,
+        choices=ConfirmacionCliente.choices,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Estado de conformidad del cliente con la solución.",
+    )
+    fecha_limite_confirmacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Fecha límite para que el cliente confirme o reabra la solicitud.",
+    )
+    fecha_confirmacion_cliente = models.DateTimeField(null=True, blank=True)
+    reaperturas_cliente = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Cantidad de veces que el cliente reabrió la solicitud.",
+    )
+    fecha_ultima_reapertura = models.DateTimeField(null=True, blank=True)
+    motivo_reapertura = models.TextField(blank=True)
+
     incluye_sabado = models.BooleanField(default=False, help_text="Si está activo, el contador incluye sábados de 9am a 1pm; si no, solo L-V 9-18.")
 
     activo = models.BooleanField(default=True, db_index=True)
@@ -335,6 +362,10 @@ class TareaLog(models.Model):
         CAMBIO_ASIGNADO = "CAMBIO_ASIGNADO", "Cambio de asignado"
         CAMBIO_PROGRESO = "CAMBIO_PROGRESO", "Cambio de progreso"
         CANCELACION = "CANCELACION", "Cancelación"
+        INFORMACION_ADICIONAL = "INFORMACION_ADICIONAL", "Información adicional"
+        CONFIRMACION_CLIENTE = "CONFIRMACION_CLIENTE", "Confirmación del cliente"
+        CONFIRMACION_AUTOMATICA = "CONFIRMACION_AUTOMATICA", "Confirmación automática"
+        REAPERTURA = "REAPERTURA", "Reapertura"
 
     tarea = models.ForeignKey(
         Tarea,
