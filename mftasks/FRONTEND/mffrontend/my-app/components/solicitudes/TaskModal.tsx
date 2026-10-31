@@ -102,9 +102,9 @@ export default function TaskModal({
     };
 
     const colores: Record<string, { bg: string; fg: string }> = {
-        aprobado: { bg: "color-mix(in srgb, var(--color-done) 12%, white)", fg: "var(--color-done)" },
-        rechazado: { bg: "color-mix(in srgb, var(--color-danger) 10%, white)", fg: "var(--color-danger)" },
-        actual: { bg: "color-mix(in srgb, var(--color-waiting) 12%, white)", fg: "var(--color-waiting)" },
+        aprobado: { bg: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", fg: "var(--color-done)" },
+        rechazado: { bg: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", fg: "var(--color-danger)" },
+        actual: { bg: "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))", fg: "var(--color-waiting)" },
         pendiente: { bg: "var(--color-surface)", fg: "var(--color-text-secondary)" },
         omitido: { bg: "var(--color-surface)", fg: "var(--color-text-secondary)" },
     };

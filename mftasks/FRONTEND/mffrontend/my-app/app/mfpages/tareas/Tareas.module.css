@@ -98,8 +98,8 @@
 }
 
 .errorPanel {
-    border-color: #f7c8c4;
-    background: #fffafa;
+    border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
+    background: color-mix(in srgb, var(--color-danger) 8%, var(--color-background));
 }
 
 .errorPanel strong {
@@ -111,7 +111,7 @@
     border: 1px solid var(--mf-red);
     border-radius: 8px;
     background: var(--mf-red);
-    color: var(--color-background);
+    color: var(--color-on-accent);
     padding: 7px 14px;
     font-size: 12px;
     font-weight: 700;
@@ -123,9 +123,9 @@
 }
 
 .inlineError {
-    border: 1px solid #f7c8c4;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     border-radius: 10px;
-    background: #fff5f4;
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
     color: var(--color-danger);
     padding: 10px 14px;
     font-size: 12px;

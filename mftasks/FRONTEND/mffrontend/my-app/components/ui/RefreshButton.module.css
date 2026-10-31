@@ -26,7 +26,7 @@
 
 .solid {
   background: var(--color-brand);
-  color: var(--color-background);
+  color: var(--color-on-accent);
 }
 
 .solid:hover:not(:disabled) {

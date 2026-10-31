@@ -65,7 +65,7 @@
 }
 
 .taskRow:hover {
-    background: #7fadc4;
+    background: color-mix(in srgb, var(--color-in-progress) 16%, var(--color-background));
 }
 
 .taskRow:focus-visible {
@@ -143,7 +143,7 @@
 .pendingNote {
     display: block;
     margin-top: 5px;
-    color: #8a5a0a;
+    color: var(--color-waiting);
     font-size: 11px;
     font-weight: 600;
 }
@@ -247,7 +247,7 @@
     height: 40px;
     margin-bottom: 10px;
     border-radius: 50%;
-    background: #e7f5ee;
+    background: color-mix(in srgb, var(--color-done) 12%, var(--color-background));
     color: var(--mf-done);
     font-size: 18px;
     font-weight: 700;
@@ -285,7 +285,7 @@
 }
 
 .tableContainer::-webkit-scrollbar-thumb {
-    background: #c3cbd5;
+    background: var(--color-text-secondary);
     border-radius: 4px;
 }
 

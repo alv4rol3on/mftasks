@@ -74,10 +74,10 @@ export default function AlertasResumen() {
         ) : (
           <div className="grid gap-3">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En espera: {resumen?.en_espera ?? 0}</span>
-              <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Aprobadas: {resumen?.aprobadas ?? 0}</span>
-              <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En desarrollo: {resumen?.en_desarrollo ?? 0}</span>
-              <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Rechazadas: {resumen?.rechazadas ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En espera: {resumen?.en_espera ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Aprobadas: {resumen?.aprobadas ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En desarrollo: {resumen?.en_desarrollo ?? 0}</span>
+              <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Rechazadas: {resumen?.rechazadas ?? 0}</span>
             </div>
             <Link href="/mfpages/cliente/mis-solicitudes" style={{ color: "var(--color-in-progress)", textDecoration: "underline", fontSize: 14 }}>
               Ver mis solicitudes →
@@ -92,8 +92,8 @@ export default function AlertasResumen() {
   const renderPendientesDetalle = () => {
     if (tareasConPendientes.length === 0) return null;
     return (
-      <div style={{ marginTop: 12, background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", border: "1px solid var(--color-border)", borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "10px 14px", background: "color-mix(in srgb, var(--color-in-progress) 12%, white)", borderBottom: "1px solid var(--color-border)", fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>
+      <div style={{ marginTop: 12, background: "color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background))", border: "1px solid var(--color-border)", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: "10px 14px", background: "color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background))", borderBottom: "1px solid var(--color-border)", fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>
           Estás teniendo subtareas pendientes por completar en:
         </div>
         {tareasConPendientes.map((t) => (
@@ -104,7 +104,7 @@ export default function AlertasResumen() {
             <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, color: "var(--color-text)" }}>
               {t.subtareas.map((s) => (
                 <li key={s.subtarea_id} style={{ marginBottom: 2 }}>
-                  <span style={{ fontWeight: 600 }}>{s.descripcion}</span> — <span style={{ background: s.estado === "EN_DESARROLLO" ? "color-mix(in srgb, var(--color-waiting) 12%, white)" : "var(--color-border)", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>{s.estado}</span> (peso {s.peso})
+                  <span style={{ fontWeight: 600 }}>{s.descripcion}</span> — <span style={{ background: s.estado === "EN_DESARROLLO" ? "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))" : "var(--color-border)", padding: "1px 6px", borderRadius: 999, fontSize: 11 }}>{s.estado}</span> (peso {s.peso})
                 </li>
               ))}
             </ul>
@@ -120,11 +120,11 @@ export default function AlertasResumen() {
       {esAsignador ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {porAprobar > 0 ? (
-            <div style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", border: "1px solid var(--color-waiting)", borderRadius: 8, padding: 16 }}>
+            <div style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))", border: "1px solid var(--color-waiting)", borderRadius: 8, padding: 16 }}>
               <p style={{ color: "var(--color-waiting)", fontWeight: 600 }}>
                 Tienes {porAprobar} {porAprobar === 1 ? "solicitud por aprobar" : "solicitudes por aprobar"}
               </p>
-              <Link href="/mfpages/solicitudes" style={{ color: "#b45309", textDecoration: "underline", fontSize: 14 }}>
+              <Link href="/mfpages/solicitudes" style={{ color: "var(--color-waiting)", textDecoration: "underline", fontSize: 14 }}>
                 Ir a Bandeja de solicitudes →
               </Link>
             </div>

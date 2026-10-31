@@ -202,7 +202,7 @@ export default function RolModal({
             aria-label="Selector de color"
             value={HEX_RE.test(form.color) ? form.color : "var(--color-sidebar)"}
             onChange={(e) => setForm({ ...form, color: e.target.value })}
-            style={{ width: 44, height: 36, padding: 2, border: "1px solid var(--color-border)", borderRadius: 8, background: "white", cursor: "pointer" }}
+            style={{ width: 44, height: 36, padding: 2, border: "1px solid var(--color-border)", borderRadius: 8, background: "var(--color-background)", cursor: "pointer" }}
           />
           <input
             className={styles.input}

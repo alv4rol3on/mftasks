@@ -22,39 +22,39 @@
 }
 
 .espera {
-    background: color-mix(in srgb, var(--color-waiting) 100%, white);
-    border-color: color-mix(in srgb, var(--color-waiting) 100%, white);
-    color: color-mix(in srgb, var(--color-waiting) 0%, rgb(255, 255, 255));
+    background: var(--color-waiting);
+    border-color: var(--color-waiting);
+    color: var(--color-on-accent);
 }
 
 .desarrollo {
-    background: color-mix(in srgb, var(--color-in-progress) 100%, white);
-    border-color: color-mix(in srgb, var(--color-in-progress) 100%, white);
-    color: color-mix(in srgb, var(--color-in-progress) 0%, rgb(255, 255, 255));
+    background: var(--color-in-progress);
+    border-color: var(--color-in-progress);
+    color: var(--color-on-accent);
 }
 
 .pausa {
-    background: color-mix(in srgb, var(--color-paused) 100%, white);
-    border-color: color-mix(in srgb, var(--color-paused) 100%, white);
-    color: color-mix(in srgb, var(--color-paused) 0%, rgb(255, 255, 255));
+    background: var(--color-paused);
+    border-color: var(--color-paused);
+    color: var(--color-on-accent);
 }
 
 .solucionado {
-    background: color-mix(in srgb, var(--color-done) 100%, white);
-    border-color: color-mix(in srgb, var(--color-done) 100%, white);
-    color: color-mix(in srgb, var(--color-done) 0%, rgb(255, 255, 255));
+    background: var(--color-done);
+    border-color: var(--color-done);
+    color: var(--color-on-accent);
 }
 
 .aprobado {
     background: var(--color-badge);
     border-color: var(--color-badge);
-    color: var(--color-background);
+    color: var(--color-on-accent);
 }
 
 .rechazado {
-    background: color-mix(in srgb, var(--color-danger) 100%, white);
-    border-color: color-mix(in srgb, var(--color-danger) 100%, white);
-    color: color-mix(in srgb, var(--color-done) 0%, rgb(255, 255, 255));
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+    color: var(--color-on-accent);
 }
 
 .neutro {

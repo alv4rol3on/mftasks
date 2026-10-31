@@ -52,22 +52,22 @@
   margin: 8px 0;
   padding: 6px 12px;
   border-left: 3px solid var(--color-detail-header, #2f5d8a);
-  background: #f5f7fa;
-  color: #555;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
 }
 
 .rich pre {
   margin: 8px 0;
   padding: 10px;
   border-radius: 6px;
-  background: #f4f4f4;
+  background: var(--color-surface);
   overflow-x: auto;
   font-family: Consolas, Monaco, monospace;
   font-size: 12px;
 }
 
 .rich code {
-  background: #f1f1f1;
+  background: var(--color-border);
   border-radius: 3px;
   padding: 1px 4px;
   font-family: Consolas, Monaco, monospace;

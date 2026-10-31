@@ -119,7 +119,7 @@
     border: none;
     border-radius: var(--radius-control);
     background: transparent;
-    color: var(--color-background);
+    color: var(--color-on-accent);
     font-size: 22px;
     line-height: 1;
     cursor: pointer;
@@ -131,7 +131,7 @@
 }
 
 .sidebar-close:focus-visible {
-    outline: 2px solid var(--color-background);
+    outline: 2px solid var(--color-on-accent);
     outline-offset: 2px;
 }
 

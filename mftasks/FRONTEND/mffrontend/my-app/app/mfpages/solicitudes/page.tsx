@@ -280,7 +280,7 @@ export default function SolicitudesPage() {
       {hayFiltros && (
         <button
           onClick={limpiarFiltros}
-          style={{ border: "1px solid var(--color-border)", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
+          style={{ border: "1px solid var(--color-border)", background: "var(--color-background)", color: "var(--color-text)", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
         >
           Limpiar
         </button>

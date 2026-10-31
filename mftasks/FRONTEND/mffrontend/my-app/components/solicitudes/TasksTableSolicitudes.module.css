@@ -22,7 +22,7 @@
 
 .taskHeader {
     background: var(--color-surface);
-    color: #444;
+    color: var(--color-text-secondary);
     font-weight: 600;
     border-bottom: 2px solid var(--color-border);
 }
@@ -43,7 +43,7 @@
 }
 
 .taskRow:hover {
-    background: #f8fbff;
+    background: color-mix(in srgb, var(--color-in-progress) 8%, var(--color-background));
 }
 
 .taskSubject {
@@ -56,7 +56,7 @@
     border: none;
     border-radius: var(--radius-control);
     background: var(--color-brand);
-    color: var(--color-background);
+    color: var(--color-on-accent);
     cursor: pointer;
     transition: background .2s;
 }
@@ -71,12 +71,12 @@
 }
 
 .taskTableContainer::-webkit-scrollbar-thumb {
-    background: #b5b5b5;
+    background: var(--color-text-secondary);
     border-radius: 4px;
 }
 
 .taskTableContainer::-webkit-scrollbar-thumb:hover {
-    background: #8d8d8d;
+    background: var(--color-text);
 }
 
 .noTasks {
@@ -85,5 +85,5 @@
   align-items: center;
   min-height: 150px;
   font-size: 16px;
-  color: #666;
+  color: var(--color-text-secondary);
 }

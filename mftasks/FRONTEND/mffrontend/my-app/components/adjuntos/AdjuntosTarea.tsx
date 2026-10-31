@@ -56,7 +56,7 @@ export default function AdjuntosTarea({ archivos, tareaId, ticket, titulo = "Arc
                     disabled={descargando}
                     style={{
                         background: "var(--color-detail-header)",
-                        color: "white",
+                        color: "var(--color-on-accent)",
                         border: "none",
                         padding: "6px 12px",
                         borderRadius: 6,

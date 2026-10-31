@@ -319,7 +319,7 @@ export default function UsuariosSection({ setMsg }: Props) {
 
                       const badgeAdmin = {
                         background: "var(--color-badge)",
-                        color: "var(--color-background)",
+                        color: "var(--color-on-accent)",
                         padding: "2px 6px",
                         borderRadius: 999,
                         fontSize: 11,
@@ -327,7 +327,7 @@ export default function UsuariosSection({ setMsg }: Props) {
 
                       const badgeCliente = {
                         background: "var(--color-badge)",
-                        color: "var(--color-background)",
+                        color: "var(--color-on-accent)",
                         padding: "2px 6px",
                         borderRadius: 999,
                         fontSize: 11,
@@ -335,7 +335,7 @@ export default function UsuariosSection({ setMsg }: Props) {
 
                       const badgeColab = {
                         background: "var(--color-badge)",
-                        color: "var(--color-background)",
+                        color: "var(--color-on-accent)",
                         padding: "2px 6px",
                         borderRadius: 999,
                         fontSize: 11,

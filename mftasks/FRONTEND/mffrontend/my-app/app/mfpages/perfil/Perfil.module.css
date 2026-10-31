@@ -120,7 +120,7 @@
   font-weight: 700;
   font-family: monospace;
   background: var(--color-danger);
-  color: var(--color-background);
+  color: var(--color-on-accent);
   overflow-wrap: anywhere;
   padding: 2px 8px;
   border-radius: 999px;
@@ -157,7 +157,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: white;
+  background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 10px 12px;
@@ -190,7 +190,7 @@
 
 .badgeRol {
   background: var(--color-badge);
-  color: var(--color-background);
+  color: var(--color-on-accent);
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 10px;
@@ -205,12 +205,12 @@
 }
 
 .estadoActivo {
-  background: color-mix(in srgb, var(--color-done) 12%, white);
+  background: color-mix(in srgb, var(--color-done) 12%, var(--color-background));
   color: var(--color-done);
 }
 
 .estadoIndisponible {
-  background: color-mix(in srgb, var(--color-waiting) 12%, white);
+  background: color-mix(in srgb, var(--color-waiting) 12%, var(--color-background));
   color: var(--color-waiting);
 }
 
@@ -267,7 +267,7 @@
 
 .btnGuardar {
   background: var(--color-brand);
-  color: var(--color-background);
+  color: var(--color-on-accent);
   border: 1px solid var(--color-brand);
   padding: 8px 16px;
   border-radius: var(--radius-control);
@@ -298,9 +298,9 @@
 }
 
 .requirementsBox {
-  border: 1px solid color-mix(in srgb, var(--color-waiting) 35%, white);
+  border: 1px solid color-mix(in srgb, var(--color-waiting) 35%, var(--color-background));
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-waiting) 8%, white);
+  background: color-mix(in srgb, var(--color-waiting) 8%, var(--color-background));
   padding: 12px;
 }
 
@@ -346,9 +346,9 @@
 }
 
 .pendingCode {
-  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
+  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, var(--color-background));
   border-radius: 5px;
-  background: color-mix(in srgb, var(--color-detail-header) 10%, white);
+  background: color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background));
   padding: 1px 5px;
   color: var(--color-detail-header);
   font-size: 11px;

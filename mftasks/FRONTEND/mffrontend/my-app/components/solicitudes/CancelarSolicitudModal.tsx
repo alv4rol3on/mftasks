@@ -56,7 +56,7 @@ export default function CancelarSolicitudModal({
             onClick={onClose}
             disabled={enviando}
             style={{
-              background: "white",
+              background: "var(--color-background)",
               border: "1px solid var(--color-border)",
               borderRadius: 8,
               padding: "8px 14px",
@@ -72,7 +72,7 @@ export default function CancelarSolicitudModal({
             disabled={enviando || !motivo.trim()}
             style={{
               background: "var(--color-danger)",
-              color: "white",
+              color: "var(--color-on-accent)",
               border: "none",
               borderRadius: 8,
               padding: "8px 14px",
@@ -114,6 +114,8 @@ export default function CancelarSolicitudModal({
               fontSize: 13,
               fontFamily: "inherit",
               resize: "vertical",
+              background: "var(--color-background)",
+              color: "var(--color-text)",
             }}
           />
         </label>

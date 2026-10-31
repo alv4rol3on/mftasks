@@ -55,7 +55,7 @@
 }
 
 .control:disabled {
-    background: #f8f9fa;
+    background: var(--color-surface);
     color: var(--color-text-secondary);
     cursor: not-allowed;
 }
@@ -90,7 +90,7 @@
     padding: 0 14px;
     border: 1px solid var(--color-brand);
     background: var(--color-brand);
-    color: var(--color-background);
+    color: var(--color-on-accent);
 }
 
 .searchButton:hover {

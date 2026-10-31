@@ -360,7 +360,7 @@ export default function TaskModal({
         padding: "8px",
         borderRadius: 8,
         border: active ? "2px solid var(--color-detail-header)" : "1px solid var(--color-border)",
-        background: active ? "color-mix(in srgb, var(--color-detail-header) 10%, white)" : "white",
+        background: active ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
         fontWeight: 700 as const,
         fontSize: 13,
         cursor: "pointer",
@@ -379,7 +379,7 @@ export default function TaskModal({
                             <h2>{tarea.ticket ?? `Tarea #${tarea.id}`}</h2>
                             <p style={{ margin: "4px 0 0", opacity: 0.95 }}>{tarea.asunto}</p>
                             <div className={styles.headerMeta}>
-                                <span className={styles.headerBadge} style={fueraDeTiempo ? { background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", border: "1px solid #f87171" } : undefined}>{fueraDeTiempo ? "FUERA DE TIEMPO" : tarea.estado}{!fueraDeTiempo && tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion ? ` · ${formatearFecha(tarea.fecha_solucion)}` : ""}</span>
+                                <span className={styles.headerBadge} style={fueraDeTiempo ? { background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", color: "var(--color-danger)", border: "1px solid var(--color-danger)" } : undefined}>{fueraDeTiempo ? "FUERA DE TIEMPO" : tarea.estado}{!fueraDeTiempo && tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion ? ` · ${formatearFecha(tarea.fecha_solucion)}` : ""}</span>
                                 <span className={styles.headerCountdown} title="Contador HH:MM:SS (tiempo laboral)">
                                     {fueraDeTiempo
                                         ? <span style={{ marginLeft: 4, color: "var(--color-danger)", fontWeight: 700 }}>⏱ +{formatearTiempo(segundosRetraso)} excedido</span>
@@ -445,7 +445,7 @@ export default function TaskModal({
                                                 <tr><td><strong>Planificado</strong></td><td>{Math.floor(tarea.tiempo_planificado_segundos / 3600)}h {Math.floor((tarea.tiempo_planificado_segundos % 3600) / 60)}m</td></tr>
                                             )}
                                             {(tarea as any).tiempo_planificado_efectivo_segundos && (tarea as any).segundos_extra > 0 && (
-                                                <tr><td><strong>Plan efectivo</strong></td><td style={{ color: "var(--color-brand)", fontWeight: 700 }}>{Math.floor((tarea as any).tiempo_planificado_efectivo_segundos / 3600)}h {Math.floor(((tarea as any).tiempo_planificado_efectivo_segundos % 3600) / 60)}m <span style={{ background: "color-mix(in srgb, var(--color-danger) 8%, white)", border: "1px solid color-mix(in srgb, var(--color-danger) 28%, white)", padding: "1px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6, color: "var(--color-danger)" }}>+{Math.floor((tarea as any).segundos_extra / 3600)}h {Math.floor(((tarea as any).segundos_extra % 3600) / 60)}m anticipado</span></td></tr>
+                                                <tr><td><strong>Plan efectivo</strong></td><td style={{ color: "var(--color-brand)", fontWeight: 700 }}>{Math.floor((tarea as any).tiempo_planificado_efectivo_segundos / 3600)}h {Math.floor(((tarea as any).tiempo_planificado_efectivo_segundos % 3600) / 60)}m <span style={{ background: "color-mix(in srgb, var(--color-danger) 8%, var(--color-background))", border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))", padding: "1px 6px", borderRadius: 999, fontSize: 10, marginLeft: 6, color: "var(--color-danger)" }}>+{Math.floor((tarea as any).segundos_extra / 3600)}h {Math.floor(((tarea as any).segundos_extra % 3600) / 60)}m anticipado</span></td></tr>
                                             )}
                                             {(tarea as any).fecha_inicio_efectiva && (tarea as any).inicio_anticipado && (
                                                 <tr><td><strong>Inicio efectivo</strong></td><td style={{ fontSize: 12 }}>{formatearFecha((tarea as any).fecha_inicio_efectiva)} <span style={{ color: "var(--color-text-secondary)" }}>(prog. {formatearFecha(tarea.fecha_inicio)})</span></td></tr>
@@ -517,7 +517,7 @@ export default function TaskModal({
                                                                 }
                                                             >
                                                                 <td data-label="Descripción">
-                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "color-mix(in srgb, var(--color-detail-header) 10%, white)", color: "var(--color-detail-header)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
+                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))", color: "var(--color-detail-header)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", color: "var(--color-danger)", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
 
                                                                     {subtarea.estado !== "STAND_BY" ?
                                                                         <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)}</div>
@@ -529,7 +529,7 @@ export default function TaskModal({
                                                                 <td data-label="Cambiar Estado">
                                                                     {esMiSubtarea && onCambiarEstadoSubtarea ? (
                                                                         subtarea.estado === "SOLUCIONADO" ? (
-                                                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)" }}>✓ Solucionado</span>
+                                                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", color: "var(--color-done)", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))" }}>✓ Solucionado</span>
                                                                         ) : subtarea.estado === "STAND_BY" ? (
                                                                             <button
                                                                                 onClick={() => abrirReanudar(subtarea.id)}
@@ -575,8 +575,8 @@ export default function TaskModal({
                                                                             disabled={empezandoId === subtarea.id}
                                                                             title={bloqueadaTooltip}
                                                                             style={{
-                                                                                background: bloqueada ? "var(--color-text-secondary)" : "#0891b2",
-                                                                                color: "white",
+                                                                                background: bloqueada ? "var(--color-text-secondary)" : "var(--color-in-progress)",
+                                                                                color: "var(--color-on-accent)",
                                                                                 border: "none",
                                                                                 padding: "4px 10px",
                                                                                 borderRadius: 6,
@@ -592,7 +592,7 @@ export default function TaskModal({
                                                                             disabled={completandoId === subtarea.id}
                                                                             style={{
                                                                                 background: "var(--color-done)",
-                                                                                color: "white",
+                                                                                color: "var(--color-on-accent)",
                                                                                 border: "none",
                                                                                 padding: "4px 10px",
                                                                                 borderRadius: 6,
@@ -603,7 +603,7 @@ export default function TaskModal({
                                                                             {completandoId === subtarea.id ? "Guardando…" : "Marcar como completado"}
                                                                         </button>
                                                                     ) : subtarea.estado === "SOLUCIONADO" ? (
-                                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)" }}>✓ Solucionado</span>
+                                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", color: "var(--color-done)", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))" }}>✓ Solucionado</span>
                                                                     ) : subtarea.estado === "STAND_BY" ? (
                                                                         <span style={{ color: "var(--color-waiting)", fontSize: 11, fontWeight: 600 }}>Pausada</span>
                                                                     ) : (
@@ -633,7 +633,7 @@ export default function TaskModal({
                                                 onClick={guardarAsignaciones}
                                                 disabled={!hayCambiosAsignacion || guardandoAsignaciones}
                                                 title={hayCambiosAsignacion ? "Guardar todas las reasignaciones seleccionadas" : "No hay cambios por guardar"}
-                                                style={{ background: hayCambiosAsignacion ? "var(--color-in-progress)" : "var(--color-text-secondary)", color: "white", border: "none", padding: "6px 12px", borderRadius: 6, cursor: hayCambiosAsignacion && !guardandoAsignaciones ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 700 }}
+                                                style={{ background: hayCambiosAsignacion ? "var(--color-in-progress)" : "var(--color-text-secondary)", color: "var(--color-on-accent)", border: "none", padding: "6px 12px", borderRadius: 6, cursor: hayCambiosAsignacion && !guardandoAsignaciones ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 700 }}
                                             >
                                                 {guardandoAsignaciones ? "Guardando…" : "Guardar cambios"}
                                             </button>
@@ -641,8 +641,8 @@ export default function TaskModal({
                                     </div>
                                     <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: -4, marginBottom: 8 }}>Cambia el asignado, inactiva subtareas o crea dependencias entre ellas.</p>
                                     {miembrosError && <p style={{ color: "var(--color-danger)", fontSize: 12 }}>{miembrosError}</p>}
-                                    {asigErr && <p style={{ color: "var(--color-danger)", fontSize: 12, background: "color-mix(in srgb, var(--color-danger) 10%, white)", padding: "6px 8px", borderRadius: 6 }}>{asigErr}</p>}
-                                    {asigMsg && <p style={{ color: "var(--color-done)", fontSize: 12, background: "color-mix(in srgb, var(--color-done) 12%, white)", padding: "6px 8px", borderRadius: 6 }}>{asigMsg}</p>}
+                                    {asigErr && <p style={{ color: "var(--color-danger)", fontSize: 12, background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: "6px 8px", borderRadius: 6 }}>{asigErr}</p>}
+                                    {asigMsg && <p style={{ color: "var(--color-done)", fontSize: 12, background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", padding: "6px 8px", borderRadius: 6 }}>{asigMsg}</p>}
 
                                     {tarea.subtareas.length === 0 ? (
                                         <p className={styles.sinSubtareas}>Sin subtareas para asignar. Usa “Iniciar tarea” en la cabecera si está aprobada.</p>
@@ -664,7 +664,7 @@ export default function TaskModal({
                                                         return (
                                                             <tr key={subtarea.id} style={inactiva ? { opacity: 0.7, background: "var(--color-surface)" } : undefined}>
                                                                 <td data-label="Subtarea">
-                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.descripcion} {inactiva && <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Inactiva</span>} {esSolucionada && <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "var(--color-done)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Solucionada</span>}</div>
+                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.descripcion} {inactiva && <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", color: "var(--color-danger)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Inactiva</span>} {esSolucionada && <span style={{ background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", color: "var(--color-done)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginLeft: 6 }}>Solucionada</span>}</div>
                                                                     <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Peso {subtarea.peso} · Estado {subtarea.estado}</div>
                                                                 </td>
                                                                 <td data-label="Asignado actual">
@@ -751,12 +751,12 @@ export default function TaskModal({
                     onClick={() => { if (!reanudando) setReanudarSubId(null); }}
                 >
                     <div
-                        style={{ background: "white", borderRadius: 12, padding: 20, width: 440, maxWidth: "92vw", boxShadow: "0 10px 40px rgba(0,0,0,0.25)" }}
+                        style={{ background: "var(--color-background)", color: "var(--color-text)", borderRadius: 12, padding: 20, width: 440, maxWidth: "92vw", boxShadow: "0 10px 40px rgba(0,0,0,0.25)", border: "1px solid var(--color-border)" }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>Reanudar subtarea</h3>
                         <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "0 0 12px" }}>Elige cómo continuar la cuenta regresiva.</p>
-                        {reanudarErr && <p style={{ fontSize: 12, color: "var(--color-danger)", background: "color-mix(in srgb, var(--color-danger) 10%, white)", padding: "6px 8px", borderRadius: 6 }}>{reanudarErr}</p>}
+                        {reanudarErr && <p style={{ fontSize: 12, color: "var(--color-danger)", background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: "6px 8px", borderRadius: 6 }}>{reanudarErr}</p>}
                         <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginBottom: 10, cursor: "pointer" }}>
                             <input type="radio" name="resumeMode" checked={resumeMode === "continuar"} onChange={() => setResumeMode("continuar")} style={{ marginTop: 3 }} />
                             <span>
@@ -790,14 +790,16 @@ export default function TaskModal({
                                         border: "1px solid var(--color-border)",
                                         borderRadius: 8,
                                         padding: "8px 10px",
-                                        fontSize: 13
+                                        fontSize: 13,
+                                        background: "var(--color-background)",
+                                        color: "var(--color-text)",
                                     }}
                                 />
                                 <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Actual: {formatearFecha(tarea.fecha_entrega_aproximada)}</span>
                             </div>
                         )}
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-                            <button onClick={() => setReanudarSubId(null)} disabled={reanudando} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+                            <button onClick={() => setReanudarSubId(null)} disabled={reanudando} style={{ background: "var(--color-background)", color: "var(--color-text)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
                             <button onClick={confirmarReanudar} disabled={reanudando} style={{ background: "var(--color-waiting)", color: "black", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>{reanudando ? "Reanudando…" : "Confirmar"}</button>
                         </div>
                     </div>

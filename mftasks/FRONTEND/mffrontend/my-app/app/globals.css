@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+    color-scheme: light;
+
     --color-brand: #C8210A;
     --color-brand-hover: #A91F0A;
     --color-sidebar: #242424;
@@ -34,6 +36,7 @@
     --color-success: var(--color-done);
     --color-focus: var(--color-detail-header);
     --color-overlay: rgba(0, 0, 0, .5);
+    --color-on-accent: #FFFFFF;
 
     --modo: #65ceff;
 
@@ -47,6 +50,8 @@
 
 /* Tema oscuro */
 :root[data-theme="dark"] {
+    color-scheme: dark;
+
     --color-sidebar: #171717;
     --color-sidebar-active: #383838;
 
@@ -81,6 +86,7 @@
     --color-success: #4ADE80;
     --color-focus: #8B83F6;
     --color-overlay: rgba(0, 0, 0, .7);
+    --color-on-accent: #FFFFFF;
 
     --modo: #0b0642;
 
@@ -115,6 +121,33 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Controles de formulario: base temática para modo claro/oscuro */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select,
+textarea {
+    color: var(--color-text);
+    background-color: var(--color-background);
+    border-color: var(--color-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--color-text-secondary);
+    opacity: 1;
+}
+
+select option,
+select optgroup {
+    color: var(--color-text);
+    background-color: var(--color-background);
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+    accent-color: var(--color-brand);
+}
+
 /* Tablas de solicitudes */
 .solicitudes-page table tbody tr {
     background: var(--color-table-row) !important;
@@ -131,7 +164,6 @@ body {
 .solicitudes-page input[type="date"] {
     background-color: var(--color-select) !important;
     color: var(--color-text) !important;
-    color-scheme: light dark;
 }
 
 .solicitudes-page select:disabled,

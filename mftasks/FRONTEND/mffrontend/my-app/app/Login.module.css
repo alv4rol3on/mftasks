@@ -75,7 +75,7 @@
 .primary {
     border: 1px solid var(--color-brand);
     background: var(--color-brand);
-    color: var(--color-background);
+    color: var(--color-on-accent);
 }
 
 .primary:hover:not(:disabled) {
@@ -110,9 +110,9 @@
 
 .error {
     margin: 16px 0 0;
-    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     border-radius: var(--radius-control);
-    background: color-mix(in srgb, var(--color-danger) 8%, white);
+    background: color-mix(in srgb, var(--color-danger) 8%, var(--color-background));
     padding: 9px 12px;
     color: var(--color-danger);
     font-size: 12.5px;

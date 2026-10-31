@@ -539,7 +539,7 @@ export default function PermisosSection({ setMsg }: Props) {
                   style={{
                     border:
                       "1px solid var(--color-border)",
-                    background: "white",
+                    background: "var(--color-background)",
                     borderRadius: 6,
                     padding: "2px 8px",
                     fontSize: 11,

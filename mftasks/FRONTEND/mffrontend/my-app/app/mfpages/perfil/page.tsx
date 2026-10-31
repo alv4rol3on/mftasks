@@ -314,7 +314,7 @@ export default function PerfilPage() {
                           : {}),
                       });
                     }}
-                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-select)" }}
+                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-select)", color: "var(--color-text)" }}
                   >
                     <option value="DISPONIBLE">Disponible</option>
                     <option value="INDISPONIBLE">Indisponible</option>
@@ -333,7 +333,7 @@ export default function PerfilPage() {
                             fecha_inicio: e.target.value || null,
                           })
                         }
-                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-background)", color: "var(--color-text)" }}
                       />
                     </label>
                     <label className={styles.field}>
@@ -347,7 +347,7 @@ export default function PerfilPage() {
                             fecha_fin: e.target.value || null,
                           })
                         }
-                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-background)", color: "var(--color-text)" }}
                       />
                     </label>
                     <label className={styles.field}>
@@ -360,7 +360,7 @@ export default function PerfilPage() {
                           actualizarDisponibilidad({ motivo: e.target.value })
                         }
                         placeholder="Motivo de la indisponibilidad"
-                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+                        style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-background)", color: "var(--color-text)" }}
                       />
                     </label>
                   </>

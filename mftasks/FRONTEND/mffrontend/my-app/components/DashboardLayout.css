@@ -25,7 +25,7 @@
     height: 52px;
     padding: 0 16px;
     background: var(--color-brand);
-    color: var(--color-background);
+    color: var(--color-on-accent);
     flex-shrink: 0;
 }
 
@@ -68,7 +68,7 @@
     padding: 6px 12px;
     font-size: 14px;
     font-weight: 500;
-    color: var(--color-background);
+    color: var(--color-on-accent);
     cursor: pointer;
     text-decoration: none;
     background-color: var(--color-brand);
@@ -208,7 +208,7 @@
     border: 1px solid rgba(255, 255, 255, 0.45);
     border-radius: var(--radius-control);
     background: var(--modo);
-    color: #FFFFFF;
+    color: var(--color-text);
     font: inherit;
     font-size: 13px;
     cursor: pointer;

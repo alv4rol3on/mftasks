@@ -15,7 +15,8 @@
     width: min(860px, calc(100vw - 32px));
     max-height: 92vh;
     max-height: 92dvh;
-    background: white;
+    background: var(--color-background);
+    color: var(--color-text);
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 20px 40px rgba(0,0,0,.25);
@@ -26,7 +27,7 @@
 
 .modalHeader {
     background: var(--color-detail-header);
-    color: white;
+    color: var(--color-on-accent);
     padding: 18px 24px;
     display: flex;
     justify-content: space-between;
@@ -88,7 +89,7 @@
     align-items: center;
     gap: 6px;
     background: var(--color-background);
-    color: var(--color-detail-header);
+    color: var(--color-text);
     border-radius: 999px;
     padding: 4px 10px;
     font-size: 12px;
@@ -126,7 +127,8 @@
     padding: 8px;
     border-radius: 8px;
     border: 1px solid var(--color-border);
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text);
     font-weight: 600;
     font-size: 13px;
     cursor: pointer;
@@ -139,7 +141,7 @@
     border-radius: 8px;
     border: 1px solid var(--color-brand);
     border-bottom: 2px solid var(--color-brand);
-    background: color-mix(in srgb, var(--color-danger) 8%, white);
+    background: color-mix(in srgb, var(--color-danger) 8%, var(--color-background));
     color: var(--color-brand);
     font-weight: 700;
     font-size: 13px;
@@ -170,21 +172,22 @@
 
 .btnYes {
     background: var(--color-brand);
-    color: var(--color-background);
+    color: var(--color-on-accent);
 }
 
 .btnNo {
     background: var(--color-danger);
-    color: white;
+    color: var(--color-on-accent);
 }
 
 .btnSecondary {
     background: var(--color-border);
+    color: var(--color-text);
 }
 
 .close {
     background: transparent;
-    color: white;
+    color: var(--color-on-accent);
     border: none;
     font-size: 20px;
     cursor: pointer;
@@ -205,11 +208,11 @@
 
 .infoTable td:first-child {
     width: 42%;
-    color: #555;
+    color: var(--color-text-secondary);
 }
 
 .descriptionBox {
-    background: #f7f7f7;
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: 12px;
@@ -221,7 +224,7 @@
 }
 
 .sinSubtareas {
-    color: #777;
+    color: var(--color-text-secondary);
     font-style: italic;
 }
 
@@ -243,20 +246,20 @@
 }
 
 .estadoEnStandBy {
-    background-color: color-mix(in srgb, var(--color-waiting) 12%, white);
+    background-color: color-mix(in srgb, var(--color-waiting) 12%, var(--color-background));
     color: var(--color-waiting);
     border: 1px solid var(--color-waiting);
-    background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-waiting) 12%, white), color-mix(in srgb, var(--color-waiting) 12%, white) 6px, color-mix(in srgb, var(--color-waiting) 18%, white) 6px, color-mix(in srgb, var(--color-waiting) 18%, white) 12px);
+    background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-waiting) 12%, var(--color-background)), color-mix(in srgb, var(--color-waiting) 12%, var(--color-background)) 6px, color-mix(in srgb, var(--color-waiting) 18%, var(--color-background)) 6px, color-mix(in srgb, var(--color-waiting) 18%, var(--color-background)) 12px);
 }
 
 .estadoEnDesarrollo {
-    background-color: color-mix(in srgb, var(--color-in-progress) 12%, white);
+    background-color: color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background));
     color: var(--color-in-progress);
     border: 1px solid var(--color-in-progress);
 }
 
 .estadoSolucionado {
-    background-color: color-mix(in srgb, var(--color-done) 12%, white);
+    background-color: color-mix(in srgb, var(--color-done) 12%, var(--color-background));
     color: var(--color-done);
     border: 1px solid var(--color-done);
 }
@@ -301,7 +304,7 @@
   border-radius: 8px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: #b5b5b5 transparent;
+  scrollbar-color: var(--color-text-secondary) transparent;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
@@ -312,12 +315,12 @@
 }
 
 .subtareasContainer::-webkit-scrollbar-thumb {
-  background: #b5b5b5;
+  background: var(--color-text-secondary);
   border-radius: 4px;
 }
 
 .subtareasContainer::-webkit-scrollbar-thumb:hover {
-  background: #8d8d8d;
+  background: var(--color-text);
 }
 
 .subtareasContainer::-webkit-scrollbar-track {
@@ -403,7 +406,7 @@
     .subtareasTable.historialTable th,
     .subtareasTable.historialTable td {
         border: none;
-        border-bottom: 1px solid #eef2f7;
+        border-bottom: 1px solid var(--color-border);
         padding: 10px 12px;
         text-align: left;
         vertical-align: top;
@@ -497,7 +500,9 @@
 .inputField {
     padding: 8px;
     border-radius: 6px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-border);
+    background: var(--color-background);
+    color: var(--color-text);
     font-size: 14px;
     min-width: 0;
 }
@@ -561,9 +566,9 @@
 
 .fileRemove {
     flex-shrink: 0;
-    background: color-mix(in srgb, var(--color-danger) 10%, white);
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
     color: var(--color-danger);
-    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     border-radius: 6px;
     width: 24px;
     height: 24px;
@@ -574,7 +579,7 @@
 }
 
 .fileRemove:hover {
-    background: color-mix(in srgb, var(--color-danger) 28%, white);
+    background: color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
 }
 
 .fileHint {
@@ -946,7 +951,7 @@
     padding: 8px 14px;
     border: none;
     border-radius: 6px;
-    color: white;
+    color: var(--color-on-accent);
     cursor: pointer;
     transition: background .2s;
     white-space: nowrap;
@@ -996,7 +1001,7 @@
     border-radius: 6px;
     background: rgba(255, 255, 255, .12);
     padding: 2px 8px;
-    color: var(--color-background);
+    color: var(--color-on-accent);
     font-size: 11px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -1009,7 +1014,7 @@
 
 .headerTitle {
     margin: 0;
-    color: var(--color-background);
+    color: var(--color-on-accent);
     font-size: 19px;
     font-weight: 700;
     line-height: 1.3;
@@ -1024,7 +1029,7 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, .1);
     padding: 4px 10px;
-    color: var(--color-background);
+    color: var(--color-on-accent);
     font-size: 12px;
 }
 
@@ -1042,11 +1047,11 @@
 }
 
 .headerCountdown {
-    color: var(--color-background);
+    color: var(--color-on-accent);
 }
 
 .headerLate {
-    color: color-mix(in srgb, var(--color-danger) 28%, white);
+    color: color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     font-weight: 700;
 }
 
@@ -1058,7 +1063,7 @@
 }
 
 .modalHeaderDetalle .close:focus-visible {
-    outline: 2px solid var(--color-background);
+    outline: 2px solid var(--color-on-accent);
     outline-offset: 2px;
 }
 
@@ -1120,7 +1125,7 @@
 }
 
 .infoSuccess {
-    color: #1c6b48 !important;
+    color: var(--color-done) !important;
     font-weight: 700 !important;
 }
 
@@ -1228,7 +1233,7 @@
     height: 7px;
     margin: 10px 0 16px;
     border-radius: 999px;
-    background: #e9edf2;
+    background: var(--color-border);
     overflow: hidden;
 }
 
@@ -1253,9 +1258,9 @@
 
 .subtaskCode {
     display: inline-flex;
-    border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
+    border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, var(--color-background));
     border-radius: 5px;
-    background: color-mix(in srgb, var(--color-detail-header) 10%, white);
+    background: color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background));
     padding: 1px 5px;
     color: var(--color-detail-header);
     font-size: 10px;
@@ -1271,16 +1276,16 @@
 
 .subtaskTime {
     margin-top: 3px;
-    color: #1c6b48;
+    color: var(--color-done);
     font-size: 10.5px;
     font-weight: 700;
 }
 
 .blockReason {
     margin-top: 6px;
-    border: 1px solid #f7c8c4;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     border-radius: 6px;
-    background: #fff5f4;
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
     padding: 5px 7px;
     color: var(--color-danger);
     font-size: 11px;
@@ -1297,9 +1302,9 @@
     display: inline-flex;
     align-items: center;
     margin-top: 5px;
-    border: 1px solid #f7c8c4;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     border-radius: 999px;
-    background: #fff5f4;
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
     padding: 2px 7px;
     color: var(--color-danger);
     font-size: 10px;
@@ -1310,11 +1315,11 @@
 .doneText {
     display: inline-flex;
     align-items: center;
-    border: 1px solid #b8e0cc;
+    border: 1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background));
     border-radius: 6px;
-    background: #e7f5ee;
+    background: color-mix(in srgb, var(--color-done) 12%, var(--color-background));
     padding: 4px 8px;
-    color: #1c6b48;
+    color: var(--color-done);
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
@@ -1332,7 +1337,7 @@
     border: none;
     border-radius: 7px;
     padding: 6px 11px;
-    color: var(--color-background);
+    color: var(--color-on-accent);
     font-size: 11.5px;
     font-weight: 700;
     cursor: pointer;
@@ -1387,15 +1392,15 @@
 }
 
 .errorNotice {
-    border: 1px solid #f7c8c4;
-    background: #fff5f4;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
     color: var(--color-danger);
 }
 
 .successNotice {
-    border: 1px solid #b8e0cc;
-    background: #e7f5ee;
-    color: #1c6b48;
+    border: 1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background));
+    background: color-mix(in srgb, var(--color-done) 12%, var(--color-background));
+    color: var(--color-done);
 }
 
 .subtareasTable {
@@ -1404,7 +1409,7 @@
 
 .subtareasTable th,
 .subtareasTable td {
-    border-color: #e8edf2;
+    border-color: var(--color-border);
     padding: 10px 11px;
 }
 
@@ -1513,7 +1518,7 @@
 
     .subtareasTable tbody tr {
         border: 1px solid var(--color-border);
-        border-left: 4px solid #d7dce3;
+        border-left: 4px solid var(--color-border);
         border-radius: 10px;
         background: var(--color-background);
         padding: 4px 12px;
@@ -1757,9 +1762,9 @@
 .historyEvent {
     display: inline-flex;
     align-items: center;
-    border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
+    border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, var(--color-background));
     border-radius: 5px;
-    background: color-mix(in srgb, var(--color-detail-header) 10%, white);
+    background: color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background));
     padding: 2px 6px;
     color: var(--color-detail-header);
     font-size: 10.5px;
@@ -1817,7 +1822,7 @@
     align-items: center;
     justify-content: center;
     min-height: 150px;
-    border: 1px dashed #d7dce3;
+    border: 1px dashed var(--color-border);
     border-radius: 10px;
     background: var(--color-surface);
     padding: 20px;
@@ -1913,7 +1918,7 @@
     border-radius: 7px;
     background: var(--color-brand);
     padding: 8px 13px;
-    color: var(--color-background);
+    color: var(--color-on-accent);
     font-size: 11.5px;
     font-weight: 700;
     cursor: pointer;

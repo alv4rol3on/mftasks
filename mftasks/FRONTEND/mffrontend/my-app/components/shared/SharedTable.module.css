@@ -81,7 +81,7 @@
     padding: 8px 14px;
     border: none;
     border-radius: 6px;
-    color: white;
+    color: var(--color-on-accent);
     cursor: pointer;
     transition: background .2s;
     white-space: nowrap;
@@ -107,8 +107,8 @@
 }
 
 /* Estado row */
-.rowSolucionado { background: color-mix(in srgb, var(--color-done) 12%, white) !important; }
-.rowStandBy { background: #fff7e9 !important; }
+.rowSolucionado { background: color-mix(in srgb, var(--color-done) 12%, var(--color-background)) !important; }
+.rowStandBy { background: color-mix(in srgb, var(--color-waiting) 12%, var(--color-background)) !important; }
 .rowPendiente { background: var(--color-background) !important; }
 
 .noTasks {
@@ -117,7 +117,7 @@
     align-items: center;
     min-height: 150px;
     font-size: 16px;
-    color: #666;
+    color: var(--color-text-secondary);
     background: var(--color-background);
     border: 1px solid var(--color-border);
     border-radius: 10px;
@@ -126,8 +126,8 @@
 
 /* Scrollbar */
 .taskTableContainer::-webkit-scrollbar { height: 8px; }
-.taskTableContainer::-webkit-scrollbar-thumb { background: #b5b5b5; border-radius: 4px; }
-.taskTableContainer::-webkit-scrollbar-thumb:hover { background: #8d8d8d; }
+.taskTableContainer::-webkit-scrollbar-thumb { background: var(--color-text-secondary); border-radius: 4px; }
+.taskTableContainer::-webkit-scrollbar-thumb:hover { background: var(--color-text); }
 
 /* =========================================================
    TABLET ≤1100px
@@ -175,7 +175,7 @@
 
     .taskTable tbody td {
         padding: 10px 14px;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--color-border);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -190,7 +190,7 @@
     .taskTable tbody td::before {
         content: attr(data-label);
         font-weight: 700;
-        color: #555;
+        color: var(--color-text-secondary);
         font-size: 12px;
         text-transform: uppercase;
         letter-spacing: .02em;

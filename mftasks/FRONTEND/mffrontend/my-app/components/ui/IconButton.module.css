@@ -31,52 +31,52 @@
 }
 
 .primary {
-  background: color-mix(in srgb, var(--color-detail-header) 10%, white);
+  background: color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background));
   color: var(--color-detail-header);
-  border-color: color-mix(in srgb, var(--color-detail-header) 28%, white);
+  border-color: color-mix(in srgb, var(--color-detail-header) 28%, var(--color-background));
 }
 
 .primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-detail-header) 16%, white);
+  background: color-mix(in srgb, var(--color-detail-header) 16%, var(--color-background));
 }
 
 .info {
-  background: color-mix(in srgb, var(--color-in-progress) 10%, white);
+  background: color-mix(in srgb, var(--color-in-progress) 10%, var(--color-background));
   color: var(--color-in-progress);
-  border-color: color-mix(in srgb, var(--color-in-progress) 28%, white);
+  border-color: color-mix(in srgb, var(--color-in-progress) 28%, var(--color-background));
 }
 
 .info:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-in-progress) 16%, white);
+  background: color-mix(in srgb, var(--color-in-progress) 16%, var(--color-background));
 }
 
 .danger {
   background: var(--color-danger);
-  color: white;
-  border-color: color-mix(in srgb, var(--color-danger) 30%, white);
+  color: var(--color-on-accent);
+  border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-background));
 }
 
 .danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-danger) 8%, white);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-background));
   color: var(--color-danger);
 }
 
 .success {
-  background: color-mix(in srgb, var(--color-done) 12%, white);
+  background: color-mix(in srgb, var(--color-done) 12%, var(--color-background));
   color: var(--color-done);
-  border-color: color-mix(in srgb, var(--color-done) 30%, white);
+  border-color: color-mix(in srgb, var(--color-done) 30%, var(--color-background));
 }
 
 .success:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-done) 18%, white);
+  background: color-mix(in srgb, var(--color-done) 18%, var(--color-background));
 }
 
 .warning {
-  background: color-mix(in srgb, var(--color-waiting) 12%, white);
+  background: color-mix(in srgb, var(--color-waiting) 12%, var(--color-background));
   color: var(--color-waiting);
-  border-color: color-mix(in srgb, var(--color-waiting) 30%, white);
+  border-color: color-mix(in srgb, var(--color-waiting) 30%, var(--color-background));
 }
 
 .warning:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-waiting) 18%, white);
+  background: color-mix(in srgb, var(--color-waiting) 18%, var(--color-background));
 }

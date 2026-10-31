@@ -357,7 +357,7 @@ export default function EquiposPage() {
   };
 
   if (cargando) return <PageLoader label="Cargando equipos…" />;
-  if (error) return <div style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", padding: 12, borderRadius: 8, fontSize: 14 }}>Error al cargar equipos: {error}</div>;
+  if (error) return <div style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", color: "var(--color-danger)", padding: 12, borderRadius: 8, fontSize: 14 }}>Error al cargar equipos: {error}</div>;
 
   // Líderes elegibles (administradores o colaboradores con rol que puede liderar).
   const lideresCandidatos = usuariosTodos.filter(puedeLiderar);
@@ -390,8 +390,8 @@ export default function EquiposPage() {
   });
 
   const badgeRol = (rol?: string | null) => {
-    if (rol === "LIDER") return <span style={{ background: "var(--color-badge)", color: "var(--color-background)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>LÍDER</span>;
-    if (rol === "SUB_LIDER") return <span style={{ background: "var(--color-badge)", color: "var(--color-background)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>SUB-LÍDER</span>;
+    if (rol === "LIDER") return <span style={{ background: "var(--color-badge)", color: "var(--color-on-accent)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>LÍDER</span>;
+    if (rol === "SUB_LIDER") return <span style={{ background: "var(--color-badge)", color: "var(--color-on-accent)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>SUB-LÍDER</span>;
     if (rol === "MIEMBRO") return <span style={{ background: "var(--color-border)", color: "var(--color-text)", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>MIEMBRO</span>;
     return null;
   };
@@ -401,7 +401,7 @@ export default function EquiposPage() {
       return (
         <span style={{
           background: "var(--color-done)",
-          color: "white",
+          color: "var(--color-on-accent)",
           padding: "2px 8px",
           borderRadius: 999,
           fontSize: 11,
@@ -409,18 +409,18 @@ export default function EquiposPage() {
         }}>
           Miembro activo
         </span>
-      ); if (estado === "INACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Inactivo</span>;
+      ); if (estado === "INACTIVO") return <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", color: "var(--color-danger)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Inactivo</span>;
     return <span style={{ background: "var(--color-border)", padding: "2px 8px", borderRadius: 999, fontSize: 11 }}>{estado}</span>;
   };
 
   const badgeDisponibilidad = (miembro?: EquipoMiembroDetallado | null) => {
     if (miembro?.disponibilidad?.estado === "INDISPONIBLE") {
-      return <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, white)", color: "var(--color-waiting)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Indisponible</span>;
+      return <span style={{ background: "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))", color: "var(--color-waiting)", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Indisponible</span>;
     }
     return (
       <span style={{
         background: "var(--color-done)",
-        color: "white",
+        color: "var(--color-on-accent)",
         padding: "2px 8px",
         borderRadius: 999,
         fontSize: 11,
@@ -513,7 +513,7 @@ export default function EquiposPage() {
           {puedeCrearEquipo && !esClientePuro && (
             <button
               onClick={abrirModalCrear}
-              style={{ background: "var(--color-brand)", color: "white", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}
+              style={{ background: "var(--color-brand)", color: "var(--color-on-accent)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}
             >
               + Crear equipo
             </button>
@@ -556,13 +556,13 @@ export default function EquiposPage() {
 
 
       {esClientePuro && (
-        <div style={{ background: "color-mix(in srgb, var(--color-in-progress) 10%, white)", border: "1px solid color-mix(in srgb, var(--color-in-progress) 28%, white)", padding: 12, borderRadius: 8, fontSize: 13, color: "var(--color-in-progress)" }}>
-          Para crear una solicitud, elige uno de estos equipos en <Link href="/mfpages/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "#1d4ed8" }}>Mis Solicitudes</Link>.
+        <div style={{ background: "color-mix(in srgb, var(--color-in-progress) 10%, var(--color-background))", border: "1px solid color-mix(in srgb, var(--color-in-progress) 28%, var(--color-background))", padding: 12, borderRadius: 8, fontSize: 13, color: "var(--color-in-progress)" }}>
+          Para crear una solicitud, elige uno de estos equipos en <Link href="/mfpages/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "var(--color-in-progress)" }}>Mis Solicitudes</Link>.
         </div>
       )}
 
       {equiposVisibles.length === 0 ? (
-        <div style={{ background: "white", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24, textAlign: "center" }}>
+        <div style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24, textAlign: "center" }}>
           <p style={{ color: "var(--color-text-secondary)", fontSize: 14, margin: 0 }}>
             {soloMios
               ? "No perteneces a ningún equipo aún."
@@ -722,7 +722,7 @@ export default function EquiposPage() {
                                         {esYo && (
                                           <span
                                             style={{
-                                              background: "color-mix(in srgb, var(--color-in-progress) 12%, white)",
+                                              background: "color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background))",
                                               color: "var(--color-in-progress)",
                                               padding: "1px 6px",
                                               borderRadius: 999,
@@ -767,7 +767,7 @@ export default function EquiposPage() {
           onClick={() => setModalMiembro(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
               <div>
                 <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>
@@ -787,7 +787,7 @@ export default function EquiposPage() {
             </div>
 
             {modalMiembro.miembro.disponibilidad?.estado === "INDISPONIBLE" && (
-              <div style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 10, background: "color-mix(in srgb, var(--color-waiting) 10%, white)", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, white)", borderRadius: 8, padding: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 10, background: "color-mix(in srgb, var(--color-waiting) 10%, var(--color-background))", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, var(--color-background))", borderRadius: 8, padding: 8 }}>
                 {modalMiembro.miembro.disponibilidad.motivo ? `Motivo: ${modalMiembro.miembro.disponibilidad.motivo}` : ""}
                 {modalMiembro.miembro.disponibilidad.fecha_inicio ? ` · ${modalMiembro.miembro.disponibilidad.fecha_inicio}` : ""}
                 {modalMiembro.miembro.disponibilidad.fecha_fin ? ` → ${modalMiembro.miembro.disponibilidad.fecha_fin}` : ""}
@@ -810,7 +810,7 @@ export default function EquiposPage() {
                       : "Otorgar/revocar SUB-LÍDER"
                 }
                 style={{
-                  background: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "color-mix(in srgb, var(--color-waiting) 12%, white)" : "white",
+                  background: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))" : "var(--color-background)",
                   color: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-text)",
                   border: `1px solid ${modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-border)"}`,
                   padding: "8px 12px",
@@ -832,14 +832,14 @@ export default function EquiposPage() {
                 }}
                 disabled={!!accionando || !liderActivoModal}
                 title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
-                style={{ background: "white", color: "var(--color-danger)", border: "1px solid color-mix(in srgb, var(--color-danger) 28%, white)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                style={{ background: "var(--color-background)", color: "var(--color-danger)", border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
               >
                 Eliminar del grupo
               </button>
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-              <button onClick={() => setModalMiembro(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+              <button onClick={() => setModalMiembro(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
             </div>
           </div>
         </div>
@@ -851,9 +851,9 @@ export default function EquiposPage() {
           onClick={() => setModalReasignar(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-danger)" }}>Subtareas pendientes — reasignación requerida</h3>
-            <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--color-text)", background: "color-mix(in srgb, var(--color-danger) 10%, white)", padding: 10, borderRadius: 8 }}>
+            <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--color-text)", background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: 10, borderRadius: 8 }}>
               el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse: <strong>{modalReasignar.usuarioNombre}</strong>
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -883,8 +883,8 @@ export default function EquiposPage() {
               })}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-              <button onClick={() => setModalReasignar(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
-              <button onClick={confirmarReasignarYMarcar} style={{ background: "var(--color-brand)", color: "var(--color-background)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+              <button onClick={() => setModalReasignar(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+              <button onClick={confirmarReasignarYMarcar} style={{ background: "var(--color-brand)", color: "var(--color-on-accent)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
                 Reasignar y dar de baja
               </button>
             </div>
@@ -899,7 +899,7 @@ export default function EquiposPage() {
           onClick={() => setModalAgregar(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 560, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 560, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Agregar integrante</h3>
             <input
               value={busquedaUsuario}
@@ -929,7 +929,7 @@ export default function EquiposPage() {
                         gap: 8,
                         width: "100%",
                         textAlign: "left",
-                        background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, white)" : "white",
+                        background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
                         border: `1px solid ${seleccionado ? "var(--color-detail-header)" : "var(--color-border)"}`,
                         borderRadius: 8,
                         padding: "8px 10px",
@@ -964,11 +964,11 @@ export default function EquiposPage() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalAgregar(null)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button onClick={() => setModalAgregar(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
               <button
                 onClick={confirmarAgregar}
                 disabled={!agregarUsuarioId || !!accionando}
-                style={{ background: agregarUsuarioId ? "var(--color-text)" : "var(--color-text-secondary)", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
+                style={{ background: agregarUsuarioId ? "var(--color-brand)" : "var(--color-text-secondary)", color: "var(--color-on-accent)", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
               >
                 Agregar al equipo
               </button>
@@ -983,7 +983,7 @@ export default function EquiposPage() {
           onClick={() => setModalCrear(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Crear equipo</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
               Selecciona un líder elegible (colaborador con rol que puede liderar, o administrador).
@@ -1054,7 +1054,7 @@ export default function EquiposPage() {
                             gap: 8,
                             width: "100%",
                             textAlign: "left",
-                            background: sel ? "color-mix(in srgb, var(--color-detail-header) 10%, white)" : "white",
+                            background: sel ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
                             border: `1px solid ${sel ? "var(--color-detail-header)" : "var(--color-border)"}`,
                             borderRadius: 8,
                             padding: "8px 10px",
@@ -1095,7 +1095,7 @@ export default function EquiposPage() {
             )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalCrear(false)} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+              <button onClick={() => setModalCrear(false)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
               <button
                 onClick={crearEquipo}
                 disabled={!nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim())}

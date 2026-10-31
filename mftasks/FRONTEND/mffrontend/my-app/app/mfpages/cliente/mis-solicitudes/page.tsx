@@ -250,7 +250,7 @@ export default function MisSolicitudesPage() {
           onClick={() => setOpenCrear(true)}
           style={{
             background: "var(--color-brand)",
-            color: "var(--color-background)",
+            color: "var(--color-on-accent)",
             padding: "8px 16px",
             borderRadius: "var(--radius-control)",
             border: "1px solid var(--color-brand)",
@@ -268,7 +268,7 @@ export default function MisSolicitudesPage() {
         <select
           value={filtro}
           onChange={handleEstadoChange}
-          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "var(--color-background)", color: "var(--color-text)" }}
         >
           {ESTADOS.map((s) => (
             <option key={s} value={s}>{etiquetaEstado(s)}</option>
@@ -278,7 +278,7 @@ export default function MisSolicitudesPage() {
           value={campoFecha}
           onChange={(e) => setCampoFecha(e.target.value as CampoFecha)}
           title="Campo de fecha a filtrar"
-          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "white" }}
+          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "var(--color-background)", color: "var(--color-text)" }}
         >
           <option value="solicitud">Fecha de solicitud</option>
           <option value="entrega">Fecha de entrega</option>
@@ -290,7 +290,7 @@ export default function MisSolicitudesPage() {
             value={desde}
             max={hasta || undefined}
             onChange={(e) => setDesde(e.target.value)}
-            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-background)", color: "var(--color-text)" }}
           />
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--color-text-secondary)" }}>
@@ -300,7 +300,7 @@ export default function MisSolicitudesPage() {
             value={hasta}
             min={desde || undefined}
             onChange={(e) => setHasta(e.target.value)}
-            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "white" }}
+            style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--color-background)", color: "var(--color-text)" }}
           />
         </label>
         <input
@@ -312,7 +312,7 @@ export default function MisSolicitudesPage() {
         {hayFiltros && (
           <button
             onClick={limpiarFiltros}
-            style={{ border: "1px solid var(--color-border)", background: "white", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
+            style={{ border: "1px solid var(--color-border)", background: "var(--color-background)", color: "var(--color-text)", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
           >
             Limpiar
           </button>

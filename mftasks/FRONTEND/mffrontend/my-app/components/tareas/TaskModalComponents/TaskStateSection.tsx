@@ -154,7 +154,7 @@ export default function TaskStateSection({
                                                 }
                                             >
                                                 <td data-label="Descripción">
-                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "color-mix(in srgb, var(--color-detail-header) 10%, white)", color: "var(--color-detail-header)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, white)", color: "var(--color-danger)", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
+                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))", color: "var(--color-detail-header)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", color: "var(--color-danger)", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
 
                                                     {subtarea.estado !== "STAND_BY" ?
                                                         <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)}</div>
@@ -166,7 +166,7 @@ export default function TaskStateSection({
                                                 <td data-label="Cambiar Estado">
                                                     {esMiSubtarea && onCambiarEstadoSubtarea ? (
                                                         subtarea.estado === "SOLUCIONADO" ? (
-                                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)" }}>✓ Solucionado</span>
+                                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", color: "var(--color-done)", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))" }}>✓ Solucionado</span>
                                                         ) : subtarea.estado === "STAND_BY" ? (
                                                             <button
                                                                 onClick={() => abrirReanudar(subtarea.id)}
@@ -212,8 +212,8 @@ export default function TaskStateSection({
                                                             disabled={empezandoId === subtarea.id}
                                                             title={bloqueadaTooltip}
                                                             style={{
-                                                                background: bloqueada ? "var(--color-text-secondary)" : "#0891b2",
-                                                                color: "white",
+                                                                background: bloqueada ? "var(--color-text-secondary)" : "var(--color-in-progress)",
+                                                                color: "var(--color-on-accent)",
                                                                 border: "none",
                                                                 padding: "4px 10px",
                                                                 borderRadius: 6,
@@ -229,7 +229,7 @@ export default function TaskStateSection({
                                                             disabled={completandoId === subtarea.id}
                                                             style={{
                                                                 background: "var(--color-done)",
-                                                                color: "white",
+                                                                color: "var(--color-on-accent)",
                                                                 border: "none",
                                                                 padding: "4px 10px",
                                                                 borderRadius: 6,
@@ -240,7 +240,7 @@ export default function TaskStateSection({
                                                             {completandoId === subtarea.id ? "Guardando…" : "Marcar como completado"}
                                                         </button>
                                                     ) : subtarea.estado === "SOLUCIONADO" ? (
-                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, white)", color: "#000000", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, white)" }}>✓ Solucionado</span>
+                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", color: "var(--color-done)", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))" }}>✓ Solucionado</span>
                                                     ) : subtarea.estado === "STAND_BY" ? (
                                                         <span style={{ color: "var(--color-waiting)", fontSize: 11, fontWeight: 600 }}>Pausada</span>
                                                     ) : (

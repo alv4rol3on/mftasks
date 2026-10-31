@@ -59,7 +59,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 : t.type === "error"
                   ? "var(--color-danger)"
                   : "var(--color-detail-header)",
-              color: "var(--color-background)",
+              color: "var(--color-on-accent)",
               padding: "12px 20px",
               borderRadius: "var(--radius-control)",
               boxShadow: "0 4px 12px rgba(16,24,40,0.18)",

@@ -28,7 +28,7 @@
   gap: 12px;
   /* El color lo hereda del rol del equipo (var --rol-color); si no, neutro. */
   background: var(--color-sidebar);
-  color: var(--color-background);
+  color: var(--color-on-accent);
   border-bottom: 3px solid var(--color-brand);
   transition: filter 0.15s;
 }
@@ -40,7 +40,7 @@
 /* Badge de tipo sobre encabezados de color */
 .badgeTipo {
   background: rgba(255, 255, 255, 0.18);
-  color: var(--color-background);
+  color: var(--color-on-accent);
   border: 1px solid rgba(255, 255, 255, 0.32);
 }
 
@@ -60,7 +60,7 @@
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: white;
+  color: var(--color-on-accent);
   line-height: 1.2;
 }
 
@@ -75,7 +75,7 @@
 }
 
 .cardMeta strong {
-  color: white;
+  color: var(--color-on-accent);
   font-weight: 600;
 }
 
@@ -83,7 +83,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-border);
+  color: var(--color-text-secondary);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -92,7 +92,7 @@
   transform: rotate(0);
   transition: transform 0.2s;
   font-size: 12px;
-  color: var(--color-border);
+  color: var(--color-text-secondary);
 }
 
 .cardHeaderArrowOpen {
@@ -110,26 +110,26 @@
 }
 
 .badgeInactivo {
-  background: color-mix(in srgb, var(--color-danger) 10%, white);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
   color: var(--color-danger);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
 }
 
 .badgeGestionar {
   background: var(--color-done);
-  color: color-mix(in srgb, var(--color-detail-header) 10%, white);
+  color: var(--color-on-accent);
 }
 
 .badgeSubLider {
   background: var(--color-waiting);
-  color: color-mix(in srgb, var(--color-detail-header) 10%, white);
-  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
+  color: var(--color-on-accent);
+  border: 1px solid var(--color-on-accent);
 }
 
 .badgeAprobador {
   background: var(--color-danger);
-  color: color-mix(in srgb, var(--color-detail-header) 10%, white);
-  border: 1px solid color-mix(in srgb, var(--color-detail-header) 26%, white);
+  color: var(--color-on-accent);
+  border: 1px solid var(--color-on-accent);
 }
 
 /* Contenido expandido — mantiene fondo claro para legibilidad */
@@ -164,7 +164,7 @@
 
 .btnAgregar {
   background: var(--color-brand);
-  color: white;
+  color: var(--color-on-accent);
   border: none;
   padding: 8px 14px;
   border-radius: 8px;
@@ -217,15 +217,15 @@
 }
 
 .alertError {
-  background: color-mix(in srgb, var(--color-danger) 10%, white);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
   color: var(--color-danger);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, white);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
 }
 
 .alertSuccess {
-  background: color-mix(in srgb, var(--color-done) 12%, white);
+  background: color-mix(in srgb, var(--color-done) 12%, var(--color-background));
   color: var(--color-done);
-  border: 1px solid #bbf7d0;
+  border: 1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background));
 }
 
 @media (max-width: 768px) {

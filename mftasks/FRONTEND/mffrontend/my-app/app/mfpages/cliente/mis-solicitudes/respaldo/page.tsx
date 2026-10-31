@@ -61,10 +61,10 @@ export default function MisSolicitudesPage() {
         <h2 className="text-lg font-medium">Mis solicitudes</h2>
         {/*<form onSubmit={handleBuscar} style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por ticket o nombre..." style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 240 }} />
-          <button type="submit" style={{ background: "var(--color-text)", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
-          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "white", border: "1px solid var(--color-border)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}
+          <button type="submit" style={{ background: "var(--color-text)", color: "var(--color-on-accent)", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Buscar</button>
+          {busqueda && <button type="button" onClick={() => { setBusqueda(""); cargar(""); }} style={{ background: "var(--color-background)", color: "var(--color-text)", border: "1px solid var(--color-border)", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Limpiar</button>}
         </form>*/}
-        <button onClick={() => setOpenCrear(true)} style={{ background: "var(--color-in-progress)", color: "white", padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer" }}>+ Crear solicitud</button>
+        <button onClick={() => setOpenCrear(true)} style={{ background: "var(--color-in-progress)", color: "var(--color-on-accent)", padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer" }}>+ Crear solicitud</button>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
@@ -78,14 +78,14 @@ export default function MisSolicitudesPage() {
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {filtradas.map((t) => (
-            <div key={t.id} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, background: "white" }}>
+            <div key={t.id} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, background: "var(--color-background)", color: "var(--color-text)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{t.asunto} <span style={{ background: estadoColor[t.estado] ?? "var(--color-text-secondary)", color: "white", padding: "2px 6px", borderRadius: 4, fontSize: 10, marginLeft: 6 }}>{t.estado}</span></div>
+                  <div style={{ fontWeight: 600 }}>{t.asunto} <span style={{ background: estadoColor[t.estado] ?? "var(--color-text-secondary)", color: "var(--color-on-accent)", padding: "2px 6px", borderRadius: 4, fontSize: 10, marginLeft: 6 }}>{t.estado}</span></div>
                   <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{t.cliente_nombre} • {t.equipo_nombre} • {fmt(t.fecha_creacion)}</div>
                   {t.motivo_rechazo && t.estado === "RECHAZADO" && <div style={{ fontSize: 12, color: "var(--color-danger)", marginTop: 4 }}>Motivo: {t.motivo_rechazo}</div>}
                 </div>
-                <button onClick={() => setSelected(t)} style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "1px solid var(--color-detail-header)", color: "var(--color-detail-header)", background: "white", cursor: "pointer", fontSize: 12 }}>Ver detalle</button>
+                <button onClick={() => setSelected(t)} style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "1px solid var(--color-detail-header)", color: "var(--color-detail-header)", background: "var(--color-background)", cursor: "pointer", fontSize: 12 }}>Ver detalle</button>
               </div>
               {(t.estado === "EN_DESARROLLO" || t.estado === "SOLUCIONADO" || t.subtareas.length > 0) && (
                 <div style={{ marginTop: 10 }}>

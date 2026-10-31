@@ -108,9 +108,9 @@
 .removeButton {
     width: 36px;
     height: 37px;
-    border: 1px solid #f7c8c4;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     border-radius: 8px;
-    background: #fff5f4;
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
     color: var(--color-danger);
     font-size: 12px;
     font-weight: 700;
@@ -118,7 +118,7 @@
 }
 
 .removeButton:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-danger) 10%, white);
+    background: color-mix(in srgb, var(--color-danger) 18%, var(--color-background));
 }
 
 .removeButton:disabled {
@@ -128,7 +128,7 @@
 
 .addButton {
     margin-top: 10px;
-    border: 1px dashed #b8c1cc;
+    border: 1px dashed var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
     padding: 7px 13px;
@@ -150,9 +150,9 @@
 
 .error {
     margin: 0;
-    border: 1px solid #f7c8c4;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background));
     border-radius: 8px;
-    background: #fff5f4;
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--color-background));
     padding: 8px 10px;
     color: var(--color-danger);
     font-size: 12px;
@@ -188,7 +188,7 @@
 .submitButton {
     border: 1px solid var(--color-brand);
     background: var(--color-brand);
-    color: var(--color-background);
+    color: var(--color-on-accent);
 }
 
 .submitButton:hover:not(:disabled) {
