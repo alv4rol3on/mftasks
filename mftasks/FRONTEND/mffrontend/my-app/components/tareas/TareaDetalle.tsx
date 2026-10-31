@@ -13,6 +13,7 @@ import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 import RichTextView from "@/components/shared/RichTextView";
 import SuccessModal from "@/components/shared/SuccessModal";
 import HistorialTarea from "@/components/tareas/HistorialTarea";
+import InformacionClientePanel from "@/components/tareas/InformacionClientePanel";
 import SubtaskBoard from "@/components/tareas/SubtaskBoard";
 import AssignmentPanel from "@/components/tareas/AssignmentPanel";
 import DependencyPanel from "@/components/tareas/DependencyPanel";
@@ -20,7 +21,7 @@ import SubtaskActionDialog from "@/components/tareas/SubtaskActionDialog";
 import type { Subtarea } from "@/lib/types";
 import styles from "./TareaDetalle.module.css";
 
-type TabKey = "tablero" | "asignaciones" | "dependencias" | "historial";
+type TabKey = "tablero" | "asignaciones" | "dependencias" | "informacion" | "historial";
 type AccionPendiente = { tipo: "pausa" | "solucionar" | "reanudar"; subtarea: Subtarea } | null;
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -232,6 +233,7 @@ export default function TareaDetalle({
     { key: "tablero", label: "Tablero" },
     ...(puedeVerAsignaciones ? [{ key: "asignaciones" as TabKey, label: "Asignaciones" }] : []),
     { key: "dependencias", label: "Dependencias" },
+    { key: "informacion", label: "Información del cliente" },
     { key: "historial", label: "Historial" },
   ];
   const tabActual = tabsDisponibles.some((t) => t.key === tab) ? tab : "tablero";
@@ -424,6 +426,12 @@ export default function TareaDetalle({
             {tabActual === "historial" && (
               <div id="detalle-panel-historial" role="tabpanel" aria-labelledby="detalle-tab-historial" className={styles.tabPanel}>
                 <HistorialTarea tareaId={tarea.id} />
+              </div>
+            )}
+
+            {tabActual === "informacion" && (
+              <div id="detalle-panel-informacion" role="tabpanel" aria-labelledby="detalle-tab-informacion" className={styles.tabPanel}>
+                <InformacionClientePanel tareaId={tarea.id} refreshKey={refreshKey} />
               </div>
             )}
           </section>

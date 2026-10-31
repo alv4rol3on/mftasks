@@ -42,7 +42,7 @@ def validar_archivos(archivos) -> None:
             })
 
 
-def guardar_archivos(tarea, archivos, usuario):
+def guardar_archivos(tarea, archivos, usuario, informacion_log=None):
     """Crea los registros ArchivoTarea y devuelve la lista creada."""
     creados = []
     for archivo in archivos or []:
@@ -52,6 +52,7 @@ def guardar_archivos(tarea, archivos, usuario):
                 archivo=archivo,
                 nombre=archivo.name,
                 subido_por=usuario,
+                informacion_log=informacion_log,
             )
         )
     return creados

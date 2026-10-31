@@ -196,6 +196,31 @@ export async function fetchLogs(tareaId: number): Promise<LogItem[]> {
   return apiFetch<LogItem[]>(`/api/tasks/tasks/${tareaId}/logs/`);
 }
 
+export interface ArchivoInformacionCliente {
+  id: number;
+  nombre: string;
+  url: string | null;
+  fecha_subida: string | null;
+  subido_por: string | null;
+}
+
+export interface EntradaInformacionCliente {
+  id: number;
+  fecha: string | null;
+  usuario: string | null;
+  usuario_id: number | null;
+  detalle: string;
+  archivos: ArchivoInformacionCliente[];
+}
+
+export async function fetchInformacionCliente(
+  tareaId: number
+): Promise<EntradaInformacionCliente[]> {
+  return apiFetch<EntradaInformacionCliente[]>(
+    `/api/tasks/tasks/${tareaId}/informacion-cliente/`
+  );
+}
+
 export async function crearDependencia(tareaId: number, bloqueadaId: number, bloqueadoraId: number): Promise<void> {
   await apiFetch(`/api/tasks/tasks/${tareaId}/subtareas/${bloqueadaId}/dependencias/`, {
     method: "POST",

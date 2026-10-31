@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from usuarios.models import Equipo, User
+from usuarios.models import Equipo, EquipoMiembro, User
 
 from .models import Subtarea, Tarea, TareaLog
 from .services.confirmacion import confirmar_automaticamente
@@ -88,6 +88,10 @@ class ClienteAccionesTestCase(APITestCase):
             format="multipart",
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
+        log = TareaLog.objects.get(
+            tarea=self.tarea,
+            tipo_evento=TareaLog.TipoEvento.INFORMACION_ADICIONAL,
+        )
         self.assertTrue(
             TareaLog.objects.filter(
                 tarea=self.tarea,
@@ -95,6 +99,34 @@ class ClienteAccionesTestCase(APITestCase):
             ).exists()
         )
         self.assertEqual(self.tarea.archivos.count(), 1)
+        self.assertEqual(self.tarea.archivos.first().informacion_log_id, log.id)
+
+    def test_miembro_del_equipo_ve_informacion_cliente(self):
+        miembro = User.objects.create_user(
+            email="miembro@test.com",
+            nombres="Miembro",
+            apellidos="Equipo",
+            password="segura-123",
+        )
+        EquipoMiembro.objects.create(equipo=self.equipo, usuario=miembro)
+        self._auth()
+        archivo = SimpleUploadedFile("datos.txt", b"datos", content_type="text/plain")
+        res = self.client.post(
+            f"/api/tasks/tasks/{self.tarea.id}/informacion-adicional/",
+            {"detalle": "Datos faltantes", "archivos": archivo},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self._auth(miembro)
+        res = self.client.get(
+            f"/api/tasks/tasks/{self.tarea.id}/informacion-cliente/"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]["detalle"], "Datos faltantes")
+        self.assertEqual(len(res.data[0]["archivos"]), 1)
+        self.assertEqual(res.data[0]["archivos"][0]["nombre"], "datos.txt")
 
     def test_informacion_rechaza_extension(self):
         self._auth()

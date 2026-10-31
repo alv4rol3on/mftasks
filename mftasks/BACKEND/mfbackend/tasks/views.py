@@ -36,7 +36,7 @@ from usuarios.permissions import (
     es_lider_de_equipo
 )
 
-from .models import AprobacionTarea, Subtarea, Tarea, TareaLog
+from .models import AprobacionTarea, ArchivoTarea, Subtarea, Tarea, TareaLog
 from .permissions import (
     EsAsignadorDeEquipoDeTarea,
     EsSolicitanteDeTarea,
@@ -1470,6 +1470,76 @@ class TaskViewSet(viewsets.ModelViewSet):
             TaskSerializer(tarea, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="informacion-cliente",
+    )
+    def informacion_cliente(self, request, pk=None):
+        tarea = self.get_object()
+        logs = (
+            TareaLog.objects.filter(
+                tarea=tarea,
+                tipo_evento=TareaLog.TipoEvento.INFORMACION_ADICIONAL,
+            )
+            .select_related("usuario")
+            .prefetch_related("archivos_informacion")
+            .order_by("fecha", "id")
+        )
+
+        def archivo_data(archivo):
+            return {
+                "id": archivo.id,
+                "nombre": archivo.nombre,
+                "url": archivo.archivo.url if archivo.archivo else None,
+                "fecha_subida": (
+                    archivo.fecha_subida.isoformat()
+                    if archivo.fecha_subida
+                    else None
+                ),
+                "subido_por": (
+                    f"{archivo.subido_por.nombres} {archivo.subido_por.apellidos}".strip()
+                    if archivo.subido_por
+                    else None
+                ),
+            }
+
+        data = []
+        for log in logs:
+            archivos = list(log.archivos_informacion.all())
+
+            # Compatibilidad con entradas antiguas que guardaban los nombres
+            # de archivo dentro del texto del log.
+            if not archivos and "Archivos adjuntos: " in (log.detalle or ""):
+                nombres = [
+                    nombre.strip()
+                    for nombre in log.detalle.split("Archivos adjuntos: ", 1)[1].split(",")
+                    if nombre.strip()
+                ]
+                archivos = list(
+                    ArchivoTarea.objects.filter(
+                        tarea=tarea,
+                        subido_por=log.usuario,
+                        nombre__in=nombres,
+                    ).order_by("fecha_subida", "id")
+                )
+
+            data.append({
+                "id": log.id,
+                "fecha": log.fecha.isoformat() if log.fecha else None,
+                "usuario": (
+                    f"{log.usuario.nombres} {log.usuario.apellidos}".strip()
+                    if log.usuario
+                    else None
+                ),
+                "usuario_id": log.usuario_id,
+                "detalle": log.detalle,
+                "archivos": [archivo_data(archivo) for archivo in archivos],
+            })
+
+        return Response(data)
 
     @action(
         detail=True,

@@ -65,21 +65,22 @@ def agregar_informacion(tarea, usuario, detalle, archivos):
     validar_archivos(archivos)
 
     with transaction.atomic():
-        creados = guardar_archivos(tarea, archivos, usuario)
-        nombres = ", ".join(archivo.nombre for archivo in creados)
-        partes = []
-        if detalle:
-            partes.append(detalle)
-        if nombres:
-            partes.append(f"Archivos adjuntos: {nombres}")
-        texto = " · ".join(partes)
-
+        texto = detalle or "Se agregó información adicional."
         log = registrar_log(
             tarea=tarea,
             usuario=usuario,
             tipo_evento=TareaLog.TipoEvento.INFORMACION_ADICIONAL,
             detalle=texto,
         )
+        creados = guardar_archivos(
+            tarea,
+            archivos,
+            usuario,
+            informacion_log=log,
+        )
+        if not detalle and creados:
+            log.detalle = f"Se agregaron {len(creados)} archivo(s)."
+            log.save(update_fields=["detalle"])
 
     transaction.on_commit(lambda: notificar_tarea(tarea))
     return log, creados

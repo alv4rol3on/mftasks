@@ -239,6 +239,15 @@ class ArchivoTarea(models.Model):
         related_name="archivos_subidos",
     )
 
+    informacion_log = models.ForeignKey(
+        "TareaLog",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="archivos_informacion",
+        help_text="Entrada de información adicional del cliente a la que pertenece el archivo.",
+    )
+
     class Meta:
         indexes = [
             models.Index(fields=["tarea"]),
