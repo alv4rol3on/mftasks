@@ -12,6 +12,7 @@ import {
 } from "react";
 import { obtenerAccessToken } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/authConfig";
+import { refrescarTokens } from "@/lib/api";
 
 export type TaskWebSocketEvent = {
     type: string;
@@ -36,6 +37,7 @@ type TasksWebSocketContextType = {
     subtareaEventos: Record<number, SubtaskWebSocketEvent>;
     observarTarea: (taskId: number) => void;
     dejarDeObservarTarea: (taskId: number) => void;
+    wsDisponible: boolean;
 };
 
 const TasksWebSocketContext =
@@ -50,19 +52,29 @@ const RECONEXION_MS = 3000;
  * - Si no, deriva de NEXT_PUBLIC_API_URL cambiando http->ws / https->wss.
  * - Fallback: mismo origen (comportamiento anterior).
  */
-function wsBaseUrl(): string {
+function wsBaseUrl(): string | null {
     const explicito = process.env.NEXT_PUBLIC_WS_URL?.trim();
     if (explicito) return explicito.replace(/\/+$/, "");
 
-    try {
-        const base = new URL(apiBaseUrl, window.location.origin);
-        const protocol = base.protocol === "https:" ? "wss:" : "ws:";
-        return `${protocol}//${base.host}`;
-    } catch {
-        const protocol =
-            window.location.protocol === "https:" ? "wss:" : "ws:";
+    const api = (apiBaseUrl || "").trim();
+    if (api) {
+        try {
+            const base = new URL(api, window.location.origin);
+            const protocol = base.protocol === "https:" ? "wss:" : "ws:";
+            return `${protocol}//${base.host}`;
+        } catch {
+            return null;
+        }
+    }
+
+    // El proxy de Next no hace upgrade de WebSocket de forma fiable.
+    // Solo se permite same-origin si se habilita explícitamente.
+    if (process.env.NEXT_PUBLIC_WS_SAME_ORIGIN === "true") {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         return `${protocol}//${window.location.host}`;
     }
+
+    return null;
 }
 
 export function TasksWebSocketProvider({
@@ -76,6 +88,11 @@ export function TasksWebSocketProvider({
         {}
     );
     const abrirSocketRef = useRef<(taskId: number) => void>(() => {});
+    const falloGlobal = useRef(false);
+    const avisoMostrado = useRef(false);
+    const refreshIntentado = useRef<Set<number>>(new Set());
+
+    const [wsDisponible, setWsDisponible] = useState(true);
 
     const [eventos, setEventos] =
         useState<Record<number, TaskWebSocketEvent>>({});
@@ -83,23 +100,51 @@ export function TasksWebSocketProvider({
     const [subtareaEventos, setSubtareaEventos] =
         useState<Record<number, SubtaskWebSocketEvent>>({});
 
+    const marcarNoDisponible = useCallback((codigo?: number, motivo?: string) => {
+        if (falloGlobal.current) return;
+
+        falloGlobal.current = true;
+        setWsDisponible(false);
+
+        if (!avisoMostrado.current) {
+            avisoMostrado.current = true;
+            const detalle = [
+                codigo ? `código ${codigo}` : "",
+                motivo ? `motivo: ${motivo}` : "",
+            ].filter(Boolean).join(", ");
+            console.info(
+                "WebSocket no disponible; se usará actualización periódica." +
+                (detalle ? ` (${detalle})` : "")
+            );
+        }
+    }, []);
+
     const abrirSocket = useCallback((taskId: number) => {
         if (typeof window === "undefined") return;
-
+        if (falloGlobal.current) return;
         if (sockets.current[taskId]) return;
 
         const token = obtenerAccessToken();
 
         if (!token) return;
 
+        const base = wsBaseUrl();
+
+        if (!base) {
+            marcarNoDisponible();
+            return;
+        }
+
         const url =
-            `${wsBaseUrl()}/ws/tareas/${taskId}/` +
+            `${base}/ws/tareas/${taskId}/` +
             `?token=${encodeURIComponent(token)}`;
 
         const ws = new WebSocket(url);
 
         ws.onopen = () => {
-            console.log(`>>> WS TAREA ${taskId} CONECTADO`);
+            falloGlobal.current = false;
+            refreshIntentado.current.delete(taskId);
+            setWsDisponible(true);
         };
 
         ws.onmessage = (event) => {
@@ -117,41 +162,42 @@ export function TasksWebSocketProvider({
                         [data.subtarea_id]: data,
                     }));
                 }
-            } catch (error) {
-                console.error(
-                    "Error procesando mensaje WebSocket:",
-                    error
-                );
+            } catch {
+                // Ignorar mensajes no JSON o inválidos.
             }
         };
 
-        ws.onerror = (error) => {
-            console.error(`>>> WS TAREA ${taskId} ERROR`, error);
+        ws.onerror = () => {
+            // El cierre se maneja en onclose para evitar ruido y duplicados.
         };
 
         ws.onclose = (event) => {
-            console.log(`>>> WS TAREA ${taskId} CERRADO`, {
-                code: event.code,
-                reason: event.reason,
-            });
-
             delete sockets.current[taskId];
 
             if (!deseados.current.has(taskId)) return;
 
-            const anterior = reconexiones.current[taskId];
-            if (anterior) clearTimeout(anterior);
+            if (event.code === 4403 && !refreshIntentado.current.has(taskId)) {
+                refreshIntentado.current.add(taskId);
+                void refrescarTokens().then((renovado) => {
+                    if (renovado && deseados.current.has(taskId)) {
+                        reconexiones.current[taskId] = setTimeout(() => {
+                            delete reconexiones.current[taskId];
+                            if (deseados.current.has(taskId)) {
+                                abrirSocketRef.current(taskId);
+                            }
+                        }, RECONEXION_MS);
+                    } else {
+                        marcarNoDisponible(event.code, event.reason);
+                    }
+                });
+                return;
+            }
 
-            reconexiones.current[taskId] = setTimeout(() => {
-                delete reconexiones.current[taskId];
-                if (deseados.current.has(taskId)) {
-                    abrirSocketRef.current(taskId);
-                }
-            }, RECONEXION_MS);
+            marcarNoDisponible(event.code, event.reason);
         };
 
         sockets.current[taskId] = ws;
-    }, []);
+    }, [marcarNoDisponible]);
 
     useEffect(() => {
         abrirSocketRef.current = abrirSocket;
@@ -223,8 +269,9 @@ export function TasksWebSocketProvider({
             subtareaEventos,
             observarTarea,
             dejarDeObservarTarea,
+            wsDisponible,
         }),
-        [eventos, subtareaEventos, observarTarea, dejarDeObservarTarea]
+        [eventos, subtareaEventos, observarTarea, dejarDeObservarTarea, wsDisponible]
     );
 
     return (

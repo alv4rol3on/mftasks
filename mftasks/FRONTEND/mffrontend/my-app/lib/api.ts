@@ -1,7 +1,7 @@
 import { obtenerAccessToken } from "./auth";
 import { apiBaseUrl } from "./authConfig";
 
-async function refrescarTokens(): Promise<boolean> {
+export async function refrescarTokens(): Promise<boolean> {
     const refresh = localStorage.getItem("refresh");
 
     if (!refresh) return false;

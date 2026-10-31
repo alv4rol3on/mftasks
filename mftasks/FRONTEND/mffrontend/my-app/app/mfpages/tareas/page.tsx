@@ -25,7 +25,7 @@ type FiltrosGuardados = {
 };
 
 export default function TareasPage() {
-  const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea } = useTasksWebSocket();
+  const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea, wsDisponible } = useTasksWebSocket();
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("EN_PROCESO");
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
@@ -43,6 +43,14 @@ export default function TareasPage() {
     [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana, filtroPrioridad]
   );
   const { tareas, cargando, error, cargar, setTareas } = useTareas(filtros);
+
+  useEffect(() => {
+    if (wsDisponible) return;
+    const intervalo = setInterval(() => {
+      void cargar();
+    }, 30000);
+    return () => clearInterval(intervalo);
+  }, [wsDisponible, cargar]);
 
   // Restaura los filtros al volver del detalle de una solicitud.
   useEffect(() => {

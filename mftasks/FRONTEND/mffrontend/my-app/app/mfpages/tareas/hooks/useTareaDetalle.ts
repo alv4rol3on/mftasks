@@ -9,7 +9,7 @@ export function useTareaDetalle(tareaId: number | null) {
   const [tarea, setTarea] = useState<Task | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea } = useTasksWebSocket();
+  const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea, wsDisponible } = useTasksWebSocket();
   const reqId = useRef(0);
   const primeraVersion = useRef(true);
 
@@ -47,6 +47,14 @@ export function useTareaDetalle(tareaId: number | null) {
     observarTarea(tareaId);
     return () => dejarDeObservarTarea(tareaId);
   }, [tareaId, observarTarea, dejarDeObservarTarea]);
+
+  useEffect(() => {
+    if (wsDisponible || !tareaId) return;
+    const intervalo = setInterval(() => {
+      void cargar();
+    }, 30000);
+    return () => clearInterval(intervalo);
+  }, [wsDisponible, tareaId, cargar]);
 
   const eventoVersion = tareaId !== null && eventos[tareaId]
     ? JSON.stringify(eventos[tareaId])

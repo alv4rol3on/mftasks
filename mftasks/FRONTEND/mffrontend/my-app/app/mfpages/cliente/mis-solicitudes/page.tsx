@@ -29,6 +29,7 @@ export default function MisSolicitudesPage() {
     subtareaEventos,
     observarTarea,
     dejarDeObservarTarea,
+    wsDisponible,
   } = useTasksWebSocket();
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -70,6 +71,14 @@ export default function MisSolicitudesPage() {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (wsDisponible) return;
+    const intervalo = setInterval(() => {
+      void cargar();
+    }, 30000);
+    return () => clearInterval(intervalo);
+  }, [wsDisponible, cargar]);
 
   const idsTareas = useMemo(
     () => tareas.map((t) => t.id),
