@@ -41,6 +41,25 @@ class Tarea(models.Model):
         CREACION_BI = "CREACION_BI", "Creación de BI"
         OTROS = "OTROS", "Otros"
 
+    class Prioridad(models.TextChoices):
+        BAJA = "BAJA", "Baja"
+        MEDIA = "MEDIA", "Media"
+        ALTA = "ALTA", "Alta"
+        URGENTE = "URGENTE", "Urgente"
+
+    class Severidad(models.TextChoices):
+        BAJA = "BAJA", "Baja"
+        MEDIA = "MEDIA", "Media"
+        ALTA = "ALTA", "Alta"
+        CRITICA = "CRITICA", "Crítica"
+
+    class Impacto(models.TextChoices):
+        BAJO = "BAJO", "Bajo"
+        MEDIO = "MEDIO", "Medio"
+        ALTO = "ALTO", "Alto"
+        CRITICO = "CRITICO", "Crítico"
+
+
     ticket = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
 
     asunto = models.CharField(max_length=200)
@@ -59,6 +78,23 @@ class Tarea(models.Model):
         help_text="Especificar cuando el tipo de solicitud sea Otros.",
     )
     descripcion = models.TextField()
+
+    prioridad = models.CharField(
+        max_length=20,
+        choices=Prioridad.choices,
+        default=Prioridad.MEDIA,
+        db_index=True,
+    )
+    severidad = models.CharField(
+        max_length=20,
+        choices=Severidad.choices,
+        default=Severidad.MEDIA,
+    )
+    impacto = models.CharField(
+        max_length=20,
+        choices=Impacto.choices,
+        default=Impacto.MEDIO,
+    )
 
     estado = models.CharField(
         max_length=20,
@@ -375,6 +411,7 @@ class TareaLog(models.Model):
         CONFIRMACION_CLIENTE = "CONFIRMACION_CLIENTE", "Confirmación del cliente"
         CONFIRMACION_AUTOMATICA = "CONFIRMACION_AUTOMATICA", "Confirmación automática"
         REAPERTURA = "REAPERTURA", "Reapertura"
+        CAMBIO_PRIORIDAD = "CAMBIO_PRIORIDAD", "Cambio de prioridad"
 
     tarea = models.ForeignKey(
         Tarea,

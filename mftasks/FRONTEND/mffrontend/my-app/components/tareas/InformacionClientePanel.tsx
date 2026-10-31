@@ -12,6 +12,9 @@ import styles from "./TareaDetalle.module.css";
 type Props = {
   tareaId: number;
   refreshKey?: string | number;
+  titulo?: string;
+  subtitulo?: string;
+  mostrarAutor?: boolean;
 };
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -30,7 +33,13 @@ const formatearFecha = (fecha: string | null | undefined) => {
   return formatter.format(date);
 };
 
-export default function InformacionClientePanel({ tareaId, refreshKey }: Props) {
+export default function InformacionClientePanel({
+  tareaId,
+  refreshKey,
+  titulo = "Información del cliente",
+  subtitulo = "Notas y archivos adicionales enviados por el solicitante.",
+  mostrarAutor = true,
+}: Props) {
   const [entradas, setEntradas] = useState<EntradaInformacionCliente[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recargando, setRecargando] = useState(false);
@@ -50,10 +59,12 @@ export default function InformacionClientePanel({ tareaId, refreshKey }: Props) 
 
   useEffect(() => {
     let cancelado = false;
-    setError(null);
     fetchInformacionCliente(tareaId)
       .then((data) => {
-        if (!cancelado) setEntradas(data);
+        if (!cancelado) {
+          setEntradas(data);
+          setError(null);
+        }
       })
       .catch((e) => {
         if (!cancelado) setError((e as Error).message);
@@ -67,9 +78,9 @@ export default function InformacionClientePanel({ tareaId, refreshKey }: Props) 
     <div>
       <div className={styles.historyHeader}>
         <div>
-          <h3 className={styles.sectionTitle}>Información del cliente</h3>
+          <h3 className={styles.sectionTitle}>{titulo}</h3>
           <p className={styles.sectionHint}>
-            Notas y archivos adicionales enviados por el solicitante.
+            {subtitulo}
           </p>
         </div>
         <RefreshButton
@@ -113,10 +124,14 @@ export default function InformacionClientePanel({ tareaId, refreshKey }: Props) 
                 </div>
 
                 <div className={styles.historyMeta}>
-                  <span className={styles.historyUser}>
-                    {entrada.usuario ?? "Cliente"}
+                  {mostrarAutor && (
+                    <span className={styles.historyUser}>
+                      {entrada.usuario ?? "Cliente"}
+                    </span>
+                  )}
+                  <span className={styles.historyEntity}>
+                    {mostrarAutor ? "Cliente" : "Tu información"}
                   </span>
-                  <span className={styles.historyEntity}>Cliente</span>
                 </div>
 
                 <div style={{ marginTop: 6, color: "var(--color-text)", fontSize: 12.5, lineHeight: 1.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>

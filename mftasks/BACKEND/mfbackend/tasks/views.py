@@ -45,6 +45,7 @@ from .permissions import (
 )
 from .serializers import SubtareaSerializer, TaskSerializer
 from .services.archivos import guardar_archivos, validar_archivos
+from .services.asignacion import sugerir_asignaciones
 from .services.cancelacion import CancelacionInvalida, cancelar_tarea
 from .services.cliente_acciones import (
     InformacionInvalida,
@@ -59,6 +60,10 @@ from .services.confirmacion import (
 from .services.constancia_pdf import generar_constancia_pdf
 from .services.logs import registrar_log
 from .services.notificaciones import notificar_subtarea, notificar_tarea
+from .services.reabrir_subtarea import (
+    ReaperturaSubtareaInvalida,
+    reabrir_subtarea as reabrir_subtarea_service,
+)
 
 from campanas.models import PermisoCampana
 from usuarios.models import Rol
@@ -352,6 +357,18 @@ class TaskViewSet(viewsets.ModelViewSet):
                 )
             elif estado in Tarea.Estado.values:
                 queryset = queryset.filter(estado=estado)
+
+        prioridad = (params.get("prioridad") or "").upper()
+        if prioridad and prioridad in Tarea.Prioridad.values:
+            queryset = queryset.filter(prioridad=prioridad)
+
+        severidad = (params.get("severidad") or "").upper()
+        if severidad and severidad in Tarea.Severidad.values:
+            queryset = queryset.filter(severidad=severidad)
+
+        impacto = (params.get("impacto") or "").upper()
+        if impacto and impacto in Tarea.Impacto.values:
+            queryset = queryset.filter(impacto=impacto)
 
         if params.get("excluir_espera") in ("1", "true", "yes"):
             queryset = queryset.exclude(estado=Tarea.Estado.EN_ESPERA)
@@ -1028,6 +1045,108 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
 
         return Response(TaskSerializer(tarea, context={"request": request}).data)
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path="triage",
+    )
+    def triage(self, request, pk=None):
+        tarea = self.get_object()
+
+        if tarea.estado in (
+            Tarea.Estado.SOLUCIONADO,
+            Tarea.Estado.RECHAZADO,
+            Tarea.Estado.CANCELADO,
+        ):
+            return Response(
+                {"detail": "No se puede modificar el triage de una solicitud cerrada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cambios = {}
+        cambios_texto = []
+
+        for campo, valores, etiqueta in (
+            ("prioridad", Tarea.Prioridad.values, "Prioridad"),
+            ("severidad", Tarea.Severidad.values, "Severidad"),
+            ("impacto", Tarea.Impacto.values, "Impacto"),
+        ):
+            if campo not in request.data:
+                continue
+            valor = str(request.data.get(campo) or "").upper()
+            if valor not in valores:
+                return Response(
+                    {"detail": f"{etiqueta} inválida."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            anterior = getattr(tarea, campo)
+            if anterior != valor:
+                cambios[campo] = valor
+                cambios_texto.append(f"{etiqueta}: {anterior} -> {valor}")
+
+        if not cambios:
+            return Response(
+                {"detail": "No se enviaron cambios de triage."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for campo, valor in cambios.items():
+            setattr(tarea, campo, valor)
+        tarea.save(update_fields=list(cambios.keys()))
+
+        registrar_log(
+            tarea=tarea,
+            usuario=request.user,
+            tipo_evento=TareaLog.TipoEvento.CAMBIO_PRIORIDAD,
+            detalle="; ".join(cambios_texto),
+        )
+        notificar_tarea(tarea)
+
+        return Response(
+            TaskSerializer(tarea, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path="sugerencias-asignacion",
+    )
+    def sugerencias_asignacion(self, request, pk=None):
+        tarea = self.get_object()
+        return Response(sugerir_asignaciones(tarea))
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/reabrir",
+    )
+    def reabrir_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+        subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
+        motivo = request.data.get("motivo") or request.data.get("motivo_reapertura") or ""
+
+        try:
+            subtarea = reabrir_subtarea_service(
+                tarea,
+                subtarea,
+                request.user,
+                motivo,
+            )
+        except ReaperturaSubtareaInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            SubtareaSerializer(subtarea).data,
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,

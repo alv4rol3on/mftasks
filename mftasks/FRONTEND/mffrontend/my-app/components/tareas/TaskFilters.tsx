@@ -14,6 +14,8 @@ type Props = {
     onCampanaChange: (next: { campanaId: number | ""; subcampanaId: number | "" }) => void;
     estado: EstadoFiltro;
     onEstadoChange: (estado: EstadoFiltro) => void;
+    prioridad: string;
+    onPrioridadChange: (prioridad: string) => void;
     campoFecha: CampoFecha;
     onCampoFechaChange: (campo: CampoFecha) => void;
     desde: string;
@@ -47,6 +49,8 @@ export default function TaskFilters({
     onCampanaChange,
     estado,
     onEstadoChange,
+    prioridad,
+    onPrioridadChange,
     campoFecha,
     onCampoFechaChange,
     desde,
@@ -94,6 +98,22 @@ export default function TaskFilters({
                     {ESTADOS_TAREA.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                     ))}
+                </select>
+            </label>
+
+            <label className={`${styles.field} ${styles.shortField}`}>
+                <span className={styles.label}>Prioridad</span>
+                <select
+                    value={prioridad}
+                    onChange={(e) => onPrioridadChange(e.target.value)}
+                    className={styles.control}
+                    title="Filtrar por prioridad"
+                >
+                    <option value="">Todas</option>
+                    <option value="BAJA">Baja</option>
+                    <option value="MEDIA">Media</option>
+                    <option value="ALTA">Alta</option>
+                    <option value="URGENTE">Urgente</option>
                 </select>
             </label>
 

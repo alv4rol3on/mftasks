@@ -2,9 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { EquipoInfo, EquipoMiembroDetallado, Task } from "@/lib/types";
+import {
+    fetchSugerenciasAsignacion,
+    reabrirSubtarea as apiReabrirSubtarea,
+    type SugerenciaAsignacion,
+} from "@/lib/services/tareasService";
+import { EquipoInfo, EquipoMiembroDetallado, Subtarea, Task } from "@/lib/types";
 import IconButton from "@/components/ui/IconButton";
 import RefreshButton from "@/components/ui/RefreshButton";
+import ReabrirSubtareaDialog from "./ReabrirSubtareaDialog";
 import styles from "./TaskModalDesarrollo.module.css";
 
 type Props = {
@@ -13,6 +19,7 @@ type Props = {
     onReasignarSubtarea?: (tareaId: number, subtareaId: number, nuevoAsignado: number) => Promise<void>;
     onInactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
     onReactivarSubtarea?: (tareaId: number, subtareaId: number) => Promise<void>;
+    onReabrirSubtarea?: (tareaId: number, subtareaId: number, motivo: string) => Promise<void>;
     onTareaMutated?: () => void | Promise<void>;
 };
 
@@ -22,6 +29,7 @@ export default function AssignmentPanel({
     onReasignarSubtarea,
     onInactivarSubtarea,
     onReactivarSubtarea,
+    onReabrirSubtarea,
     onTareaMutated,
 }: Props) {
     const [miembros, setMiembros] = useState<EquipoMiembroDetallado[]>([]);
@@ -33,6 +41,9 @@ export default function AssignmentPanel({
     const [inactivandoId, setInactivandoId] = useState<number | null>(null);
     const [asigMsg, setAsigMsg] = useState<string | null>(null);
     const [asigErr, setAsigErr] = useState<string | null>(null);
+    const [sugerencias, setSugerencias] = useState<Record<number, SugerenciaAsignacion>>({});
+    const [sugiriendo, setSugiriendo] = useState(false);
+    const [reabrirTarget, setReabrirTarget] = useState<Subtarea | null>(null);
 
     const cargarMiembros = async () => {
         setMiembrosLoading(true);
@@ -59,6 +70,7 @@ export default function AssignmentPanel({
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setDraftAsignado({});
+        setSugerencias({});
         setAsigMsg(null);
         setAsigErr(null);
     }, [tarea.id]);
@@ -204,14 +216,65 @@ export default function AssignmentPanel({
         }
     };
 
+    const handleSugerir = async () => {
+        setAsigErr(null);
+        setAsigMsg(null);
+        setSugiriendo(true);
+        try {
+            const data = await fetchSugerenciasAsignacion(tarea.id);
+            if (data.length === 0) {
+                setAsigMsg("No hay miembros disponibles para sugerir.");
+                return;
+            }
+            const mapa: Record<number, SugerenciaAsignacion> = {};
+            const nuevos: Record<number, number | ""> = {};
+            for (const sugerencia of data) {
+                mapa[sugerencia.subtarea_id] = sugerencia;
+                nuevos[sugerencia.subtarea_id] = sugerencia.sugerido;
+            }
+            setSugerencias(mapa);
+            setDraftAsignado((prev) => ({ ...prev, ...nuevos }));
+            setAsigMsg(
+                `${data.length} sugerencia(s) cargada(s) según disponibilidad y carga. Revisa y guarda.`
+            );
+        } catch (e) {
+            setAsigErr((e as Error).message);
+        } finally {
+            setSugiriendo(false);
+        }
+    };
+
+    const handleReabrir = async (motivo: string) => {
+        if (!reabrirTarget) return;
+        setAsigErr(null);
+        setAsigMsg(null);
+        if (onReabrirSubtarea) {
+            await onReabrirSubtarea(tarea.id, reabrirTarget.id, motivo);
+        } else {
+            await apiReabrirSubtarea(tarea.id, reabrirTarget.id, motivo);
+        }
+        setAsigMsg(`Subtarea #${reabrirTarget.id} reabierta`);
+        await onTareaMutated?.();
+    };
+
     return (
         <div>
             <div className={styles.assignmentHeader}>
                 <div>
                     <h3 className={styles.sectionTitle}>Asignaciones</h3>
-                    <p className={styles.sectionHint}>Cambia el asignado o inactiva subtareas.</p>
+                    <p className={styles.sectionHint}>Cambia el asignado, sugiere por carga o reabre subtareas solucionadas.</p>
                 </div>
                 <div className={styles.assignmentActions}>
+                    <button
+                        type="button"
+                        onClick={() => void handleSugerir()}
+                        disabled={!puedeOperar || sugiriendo || tarea.subtareas.length === 0}
+                        title="Sugerir responsables según disponibilidad y carga"
+                        className={styles.btnSecondary}
+                        style={{ padding: "7px 12px", fontSize: 12 }}
+                    >
+                        {sugiriendo ? "Sugiriendo…" : "Sugerir por carga"}
+                    </button>
                     <RefreshButton onClick={cargarMiembros} loading={miembrosLoading} variant="outline" title="Recargar equipo" />
                     <button
                         type="button"
@@ -264,6 +327,7 @@ export default function AssignmentPanel({
                                             ) : opcionesAsignables.length === 0 ? (
                                                 <span className={styles.mutedText}>{miembrosLoading ? "Cargando…" : "Sin miembros activos"}</span>
                                             ) : (
+                                                <>
                                                 <select
                                                     value={draftAsignado[subtarea.id] ?? ""}
                                                     onChange={(e) => setDraftAsignado((prev) => ({ ...prev, [subtarea.id]: e.target.value ? Number(e.target.value) : "" }))}
@@ -275,17 +339,31 @@ export default function AssignmentPanel({
                                                         <option key={o.id} value={o.id}>{o.nombre}</option>
                                                     ))}
                                                 </select>
+                                                    {sugerencias[subtarea.id] && (
+                                                        <div className={styles.subtaskMeta} style={{ marginTop: 4 }}>
+                                                            Sugerido: {sugerencias[subtarea.id].sugerido_nombre} · carga {sugerencias[subtarea.id].carga_actual}
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </td>
                                         <td data-label="Acciones">
                                             <div className={styles.assignmentRowActions}>
-                                                {!inactiva ? (
+                                                {esSolucionada && !inactiva ? (
+                                                    <IconButton
+                                                        icon="power"
+                                                        variant="success"
+                                                        onClick={() => setReabrirTarget(subtarea)}
+                                                        disabled={inactivandoId === subtarea.id || !puedeOperar || tarea.estado === "RECHAZADO" || tarea.estado === "CANCELADO"}
+                                                        title="Reabrir subtarea solucionada"
+                                                    />
+                                                ) : !inactiva ? (
                                                     <IconButton
                                                         icon="ban"
                                                         variant="danger"
                                                         onClick={() => void handleInactivar(subtarea.id)}
-                                                        disabled={esSolucionada || inactivandoId === subtarea.id || !puedeOperar}
-                                                        title={esSolucionada ? "No se puede inactivar solucionada" : "Inactivar subtarea"}
+                                                        disabled={inactivandoId === subtarea.id || !puedeOperar}
+                                                        title="Inactivar subtarea"
                                                     />
                                                 ) : (
                                                     <IconButton
@@ -304,6 +382,14 @@ export default function AssignmentPanel({
                         </tbody>
                     </table>
                 </div>
+            )}
+
+            {reabrirTarget && (
+                <ReabrirSubtareaDialog
+                    subtarea={reabrirTarget}
+                    onClose={() => setReabrirTarget(null)}
+                    onConfirmar={handleReabrir}
+                />
             )}
         </div>
     );

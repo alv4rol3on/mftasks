@@ -9,6 +9,8 @@ import { useToast } from "@/components/ui/Toast";
 import { ContadoresProvider } from "@/components/tareas/ContadoresProvider";
 import TaskCountdown from "@/components/tareas/TaskCountdown";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
+import PrioridadBadge from "@/components/tareas/PrioridadBadge";
+import TriagePanel from "@/components/tareas/TriagePanel";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 import RichTextView from "@/components/shared/RichTextView";
 import SuccessModal from "@/components/shared/SuccessModal";
@@ -21,7 +23,7 @@ import SubtaskActionDialog from "@/components/tareas/SubtaskActionDialog";
 import type { Subtarea } from "@/lib/types";
 import styles from "./TareaDetalle.module.css";
 
-type TabKey = "tablero" | "asignaciones" | "dependencias" | "informacion" | "historial";
+type TabKey = "triage" | "tablero" | "asignaciones" | "dependencias" | "informacion" | "historial";
 type AccionPendiente = { tipo: "pausa" | "solucionar" | "reanudar"; subtarea: Subtarea } | null;
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -222,7 +224,8 @@ export default function TareaDetalle({
   const subtareasInactivas = tarea.subtareas.length - subtareasActivas.length;
   const progreso = Math.max(0, Math.min(100, Math.round(Number(tarea.progreso) || 0)));
   const fueraDeTiempo = tarea.estado === "EN_DESARROLLO" && !!tarea.fuera_de_tiempo;
-  const puedeVerAsignaciones = !soloLectura && !!tarea.puedo_operar && tarea.estado !== "APROBADO" && tarea.estado !== "SOLUCIONADO";
+  const puedeVerAsignaciones = !soloLectura && !!tarea.puedo_operar && tarea.estado !== "APROBADO" && tarea.estado !== "RECHAZADO" && tarea.estado !== "CANCELADO";
+  const puedeTriage = !soloLectura && !!tarea.puede_triar;
   const puedeIniciar = tarea.estado === "APROBADO" && !soloLectura && tarea.puedo_operar && tarea.subtareas.length === 0;
   const puedeOperarDependencias =
     !soloLectura &&
@@ -230,6 +233,7 @@ export default function TareaDetalle({
     tarea.estado !== "APROBADO" &&
     tarea.estado !== "SOLUCIONADO";
   const tabsDisponibles: { key: TabKey; label: string }[] = [
+    ...(puedeTriage ? [{ key: "triage" as TabKey, label: "Triage" }] : []),
     { key: "tablero", label: "Tablero" },
     ...(puedeVerAsignaciones ? [{ key: "asignaciones" as TabKey, label: "Asignaciones" }] : []),
     { key: "dependencias", label: "Dependencias" },
@@ -268,6 +272,7 @@ export default function TareaDetalle({
             <div className={styles.headerTopline}>
               <span className={styles.headerTicket}>{tarea.ticket ?? `Tarea #${tarea.id}`}</span>
               <TaskStatusBadge estado={tarea.estado} fueraDeTiempo={fueraDeTiempo} />
+              <PrioridadBadge prioridad={tarea.prioridad} compact />
               {!fueraDeTiempo && tarea.estado === "SOLUCIONADO" && tarea.fecha_solucion && (
                 <span className={styles.headerSolved}>Solucionada {formatearFecha(tarea.fecha_solucion)}</span>
               )}
@@ -308,6 +313,8 @@ export default function TareaDetalle({
                 <tr><td>Campaña</td><td>{tarea.campana_nombre ?? tarea.cliente_nombre ?? "-"}</td></tr>
                 {tarea.subcampana_nombre && <tr><td>Subcampaña</td><td>{tarea.subcampana_nombre}</td></tr>}
                 <tr><td>Equipo</td><td>{tarea.equipo_nombre || "-"}</td></tr>
+                <tr><td>Prioridad</td><td><PrioridadBadge prioridad={tarea.prioridad} compact /></td></tr>
+                <tr><td>Severidad / impacto</td><td>{tarea.severidad ?? "-"} / {tarea.impacto ?? "-"}</td></tr>
                 <tr><td>Fecha solicitud</td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
                 {tarea.fecha_inicio && <tr><td>Inicio</td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>}
                 {tarea.estado == "SOLUCIONADO" ? (
@@ -389,6 +396,12 @@ export default function TareaDetalle({
               ))}
             </div>
 
+            {tabActual === "triage" && (
+              <div id="detalle-panel-triage" role="tabpanel" aria-labelledby="detalle-tab-triage" className={styles.tabPanel}>
+                <TriagePanel tarea={tarea} onSaved={cargar} />
+              </div>
+            )}
+
             {tabActual === "tablero" && (
               <div id="detalle-panel-tablero" role="tabpanel" aria-labelledby="detalle-tab-tablero" className={styles.tabPanel}>
                 <SubtaskBoard
@@ -408,6 +421,7 @@ export default function TareaDetalle({
                   onReasignarSubtarea={acciones.reasignarSubtarea}
                   onInactivarSubtarea={acciones.inactivarSubtarea}
                   onReactivarSubtarea={acciones.reactivarSubtarea}
+                  onReabrirSubtarea={acciones.reabrirSubtarea}
                   onTareaMutated={cargar}
                 />
               </div>

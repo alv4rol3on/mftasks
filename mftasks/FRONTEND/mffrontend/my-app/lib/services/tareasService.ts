@@ -37,6 +37,7 @@ export interface FiltrosTareas {
   entidad?: number | "";
   campana?: number | "";
   subcampana?: number | "";
+  prioridad?: string;
 }
 
 /**
@@ -80,9 +81,10 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   if (filtros.entidad) params.set("entidad", String(filtros.entidad));
   if (filtros.campana) params.set("campana", String(filtros.campana));
   if (filtros.subcampana) params.set("subcampana", String(filtros.subcampana));
+  if (filtros.prioridad) params.set("prioridad", filtros.prioridad);
 
   // Regla de antigüedad: solo cuando no hay búsqueda ni filtros (replica el comportamiento previo).
-  const hayFiltro = estado !== "TODOS" || !!filtros.desde || !!filtros.hasta || !!filtros.entidad || !!filtros.campana || !!filtros.subcampana;
+  const hayFiltro = estado !== "TODOS" || !!filtros.desde || !!filtros.hasta || !!filtros.entidad || !!filtros.campana || !!filtros.subcampana || !!filtros.prioridad;
   if (!q && !hayFiltro) params.set("solo_recientes", "1");
 
   return apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`);
@@ -97,6 +99,50 @@ export async function iniciarTarea(tareaId: number, payload: IniciarPayload): Pr
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export interface SugerenciaAsignacion {
+  subtarea_id: number;
+  subtarea_codigo: string | null;
+  subtarea_descripcion: string;
+  asignado_actual: number;
+  asignado_actual_nombre: string;
+  sugerido: number;
+  sugerido_nombre: string;
+  carga_actual: number;
+  motivo: string;
+}
+
+export async function actualizarTriage(
+  tareaId: number,
+  payload: { prioridad?: string; severidad?: string; impacto?: string }
+): Promise<Task> {
+  return apiFetch<Task>(`/api/tasks/tasks/${tareaId}/triage/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchSugerenciasAsignacion(
+  tareaId: number
+): Promise<SugerenciaAsignacion[]> {
+  return apiFetch<SugerenciaAsignacion[]>(
+    `/api/tasks/tasks/${tareaId}/sugerencias-asignacion/`
+  );
+}
+
+export async function reabrirSubtarea(
+  tareaId: number,
+  subtareaId: number,
+  motivo: string
+): Promise<void> {
+  await apiFetch(
+    `/api/tasks/tasks/${tareaId}/subtareas/${subtareaId}/reabrir/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ motivo }),
+    }
+  );
 }
 
 export interface SubtaskActionResponse {

@@ -21,6 +21,7 @@ type FiltrosGuardados = {
   entidad: number | "";
   campana: number | "";
   subcampana: number | "";
+  prioridad: string;
 };
 
 export default function TareasPage() {
@@ -34,11 +35,12 @@ export default function TareasPage() {
   const [filtroEntidad, setFiltroEntidad] = useState<number | "">("");
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
+  const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const primeraPersistencia = useRef(true);
 
   const filtros = useMemo<FiltrosTareas>(
-    () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta, entidad: filtroEntidad, campana: filtroCampana, subcampana: filtroSubcampana }),
-    [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana]
+    () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta, entidad: filtroEntidad, campana: filtroCampana, subcampana: filtroSubcampana, prioridad: filtroPrioridad }),
+    [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana, filtroPrioridad]
   );
   const { tareas, cargando, error, cargar, setTareas } = useTareas(filtros);
 
@@ -57,6 +59,7 @@ export default function TareasPage() {
       if (typeof guardados.entidad === "number" || guardados.entidad === "") setFiltroEntidad(guardados.entidad);
       if (typeof guardados.campana === "number" || guardados.campana === "") setFiltroCampana(guardados.campana);
       if (typeof guardados.subcampana === "number" || guardados.subcampana === "") setFiltroSubcampana(guardados.subcampana);
+      if (typeof guardados.prioridad === "string") setFiltroPrioridad(guardados.prioridad);
     } catch {
       // Si el almacenamiento no está disponible, se usan los filtros por defecto.
     }
@@ -77,12 +80,13 @@ export default function TareasPage() {
         entidad: filtroEntidad,
         campana: filtroCampana,
         subcampana: filtroSubcampana,
+        prioridad: filtroPrioridad,
       };
       sessionStorage.setItem(FILTROS_STORAGE_KEY, JSON.stringify(guardados));
     } catch {
       // Sin persistencia si sessionStorage no está disponible.
     }
-  }, [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana]);
+  }, [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana, filtroPrioridad]);
 
   const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
 
@@ -94,7 +98,8 @@ export default function TareasPage() {
     (usaRangoFechas && (desde !== rangoDefecto.desde || hasta !== rangoDefecto.hasta)) ||
     filtroEntidad !== "" ||
     filtroCampana !== "" ||
-    filtroSubcampana !== "";
+    filtroSubcampana !== "" ||
+    filtroPrioridad !== "";
 
   const limpiarFiltros = () => {
     const r = rangoFechasPorDefecto();
@@ -106,7 +111,8 @@ export default function TareasPage() {
     setFiltroEntidad("");
     setFiltroCampana("");
     setFiltroSubcampana("");
-    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta, entidad: "", campana: "", subcampana: "" });
+    setFiltroPrioridad("");
+    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta, entidad: "", campana: "", subcampana: "", prioridad: "" });
   };
 
   const aplicarRangoPorDefecto = () => {
@@ -221,6 +227,8 @@ export default function TareasPage() {
         }}
         estado={filtroEstado}
         onEstadoChange={handleEstadoChange}
+        prioridad={filtroPrioridad}
+        onPrioridadChange={setFiltroPrioridad}
         campoFecha={campoFecha}
         onCampoFechaChange={setCampoFecha}
         desde={desde}

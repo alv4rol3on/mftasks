@@ -7,6 +7,7 @@ import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import TaskCountdown from "./TaskCountdown";
 import TaskStatusBadge from "./TaskStatusBadge";
+import PrioridadBadge, { PRIORIDAD_ORDEN } from "./PrioridadBadge";
 import Pagination from "../ui/Pagination";
 import { ContadoresProvider, useContador } from "./ContadoresProvider";
 import { crearSegmentoTarea } from "@/lib/tareaUrl";
@@ -131,6 +132,7 @@ function FilaTarea({
         </span>
         <span className={styles.subjectMeta}>
           <span className={styles.ticket}>{tarea.ticket ?? `#${tarea.id}`}</span>
+          <PrioridadBadge prioridad={tarea.prioridad} compact />
           {tarea.campana_nombre && <span>{tarea.campana_nombre}{tarea.subcampana_nombre ? ` / ${tarea.subcampana_nombre}` : ""}</span>}
         </span>
         {conPendiente && (
@@ -193,7 +195,13 @@ export default function TaskTableEnDesarrollo({
   const tareasVisibles = tareas.filter((tarea) => tarea.estado !== "EN_ESPERA");
 
   const tareasOrdenadas = useMemo(
-    () => [...tareasVisibles].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime()),
+    () =>
+      [...tareasVisibles].sort((a, b) => {
+        const prioridadA = PRIORIDAD_ORDEN[String(a.prioridad ?? "MEDIA")] ?? 0;
+        const prioridadB = PRIORIDAD_ORDEN[String(b.prioridad ?? "MEDIA")] ?? 0;
+        if (prioridadA !== prioridadB) return prioridadB - prioridadA;
+        return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
+      }),
     [tareasVisibles]
   );
 

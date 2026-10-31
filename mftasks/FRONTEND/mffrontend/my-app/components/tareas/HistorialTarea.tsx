@@ -39,6 +39,7 @@ const ETIQUETAS_EVENTO: Record<string, string> = {
     CONFIRMACION_CLIENTE: "Confirmación del cliente",
     CONFIRMACION_AUTOMATICA: "Confirmación automática",
     REAPERTURA: "Reapertura",
+    CAMBIO_PRIORIDAD: "Cambio de prioridad",
 };
 
 type Props = {

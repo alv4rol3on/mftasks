@@ -101,6 +101,24 @@ class ClienteAccionesTestCase(APITestCase):
         self.assertEqual(self.tarea.archivos.count(), 1)
         self.assertEqual(self.tarea.archivos.first().informacion_log_id, log.id)
 
+    def test_cliente_ve_su_informacion_agregada(self):
+        self._auth()
+        archivo = SimpleUploadedFile("mi-dato.txt", b"dato", content_type="text/plain")
+        res = self.client.post(
+            f"/api/tasks/tasks/{self.tarea.id}/informacion-adicional/",
+            {"detalle": "Mi nota", "archivos": archivo},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        res = self.client.get(
+            f"/api/tasks/tasks/{self.tarea.id}/informacion-cliente/"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]["detalle"], "Mi nota")
+        self.assertEqual(len(res.data[0]["archivos"]), 1)
+
     def test_miembro_del_equipo_ve_informacion_cliente(self):
         miembro = User.objects.create_user(
             email="miembro@test.com",
@@ -239,3 +257,121 @@ class ClienteAccionesTestCase(APITestCase):
         self.assertIn("siguiente_paso", res.data)
         self.assertTrue(res.data["puede_cancelar"])
         self.assertFalse(res.data["puede_confirmar_solucion"])
+
+    def test_lider_puede_actualizar_triage(self):
+        self._auth(self.lider)
+        res = self.client.patch(
+            f"/api/tasks/tasks/{self.tarea.id}/triage/",
+            {
+                "prioridad": "ALTA",
+                "severidad": "CRITICA",
+                "impacto": "ALTO",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.tarea.refresh_from_db()
+        self.assertEqual(self.tarea.prioridad, "ALTA")
+        self.assertEqual(self.tarea.severidad, "CRITICA")
+        self.assertEqual(self.tarea.impacto, "ALTO")
+        self.assertTrue(
+            TareaLog.objects.filter(
+                tarea=self.tarea,
+                tipo_evento=TareaLog.TipoEvento.CAMBIO_PRIORIDAD,
+            ).exists()
+        )
+
+    def test_sugerencias_asignacion_por_carga(self):
+        miembro1 = User.objects.create_user(
+            email="miembro1@test.com",
+            nombres="Ana",
+            apellidos="Uno",
+            password="segura-123",
+        )
+        miembro2 = User.objects.create_user(
+            email="miembro2@test.com",
+            nombres="Beto",
+            apellidos="Dos",
+            password="segura-123",
+        )
+        EquipoMiembro.objects.create(equipo=self.equipo, usuario=miembro1)
+        EquipoMiembro.objects.create(equipo=self.equipo, usuario=miembro2)
+
+        otra_tarea = Tarea.objects.create(
+            asunto="Carga previa",
+            descripcion="Carga",
+            equipo=self.equipo,
+            estado=Tarea.Estado.EN_DESARROLLO,
+        )
+        Subtarea.objects.create(
+            tarea=otra_tarea,
+            descripcion="Trabajo cargado",
+            asignado=miembro1,
+            peso=10,
+            estado=Subtarea.Estado.EN_DESARROLLO,
+        )
+        Subtarea.objects.create(
+            tarea=self.tarea,
+            descripcion="Nueva subtarea",
+            asignado=miembro1,
+            peso=1,
+            estado=Subtarea.Estado.EN_ESPERA,
+        )
+
+        self._auth(self.lider)
+        res = self.client.get(
+            f"/api/tasks/tasks/{self.tarea.id}/sugerencias-asignacion/"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertNotEqual(res.data[0]["sugerido"], miembro1.id)
+        self.assertIn(res.data[0]["sugerido"], {self.lider.id, miembro2.id})
+
+    def test_lider_reabre_subtarea_solucionada(self):
+        subtarea = Subtarea.objects.create(
+            tarea=self.tarea,
+            descripcion="Trabajo solucionado",
+            asignado=self.lider,
+            peso=1,
+            estado=Subtarea.Estado.SOLUCIONADO,
+        )
+        self.tarea.estado = Tarea.Estado.SOLUCIONADO
+        self.tarea.fecha_solucion = timezone.now()
+        self.tarea.save(update_fields=["estado", "fecha_solucion"])
+
+        self._auth(self.lider)
+        res = self.client.post(
+            f"/api/tasks/tasks/{self.tarea.id}/subtareas/{subtarea.id}/reabrir/",
+            {"motivo": "El cliente reportó un error"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        subtarea.refresh_from_db()
+        self.tarea.refresh_from_db()
+        self.assertEqual(subtarea.estado, Subtarea.Estado.EN_DESARROLLO)
+        self.assertEqual(self.tarea.estado, Tarea.Estado.EN_DESARROLLO)
+        self.assertIsNone(self.tarea.fecha_solucion)
+        self.assertEqual(self.tarea.confirmacion_cliente, "REABIERTA")
+        self.assertTrue(
+            TareaLog.objects.filter(
+                tarea=self.tarea,
+                subtarea=subtarea,
+                tipo_evento=TareaLog.TipoEvento.REAPERTURA,
+            ).exists()
+        )
+
+    def test_reabrir_subtarea_requiere_motivo(self):
+        subtarea = Subtarea.objects.create(
+            tarea=self.tarea,
+            descripcion="Trabajo solucionado",
+            asignado=self.lider,
+            peso=1,
+            estado=Subtarea.Estado.SOLUCIONADO,
+        )
+        self._auth(self.lider)
+        res = self.client.post(
+            f"/api/tasks/tasks/{self.tarea.id}/subtareas/{subtarea.id}/reabrir/",
+            {},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)

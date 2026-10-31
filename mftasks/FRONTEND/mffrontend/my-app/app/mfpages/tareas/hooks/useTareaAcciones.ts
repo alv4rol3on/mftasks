@@ -9,6 +9,7 @@ import {
   inactivarSubtarea as apiInactivar,
   iniciarTarea,
   reactivarSubtarea as apiReactivar,
+  reabrirSubtarea as apiReabrir,
   reanudarSubtarea as apiReanudar,
   reasignarSubtarea as apiReasignar,
   type SubtaskActionResponse,
@@ -168,6 +169,24 @@ export function useTareaAcciones({ cargar, onSolicitudResuelta }: Options) {
     }
   };
 
+  const reabrirSubtarea = async (
+    tareaId: number,
+    subtareaId: number,
+    motivo: string
+  ) => {
+    setSubtaskEnMovimiento(subtareaId);
+    try {
+      await apiReabrir(tareaId, subtareaId, motivo);
+      showToast("Subtarea reabierta", "success");
+      await cargar();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+      throw e;
+    } finally {
+      setSubtaskEnMovimiento(null);
+    }
+  };
+
   return {
     accionando,
     empezandoId,
@@ -181,5 +200,6 @@ export function useTareaAcciones({ cargar, onSolicitudResuelta }: Options) {
     reasignarSubtarea,
     inactivarSubtarea,
     reactivarSubtarea,
+    reabrirSubtarea,
   };
 }

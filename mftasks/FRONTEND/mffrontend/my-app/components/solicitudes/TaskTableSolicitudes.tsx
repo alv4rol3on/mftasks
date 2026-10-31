@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import TaskModal from "./TaskModal";
 import IconButton from "@/components/ui/IconButton";
+import PrioridadBadge, { PRIORIDAD_ORDEN } from "@/components/tareas/PrioridadBadge";
 import styles from "./TasksTableSolicitudes.module.css";
 import { Task } from "@/lib/types";
 
@@ -39,6 +40,16 @@ export default function TaskTableSolicitudes({
   onReload
 }: TaskTableSolicitudesProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const ordenadas = useMemo(
+    () =>
+      [...tareas].sort((a, b) => {
+        const pa = PRIORIDAD_ORDEN[String(a.prioridad ?? "MEDIA")] ?? 0;
+        const pb = PRIORIDAD_ORDEN[String(b.prioridad ?? "MEDIA")] ?? 0;
+        if (pa !== pb) return pb - pa;
+        return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
+      }),
+    [tareas]
+  );
 
   const handleAprobar = async (tarea: Task) => {
     await onAprobar(tarea);
@@ -65,12 +76,13 @@ export default function TaskTableSolicitudes({
               <div>Acciones</div>
             </div>
 
-            {tareas.map((tarea) => (
+            {ordenadas.map((tarea) => (
               <div className={styles.taskRow} key={tarea.id}>
                 <div>{formatearFecha(tarea.fecha_creacion)}</div>
 
                 <div className={styles.taskSubject}>
-                  {tarea.subcampana_nombre} - {tarea.asunto}
+                  <span>{tarea.subcampana_nombre} - {tarea.asunto}</span>
+                  <PrioridadBadge prioridad={tarea.prioridad} compact />
                 </div>
 
                 <div>{tarea.cliente_nombre}</div>

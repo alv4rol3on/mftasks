@@ -7,6 +7,7 @@ import RichTextView from "@/components/shared/RichTextView";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import HistorialTarea from "../tareas/HistorialTarea";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
+import InformacionClientePanel from "@/components/tareas/InformacionClientePanel";
 import CancelarSolicitudModal from "@/components/solicitudes/CancelarSolicitudModal";
 import AgregarInformacionModal from "./AgregarInformacionModal";
 import ConfirmarSolucionModal from "./ConfirmarSolucionModal";
@@ -48,10 +49,11 @@ type Props = {
 type Accion = "cancelar" | "informacion" | "confirmar" | "reabrir" | null;
 
 export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Props) {
-  const [tab, setTab] = useState<"detalle" | "historial">("detalle");
+  const [tab, setTab] = useState<"detalle" | "historial" | "informacion">("detalle");
   const [accion, setAccion] = useState<Accion>(null);
   const [descargando, setDescargando] = useState(false);
   const [descargaError, setDescargaError] = useState<string | null>(null);
+  const [infoVersion, setInfoVersion] = useState(0);
 
   if (!tarea) return null;
   const progresoNum = parseFloat(String(tarea.progreso ?? 0)) || 0;
@@ -82,6 +84,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
 
   const refrescar = () => {
     setAccion(null);
+    setInfoVersion((v) => v + 1);
     void onRefresh();
   };
 
@@ -175,6 +178,12 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
               className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}
             >
               Historial
+            </button>
+            <button
+              onClick={() => setTab("informacion")}
+              className={tab === "informacion" ? styles.tabBtnActive : styles.tabBtn}
+            >
+              Mi información
             </button>
           </div>
 
@@ -341,8 +350,20 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                 )}
               </div>
             </>
-          ) : (
+          ) : tab === "historial" ? (
             <HistorialTarea key={tarea.id} tareaId={tarea.id} />
+          ) : null}
+
+          {tab === "informacion" && (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <InformacionClientePanel
+                tareaId={tarea.id}
+                refreshKey={`${tarea.id}:${infoVersion}`}
+                titulo="Mi información"
+                subtitulo="Notas y archivos que agregaste después de crear la solicitud."
+                mostrarAutor={false}
+              />
+            </div>
           )}
         </div>
       </div>
