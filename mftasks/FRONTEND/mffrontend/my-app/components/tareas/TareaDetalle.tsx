@@ -23,7 +23,8 @@ import SubtaskActionDialog from "@/components/tareas/SubtaskActionDialog";
 import type { Subtarea } from "@/lib/types";
 import styles from "./TareaDetalle.module.css";
 
-type TabKey = "triage" | "tablero" | "asignaciones" | "dependencias" | "informacion" | "historial";
+//"triage" | 
+type TabKey = "tablero" | "asignaciones" | "dependencias" | "informacion" | "historial";
 type AccionPendiente = { tipo: "pausa" | "solucionar" | "reanudar"; subtarea: Subtarea } | null;
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -232,12 +233,19 @@ export default function TareaDetalle({
     !!tarea.puedo_operar &&
     tarea.estado !== "APROBADO" &&
     tarea.estado !== "SOLUCIONADO";
-  const tabsDisponibles: { key: TabKey; label: string }[] = [
+  {/*const tabsDisponibles: { key: TabKey; label: string }[] = [
     ...(puedeTriage ? [{ key: "triage" as TabKey, label: "Triage" }] : []),
     { key: "tablero", label: "Tablero" },
     ...(puedeVerAsignaciones ? [{ key: "asignaciones" as TabKey, label: "Asignaciones" }] : []),
     { key: "dependencias", label: "Dependencias" },
-    { key: "informacion", label: "Información del cliente" },
+    { key: "informacion", label: "Archivos Adicionales" },
+    { key: "historial", label: "Historial" },
+  ];*/}
+  const tabsDisponibles: { key: TabKey; label: string }[] = [
+    { key: "tablero", label: "Tablero" },
+    ...(puedeVerAsignaciones ? [{ key: "asignaciones" as TabKey, label: "Asignaciones" }] : []),
+    { key: "dependencias", label: "Dependencias" },
+    { key: "informacion", label: "Archivos Adicionales" },
     { key: "historial", label: "Historial" },
   ];
   const tabActual = tabsDisponibles.some((t) => t.key === tab) ? tab : "tablero";
@@ -395,11 +403,11 @@ export default function TareaDetalle({
               ))}
             </div>
 
-            {tabActual === "triage" && (
+            {/*{tabActual === "triage" && (
               <div id="detalle-panel-triage" role="tabpanel" aria-labelledby="detalle-tab-triage" className={styles.tabPanel}>
                 <TriagePanel tarea={tarea} onSaved={cargar} />
               </div>
-            )}
+            )}*/}
 
             {tabActual === "tablero" && (
               <div id="detalle-panel-tablero" role="tabpanel" aria-labelledby="detalle-tab-tablero" className={styles.tabPanel}>

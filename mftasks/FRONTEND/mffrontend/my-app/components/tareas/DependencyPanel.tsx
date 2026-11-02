@@ -164,7 +164,7 @@ export default function DependencyPanel({
         </div>
       )}
 
-
+      <br />
       <div className={styles.assignmentHeader}>
         <div>
           <h3 className={styles.sectionTitle}>Lista de Dependencias</h3>

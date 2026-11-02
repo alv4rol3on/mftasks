@@ -407,8 +407,96 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
                 <small>PDF, Word, Excel, TXT, imágenes o ZIP</small>
               </div>
 
-              {/* Conserva aquí tu lista actual de archivos adjuntos */}
-            </div>
+              {archivos.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <strong style={{ fontSize: 13 }}>
+                      Archivos seleccionados ({archivos.length})
+                    </strong>
+
+                    <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      {formatearBytes(totalBytes)} / 10 MB
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {archivos.map((archivo, index) => (
+                      <div
+                        key={`${archivo.name}-${archivo.size}-${archivo.lastModified}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "9px 12px",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 8,
+                          background: "var(--color-select)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 9,
+                            minWidth: 0,
+                            flex: 1,
+                          }}
+                        >
+                          <span style={{ fontSize: 18 }}>📎</span>
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div
+                              title={archivo.name}
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {archivo.name}
+                            </div>
+
+                            <small style={{ color: "var(--color-text-secondary)" }}>
+                              {formatearBytes(archivo.size)}
+                            </small>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => quitarArchivo(index)}
+                          disabled={enviando}
+                          title={`Quitar ${archivo.name}`}
+                          aria-label={`Quitar archivo ${archivo.name}`}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "var(--color-danger)",
+                            fontSize: 18,
+                            fontWeight: "bold",
+                            cursor: enviando ? "not-allowed" : "pointer",
+                            padding: "2px 6px",
+                            borderRadius: 5,
+                            flexShrink: 0,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}            </div>
 
 
 

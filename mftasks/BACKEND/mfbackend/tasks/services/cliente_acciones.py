@@ -59,7 +59,7 @@ def agregar_informacion(tarea, usuario, detalle, archivos):
         )
     if not puede_agregar_informacion(tarea, usuario):
         raise InformacionInvalida(
-            "No puedes agregar información en el estado actual de la solicitud."
+            "No puedes agregar archivos adicionales en el estado actual de la solicitud."
         )
 
     validar_archivos(archivos)

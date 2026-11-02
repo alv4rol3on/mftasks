@@ -1430,6 +1430,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         resp["Cache-Control"] = "no-store, max-age=0"
         return resp
 
+    
     @action(
         detail=True,
         methods=["get"],
@@ -1438,59 +1439,46 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def logs(self, request, pk=None):
         tarea = self.get_object()
-        # Miembros del equipo, líderes, sublíderes y admin ven todo.
-        # El solicitante (cliente) también puede ver el historial de su propia solicitud,
-        # pero solo con eventos de estado (sin datos internos).
+
         from .permissions import es_miembro_del_equipo
+
         es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
         es_solicitante = tarea.solicitante_id == request.user.id
-        #if not (es_equipo or es_solicitante):
-        #    return Response({"detail": "No tienes permiso para ver los logs de esta tarea."}, status=status.HTTP_403_FORBIDDEN)
 
-        qs = TareaLog.objects.filter(tarea=tarea).select_related("usuario", "subtarea")
+        # Solo pueden consultar el historial:
+        # - Miembros del equipo.
+        # - Solicitantes de la tarea.
+        # - Administradores.
+        if not (
+            es_equipo
+            or es_solicitante
+            or es_administrador(request.user)
+        ):
+            return Response(
+                {"detail": "No tienes permiso para ver el historial."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        # Vista cliente (solicitante que no pertenece al equipo): solo la línea de
-        # tiempo de estados de la solicitud, sin nombres ni detalles internos.
-        if es_solicitante and not es_equipo:
-            qs = qs.filter(
-                subtarea__isnull=True,
-                tipo_evento__in=[
-                    TareaLog.TipoEvento.CREACION,
-                    TareaLog.TipoEvento.INICIO,
-                    TareaLog.TipoEvento.CAMBIO_ESTADO,
-                    TareaLog.TipoEvento.STANDBY_INICIO,
-                    TareaLog.TipoEvento.STANDBY_FIN,
-                    TareaLog.TipoEvento.FIN,
-                ],
-            ).order_by("-fecha", "-id")
-            data = [
-                {
-                    "id": l.id,
-                    "tipo_evento": l.tipo_evento,
-                    "estado_anterior": l.estado_anterior,
-                    "estado_nuevo": l.estado_nuevo,
-                    "fecha": l.fecha.isoformat() if l.fecha else None,
-                    "detalle": "",
-                    "usuario": None,
-                    "usuario_id": None,
-                    "subtarea_id": None,
-                    "subtarea_codigo": None,
-                    "subtarea_descripcion": None,
-                }
-                for l in qs
-            ]
-            return Response(data)
+        # Todos los roles reciben los mismos eventos y detalles.
+        qs = (
+            TareaLog.objects
+            .filter(tarea=tarea)
+            .select_related("usuario", "subtarea")
+            .order_by("-fecha", "-id")
+        )
 
-        qs = qs.order_by("-fecha", "-id")
-        # filtro opcional por subtarea
+        # Filtro opcional por subtarea.
         subtarea_id = request.query_params.get("subtarea")
+
         if subtarea_id:
             try:
                 qs = qs.filter(subtarea_id=int(subtarea_id))
             except ValueError:
                 pass
-        # paginación simple: últimos 200
+
+        # Últimos 200 registros.
         logs = qs[:200]
+
         data = [
             {
                 "id": l.id,
@@ -1499,15 +1487,24 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "estado_nuevo": l.estado_nuevo,
                 "fecha": l.fecha.isoformat() if l.fecha else None,
                 "detalle": l.detalle,
-                "usuario": f"{l.usuario.nombres} {l.usuario.apellidos}" if l.usuario else None,
+                "usuario": (
+                    f"{l.usuario.nombres} {l.usuario.apellidos}"
+                    if l.usuario else None
+                ),
                 "usuario_id": l.usuario_id,
                 "subtarea_id": l.subtarea_id,
-                "subtarea_codigo": l.subtarea.codigo if l.subtarea else None,
-                "subtarea_descripcion": l.subtarea.descripcion if l.subtarea else None,
+                "subtarea_codigo": (
+                    l.subtarea.codigo if l.subtarea else None
+                ),
+                "subtarea_descripcion": (
+                    l.subtarea.descripcion if l.subtarea else None
+                ),
             }
             for l in logs
         ]
+
         return Response(data)
+
 
 
     @action(

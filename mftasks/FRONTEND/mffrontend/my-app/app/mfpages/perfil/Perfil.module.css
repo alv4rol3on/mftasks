@@ -134,9 +134,10 @@
 
 .badge {
   background: var(--color-badge);
-  color: var(--color-background-2);
+  color: var(--color-badge-label);
   padding: 2px 8px;
   border-radius: 999px;
+  font-family: monospace;
   font-size: 11px;
   text-transform: capitalize;
 }

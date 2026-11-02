@@ -251,7 +251,7 @@ export default function MisSolicitudesPage() {
           marginBottom: 12,
         }}
       >
-        <h2 className="text-lg font-medium" style={{ margin: 0 }}>Mis solicitudes</h2>
+        <h2 className="text-lg font-medium" style={{ margin: 0 }}>Seguimiento de Solicitudes</h2>
         <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{filtradas.length} de {tareas.length} solicitudes</span>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>

@@ -2050,3 +2050,16 @@
   display: none;
 }
 
+.archivosAdicionales {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.archivosAdicionales > * {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}

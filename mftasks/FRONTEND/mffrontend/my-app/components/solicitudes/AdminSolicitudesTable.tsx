@@ -86,7 +86,6 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                 <th>Solicitud</th>
                 <th>Estado</th>
                 <th>Equipo</th>
-                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -111,7 +110,7 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                     </td>
                     {/*<td data-label="Solicitante" style={{ fontSize: 12 }}>{t.solicitante_nombre ?? "-"}</td>*/}
                     <td data-label="Equipo" style={{ fontSize: 12 }}>{t.equipo_nombre}</td>
-                    <td data-label="Acciones" style={{ whiteSpace: "nowrap" }}>
+                    {/*<td data-label="Acciones" style={{ whiteSpace: "nowrap" }}>
                       {t.estado === "CANCELADO" ? (
                         "-"
                       ) : ESTADOS_CANCELABLES.has(t.estado) ? (
@@ -128,7 +127,7 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
                       ) : (
                         "-"
                       )}
-                    </td>
+                    </td>*/}
 
                   </tr>
                 );

@@ -74,7 +74,7 @@ export default function TaskModal({
         Boolean(tarea.puedo_aprobar) && tarea.estado === "EN_ESPERA";
 
     const NOMBRES: Record<string, string> = {
-        APROBADORES: "Aprobadores del equipo",
+        APROBADORES: "Aprobación de superiores",
         LIDER: "Revisión del líder",
         COMPLETADO: "Completado",
     };

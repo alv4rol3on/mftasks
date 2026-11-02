@@ -366,7 +366,7 @@ export default function PerfilPage() {
                   </>
                 )}
               </div>
-
+              {/*
               {equiposSinSublider.length > 0 && (
                 <div className={styles.requirementsBox}>
                   <strong className={styles.requirementsTitle}>
@@ -393,7 +393,7 @@ export default function PerfilPage() {
                   </ul>
                 </div>
               )}
-
+          */}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button
                   type="button"

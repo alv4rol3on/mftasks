@@ -36,7 +36,7 @@ const formatearFecha = (fecha: string | null | undefined) => {
 export default function InformacionClientePanel({
   tareaId,
   refreshKey,
-  titulo = "Información del cliente",
+  titulo = "Archivos adicionales",
   subtitulo = "Notas y archivos adicionales enviados por el solicitante.",
   mostrarAutor = true,
 }: Props) {
@@ -87,7 +87,7 @@ export default function InformacionClientePanel({
           onClick={cargar}
           loading={recargando}
           variant="outline"
-          title="Recargar información del cliente"
+          title="Recargar archivos adicionales"
         />
       </div>
 
@@ -134,59 +134,50 @@ export default function InformacionClientePanel({
                   </span>
                 </div>
 
-                <div style={{ marginTop: 6, color: "var(--color-text)", fontSize: 12.5, lineHeight: 1.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                  {entrada.detalle || "Sin nota adjunta."}
+                <div className={styles.historyDescription}>
+                  {entrada.detalle
+                    ?.split(" · Archivos adjuntos:")[0]
+                    .trim() || "Sin nota adjunta."}
                 </div>
 
                 {entrada.archivos.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--color-text-secondary)", marginBottom: 6 }}>
-                      Archivos ({entrada.archivos.length})
+                  <div className={styles.historyFiles}>
+                    <div className={styles.historyFilesTitle}>
+                      <span>Archivos adjuntos</span>
+                      <span className={styles.historyFilesCount}>
+                        {entrada.archivos.length}
+                      </span>
                     </div>
-                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+
+                    <ul className={styles.historyFileList}>
                       {entrada.archivos.map((archivo) => (
-                        <li
-                          key={archivo.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 10,
-                            border: "1px solid var(--color-border)",
-                            borderRadius: 7,
-                            background: "var(--color-background)",
-                            padding: "7px 10px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 600, overflowWrap: "anywhere" }}>
-                              {archivo.nombre}
-                            </div>
-                            <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>
-                              {formatearFecha(archivo.fecha_subida)}
-                              {archivo.subido_por ? ` · ${archivo.subido_por}` : ""}
+                        <li key={archivo.id} className={styles.historyFile}>
+                          <div className={styles.historyFileInfo}>
+                            <span className={styles.historyFileIcon} aria-hidden="true">
+                              📄
+                            </span>
+
+                            <div className={styles.historyFileDetails}>
+                              <span className={styles.historyFileName}>
+                                {archivo.nombre}
+                              </span>
+
+                              <span className={styles.historyFileMeta}>
+                                {formatearFecha(archivo.fecha_subida)}
+                                {archivo.subido_por ? ` · ${archivo.subido_por}` : ""}
+                              </span>
                             </div>
                           </div>
+
                           {archivo.url && (
                             <a
                               href={`${apiBaseUrl}${archivo.url}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               download={archivo.nombre}
-                              style={{
-                                flexShrink: 0,
-                                border: "1px solid var(--color-border)",
-                                borderRadius: 6,
-                                background: "var(--color-surface)",
-                                color: "var(--color-text)",
-                                padding: "5px 10px",
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                textDecoration: "none",
-                              }}
+                              className={styles.historyDownload}
                             >
-                              Descargar
+                              <span aria-hidden="true">Descargar ↓</span>
                             </a>
                           )}
                         </li>

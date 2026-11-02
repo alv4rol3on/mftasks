@@ -65,7 +65,7 @@ export default function AgregarInformacionModal({
 
   return (
     <Modal
-      title="Agregar información"
+      title="Agregar archivos"
       onClose={enviando ? () => {} : onClose}
       maxWidth={560}
       footer={
@@ -151,7 +151,7 @@ export default function AgregarInformacionModal({
             fontWeight: 600,
           }}
         >
-          + Agregar archivos
+          + Agregar
         </button>
         <input
           ref={inputRef}

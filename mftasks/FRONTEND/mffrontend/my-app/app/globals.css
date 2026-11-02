@@ -14,9 +14,10 @@
     --color-select: #F2F3F5;
     --color-text: #101828;
     --color-text-secondary: #64748B;
-    --color-badge: #adadad;
+    --color-badge: #4e4ac4;
     --color-detail-header: #3326B9;
     --color-detail-header-hover: #281D9C;
+    --color-badge-label: #F2F3F5;
     
     --color-solicitudes: var(--color-background);
     --color-fueradetiempo: var(--color-background);
@@ -63,7 +64,7 @@
 
     --color-text: #F3F4F6;
     --color-text-secondary: #A1A1AA;
-    --color-badge: #6b68bd;
+    --color-badge: #6e6bc0;
 
     --color-detail-header: #4940A8;
     --color-detail-header-hover: #5A50C4;
@@ -81,6 +82,7 @@
     --color-done-hover: rgb(28, 175, 82);
     --color-disabled: #333333;
     --color-solomios: #A91F0A;
+    --color-badge-label: #F2F3F5;
 
     --color-danger: #F87171;
     --color-success: #4ADE80;

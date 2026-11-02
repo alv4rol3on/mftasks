@@ -243,10 +243,6 @@ def generar_constancia_pdf(tarea: Tarea) -> bytes:
             story.append(Spacer(1, 2))
 
     story.append(Spacer(1, 12))
-    story.append(_parrafo(
-        "Documento generado automáticamente por MF Tasks.",
-        small,
-    ))
 
     def _footer(canvas, documento):
         canvas.saveState()

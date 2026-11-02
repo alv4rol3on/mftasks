@@ -1194,3 +1194,346 @@
         display: none;
     }
 }
+
+/* =========================================================
+   INFORMACIÓN ADICIONAL / ARCHIVOS DEL CLIENTE
+   ========================================================= */
+
+.historyHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sectionTitle {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.sectionHint {
+    margin: 5px 0 0;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.historyList {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.historyItem {
+    position: relative;
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 10px;
+    min-width: 0;
+}
+
+.historyItem:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    bottom: -17px;
+    left: 4px;
+    width: 2px;
+    background: var(--color-border);
+}
+
+.historyDot {
+    position: relative;
+    z-index: 1;
+    width: 10px;
+    height: 10px;
+    margin-top: 16px;
+    border: 2px solid var(--color-background);
+    border-radius: 50%;
+    background: var(--color-text-secondary);
+    box-shadow: 0 0 0 1px var(--color-border);
+}
+
+.historyDotTask {
+    background: var(--color-detail-header);
+    box-shadow: 0 0 0 1px var(--color-detail-header);
+}
+
+.historyBody {
+    min-width: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-background);
+    padding: 14px;
+    transition: border-color .15s, background .15s;
+}
+
+.historyBody:hover {
+    border-color: var(--color-text-secondary);
+}
+
+.historyTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.historyEvent {
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.historyDate {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.historyMeta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.historyUser {
+    color: var(--color-text);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.historyEntity {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    padding: 2px 8px;
+    color: var(--color-text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.historyDescription {
+    margin-top: 10px;
+    border-radius: 7px;
+    background: var(--color-surface);
+    padding: 11px 12px;
+    color: var(--color-text);
+    font-size: 12.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.historyFiles {
+    margin-top: 14px;
+}
+
+.historyFilesTitle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+    color: var(--color-text-secondary);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.historyFilesCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    padding: 0 6px;
+    color: var(--color-text);
+    font-size: 10px;
+}
+
+.historyFileList {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.historyFile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-background);
+    padding: 9px 11px;
+    transition: background .15s, border-color .15s;
+}
+
+.historyFile:hover {
+    background: var(--color-surface);
+}
+
+.historyFileInfo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.historyFileIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    background: var(--color-surface);
+    color: var(--color-detail-header);
+    font-size: 16px;
+}
+
+.historyFileDetails {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.historyFileName {
+    color: var(--color-text);
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.historyFileMeta {
+    color: var(--color-text-secondary);
+    font-size: 10.5px;
+}
+
+.historyDownload {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-shrink: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 7px;
+    background: var(--color-surface);
+    padding: 7px 10px;
+    color: var(--color-text);
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background .15s, border-color .15s;
+}
+
+.historyDownload:hover {
+    border-color: var(--color-detail-header);
+    background: var(--color-background);
+    color: var(--color-detail-header);
+}
+
+.historyDownload:focus-visible {
+    outline: 2px solid var(--color-detail-header);
+    outline-offset: 2px;
+}
+
+.historyEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+    border: 1px dashed var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+    padding: 24px;
+    text-align: center;
+}
+
+.historyEmpty strong {
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+.historyEmpty p {
+    max-width: 380px;
+    margin: 6px 0 0;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.errorNotice {
+    border: 1px solid color-mix(
+        in srgb,
+        var(--color-danger) 28%,
+        var(--color-background)
+    );
+    border-radius: 8px;
+    background: color-mix(
+        in srgb,
+        var(--color-danger) 8%,
+        var(--color-background)
+    );
+    padding: 10px 12px;
+    color: var(--color-danger);
+    font-size: 12px;
+}
+
+.sinSubtareas {
+    margin: 12px 0;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .historyHeader {
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .historyBody {
+        padding: 11px;
+    }
+
+    .historyTop {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .historyFile {
+        align-items: flex-start;
+        flex-direction: column;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .historyDownload {
+        width: 100%;
+    }
+}

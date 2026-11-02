@@ -557,7 +557,7 @@ export default function EquiposPage() {
 
       {esClientePuro && (
         <div style={{ background: "color-mix(in srgb, var(--color-in-progress) 10%, var(--color-background))", border: "1px solid color-mix(in srgb, var(--color-in-progress) 28%, var(--color-background))", padding: 12, borderRadius: 8, fontSize: 13, color: "var(--color-in-progress)" }}>
-          Para crear una solicitud, elige uno de estos equipos en <Link href="/mfpages/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "var(--color-in-progress)" }}>Mis Solicitudes</Link>.
+          Para crear una solicitud, elige uno de estos equipos en <Link href="/mfpages/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "var(--color-in-progress)" }}>Seguimiento de Solicitudes</Link>.
         </div>
       )}
 

@@ -108,7 +108,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
           onClick={() => setAccion("informacion")}
           style={accionBtn}
         >
-          + Agregar información
+          + Agregar Archivos
         </button>
       )}
       {puedeConfirmar && (
@@ -183,7 +183,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
               onClick={() => setTab("informacion")}
               className={tab === "informacion" ? styles.tabBtnActive : styles.tabBtn}
             >
-              Mi información
+              Archivos adicionales
             </button>
           </div>
 
@@ -298,11 +298,11 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                     null
                   ) : (
                     <>
-                    <h3>Progreso — {progresoNum.toFixed(2)}%</h3>
-                    <div style={{ background: "var(--color-border)", borderRadius: 8, height: 14, overflow: "hidden", marginBottom: 12 }}>
-                      <div style={{ width: `${Math.min(100, progresoNum)}%`, background: progresoNum === 100 ? "var(--color-done)" : "var(--color-in-progress)", height: "100%", transition: "width .3s" }} />
-                    </div>
-                  </>
+                      <h3>Progreso — {progresoNum.toFixed(2)}%</h3>
+                      <div style={{ background: "var(--color-border)", borderRadius: 8, height: 14, overflow: "hidden", marginBottom: 12 }}>
+                        <div style={{ width: `${Math.min(100, progresoNum)}%`, background: progresoNum === 100 ? "var(--color-done)" : "var(--color-in-progress)", height: "100%", transition: "width .3s" }} />
+                      </div>
+                    </>
                   )
 
                 }
@@ -355,11 +355,11 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
           ) : null}
 
           {tab === "informacion" && (
-            <div style={{ gridColumn: "1 / -1" }}>
+            <div className={styles.archivosAdicionales}>
               <InformacionClientePanel
                 tareaId={tarea.id}
                 refreshKey={`${tarea.id}:${infoVersion}`}
-                titulo="Mi información"
+                titulo="Archivos adicionales"
                 subtitulo="Notas y archivos que agregaste después de crear la solicitud."
                 mostrarAutor={false}
               />
