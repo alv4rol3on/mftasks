@@ -1537,3 +1537,41 @@
         width: 100%;
     }
 }
+
+/* Descripción expandible */
+.descriptionBoxCollapsed {
+    max-height: 180px;
+    overflow: hidden;
+    position: relative;
+}
+
+.descriptionBoxExpanded {
+    max-height: none;
+    overflow: visible;
+}
+
+/* Botón Ver más / Ver menos */
+.descriptionToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+    padding: 5px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-detail-header);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.descriptionToggle:hover {
+    background: var(--color-background);
+    border-color: var(--color-detail-header);
+}
+
+.descriptionToggle:focus-visible {
+    outline: 2px solid var(--color-detail-header);
+    outline-offset: 2px;
+}

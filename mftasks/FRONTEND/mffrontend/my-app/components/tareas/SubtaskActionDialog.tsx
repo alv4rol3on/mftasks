@@ -135,7 +135,7 @@ export default function SubtaskActionDialog({
 
                 {tipo === "solucionar" && (
                     <p className={styles.dialogText}>
-                        ¿Confirmas que la subtarea está solucionada? Se bloqueará en estado Solucionado y no se podrá cambiar su estado.
+                        ¿Confirmas que la subtarea está solucionada? Se bloqueará en estado Solucionado y en caso de cambiar su estado se deberá explicar el motivo de su reapertura.
                     </p>
                 )}
 

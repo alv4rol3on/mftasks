@@ -57,7 +57,7 @@ export default function CampanaAccordion({
       >
         <div>
           <span className={styles.campanaTitle}>
-            {campana.entidad_nombre ? `${campana.entidad_nombre} ? ` : ""}{campana.nombre}
+            {campana.entidad_nombre ? `${campana.entidad_nombre} ▸ ` : ""}{campana.nombre}
           </span>{" "}
 
           {/*<span className={styles.campanaCode}>

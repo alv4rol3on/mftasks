@@ -1,6 +1,2 @@
-- cambiar logica de reapertura: 
-    - aprobacion del equipo para la reapertura en BANDEJA DE SOLICITUDES
-- en la parte de perfil/informacion/entidades permitidas, tambien deben aparecer las entidades heredadas del lider de equipo
-- en http://localhost:3000/mfpages/solicitudes se debe quitar la columna ACCIONES y hacer que toda la fila sea clickeable para ver los detalles
- 
+- arreglar las notificaciones por correo
 zcQJcdC52ik123

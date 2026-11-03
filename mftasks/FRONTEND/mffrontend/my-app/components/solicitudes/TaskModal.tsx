@@ -271,118 +271,49 @@ export default function TaskModal({
 
     return (
         <>
-        <div className={styles.modalOverlay} onClick={cerrar}>
-            <div
-                className={styles.modal}
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Cabecera */}
-                <div className={styles.modalHeader}>
-                    <div>
-                        <h2>Solicitud #{tarea.ticket}</h2>
-                        <p>{tarea.asunto}</p>
-                    </div>
-
-                    <button
-                        className={styles.close}
-                        onClick={cerrar}
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                {/* Cuerpo */}
-                <div className={styles.modalBody}>
-                    <div className={styles.modalColumn}>
-                        <h3>Información</h3>
-
-                        <table className={styles.infoTable}>
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <strong>Solicitante</strong>
-                                    </td>
-                                    <td>{tarea.solicitante_nombre}</td>
-                                </tr>
-
-                                <tr>
-                                    <td>
-                                        <strong>Campaña</strong>
-                                    </td>
-                                    <td>{tarea.cliente_nombre}</td>
-                                </tr>
-
-                                <tr>
-                                    <td>
-                                        <strong>Equipo</strong>
-                                    </td>
-                                    <td>{tarea.equipo_nombre}</td>
-                                </tr>
-
-                                <tr>
-                                    <td>
-                                        <strong>Estado</strong>
-                                    </td>
-                                    <td>{tarea.estado}</td>
-                                </tr>
-
-                                <tr>
-                                    <td>
-                                        <strong>Fecha de solicitud</strong>
-                                    </td>
-                                    <td>
-                                        {new Date(
-                                            tarea.fecha_creacion
-                                        ).toLocaleString("es-PE", {
-                                            day: "2-digit",
-                                            month: "2-digit",
-                                            year: "numeric",
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                        })}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className={styles.modalColumn}>
-                        <h3>Descripción</h3>
-
-                        <RichTextView
-                            html={tarea.descripcion}
-                            className={styles.descriptionBox}
-                        />
-                    </div>
-
-                    {esReapertura && (
-                        <div style={{ gridColumn: "1 / -1" }}>
-                            <h3>Solicitud de reapertura</h3>
-                            <div className={styles.descriptionBox}>
-                                <strong>Motivo del cliente:</strong>
-                                <p style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
-                                    {tarea.motivo_reapertura || "Sin motivo registrado."}
-                                </p>
-                                {(tarea.subtareas ?? []).length > 0 && (
-                                    <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
-                                        Subtareas anteriores:{" "}
-                                        {(tarea.subtareas ?? []).length}
-                                    </p>
-                                )}
-                            </div>
+            <div className={styles.modalOverlay} onClick={cerrar}>
+                <div
+                    className={styles.modal}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Cabecera */}
+                    <div className={styles.modalHeader}>
+                        <div>
+                            <h2>Solicitud #{tarea.ticket}</h2>
+                            <p>{tarea.asunto}</p>
                         </div>
-                    )}
+
+                        <button
+                            className={styles.close}
+                            onClick={cerrar}
+                        >
+                            ✕
+                        </button>
+                    </div>
 
                     {/* Flujo de aprobación */}
-                    <div style={{ gridColumn: "1 / -1" }}>
-                        <h3>Flujo de aprobación</h3>
+                    <div
+                        className={styles.approvalSection}
+                        style={{
+                            gridColumn: "1 / -1",
+                            width: "100%",
+                            minWidth: 0,
+                            boxSizing: "border-box",
+                            padding: "16px 20px",
+                            background: "var(--color-surface)",
+                            border: "1px solid var(--color-border)",
+                            borderRadius: 10,
+                        }}
+                    ><h3>Flujo de aprobación</h3>
 
                         <div
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 8,
+                                gap: 10,
                                 flexWrap: "wrap",
+                                width: "100%",
+                                minWidth: 0,
                             }}
                         >
                             {["APROBADORES", "LIDER"].map((paso, idx) => {
@@ -401,7 +332,10 @@ export default function TaskModal({
                                                 borderRadius: 8,
                                                 padding: "10px 14px",
                                                 fontSize: 12,
-                                                minWidth: 160,
+                                                flex: "1 1 160px",
+                                                minWidth: 0,
+                                                maxWidth: 260,
+                                                boxSizing: "border-box",
                                             }}
                                         >
                                             <div style={{ fontWeight: 700, marginBottom: 4 }}>
@@ -495,26 +429,110 @@ export default function TaskModal({
                         )}
                     </div>
 
-                    {/* Adjuntos */}
-                    <div style={{ gridColumn: "1 / -1" }}>
-                        <AdjuntosTarea
-                            archivos={tarea.archivos}
-                            tareaId={tarea.id}
-                            ticket={tarea.ticket}
-                        />
+                    {/* Cuerpo */}
+                    <div className={styles.modalBody}>
+                        <div className={styles.modalColumn}>
+                            <h3>Información</h3>
+
+                            <table className={styles.infoTable}>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <strong>Solicitante</strong>
+                                        </td>
+                                        <td>{tarea.solicitante_nombre}</td>
+                                    </tr>
+
+                                    <tr>
+                                        <td>
+                                            <strong>Campaña</strong>
+                                        </td>
+                                        <td>{tarea.cliente_nombre}</td>
+                                    </tr>
+
+                                    <tr>
+                                        <td>
+                                            <strong>Equipo</strong>
+                                        </td>
+                                        <td>{tarea.equipo_nombre}</td>
+                                    </tr>
+
+                                    <tr>
+                                        <td>
+                                            <strong>Estado</strong>
+                                        </td>
+                                        <td>{tarea.estado}</td>
+                                    </tr>
+
+                                    <tr>
+                                        <td>
+                                            <strong>Fecha de solicitud</strong>
+                                        </td>
+                                        <td>
+                                            {new Date(
+                                                tarea.fecha_creacion
+                                            ).toLocaleString("es-PE", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className={styles.modalColumn}>
+                            <h3>Descripción</h3>
+
+                            <RichTextView
+                                html={tarea.descripcion}
+                                className={styles.descriptionBox}
+                            />
+                        </div>
+
+                        {esReapertura && (
+                            <div style={{ gridColumn: "1 / -1" }}>
+                                <h3>Solicitud de reapertura</h3>
+                                <div className={styles.descriptionBox}>
+                                    <strong>Motivo del cliente:</strong>
+                                    <p style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
+                                        {tarea.motivo_reapertura || "Sin motivo registrado."}
+                                    </p>
+                                    {(tarea.subtareas ?? []).length > 0 && (
+                                        <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                                            Subtareas anteriores:{" "}
+                                            {(tarea.subtareas ?? []).length}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+
+
+                        {/* Adjuntos */}
+                        <div style={{ gridColumn: "1 / -1" }}>
+                            <AdjuntosTarea
+                                archivos={tarea.archivos}
+                                tareaId={tarea.id}
+                                ticket={tarea.ticket}
+                            />
+                        </div>
                     </div>
+
                 </div>
-
             </div>
-        </div>
 
-        {aprobandoReapertura && (
-            <ReaperturaAprobarModal
-                tarea={tarea}
-                onClose={() => setAprobandoReapertura(false)}
-                onSaved={confirmarAprobarReapertura}
-            />
-        )}
+            {aprobandoReapertura && (
+                <ReaperturaAprobarModal
+                    tarea={tarea}
+                    onClose={() => setAprobandoReapertura(false)}
+                    onSaved={confirmarAprobarReapertura}
+                />
+            )}
         </>
     );
 }

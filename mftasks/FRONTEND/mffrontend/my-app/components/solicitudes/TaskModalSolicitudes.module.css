@@ -19,11 +19,15 @@
     background: var(--color-background);
     color: var(--color-text);
     border-radius: 14px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     box-shadow: 0 20px 40px rgba(0,0,0,.25);
     animation: aparecer .25s ease;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    box-sizing: border-box;
+    overscroll-behavior: contain;
 }
 
 .modalHeader {
@@ -35,17 +39,20 @@
     align-items: center;
     flex-shrink: 0;
     gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
 .modalBody {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 25px;
-    padding: 25px;
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
-    -webkit-overflow-scrolling: touch;
+    padding: 28px 32px;
+    flex: 0 0 auto;
+    min-width: 0;
+    overflow: visible;
+    box-sizing: border-box;
 }
 
 .modalColumn {
@@ -53,14 +60,23 @@
     min-width: 0;
 }
 
+.approvalSection {
+    flex: 0 0 auto;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
 .modalFooter {
-    padding: 20px;
+    padding: 20px 0 0;
+    margin-top: 16px;
     border-top: 1px solid var(--color-border);
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 10px;
-    flex-shrink: 0;
     flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .btn {
@@ -68,6 +84,10 @@
     padding: 10px 18px;
     border-radius: 8px;
     cursor: pointer;
+    min-height: 40px;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .btnYes {
@@ -96,12 +116,13 @@
 
 .infoTable {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 14px;
 }
 
 .infoTable td {
-    padding: 6px 0;
+    padding: 8px 10px;
     vertical-align: top;
     word-break: break-word;
 }
@@ -150,11 +171,11 @@
     }
 
     .modal {
-        width: calc(100vw - 24px);
+        width: 100%;
         max-width: 100%;
-        max-height: 85vh;
-        max-height: 85dvh;
-        margin: auto 0;
+        max-height: calc(100dvh - 24px);
+        margin: 0 auto;
+        border-radius: 12px;
     }
 
     .modalHeader {
@@ -166,23 +187,44 @@
     }
 
     .modalFooter {
-        padding: 14px 16px;
+        padding-top: 14px;
     }
 
     .modalFooter textarea {
         width: 100%;
         flex: 1 1 100% !important;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .modalBody {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 16px;
     }
 }
 
 @media (max-width: 480px) {
     .modal {
-        width: calc(100vw - 16px);
+        width: 100%;
         border-radius: 12px;
     }
 
     .modalBody {
         padding: 14px;
+    }
+
+    .approvalSection {
+        padding: 14px !important;
+    }
+
+    .modalFooter {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .modalFooter .btn {
+        width: 100%;
     }
 }
 

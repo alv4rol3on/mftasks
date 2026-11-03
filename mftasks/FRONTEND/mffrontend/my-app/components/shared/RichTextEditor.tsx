@@ -1,9 +1,11 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import { apiFetch } from "@/lib/api";
 import { resolveMediaUrl } from "@/lib/richText";
@@ -32,29 +34,68 @@ export default function RichTextEditor({
   const editor = useEditor({
     immediatelyRender: false,
     editable: !disabled,
+
     extensions: [
       StarterKit.configure({
-        link: {
-          openOnClick: false,
-          autolink: true,
-          HTMLAttributes: {
-            rel: "noopener noreferrer nofollow",
-            target: "_blank",
-          },
-        },
+        heading: false,
+        blockquote: false,
+        code: false,
+        codeBlock: false,
+        horizontalRule: false,
+        link: false,
       }),
+
+      Underline,
+
       Image.configure({
         inline: false,
         allowBase64: false,
       }),
-      Placeholder.configure({ placeholder }),
+
+      Placeholder.configure({
+        placeholder,
+      }),
     ],
+
     content: value || "",
+
     editorProps: {
       attributes: {
         class: styles.editorContent,
       },
+
+      // Pegar únicamente texto plano o imágenes.
+      handlePaste: (view, event) => {
+        const clipboard = event.clipboardData;
+
+        if (!clipboard) return false;
+
+        // Detectar imágenes copiadas.
+        const imagen = Array.from(clipboard.files).find(
+          (file) => file.type.startsWith("image/")
+        );
+
+        if (imagen) {
+          event.preventDefault();
+          void subirImagen(imagen);
+          return true;
+        }
+
+        // Ignorar HTML, código y formatos externos.
+        const texto = clipboard.getData("text/plain");
+
+        if (!texto) {
+          event.preventDefault();
+          return true;
+        }
+
+        event.preventDefault();
+        view.pasteText(texto);
+
+        return true;
+      },
     },
+
     onUpdate: ({ editor: current }) => {
       onChange(current.isEmpty ? "" : current.getHTML());
     },
@@ -62,6 +103,7 @@ export default function RichTextEditor({
 
   useEffect(() => {
     if (!editor) return;
+
     editor.setEditable(!disabled);
   }, [editor, disabled]);
 
@@ -81,48 +123,7 @@ export default function RichTextEditor({
     return <div className={styles.loading}>Cargando editor…</div>;
   }
 
-  const setLink = () => {
-    const anterior = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt(
-      "URL del enlace (vacío para quitarlo)",
-      anterior || "https://"
-    );
-
-    if (url === null) return;
-
-    if (!url.trim()) {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-
-    if (!/^https?:\/\//i.test(url.trim()) && !url.trim().startsWith("mailto:")) {
-      setError("El enlace debe comenzar con http://, https:// o mailto:.");
-      return;
-    }
-
-    setError(null);
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange("link")
-      .setLink({ href: url.trim() })
-      .run();
-  };
-
-  const agregarImagenPorUrl = () => {
-    const url = window.prompt("URL de la imagen");
-
-    if (!url) return;
-
-    if (!/^https?:\/\//i.test(url.trim())) {
-      setError("La imagen debe tener una URL http:// o https://.");
-      return;
-    }
-
-    setError(null);
-    editor.chain().focus().setImage({ src: url.trim() }).run();
-  };
-
+  // Subir imagen al servidor.
   const subirImagen = async (file: File | undefined) => {
     if (!file) return;
 
@@ -147,10 +148,13 @@ export default function RichTextEditor({
       const formData = new FormData();
       formData.append("imagen", file, file.name);
 
-      const res = await apiFetch<{ url: string }>("/api/tasks/tasks/imagenes/", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await apiFetch<{ url: string }>(
+        "/api/tasks/tasks/imagenes/",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const src = resolveMediaUrl(res.url);
 
@@ -161,8 +165,13 @@ export default function RichTextEditor({
       editor
         .chain()
         .focus()
-        .setImage({ src, alt: file.name, title: file.name })
+        .setImage({
+          src,
+          alt: file.name,
+          title: file.name,
+        })
         .run();
+
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -170,49 +179,137 @@ export default function RichTextEditor({
     }
   };
 
-  const activo = (nombre: string, atributos?: Record<string, unknown>) =>
-    editor.isActive(nombre, atributos) ? styles.toolActive : "";
+  const activo = (nombre: string) =>
+    editor.isActive(nombre) ? styles.toolActive : "";
 
   return (
     <div className={`${styles.wrapper} ${disabled ? styles.disabled : ""}`}>
-      <div className={styles.toolbar} role="toolbar" aria-label="Formato de la descripción">
-        <button type="button" className={`${styles.tool} ${activo("bold")}`} onClick={() => editor.chain().focus().toggleBold().run()} disabled={disabled} title="Negrita">B</button>
-        <button type="button" className={`${styles.tool} ${activo("italic")}`} onClick={() => editor.chain().focus().toggleItalic().run()} disabled={disabled} title="Cursiva"><em>I</em></button>
-        <button type="button" className={`${styles.tool} ${activo("underline")}`} onClick={() => editor.chain().focus().toggleUnderline().run()} disabled={disabled} title="Subrayado"><u>U</u></button>
-        <button type="button" className={`${styles.tool} ${activo("strike")}`} onClick={() => editor.chain().focus().toggleStrike().run()} disabled={disabled} title="Tachado"><s>S</s></button>
+
+      {/* Barra de herramientas */}
+      <div
+        className={styles.toolbar}
+        role="toolbar"
+        aria-label="Formato de la descripción"
+      >
+
+        {/* Formato de texto */}
+        <button
+          type="button"
+          className={`${styles.tool} ${activo("bold")}`}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          disabled={disabled}
+          title="Negrita"
+        >
+          B
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tool} ${activo("italic")}`}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          disabled={disabled}
+          title="Cursiva"
+        >
+          <em>I</em>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tool} ${activo("underline")}`}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          disabled={disabled}
+          title="Subrayado"
+        >
+          <u>U</u>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tool} ${activo("strike")}`}
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          disabled={disabled}
+          title="Tachado"
+        >
+          <s>S</s>
+        </button>
 
         <span className={styles.separator} />
 
-        <button type="button" className={`${styles.tool} ${activo("heading", { level: 2 })}`} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} disabled={disabled} title="Título 2">H2</button>
-        <button type="button" className={`${styles.tool} ${activo("heading", { level: 3 })}`} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} disabled={disabled} title="Título 3">H3</button>
+        {/* Listas */}
+        <button
+          type="button"
+          className={`${styles.tool} ${activo("bulletList")}`}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          disabled={disabled}
+          title="Lista con viñetas"
+        >
+          Lista
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tool} ${activo("orderedList")}`}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          disabled={disabled}
+          title="Lista numerada"
+        >
+          1. Lista
+        </button>
 
         <span className={styles.separator} />
 
-        <button type="button" className={`${styles.tool} ${activo("bulletList")}`} onClick={() => editor.chain().focus().toggleBulletList().run()} disabled={disabled} title="Lista con viñetas">Lista</button>
-        <button type="button" className={`${styles.tool} ${activo("orderedList")}`} onClick={() => editor.chain().focus().toggleOrderedList().run()} disabled={disabled} title="Lista numerada">1. Lista</button>
-        <button type="button" className={`${styles.tool} ${activo("blockquote")}`} onClick={() => editor.chain().focus().toggleBlockquote().run()} disabled={disabled} title="Cita">Cita</button>
-        <button type="button" className={`${styles.tool} ${activo("codeBlock")}`} onClick={() => editor.chain().focus().toggleCodeBlock().run()} disabled={disabled} title="Bloque de código">Código</button>
-
-        <span className={styles.separator} />
-
-        <button type="button" className={`${styles.tool} ${activo("link")}`} onClick={setLink} disabled={disabled} title="Insertar enlace">Enlace</button>
+        {/* Imágenes */}
         <button
           type="button"
           className={styles.tool}
           onClick={() => inputImagenRef.current?.click()}
           disabled={disabled || subiendoImagen}
-          title="Subir imagen"
+          title="Insertar imagen"
         >
           {subiendoImagen ? "Subiendo…" : "Imagen"}
         </button>
-        <button type="button" className={styles.tool} onClick={agregarImagenPorUrl} disabled={disabled} title="Insertar imagen por URL">URL imagen</button>
 
         <span className={styles.separator} />
 
-        <button type="button" className={styles.tool} onClick={() => editor.chain().focus().undo().run()} disabled={disabled || !editor.can().chain().focus().undo().run()} title="Deshacer">↶</button>
-        <button type="button" className={styles.tool} onClick={() => editor.chain().focus().redo().run()} disabled={disabled || !editor.can().chain().focus().redo().run()} title="Rehacer">↷</button>
-        <button type="button" className={styles.tool} onClick={() => editor.chain().focus().clearContent().run()} disabled={disabled} title="Limpiar contenido">Limpiar</button>
+        {/* Deshacer y rehacer */}
+        <button
+          type="button"
+          className={styles.tool}
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={
+            disabled ||
+            !editor.can().chain().focus().undo().run()
+          }
+          title="Deshacer"
+        >
+          ↶
+        </button>
 
+        <button
+          type="button"
+          className={styles.tool}
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={
+            disabled ||
+            !editor.can().chain().focus().redo().run()
+          }
+          title="Rehacer"
+        >
+          ↷
+        </button>
+
+        {/* Limpiar */}
+        <button
+          type="button"
+          className={styles.tool}
+          onClick={() => editor.chain().focus().clearContent().run()}
+          disabled={disabled}
+          title="Limpiar contenido"
+        >
+          Limpiar
+        </button>
+
+        {/* Input oculto para imágenes */}
         <input
           ref={inputImagenRef}
           type="file"
@@ -220,15 +317,25 @@ export default function RichTextEditor({
           className={styles.hiddenInput}
           onChange={(e) => {
             const file = e.target.files?.[0];
+
             e.currentTarget.value = "";
+
             void subirImagen(file);
           }}
         />
+
       </div>
 
+      {/* Área de edición */}
       <EditorContent editor={editor} />
 
-      {error && <p className={styles.error}>{error}</p>}
+      {/* Mensajes de error */}
+      {error && (
+        <p className={styles.error}>
+          {error}
+        </p>
+      )}
+
     </div>
   );
 }

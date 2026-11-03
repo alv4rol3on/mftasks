@@ -102,41 +102,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
         padding: "0 22px 16px",
       }}
     >
-      {puedeAgregarInfo && (
-        <button
-          type="button"
-          onClick={() => setAccion("informacion")}
-          style={accionBtn}
-        >
-          + Agregar Archivos
-        </button>
-      )}
-      {puedeConfirmar && (
-        <button
-          type="button"
-          onClick={() => setAccion("confirmar")}
-          style={{ ...accionBtn, background: "var(--color-done)", color: "var(--color-on-accent)", borderColor: "var(--color-done)" }}
-        >
-          Confirmar solución
-        </button>
-      )}
-      {puedeReabrir && (
-        <button
-          type="button"
-          onClick={() => setAccion("reabrir")}
-          style={{ ...accionBtn, color: "var(--color-waiting)", borderColor: "var(--color-waiting)" }}
-        >
-          Reabrir solicitud
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => void descargarConstancia()}
-        disabled={descargando}
-        style={accionBtn}
-      >
-        {descargando ? "Generando PDF…" : "Descargar constancia PDF"}
-      </button>
+
       {puedeCancelar && (
         <button
           type="button"
@@ -166,24 +132,51 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
         </div>
         {acciones}
         <div className={styles.modalBody}>
-          <div className={styles.tabsHeader} style={{ gridColumn: "1 / -1" }}>
+          <div
+            className={styles.tabsHeader}
+            style={{
+              gridColumn: "1 / -1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              <button
+                onClick={() => setTab("detalle")}
+                className={tab === "detalle" ? styles.tabBtnActive : styles.tabBtn}
+              >
+                Detalle
+              </button>
+
+              <button
+                onClick={() => setTab("historial")}
+                className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}
+              >
+                Historial
+              </button>
+
+              <button
+                onClick={() => setTab("informacion")}
+                className={tab === "informacion" ? styles.tabBtnActive : styles.tabBtn}
+              >
+                Archivos adicionales
+              </button>
+            </div>
+
             <button
-              onClick={() => setTab("detalle")}
-              className={tab === "detalle" ? styles.tabBtnActive : styles.tabBtn}
+              type="button"
+              onClick={() => void descargarConstancia()}
+              disabled={descargando}
+              className={styles.tabBtn}
+              style={{
+                whiteSpace: "nowrap",
+                opacity: descargando ? 0.6 : 1,
+              }}
             >
-              Detalle
-            </button>
-            <button
-              onClick={() => setTab("historial")}
-              className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}
-            >
-              Historial
-            </button>
-            <button
-              onClick={() => setTab("informacion")}
-              className={tab === "informacion" ? styles.tabBtnActive : styles.tabBtn}
-            >
-              Archivos adicionales
+              {descargando ? "Generando PDF…" : "Descargar constancia PDF"}
             </button>
           </div>
 
@@ -212,8 +205,10 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                   )}
                   {tarea.siguiente_paso && (
                     <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
-                      <strong style={{ color: "var(--color-text)" }}>Siguiente paso:</strong>{" "}
-                      {tarea.siguiente_paso}
+                      {tarea.siguiente_paso == "-" ? (
+                        null
+                      ) : (<strong style={{ color: "var(--color-text)" }}>Siguiente paso: {tarea.siguiente_paso}</strong>)
+                      }
                     </p>
                   )}
                   {tarea.motivo_demora && (
@@ -233,7 +228,51 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                         <strong>{fmt(tarea.fecha_limite_confirmacion)}</strong>.
                       </p>
                     )}
+
+                  {(puedeConfirmar || puedeReabrir) && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTop: "1px solid var(--color-border)",
+                      }}
+                    >
+                      {puedeConfirmar && (
+                        <button
+                          type="button"
+                          onClick={() => setAccion("confirmar")}
+                          style={{
+                            ...accionBtn,
+                            background: "var(--color-done)",
+                            color: "var(--color-on-accent)",
+                            borderColor: "var(--color-done)",
+                          }}
+                        >
+                          Confirmar solución
+                        </button>
+                      )}
+
+                      {puedeReabrir && (
+                        <button
+                          type="button"
+                          onClick={() => setAccion("reabrir")}
+                          style={{
+                            ...accionBtn,
+                            color: "var(--color-waiting)",
+                            borderColor: "var(--color-waiting)",
+                          }}
+                        >
+                          Reabrir solicitud
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+
               )}
               <div className={styles.modalColumn}>
                 <h3>Información</h3>
@@ -371,6 +410,23 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                 titulo="Archivos adicionales"
                 subtitulo="Notas y archivos que agregaste después de crear la solicitud."
                 mostrarAutor={false}
+                headerAction={
+                  puedeAgregarInfo && tarea.estado !== "SOLUCIONADO" ? (
+                    <button
+                      type="button"
+                      onClick={() => setAccion("informacion")}
+                      style={{
+                        ...accionBtn,
+                        background: "var(--color-brand)",
+                        color: "var(--color-on-accent)",
+                        borderColor: "var(--color-brand)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      + Agregar Archivos
+                    </button>
+                  ) : null
+                }
               />
             </div>
           )}

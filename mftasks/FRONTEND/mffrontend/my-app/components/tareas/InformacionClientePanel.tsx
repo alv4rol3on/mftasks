@@ -15,6 +15,7 @@ type Props = {
   titulo?: string;
   subtitulo?: string;
   mostrarAutor?: boolean;
+  headerAction?: React.ReactNode;
 };
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -39,6 +40,7 @@ export default function InformacionClientePanel({
   titulo = "Archivos adicionales",
   subtitulo = "Notas y archivos adicionales enviados por el solicitante.",
   mostrarAutor = true,
+  headerAction,
 }: Props) {
   const [entradas, setEntradas] = useState<EntradaInformacionCliente[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,16 +81,19 @@ export default function InformacionClientePanel({
       <div className={styles.historyHeader}>
         <div>
           <h3 className={styles.sectionTitle}>{titulo}</h3>
-          <p className={styles.sectionHint}>
-            {subtitulo}
-          </p>
+          <p className={styles.sectionHint}>{subtitulo}</p>
         </div>
-        <RefreshButton
-          onClick={cargar}
-          loading={recargando}
-          variant="outline"
-          title="Recargar archivos adicionales"
-        />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {headerAction}
+
+          <RefreshButton
+            onClick={cargar}
+            loading={recargando}
+            variant="outline"
+            title="Recargar archivos adicionales"
+          />
+        </div>
       </div>
 
       {error && <p className={styles.errorNotice}>{error}</p>}

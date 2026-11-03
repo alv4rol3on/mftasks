@@ -101,8 +101,8 @@ def explicar_estado_cliente(tarea: Tarea) -> dict:
                     f"{tarea.motivo_rechazo_reapertura}"
                 )
         else:
-            explicacion = "La solicitud fue solucionada y confirmada."
-            siguiente = "No se requiere ninguna acción adicional."
+            explicacion = "La solicitud fue solucionada."
+            siguiente = "-"
 
     elif estado == Tarea.Estado.REAPERTURA_PENDIENTE:
         explicacion = "Solicitaste reabrir la solicitud y está pendiente de aprobación del equipo."

@@ -250,7 +250,7 @@ export default function EquiposPage() {
     miembro: EquipoMiembroDetallado
   ) => {
     const key = `${equipo.id}-estado-${miembro.id_usuario}-INACTIVO`;
-    if (!confirm(`?Dar de baja a ${miembro.nombres} ${miembro.apellidos}? Ya no pertenecer? hasta que lo vuelvas a agregar.`)) return;
+    if (!confirm(`Desea eliminar a ${miembro.nombres} ${miembro.apellidos} del grupo? Puede volver a agregarlo en cualquier momento`)) return;
     setAccionando(key);
     setMensaje(null);
     try {
@@ -346,7 +346,7 @@ export default function EquiposPage() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setMensaje("Miembro agregado como MIEMBRO.");
+      setMensaje("Nuevo usuario agregado al equipo.");
       setModalAgregar(null);
       await recargar();
     } catch (e) {
@@ -609,7 +609,7 @@ export default function EquiposPage() {
                     </div>
                     <div className={styles.cardMeta}>
                       <span>Líder: <strong>{liderNombre}</strong></span>
-                      <span>Miembros: {equipo.miembros.length} (activos {totalActivos}{totalIndisponibles ? `, indisponibles ${totalIndisponibles}` : ""})</span>
+                      <span>Miembros: {equipo.miembros.length}</span>
                       {!esClientePuro && miRolLabel !== "—" && (
 
                         <span>Tu rol: <strong>{miRolLabel}</strong></span>
@@ -650,8 +650,8 @@ export default function EquiposPage() {
                         {liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" && (
                           <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
                             {liderMiembro.disponibilidad.motivo ? `Motivo: ${liderMiembro.disponibilidad.motivo}` : ""}
-                            {liderMiembro.disponibilidad.fecha_inicio ? ` ? ${liderMiembro.disponibilidad.fecha_inicio}` : ""}
-                            {liderMiembro.disponibilidad.fecha_fin ? ` ? ${liderMiembro.disponibilidad.fecha_fin}` : ""}
+                            {liderMiembro.disponibilidad.fecha_inicio ? ` ▸ ${liderMiembro.disponibilidad.fecha_inicio}` : ""}
+                            {liderMiembro.disponibilidad.fecha_fin ? ` - ${liderMiembro.disponibilidad.fecha_fin}` : ""}
                           </div>
                         )}
                       </div>

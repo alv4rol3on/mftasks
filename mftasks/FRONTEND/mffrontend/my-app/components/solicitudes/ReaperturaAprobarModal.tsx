@@ -43,13 +43,80 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
+const formatearFechaLocal = (fecha: Date): string => {
+  const year = fecha.getFullYear();
+  const month = String(fecha.getMonth() + 1).padStart(2, "0");
+  const day = String(fecha.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const sumarDiasHabiles = (fecha: Date, dias: number): Date => {
+  const resultado = new Date(fecha);
+  let agregados = 0;
+
+  while (agregados < dias) {
+    resultado.setDate(resultado.getDate() + 1);
+
+    const dia = resultado.getDay();
+
+    if (dia !== 0 && dia !== 6) {
+      agregados++;
+    }
+  }
+
+  return resultado;
+};
+
+const contarDiasHabiles = (inicio: Date, fin: Date): number => {
+  const actual = new Date(inicio);
+  actual.setHours(0, 0, 0, 0);
+
+  const limite = new Date(fin);
+  limite.setHours(0, 0, 0, 0);
+
+  let dias = 0;
+
+  while (actual < limite) {
+    actual.setDate(actual.getDate() + 1);
+
+    if (actual.getDay() !== 0 && actual.getDay() !== 6) {
+      dias++;
+    }
+  }
+
+  return dias;
+};
+
+const formatearFechaHoraLocal = (fecha: Date): string => {
+  const year = fecha.getFullYear();
+  const month = String(fecha.getMonth() + 1).padStart(2, "0");
+  const day = String(fecha.getDate()).padStart(2, "0");
+  const hours = String(fecha.getHours()).padStart(2, "0");
+  const minutes = String(fecha.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const obtenerFechaHoraMinima = () =>
+  formatearFechaHoraLocal(sumarDiasHabiles(new Date(), 1));
+
+const obtenerFechaHoraMaxima = () => {
+  const fecha = sumarDiasHabiles(new Date(), 5);
+  fecha.setHours(23, 59, 0, 0);
+
+  return formatearFechaHoraLocal(fecha);
+};
+
 export default function ReaperturaAprobarModal({
   tarea,
   onClose,
   onSaved,
 }: Props) {
   const [miembros, setMiembros] = useState<{ id: number; nombre: string }[]>([]);
-  const [plazoDias, setPlazoDias] = useState(3);
+  const [fechaLimite, setFechaLimite] = useState(() =>
+    formatearFechaLocal(sumarDiasHabiles(new Date(), 3))
+  );
   const [reactivar, setReactivar] = useState<number[]>([]);
   const [nuevas, setNuevas] = useState<NuevaSubtarea[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -102,11 +169,31 @@ export default function ReaperturaAprobarModal({
   };
 
   const confirmar = async () => {
-    const plazo = Number(plazoDias);
-    if (!Number.isFinite(plazo) || plazo < 1) {
-      setError("El plazo debe ser de al menos 1 día hábil.");
+    const fechaSeleccionada = new Date(fechaLimite);
+
+    const ahora = new Date();
+    const fechaMaxima = sumarDiasHabiles(ahora, 5);
+    fechaMaxima.setHours(23, 59, 59, 999);
+
+    if (
+      !fechaLimite ||
+      Number.isNaN(fechaSeleccionada.getTime()) ||
+      fechaSeleccionada <= ahora ||
+      fechaSeleccionada > fechaMaxima ||
+      fechaSeleccionada.getDay() === 0 ||
+      fechaSeleccionada.getDay() === 6
+    ) {
+      setError("Selecciona una fecha y hora válida dentro de los próximos 5 días hábiles.");
       return;
     }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const fechaDia = new Date(fechaSeleccionada);
+    fechaDia.setHours(0, 0, 0, 0);
+
+    const plazo = contarDiasHabiles(hoy, fechaDia);
 
     const validas = nuevas.filter(
       (fila) => fila.descripcion.trim() && fila.asignado !== ""
@@ -140,7 +227,7 @@ export default function ReaperturaAprobarModal({
   return (
     <Modal
       title="Aprobar reapertura"
-      onClose={enviando ? () => {} : onClose}
+      onClose={enviando ? () => { } : onClose}
       maxWidth={680}
       footer={
         <>
@@ -198,20 +285,34 @@ export default function ReaperturaAprobarModal({
 
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>
-            Plazo para solucionarlo (días hábiles) *
+            Fecha límite para solucionarlo *
           </span>
+
           <input
-            type="number"
-            min={1}
-            max={90}
-            value={plazoDias}
+            type="datetime-local"
+            value={fechaLimite}
+            min={obtenerFechaHoraMinima()}
+            max={obtenerFechaHoraMaxima()}
             onChange={(e) => {
-              setPlazoDias(Number(e.target.value));
+              setFechaLimite(e.target.value);
               setError(null);
             }}
             disabled={enviando}
-            style={{ ...inputStyle, maxWidth: 160 }}
+            style={{
+              ...inputStyle,
+              maxWidth: 260,
+              colorScheme: "light dark",
+            }}
           />
+
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--color-text-secondary)",
+            }}
+          >
+            Puedes elegir una fecha dentro de los próximos 5 días hábiles.
+          </span>
         </label>
 
         <section>
