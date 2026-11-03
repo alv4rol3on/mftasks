@@ -186,7 +186,7 @@ class ClienteAccionesTestCase(APITestCase):
             ).exists()
         )
 
-    def test_cliente_reabre_y_crea_subtarea(self):
+    def test_cliente_solicita_reapertura(self):
         tarea = self._tarea_solucionada()
         self._auth()
         res = self.client.post(
@@ -196,15 +196,125 @@ class ClienteAccionesTestCase(APITestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         tarea.refresh_from_db()
-        self.assertEqual(tarea.estado, Tarea.Estado.EN_DESARROLLO)
-        self.assertEqual(tarea.reaperturas_cliente, 1)
-        self.assertEqual(tarea.confirmacion_cliente, "REABIERTA")
-        self.assertTrue(
+        self.assertEqual(tarea.estado, Tarea.Estado.REAPERTURA_PENDIENTE)
+        self.assertEqual(tarea.reaperturas_cliente, 0)
+        self.assertEqual(tarea.confirmacion_cliente, "PENDIENTE")
+        self.assertEqual(tarea.motivo_reapertura, "El error continúa")
+        self.assertIsNotNone(tarea.fecha_solicitud_reapertura)
+        self.assertFalse(
             Subtarea.objects.filter(
                 tarea=tarea,
                 descripcion__icontains="El error continúa",
             ).exists()
         )
+        self.assertTrue(
+            TareaLog.objects.filter(
+                tarea=tarea,
+                tipo_evento=TareaLog.TipoEvento.SOLICITUD_REAPERTURA,
+            ).exists()
+        )
+
+    def test_lider_aprueba_reapertura_con_nueva_subtarea(self):
+        tarea = self._tarea_solucionada()
+        anterior = Subtarea.objects.create(
+            tarea=tarea,
+            descripcion="Trabajo anterior",
+            asignado=self.lider,
+            peso=1,
+            estado=Subtarea.Estado.SOLUCIONADO,
+        )
+        self._auth()
+        self.client.post(
+            f"/api/tasks/tasks/{tarea.id}/reabrir/",
+            {"motivo": "Falta corregir"},
+            format="json",
+        )
+
+        self._auth(self.lider)
+        res = self.client.post(
+            f"/api/tasks/tasks/{tarea.id}/aprobar-reapertura/",
+            {
+                "plazo_dias": 3,
+                "subtareas": [
+                    {
+                        "descripcion": "Corregir detalle",
+                        "asignado": self.lider.id,
+                        "peso": 2,
+                    }
+                ],
+                "subtareas_reactivar": [anterior.id],
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        tarea.refresh_from_db()
+        anterior.refresh_from_db()
+        self.assertEqual(tarea.estado, Tarea.Estado.EN_DESARROLLO)
+        self.assertEqual(tarea.reaperturas_cliente, 1)
+        self.assertEqual(tarea.confirmacion_cliente, "REABIERTA")
+        self.assertEqual(tarea.plazo_reapertura_dias, 3)
+        self.assertIsNone(tarea.fecha_solucion)
+        self.assertIsNotNone(tarea.fecha_entrega_aproximada)
+        self.assertEqual(anterior.estado, Subtarea.Estado.EN_DESARROLLO)
+        self.assertTrue(
+            Subtarea.objects.filter(
+                tarea=tarea,
+                descripcion="Corregir detalle",
+            ).exists()
+        )
+        self.assertTrue(
+            TareaLog.objects.filter(
+                tarea=tarea,
+                tipo_evento=TareaLog.TipoEvento.REAPERTURA,
+            ).exists()
+        )
+
+    def test_lider_rechaza_reapertura_con_motivo(self):
+        tarea = self._tarea_solucionada()
+        self._auth()
+        self.client.post(
+            f"/api/tasks/tasks/{tarea.id}/reabrir/",
+            {"motivo": "No quedó resuelto"},
+            format="json",
+        )
+
+        self._auth(self.lider)
+        res = self.client.post(
+            f"/api/tasks/tasks/{tarea.id}/rechazar-reapertura/",
+            {"motivo": "La solución ya cumple lo solicitado"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.estado, Tarea.Estado.SOLUCIONADO)
+        self.assertEqual(tarea.confirmacion_cliente, "PENDIENTE")
+        self.assertEqual(
+            tarea.motivo_rechazo_reapertura,
+            "La solución ya cumple lo solicitado",
+        )
+        self.assertTrue(
+            TareaLog.objects.filter(
+                tarea=tarea,
+                tipo_evento=TareaLog.TipoEvento.REAPERTURA_RECHAZADA,
+            ).exists()
+        )
+
+    def test_rechazo_reapertura_requiere_motivo(self):
+        tarea = self._tarea_solucionada()
+        self._auth()
+        self.client.post(
+            f"/api/tasks/tasks/{tarea.id}/reabrir/",
+            {"motivo": "No quedó resuelto"},
+            format="json",
+        )
+
+        self._auth(self.lider)
+        res = self.client.post(
+            f"/api/tasks/tasks/{tarea.id}/rechazar-reapertura/",
+            {},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_reabrir_respeta_maximo(self):
         tarea = self._tarea_solucionada(reaperturas_cliente=2)

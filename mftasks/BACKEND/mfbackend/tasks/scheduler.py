@@ -10,6 +10,7 @@ ESTADOS_RESUMEN_CLIENTE = [
     ("EN_DESARROLLO", "En desarrollo"),
     ("STAND_BY", "En pausa"),
     ("SOLUCIONADO", "Solucionado"),
+    ("REAPERTURA_PENDIENTE", "Reapertura pendiente"),
     ("RECHAZADO", "Rechazado"),
 ]
 

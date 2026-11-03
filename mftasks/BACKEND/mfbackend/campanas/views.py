@@ -8,6 +8,7 @@ from usuarios.permissions import (
     es_administrador,
     es_cliente,
 )
+from usuarios.models import Equipo, EquipoMiembro
 
 from .models import Campana, SubCampana, PermisoCampana
 from .serializers import CampanaSerializer, SubCampanaSerializer, PermisoCampanaSerializer
@@ -76,9 +77,23 @@ class CampanaViewSet(ModelViewSet):
                     if sub.activo:
                         _agregar_subcampana(campana, sub)
         else:
+            # Permisos propios + los del líder de cada equipo al que pertenece.
+            equipos_ids = set(
+                EquipoMiembro.objects.filter(
+                    usuario=user,
+                    estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+                ).values_list("equipo_id", flat=True)
+            )
+            lideres_ids = set(
+                Equipo.objects.filter(id__in=equipos_ids).values_list(
+                    "lider_id", flat=True
+                )
+            )
+            usuarios_ids = {user.id} | {lider for lider in lideres_ids if lider}
+
             permisos = (
                 PermisoCampana.objects
-                .filter(usuario=user)
+                .filter(usuario_id__in=usuarios_ids)
                 .select_related(
                     "campana",
                     "campana__entidad",

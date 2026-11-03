@@ -42,6 +42,7 @@ from .permissions import (
     EsSolicitanteDeTarea,
     PuedeAprobarPasoDeTarea,
     es_aprobador_de_tarea,
+    puede_resolver_reapertura,
 )
 from .serializers import SubtareaSerializer, TaskSerializer
 from .services.archivos import guardar_archivos, validar_archivos
@@ -53,9 +54,11 @@ from .services.cliente_acciones import (
 )
 from .services.confirmacion import (
     ConfirmacionInvalida,
+    aprobar_reapertura,
     confirmar_solucion as confirmar_solucion_cliente,
     programar_confirmacion,
     reabrir_tarea,
+    rechazar_reapertura,
 )
 from .services.constancia_pdf import generar_constancia_pdf
 from .services.logs import registrar_log
@@ -337,6 +340,14 @@ class TaskViewSet(viewsets.ModelViewSet):
         if subcampana:
             queryset = queryset.filter(subcampana_id=subcampana)
 
+        if params.get("bandeja") in ("1", "true", "yes"):
+            queryset = queryset.filter(
+                estado__in=[
+                    Tarea.Estado.EN_ESPERA,
+                    Tarea.Estado.REAPERTURA_PENDIENTE,
+                ]
+            )
+
         search = params.get("search") or params.get("q")
         if search:
             queryset = queryset.filter(
@@ -363,7 +374,12 @@ class TaskViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(prioridad=prioridad)
 
         if params.get("excluir_espera") in ("1", "true", "yes"):
-            queryset = queryset.exclude(estado=Tarea.Estado.EN_ESPERA)
+            queryset = queryset.exclude(
+                estado__in=[
+                    Tarea.Estado.EN_ESPERA,
+                    Tarea.Estado.REAPERTURA_PENDIENTE,
+                ]
+            )
 
         
         campo_fecha = (params.get("campo_fecha") or "creacion").lower()
@@ -1311,11 +1327,31 @@ class TaskViewSet(viewsets.ModelViewSet):
                 equipo__lider=usuario,
             ).count()
 
+            ids_equipos_resolucion = set(
+                Equipo.objects.filter(lider=usuario).values_list("id", flat=True)
+            )
+            ids_equipos_resolucion |= set(
+                EquipoMiembro.objects.filter(
+                    usuario=usuario,
+                    rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER,
+                    estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+                ).values_list("equipo_id", flat=True)
+            )
+            total += Tarea.objects.filter(
+                estado=Tarea.Estado.REAPERTURA_PENDIENTE,
+                equipo_id__in=ids_equipos_resolucion,
+            ).count()
+
             return total
 
         # Administrador ve todo + detalle pendientes propio
         if es_administrador(user):
-            por_aprobar = Tarea.objects.filter(estado=Tarea.Estado.EN_ESPERA).count()
+            por_aprobar = Tarea.objects.filter(
+                estado__in=[
+                    Tarea.Estado.EN_ESPERA,
+                    Tarea.Estado.REAPERTURA_PENDIENTE,
+                ]
+            ).count()
             pendientes = Subtarea.objects.filter(
                 asignado=user,
                 estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
@@ -1694,9 +1730,97 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
 
         programar_correo_equipo(
+            evento="EQUIPO_NUEVA_SOLICITUD",
+            tarea=tarea,
+            mensaje=(
+                "El cliente solicitó reabrir la solicitud. "
+                f"Motivo: {motivo}. Pendiente de aprobación del equipo."
+            ),
+        )
+
+        return Response(
+            TaskSerializer(tarea, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="aprobar-reapertura",
+    )
+    def aprobar_reapertura(self, request, pk=None):
+        tarea = self.get_object()
+
+        if not puede_resolver_reapertura(request.user, tarea):
+            return Response(
+                {"detail": "No puedes aprobar la reapertura de esta solicitud."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            tarea = aprobar_reapertura(
+                tarea,
+                request.user,
+                request.data.get("plazo_dias"),
+                subtareas_nuevas=request.data.get("subtareas") or [],
+                subtareas_reactivar=request.data.get("subtareas_reactivar") or [],
+            )
+        except ConfirmacionInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        programar_correo_tarea(
             evento="SOLICITUD_REABIERTA",
             tarea=tarea,
-            mensaje=f"El cliente reabrió la solicitud. Motivo: {motivo}",
+            usuario_destinatario=tarea.solicitante,
+            mensaje=(
+                "El equipo aprobó la reapertura de tu solicitud. "
+                f"Nuevo plazo: {tarea.plazo_reapertura_dias} día(s) hábil(es)."
+            ),
+        )
+
+        return Response(
+            TaskSerializer(tarea, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path="rechazar-reapertura",
+    )
+    def rechazar_reapertura(self, request, pk=None):
+        tarea = self.get_object()
+
+        if not puede_resolver_reapertura(request.user, tarea):
+            return Response(
+                {"detail": "No puedes rechazar la reapertura de esta solicitud."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        motivo = (
+            request.data.get("motivo_rechazo")
+            or request.data.get("motivo")
+            or ""
+        )
+
+        try:
+            tarea = rechazar_reapertura(tarea, request.user, motivo)
+        except ConfirmacionInvalida as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        programar_correo_tarea(
+            evento="SOLICITUD_RECHAZADA",
+            tarea=tarea,
+            usuario_destinatario=tarea.solicitante,
+            mensaje=f"El equipo rechazó la reapertura. Motivo: {motivo}",
         )
 
         return Response(

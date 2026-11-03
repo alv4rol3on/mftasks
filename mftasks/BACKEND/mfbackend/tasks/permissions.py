@@ -152,6 +152,18 @@ def puede_ver_tarea_completa(user, equipo):
     return False
 
 
+def puede_resolver_reapertura(user, tarea):
+    """Admin, líder o sub-líder activo del equipo pueden aprobar/rechazar reaperturas."""
+    if not user or not user.is_authenticated or tarea is None:
+        return False
+    if es_administrador(user):
+        return True
+    equipo = getattr(tarea, "equipo", None)
+    if equipo is None:
+        return False
+    return es_asignador_del_equipo(user, equipo)
+
+
 class EsMiembroDelEquipoDeTarea(BasePermission):
 
     def has_object_permission(self, request, view, obj):

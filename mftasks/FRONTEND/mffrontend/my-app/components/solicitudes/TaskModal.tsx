@@ -6,6 +6,9 @@ import { Task } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
 import AdjuntosTarea from "@/components/adjuntos/AdjuntosTarea";
 import RichTextView from "@/components/shared/RichTextView";
+import ReaperturaAprobarModal, {
+    type AprobarReaperturaPayload,
+} from "./ReaperturaAprobarModal";
 
 type EventoSeguimiento = {
     id: number;
@@ -23,6 +26,8 @@ type Props = {
     onClose: () => void;
     onAprobar: (tarea: Task) => Promise<void>;
     onRechazar: (tarea: Task, motivo: string) => Promise<void>;
+    onAprobarReapertura: (tarea: Task, payload: AprobarReaperturaPayload) => Promise<void>;
+    onRechazarReapertura: (tarea: Task, motivo: string) => Promise<void>;
     onReload: () => void;
 };
 
@@ -31,16 +36,20 @@ export default function TaskModal({
     onClose,
     onAprobar,
     onRechazar,
+    onAprobarReapertura,
+    onRechazarReapertura,
     onReload
 }: Props) {
     const [seguimiento, setSeguimiento] = useState<EventoSeguimiento[] | null>(null);
     const [rechazando, setRechazando] = useState(false);
     const [motivo, setMotivo] = useState("");
+    const [aprobandoReapertura, setAprobandoReapertura] = useState(false);
     const [respuesta, setRespuesta] = useState<{
         tipo: "aprobada" | "rechazada";
         ticket: string | null;
         asunto: string;
         motivo?: string;
+        reapertura?: boolean;
     } | null>(null);
 
 
@@ -70,8 +79,11 @@ export default function TaskModal({
 
     if (!tarea) return null;
 
+    const esReapertura = tarea.estado === "REAPERTURA_PENDIENTE";
     const puedeOperar =
         Boolean(tarea.puedo_aprobar) && tarea.estado === "EN_ESPERA";
+    const puedeResolverReapertura =
+        esReapertura && Boolean(tarea.puedo_resolver_reapertura);
 
     const NOMBRES: Record<string, string> = {
         APROBADORES: "Aprobación de superiores",
@@ -134,6 +146,11 @@ export default function TaskModal({
 
     const aprobar = async () => {
         try {
+            if (esReapertura) {
+                setAprobandoReapertura(true);
+                return;
+            }
+
             await onAprobar(tarea);
 
             setRespuesta({
@@ -146,17 +163,35 @@ export default function TaskModal({
         }
     };
 
+    const confirmarAprobarReapertura = async (
+        payload: AprobarReaperturaPayload
+    ) => {
+        await onAprobarReapertura(tarea, payload);
+        setAprobandoReapertura(false);
+        setRespuesta({
+            tipo: "aprobada",
+            ticket: tarea.ticket ?? null,
+            asunto: tarea.asunto,
+            reapertura: true,
+        });
+    };
+
     const confirmarRechazo = async () => {
         if (!motivo.trim()) return;
 
         try {
-            await onRechazar(tarea, motivo.trim());
+            if (esReapertura) {
+                await onRechazarReapertura(tarea, motivo.trim());
+            } else {
+                await onRechazar(tarea, motivo.trim());
+            }
 
             setRespuesta({
                 tipo: "rechazada",
                 ticket: tarea.ticket ?? null,
                 asunto: tarea.asunto,
                 motivo: motivo.trim(),
+                reapertura: esReapertura,
             });
 
             setRechazando(false);
@@ -193,8 +228,12 @@ export default function TaskModal({
 
                     <h2 className={styles.title}>
                         {respuesta.tipo === "aprobada"
-                            ? "¡Solicitud aprobada!"
-                            : "¡Solicitud rechazada!"}
+                            ? respuesta.reapertura
+                                ? "¡Reapertura aprobada!"
+                                : "¡Solicitud aprobada!"
+                            : respuesta.reapertura
+                                ? "¡Reapertura rechazada!"
+                                : "¡Solicitud rechazada!"}
                     </h2>
 
                     {respuesta.ticket && (
@@ -231,6 +270,7 @@ export default function TaskModal({
     }
 
     return (
+        <>
         <div className={styles.modalOverlay} onClick={cerrar}>
             <div
                 className={styles.modal}
@@ -315,6 +355,24 @@ export default function TaskModal({
                         />
                     </div>
 
+                    {esReapertura && (
+                        <div style={{ gridColumn: "1 / -1" }}>
+                            <h3>Solicitud de reapertura</h3>
+                            <div className={styles.descriptionBox}>
+                                <strong>Motivo del cliente:</strong>
+                                <p style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
+                                    {tarea.motivo_reapertura || "Sin motivo registrado."}
+                                </p>
+                                {(tarea.subtareas ?? []).length > 0 && (
+                                    <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                                        Subtareas anteriores:{" "}
+                                        {(tarea.subtareas ?? []).length}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Flujo de aprobación */}
                     <div style={{ gridColumn: "1 / -1" }}>
                         <h3>Flujo de aprobación</h3>
@@ -376,12 +434,16 @@ export default function TaskModal({
                             </ul>
                         )}
                         {/* OPCIONES */}
-                        {puedeOperar && (
+                        {(puedeOperar || puedeResolverReapertura) && (
                             <div className={styles.modalFooter}>
                                 {rechazando ? (
                                     <>
                                         <textarea
-                                            placeholder="Motivo del rechazo (obligatorio)"
+                                            placeholder={
+                                                esReapertura
+                                                    ? "Motivo del rechazo de la reapertura (obligatorio)"
+                                                    : "Motivo del rechazo (obligatorio)"
+                                            }
                                             value={motivo}
                                             onChange={(e) => setMotivo(e.target.value)}
                                             rows={3}
@@ -415,13 +477,17 @@ export default function TaskModal({
                                             className={`${styles.btn} ${styles.btnYes}`}
                                             onClick={aprobar}
                                         >
-                                            Aprobar
+                                            {esReapertura
+                                                ? "Aprobar reapertura"
+                                                : "Aprobar"}
                                         </button>
                                         <button
                                             className={`${styles.btn} ${styles.btnNo}`}
                                             onClick={() => setRechazando(true)}
                                         >
-                                            Rechazar solicitud
+                                            {esReapertura
+                                                ? "Rechazar reapertura"
+                                                : "Rechazar solicitud"}
                                         </button>
                                     </>
                                 )}
@@ -441,6 +507,15 @@ export default function TaskModal({
 
             </div>
         </div>
+
+        {aprobandoReapertura && (
+            <ReaperturaAprobarModal
+                tarea={tarea}
+                onClose={() => setAprobandoReapertura(false)}
+                onSaved={confirmarAprobarReapertura}
+            />
+        )}
+        </>
     );
 }
 

@@ -168,6 +168,7 @@ class TaskSerializer(serializers.ModelSerializer):
     puede_agregar_informacion = serializers.SerializerMethodField()
     puede_confirmar_solucion = serializers.SerializerMethodField()
     puede_reabrir = serializers.SerializerMethodField()
+    puedo_resolver_reapertura = serializers.SerializerMethodField()
     estado_explicado = serializers.SerializerMethodField()
     siguiente_paso = serializers.SerializerMethodField()
     motivo_demora = serializers.SerializerMethodField()
@@ -184,8 +185,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto","tipo_solicitud", "detalle_tipo_solicitud", "descripcion", "cliente", "cliente_nombre", "entidad", "entidad_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_cancelacion", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "prioridad", "subtareas", "puedo_operar", "puede_triar", "puede_cancelar", "puede_agregar_informacion", "puede_confirmar_solucion", "puede_reabrir", "estado_explicado", "siguiente_paso", "motivo_demora", "equipo_lider_nombre", "confirmacion_cliente", "fecha_limite_confirmacion", "fecha_confirmacion_cliente", "reaperturas_cliente", "fecha_ultima_reapertura", "motivo_reapertura", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
-        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "motivo_cancelacion", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "confirmacion_cliente", "fecha_limite_confirmacion", "fecha_confirmacion_cliente", "reaperturas_cliente", "fecha_ultima_reapertura", "motivo_reapertura"]
+        fields = ["id", "ticket", "asunto","tipo_solicitud", "detalle_tipo_solicitud", "descripcion", "cliente", "cliente_nombre", "entidad", "entidad_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_cancelacion", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "prioridad", "subtareas", "puedo_operar", "puede_triar", "puede_cancelar", "puede_agregar_informacion", "puede_confirmar_solucion", "puede_reabrir", "puedo_resolver_reapertura", "estado_explicado", "siguiente_paso", "motivo_demora", "equipo_lider_nombre", "confirmacion_cliente", "fecha_limite_confirmacion", "fecha_confirmacion_cliente", "reaperturas_cliente", "fecha_ultima_reapertura", "motivo_reapertura", "fecha_solicitud_reapertura", "plazo_reapertura_dias", "motivo_rechazo_reapertura", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
+        read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "motivo_cancelacion", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "confirmacion_cliente", "fecha_limite_confirmacion", "fecha_confirmacion_cliente", "reaperturas_cliente", "fecha_ultima_reapertura", "motivo_reapertura", "fecha_solicitud_reapertura", "plazo_reapertura_dias", "motivo_rechazo_reapertura"]
 
     def get_cliente_nombre(self, obj):
         if obj.subcampana and obj.subcampana.campana:
@@ -301,6 +302,16 @@ class TaskSerializer(serializers.ModelSerializer):
         if request is None:
             return False
         return puede_reabrir_solucion(obj, request.user)
+
+    def get_puedo_resolver_reapertura(self, obj):
+        request = self.context.get("request")
+        if request is None:
+            return False
+        if obj.estado != Tarea.Estado.REAPERTURA_PENDIENTE:
+            return False
+        from .permissions import puede_resolver_reapertura
+
+        return puede_resolver_reapertura(request.user, obj)
 
     def _explicacion(self, obj):
         if not hasattr(obj, "_explicacion_cliente"):

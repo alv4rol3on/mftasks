@@ -28,6 +28,7 @@ class Tarea(models.Model):
         SOLUCIONADO = "SOLUCIONADO", "Solucionado"
         STAND_BY = "STAND_BY", "En pausa"
         CANCELADO = "CANCELADO", "Cancelado"
+        REAPERTURA_PENDIENTE = "REAPERTURA_PENDIENTE", "Reapertura pendiente"
 
     class PasoAprobacion(models.TextChoices):
         APROBADORES = "APROBADORES", "Aprobadores"
@@ -156,6 +157,9 @@ class Tarea(models.Model):
     )
     fecha_ultima_reapertura = models.DateTimeField(null=True, blank=True)
     motivo_reapertura = models.TextField(blank=True)
+    fecha_solicitud_reapertura = models.DateTimeField(null=True, blank=True)
+    plazo_reapertura_dias = models.PositiveSmallIntegerField(null=True, blank=True)
+    motivo_rechazo_reapertura = models.TextField(blank=True)
 
     incluye_sabado = models.BooleanField(default=False, help_text="Si está activo, el contador incluye sábados de 9am a 1pm; si no, solo L-V 9-18.")
 
@@ -389,6 +393,8 @@ class TareaLog(models.Model):
         CONFIRMACION_CLIENTE = "CONFIRMACION_CLIENTE", "Confirmación del cliente"
         CONFIRMACION_AUTOMATICA = "CONFIRMACION_AUTOMATICA", "Confirmación automática"
         REAPERTURA = "REAPERTURA", "Reapertura"
+        SOLICITUD_REAPERTURA = "SOLICITUD_REAPERTURA", "Solicitud de reapertura"
+        REAPERTURA_RECHAZADA = "REAPERTURA_RECHAZADA", "Reapertura rechazada"
         CAMBIO_PRIORIDAD = "CAMBIO_PRIORIDAD", "Cambio de prioridad"
 
     tarea = models.ForeignKey(

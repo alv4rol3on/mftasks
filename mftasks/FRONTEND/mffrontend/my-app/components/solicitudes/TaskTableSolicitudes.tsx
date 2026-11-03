@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import TaskModal from "./TaskModal";
-import IconButton from "@/components/ui/IconButton";
 import PrioridadBadge, { PRIORIDAD_ORDEN } from "@/components/tareas/PrioridadBadge";
+import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
 import styles from "./TasksTableSolicitudes.module.css";
 import { Task } from "@/lib/types";
 
@@ -30,6 +30,15 @@ interface TaskTableSolicitudesProps {
   tareas: Task[];
   onAprobar: (tarea: Task) => Promise<void>;
   onRechazar: (tarea: Task, motivo: string) => Promise<void>;
+  onAprobarReapertura: (
+    tarea: Task,
+    payload: {
+      plazo_dias: number;
+      subtareas: { descripcion: string; asignado: number; peso: number }[];
+      subtareas_reactivar: number[];
+    }
+  ) => Promise<void>;
+  onRechazarReapertura: (tarea: Task, motivo: string) => Promise<void>;
   onReload: () => void;
 }
 
@@ -37,6 +46,8 @@ export default function TaskTableSolicitudes({
   tareas,
   onAprobar,
   onRechazar,
+  onAprobarReapertura,
+  onRechazarReapertura,
   onReload
 }: TaskTableSolicitudesProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -73,31 +84,35 @@ export default function TaskTableSolicitudes({
               <div>Asunto</div>
               <div>Cliente</div>
               <div>Equipo</div>
-              <div>Acciones</div>
             </div>
 
             {ordenadas.map((tarea) => (
-              <div className={styles.taskRow} key={tarea.id}>
+              <div
+                className={styles.taskRow}
+                key={tarea.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedTask(tarea)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedTask(tarea);
+                  }
+                }}
+              >
                 <div>{formatearFecha(tarea.fecha_creacion)}</div>
 
                 <div className={styles.taskSubject}>
                   <span>{tarea.subcampana_nombre} - {tarea.asunto}</span>
                   <PrioridadBadge prioridad={tarea.prioridad} compact />
+                  {tarea.estado === "REAPERTURA_PENDIENTE" && (
+                    <TaskStatusBadge estado={tarea.estado} compact />
+                  )}
                 </div>
 
                 <div>{tarea.cliente_nombre}</div>
 
                 <div>{tarea.equipo_nombre}</div>
-
-
-                <div>
-                  <IconButton
-                    icon="eye"
-                    variant="info"
-                    title="Ver detalles"
-                    onClick={() => setSelectedTask(tarea)}
-                  />
-                </div>
               </div>
             ))}
           </div>
@@ -109,6 +124,8 @@ export default function TaskTableSolicitudes({
         onClose={() => setSelectedTask(null)}
         onAprobar={handleAprobar}
         onRechazar={handleRechazar}
+        onAprobarReapertura={onAprobarReapertura}
+        onRechazarReapertura={onRechazarReapertura}
         onReload={onReload}
       />
     </>

@@ -290,6 +290,15 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                   </>
                 )}
 
+                {tarea.motivo_rechazo_reapertura && (
+                  <>
+                    <h3>Motivo del rechazo de reapertura</h3>
+                    <div className={styles.descriptionBox}>
+                      {tarea.motivo_rechazo_reapertura}
+                    </div>
+                  </>
+                )}
+
                 <AdjuntosTarea archivos={tarea.archivos} tareaId={tarea.id} ticket={tarea.ticket} titulo="Adjuntos" />
               </div>
               <div className={styles.progresoSection} style={{ gridColumn: "1 / -1" }}>

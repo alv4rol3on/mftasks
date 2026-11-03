@@ -54,7 +54,7 @@ export default function ReabrirSolicitudModal({
 
   return (
     <Modal
-      title="Reabrir solicitud"
+      title="Solicitar reapertura"
       onClose={enviando ? () => {} : onClose}
       maxWidth={560}
       footer={
@@ -90,15 +90,15 @@ export default function ReabrirSolicitudModal({
               fontWeight: 700,
             }}
           >
-            {enviando ? "Reabriendo…" : "Reabrir solicitud"}
+            {enviando ? "Enviando…" : "Solicitar reapertura"}
           </button>
         </>
       }
     >
       <p style={{ margin: 0, fontSize: 13, color: "var(--color-text)" }}>
-        La solicitud <strong>{tarea.ticket ?? `#${tarea.id}`}</strong> volverá a
-        estado <strong>En desarrollo</strong> y se creará una subtarea de
-        reapertura para el líder del equipo.
+        La solicitud <strong>{tarea.ticket ?? `#${tarea.id}`}</strong> quedará
+        pendiente de aprobación del equipo. Si se aprueba, se reabrirá con el
+        plazo y las subtareas que defina el equipo.
       </p>
       <p style={{ margin: "8px 0 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
         Reaperturas restantes: <strong>{restantes}</strong> de {MAX_REAPERTURAS}.

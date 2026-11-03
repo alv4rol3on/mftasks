@@ -131,6 +131,32 @@ export async function fetchSugerenciasAsignacion(
   );
 }
 
+export interface AprobarReaperturaPayload {
+  plazo_dias: number;
+  subtareas: { descripcion: string; asignado: number; peso: number }[];
+  subtareas_reactivar: number[];
+}
+
+export async function aprobarReaperturaTarea(
+  tareaId: number,
+  payload: AprobarReaperturaPayload
+): Promise<Task> {
+  return apiFetch<Task>(`/api/tasks/tasks/${tareaId}/aprobar-reapertura/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function rechazarReaperturaTarea(
+  tareaId: number,
+  motivo: string
+): Promise<Task> {
+  return apiFetch<Task>(`/api/tasks/tasks/${tareaId}/rechazar-reapertura/`, {
+    method: "POST",
+    body: JSON.stringify({ motivo }),
+  });
+}
+
 export async function reabrirSubtarea(
   tareaId: number,
   subtareaId: number,

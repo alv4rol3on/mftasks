@@ -13,6 +13,7 @@ const ESTADOS: Record<string, EstadoInfo> = {
     EN_DESARROLLO: { label: "En desarrollo", icon: "▶", tone: "desarrollo" },
     STAND_BY: { label: "Stand-by", icon: "Ⅱ", tone: "pausa" },
     SOLUCIONADO: { label: "Solucionado", icon: "✓", tone: "solucionado" },
+    REAPERTURA_PENDIENTE: { label: "Reapertura pendiente", icon: "↻", tone: "espera" },
     APROBADO: { label: "Aprobado", icon: "✓", tone: "aprobado" },
     RECHAZADO: { label: "Rechazado", icon: "✕", tone: "rechazado" },
     CANCELADO: { label: "Cancelada", icon: "×", tone: "neutro" },

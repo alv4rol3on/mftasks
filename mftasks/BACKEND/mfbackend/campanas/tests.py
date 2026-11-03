@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from clientes.models import Entidad
-from usuarios.models import User
+from usuarios.models import Equipo, EquipoMiembro, User
 
 from .models import Campana, SubCampana, PermisoCampana
 
@@ -77,6 +77,26 @@ class MisPermisosTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.assertIn("entidad_nombre", res.data[0])
         self.assertTrue(res.data[0]["entidad_nombre"])
+
+    def test_mis_permisos_hereda_del_lider_del_equipo(self):
+        lider = _crear_usuario("lider-equipo@empresa.com")
+        PermisoCampana.objects.create(usuario=lider, subcampana=self.sub2)
+        equipo = Equipo.objects.create(nombre="Equipo herencia", lider=lider)
+        EquipoMiembro.objects.create(
+            equipo=equipo,
+            usuario=self.usuario,
+            rol_en_equipo=EquipoMiembro.RolEnEquipo.MIEMBRO,
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        )
+
+        self.client.force_authenticate(user=self.usuario)
+        res = self._get()
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(
+            {s["id"] for s in res.data[0]["subcampanas"]},
+            {self.sub1.id, self.sub2.id},
+        )
 
 
 class CampanaJerarquiaTestCase(APITestCase):

@@ -7,6 +7,7 @@ import AdminSolicitudesTable from "@/components/solicitudes/AdminSolicitudesTabl
 import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
+import type { AprobarReaperturaPayload } from "@/lib/services/tareasService";
 import { getUsuarioActual } from "@/lib/auth";
 import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
 import { stripHtml } from "@/lib/richText";
@@ -31,7 +32,7 @@ export default function SolicitudesPage() {
   };
 
   // filtros
-  const [filtroEstado, setFiltroEstado] = useState<string>(isAdmin ? "TODOS" : "EN_ESPERA");
+  const [filtroEstado, setFiltroEstado] = useState<string>(isAdmin ? "TODOS" : "BANDEJA");
   const [busqueda, setBusqueda] = useState("");
   const [campoFecha, setCampoFecha] = useState<"solicitud" | "entrega">("solicitud");
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
@@ -51,9 +52,9 @@ export default function SolicitudesPage() {
   const cargar = useCallback(() => {
     setCargando(true);
     const params = new URLSearchParams();
-    // La bandeja de aprobación (no-admin) solo muestra EN_ESPERA.
-    // El Centro de solicitudes (admin) trae todos los estados.
-    if (!isAdmin) params.set("estado", "EN_ESPERA");
+    // La bandeja de aprobación (no-admin) muestra solicitudes nuevas y
+    // reaperturas pendientes. El Centro de solicitudes (admin) trae todo.
+    if (!isAdmin) params.set("bandeja", "1");
     if (filtroEntidad) params.set("entidad", String(filtroEntidad));
     if (filtroCampana) params.set("campana", String(filtroCampana));
     if (filtroSubcampana) params.set("subcampana", String(filtroSubcampana));
@@ -125,11 +126,44 @@ export default function SolicitudesPage() {
     }
   };
 
+  const aprobarReapertura = async (
+    tarea: Task,
+    payload: AprobarReaperturaPayload
+  ) => {
+    setError(null);
+
+    try {
+      await apiFetch(`/api/tasks/tasks/${tarea.id}/aprobar-reapertura/`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      throw e;
+    }
+  };
+
+  const rechazarReapertura = async (tarea: Task, motivo: string) => {
+    setError(null);
+
+    try {
+      await apiFetch(`/api/tasks/tasks/${tarea.id}/rechazar-reapertura/`, {
+        method: "POST",
+        body: JSON.stringify({ motivo }),
+      });
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      throw e;
+    }
+  };
+
   useEffect(() => {
     cargar();
   }, [cargar]);
 
-  const estadoPorDefecto = isAdmin ? "TODOS" : "EN_ESPERA";
+  const estadoPorDefecto = isAdmin ? "TODOS" : "BANDEJA";
 
   const hayFiltros =
     filtroEstado !== estadoPorDefecto ||
@@ -161,6 +195,8 @@ export default function SolicitudesPage() {
       const coincideEstado =
         filtroEstado === "TODOS"
           ? true
+          : filtroEstado === "BANDEJA"
+            ? t.estado === "EN_ESPERA" || t.estado === "REAPERTURA_PENDIENTE"
           : filtroEstado === "EN_ESPERA"
             ? t.estado === "EN_ESPERA"
             : filtroEstado === "EN_PROCESO"
@@ -328,6 +364,8 @@ export default function SolicitudesPage() {
         tareas={tareasFiltradas}
         onAprobar={aprobar}
         onRechazar={rechazar}
+        onAprobarReapertura={aprobarReapertura}
+        onRechazarReapertura={rechazarReapertura}
         onReload={cargar}
       />
     </div>

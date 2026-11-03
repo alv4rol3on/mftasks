@@ -90,6 +90,7 @@ def confirmar_solucion(tarea: Tarea, usuario) -> Tarea:
 
 
 def reabrir_tarea(tarea: Tarea, usuario, motivo: str) -> Tarea:
+    """Registra la solicitud de reapertura del cliente (pendiente de aprobación)."""
     motivo = (motivo or "").strip()
 
     if not motivo:
@@ -110,6 +111,153 @@ def reabrir_tarea(tarea: Tarea, usuario, motivo: str) -> Tarea:
         estado_anterior = actual.estado
         ahora = _ahora()
 
+        actual.estado = Tarea.Estado.REAPERTURA_PENDIENTE
+        actual.motivo_reapertura = motivo
+        actual.motivo_rechazo_reapertura = ""
+        actual.fecha_solicitud_reapertura = ahora
+        actual.save(
+            update_fields=[
+                "estado",
+                "motivo_reapertura",
+                "motivo_rechazo_reapertura",
+                "fecha_solicitud_reapertura",
+            ]
+        )
+
+        registrar_log(
+            tarea=actual,
+            usuario=usuario,
+            tipo_evento=TareaLog.TipoEvento.SOLICITUD_REAPERTURA,
+            estado_anterior=estado_anterior,
+            estado_nuevo=actual.estado,
+            detalle=(
+                f"El cliente solicitó reabrir la solicitud. Motivo: {motivo}. "
+                "Queda pendiente de aprobación del equipo."
+            ),
+        )
+
+    transaction.on_commit(lambda: notificar_tarea(actual))
+    return actual
+
+
+def _miembros_asignables(equipo):
+    from usuarios.models import EquipoMiembro
+
+    ids = set(
+        equipo.miembros.filter(
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        ).values_list("usuario_id", flat=True)
+    )
+    if equipo.lider_id:
+        ids.add(equipo.lider_id)
+    return ids
+
+
+def aprobar_reapertura(
+    tarea: Tarea,
+    usuario,
+    plazo_dias,
+    subtareas_nuevas=None,
+    subtareas_reactivar=None,
+) -> Tarea:
+    try:
+        plazo_dias = int(plazo_dias)
+    except (TypeError, ValueError):
+        raise ConfirmacionInvalida("El plazo en días es obligatorio.")
+
+    if plazo_dias < 1:
+        raise ConfirmacionInvalida("El plazo debe ser de al menos 1 día.")
+
+    subtareas_nuevas = subtareas_nuevas or []
+    ids_reactivar = []
+    for valor in subtareas_reactivar or []:
+        try:
+            ids_reactivar.append(int(valor))
+        except (TypeError, ValueError):
+            raise ConfirmacionInvalida("Subtarea a reactivar inválida.")
+
+    with transaction.atomic():
+        actual = Tarea.objects.select_for_update().get(pk=tarea.pk)
+
+        if actual.estado != Tarea.Estado.REAPERTURA_PENDIENTE:
+            raise ConfirmacionInvalida(
+                "La solicitud no tiene una reapertura pendiente."
+            )
+
+        equipo = actual.equipo
+        miembros_ids = _miembros_asignables(equipo)
+        creadas = []
+
+        for item in subtareas_nuevas:
+            descripcion = (item.get("descripcion") or "").strip()
+            asignado_id = item.get("asignado")
+            peso = item.get("peso") or 1
+
+            if not descripcion or not asignado_id:
+                continue
+
+            try:
+                asignado_id = int(asignado_id)
+                peso = max(1, int(peso))
+            except (TypeError, ValueError):
+                raise ConfirmacionInvalida("Datos de subtarea inválidos.")
+
+            if asignado_id not in miembros_ids:
+                raise ConfirmacionInvalida(
+                    "El usuario asignado no pertenece al equipo."
+                )
+
+            creadas.append(
+                Subtarea.objects.create(
+                    tarea=actual,
+                    descripcion=descripcion,
+                    asignado_id=asignado_id,
+                    peso=peso,
+                )
+            )
+
+        reactivadas = []
+        if ids_reactivar:
+            anteriores = Subtarea.objects.select_for_update().filter(
+                tarea=actual,
+                id__in=ids_reactivar,
+            )
+            ahora_reactivacion = _ahora()
+            for subtarea in anteriores:
+                subtarea.activo = True
+                subtarea.fecha_inactivacion = None
+                subtarea.inactivada_por = None
+                subtarea.estado = Subtarea.Estado.EN_DESARROLLO
+                subtarea.fecha_inicio = ahora_reactivacion
+                subtarea.fecha_fin = None
+                subtarea.motivo_standby = ""
+                subtarea.fecha_standby = None
+                subtarea.fecha_fin_standby = None
+                subtarea.standby_por = None
+                subtarea.save(
+                    update_fields=[
+                        "activo",
+                        "fecha_inactivacion",
+                        "inactivada_por",
+                        "estado",
+                        "fecha_inicio",
+                        "fecha_fin",
+                        "motivo_standby",
+                        "fecha_standby",
+                        "fecha_fin_standby",
+                        "standby_por",
+                    ]
+                )
+                reactivadas.append(subtarea)
+
+        if not creadas and not reactivadas:
+            raise ConfirmacionInvalida(
+                "Debes agregar una subtarea nueva o reactivar una anterior."
+            )
+
+        estado_anterior = actual.estado
+        ahora = _ahora()
+
         actual.estado = Tarea.Estado.EN_DESARROLLO
         actual.fecha_solucion = None
         actual.activo = True
@@ -118,7 +266,9 @@ def reabrir_tarea(tarea: Tarea, usuario, motivo: str) -> Tarea:
         actual.fecha_limite_confirmacion = None
         actual.reaperturas_cliente += 1
         actual.fecha_ultima_reapertura = ahora
-        actual.motivo_reapertura = motivo
+        actual.plazo_reapertura_dias = plazo_dias
+        actual.motivo_rechazo_reapertura = ""
+        actual.fecha_entrega_aproximada = sumar_dias_habiles(ahora, plazo_dias)
         actual.save(
             update_fields=[
                 "estado",
@@ -129,16 +279,12 @@ def reabrir_tarea(tarea: Tarea, usuario, motivo: str) -> Tarea:
                 "fecha_limite_confirmacion",
                 "reaperturas_cliente",
                 "fecha_ultima_reapertura",
-                "motivo_reapertura",
+                "plazo_reapertura_dias",
+                "motivo_rechazo_reapertura",
+                "fecha_entrega_aproximada",
             ]
         )
 
-        Subtarea.objects.create(
-            tarea=actual,
-            descripcion=f"Reapertura: {motivo}",
-            asignado=actual.equipo.lider,
-            peso=1,
-        )
         _recalcular_progreso(actual)
 
         registrar_log(
@@ -148,10 +294,54 @@ def reabrir_tarea(tarea: Tarea, usuario, motivo: str) -> Tarea:
             estado_anterior=estado_anterior,
             estado_nuevo=actual.estado,
             detalle=(
-                f"El cliente reabrió la solicitud. Motivo: {motivo}. "
+                "El equipo aprobó la reapertura. "
+                f"Plazo: {plazo_dias} día(s) hábil(es). "
+                f"Nuevas subtareas: {len(creadas)}; "
+                f"reactivadas: {len(reactivadas)}. "
                 f"Reapertura {actual.reaperturas_cliente} de "
                 f"{MAX_REAPERTURAS_CLIENTE}."
             ),
+        )
+
+    transaction.on_commit(lambda: notificar_tarea(actual))
+    return actual
+
+
+def rechazar_reapertura(tarea: Tarea, usuario, motivo: str) -> Tarea:
+    motivo = (motivo or "").strip()
+
+    if not motivo:
+        raise ConfirmacionInvalida("El motivo de rechazo es obligatorio.")
+
+    with transaction.atomic():
+        actual = Tarea.objects.select_for_update().get(pk=tarea.pk)
+
+        if actual.estado != Tarea.Estado.REAPERTURA_PENDIENTE:
+            raise ConfirmacionInvalida(
+                "La solicitud no tiene una reapertura pendiente."
+            )
+
+        estado_anterior = actual.estado
+        actual.estado = Tarea.Estado.SOLUCIONADO
+        actual.confirmacion_cliente = Tarea.ConfirmacionCliente.PENDIENTE
+        actual.motivo_rechazo_reapertura = motivo
+        actual.plazo_reapertura_dias = None
+        actual.save(
+            update_fields=[
+                "estado",
+                "confirmacion_cliente",
+                "motivo_rechazo_reapertura",
+                "plazo_reapertura_dias",
+            ]
+        )
+
+        registrar_log(
+            tarea=actual,
+            usuario=usuario,
+            tipo_evento=TareaLog.TipoEvento.REAPERTURA_RECHAZADA,
+            estado_anterior=estado_anterior,
+            estado_nuevo=actual.estado,
+            detalle=f"El equipo rechazó la reapertura. Motivo: {motivo}",
         )
 
     transaction.on_commit(lambda: notificar_tarea(actual))

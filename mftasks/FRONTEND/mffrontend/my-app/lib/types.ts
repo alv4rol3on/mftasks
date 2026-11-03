@@ -96,6 +96,7 @@ export interface Task {
     puede_agregar_informacion?: boolean;
     puede_confirmar_solucion?: boolean;
     puede_reabrir?: boolean;
+    puedo_resolver_reapertura?: boolean;
     estado_explicado?: string;
     siguiente_paso?: string;
     motivo_demora?: string | null;
@@ -106,6 +107,9 @@ export interface Task {
     reaperturas_cliente?: number;
     fecha_ultima_reapertura?: string | null;
     motivo_reapertura?: string | null;
+    fecha_solicitud_reapertura?: string | null;
+    plazo_reapertura_dias?: number | null;
+    motivo_rechazo_reapertura?: string | null;
     motivo_rechazo: string;
     motivo_cancelacion?: string | null;
     motivo_standby?: string | null;
