@@ -5,6 +5,7 @@ import uuid
 import zipfile
 
 from django.core.files.storage import default_storage
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.functions import Coalesce
@@ -12,7 +13,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -36,7 +37,16 @@ from usuarios.permissions import (
     es_lider_de_equipo
 )
 
-from .models import AprobacionTarea, ArchivoTarea, Subtarea, Tarea, TareaLog
+from .models import (
+    AprobacionTarea,
+    ArchivoTarea,
+    Subtarea,
+    Tarea,
+    TareaLog,
+    HorarioLaboral,
+    ConfiguracionAprobacion,
+)
+
 from .permissions import (
     EsAsignadorDeEquipoDeTarea,
     EsSolicitanteDeTarea,
@@ -44,7 +54,7 @@ from .permissions import (
     es_aprobador_de_tarea,
     puede_resolver_reapertura,
 )
-from .serializers import SubtareaSerializer, TaskSerializer
+from .serializers import SubtareaSerializer, TaskSerializer, HorarioLaboralSerializer, ConfiguracionAprobacionSerializer
 from .services.archivos import guardar_archivos, validar_archivos
 from .services.asignacion import sugerir_asignaciones
 from .services.cancelacion import CancelacionInvalida, cancelar_tarea
@@ -67,10 +77,16 @@ from .services.reabrir_subtarea import (
     ReaperturaSubtareaInvalida,
     reabrir_subtarea as reabrir_subtarea_service,
 )
+from .services.aprobaciones import (
+    aprobacion_vencida,
+    rechazar_solicitud_vencida,
+)
 
 from campanas.models import PermisoCampana
 from usuarios.models import Rol
 from usuarios.disponibilidad import esta_disponible, excluir_no_disponibles
+
+
 
 def _correos_aprobadores(tarea, evento):
     from .services.notificaciones_email import (
@@ -638,10 +654,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea = self.get_object()
 
         if tarea.estado != Tarea.Estado.EN_ESPERA:
-            return Response(
-                {"detail": "Solo se pueden aprobar solicitudes en espera."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            if aprobacion_vencida(tarea):
+                rechazar_solicitud_vencida(tarea.id)
+
+                return Response(
+                    {
+                        "detail": (
+                            "El plazo de aprobación ha vencido. "
+                            "La solicitud fue rechazada automáticamente."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         paso_actual = tarea.paso_aprobacion
 
@@ -716,10 +740,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea = self.get_object()
 
         if tarea.estado != Tarea.Estado.EN_ESPERA:
-            return Response(
-                {"detail": "Solo se pueden rechazar solicitudes en espera."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            if aprobacion_vencida(tarea):
+                rechazar_solicitud_vencida(tarea.id)
+
+                return Response(
+                    {
+                        "detail": (
+                            "El plazo de aprobación ha vencido. "
+                            "La solicitud fue rechazada automáticamente."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         paso_actual = tarea.paso_aprobacion
 
@@ -2742,3 +2774,35 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Dependencia ya existe."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Dependencia creada."}, status=status.HTTP_201_CREATED)
 
+class HorarioLaboralViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+
+    queryset = HorarioLaboral.objects.all().order_by("dia")
+    serializer_class = HorarioLaboralSerializer
+    permission_classes = [IsAuthenticatedActivo, EsAdministrador]
+
+    def perform_update(self, serializer):
+        serializer.save()
+
+        # Invalidar caché para que los contadores
+        # utilicen inmediatamente el nuevo horario.
+        cache.delete("horarios_laborales")
+
+class ConfiguracionAprobacionViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+
+    queryset = ConfiguracionAprobacion.objects.all()
+    serializer_class = ConfiguracionAprobacionSerializer
+    permission_classes = [IsAuthenticatedActivo, EsAdministrador]
+
+    def get_object(self):
+        obj = ConfiguracionAprobacion.obtener()
+        self.check_object_permissions(self.request, obj)
+        return obj

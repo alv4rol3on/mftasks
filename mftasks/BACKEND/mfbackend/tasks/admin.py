@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import AprobacionTarea, Tarea, ArchivoTarea, Subtarea, TareaLog
+from django.core.cache import cache
+from .models import AprobacionTarea, Tarea, ArchivoTarea, Subtarea, TareaLog, HorarioLaboral, ConfiguracionAprobacion
 
 
 @admin.register(Tarea)
@@ -76,6 +77,44 @@ class AprobacionTareaAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(HorarioLaboral)
+class HorarioLaboralAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "dia",
+        "activo",
+        "hora_inicio",
+        "hora_fin",
+    )
+
+    list_editable = (
+        "activo",
+        "hora_inicio",
+        "hora_fin",
+    )
+
+    ordering = ("dia",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        cache.delete("horarios_laborales")
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        cache.delete("horarios_laborales")
+
+@admin.register(ConfiguracionAprobacion)
+class ConfiguracionAprobacionAdmin(admin.ModelAdmin):
+    list_display = ("horas_limite",)
+    fields = ("horas_limite",)
+
+    def has_add_permission(self, request):
+        return not ConfiguracionAprobacion.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 admin.site.register(ArchivoTarea)
 admin.site.register(Subtarea)
 admin.site.register(TareaLog)
+

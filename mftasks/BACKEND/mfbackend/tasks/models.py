@@ -2,7 +2,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.db.models import Q, CheckConstraint
-
+from datetime import time, timedelta
+from django.utils import timezone
 from usuarios.models import User, Equipo
 
 
@@ -98,6 +99,12 @@ class Tarea(models.Model):
     )
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_limite_aprobacion = models.DateTimeField(
+    null=True,
+    blank=True,
+    db_index=True,
+    help_text="Fecha límite para aprobar o rechazar la solicitud.",
+    )
     fecha_respuesta = models.DateTimeField(null=True, blank=True)
     fecha_inicio = models.DateTimeField(null=True, blank=True)
     fecha_entrega_aproximada = models.DateTimeField(null=True, blank=True)
@@ -233,6 +240,18 @@ class Tarea(models.Model):
             from .services.tickets import asignar_ticket_tarea
 
             asignar_ticket_tarea(self)
+
+        if (
+            self._state.adding
+            and self.estado == self.Estado.EN_ESPERA
+            and not self.fecha_limite_aprobacion
+        ):
+
+            horas = ConfiguracionAprobacion.obtener().horas_limite
+
+            self.fecha_limite_aprobacion = (
+                timezone.now() + timedelta(hours=horas)
+            )
 
         super().save(*args, **kwargs)
 
@@ -546,3 +565,84 @@ class AprobacionTarea(models.Model):
 
     def __str__(self):
         return f"[{self.tarea_id}] {self.nivel} - {self.accion}"
+
+class HorarioLaboral(models.Model):
+
+    class DiaSemana(models.IntegerChoices):
+        LUNES = 0, "Lunes"
+        MARTES = 1, "Martes"
+        MIERCOLES = 2, "Miércoles"
+        JUEVES = 3, "Jueves"
+        VIERNES = 4, "Viernes"
+        SABADO = 5, "Sábado"
+        DOMINGO = 6, "Domingo"
+
+    dia = models.PositiveSmallIntegerField(
+        choices=DiaSemana.choices,
+        unique=True,
+        verbose_name="Día de la semana",
+    )
+
+    activo = models.BooleanField(
+        default=True,
+        verbose_name="Día laborable",
+    )
+
+    hora_inicio = models.TimeField(
+        default=time(9, 0),
+        verbose_name="Hora de inicio",
+    )
+
+    hora_fin = models.TimeField(
+        default=time(18, 0),
+        verbose_name="Hora de fin",
+    )
+
+    class Meta:
+        ordering = ["dia"]
+        verbose_name = "Horario laboral"
+        verbose_name_plural = "Horarios laborales"
+
+    def clean(self):
+        super().clean()
+
+        if self.activo and self.hora_inicio >= self.hora_fin:
+            raise ValidationError({
+                "hora_fin": "La hora de fin debe ser posterior a la hora de inicio."
+            })
+
+    def __str__(self):
+        if not self.activo:
+            return f"{self.get_dia_display()} - No laborable"
+
+        return (
+            f"{self.get_dia_display()} "
+            f"({self.hora_inicio.strftime('%H:%M')} - "
+            f"{self.hora_fin.strftime('%H:%M')})"
+        )
+
+class ConfiguracionAprobacion(models.Model):
+    horas_limite = models.PositiveSmallIntegerField(
+        default=72,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(72),
+        ],
+        verbose_name="Horas límite de aprobación",
+    )
+
+    class Meta:
+        verbose_name = "Configuración de aprobación"
+        verbose_name_plural = "Configuración de aprobación"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        config, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={"horas_limite": 72},
+        )
+        return config

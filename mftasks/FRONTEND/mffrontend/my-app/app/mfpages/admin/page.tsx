@@ -11,9 +11,10 @@ import styles from "./Admin.module.css";
 import UsuariosSection from "@/components/admin/UsuariosSection";
 import CampanasSection from "@/components/admin/CampanasSection";
 import PermisosSection from "@/components/admin/PermisosSection";
+import AjustesSection from "@/components/admin/AjustesSection";
 import RolesSection from "@/components/admin/RolesSection";
 
-type Tab = "usuarios" | "roles" | "permisos" | "campanas";
+type Tab = "usuarios" | "roles" | "permisos" | "campanas" | "ajustes";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -102,6 +103,15 @@ export default function AdminPage() {
         >
           Permisos
         </button>
+
+        <button
+          type="button"
+          onClick={() => setTab("ajustes")}
+          className={`${styles.tabBtn} ${tab === "ajustes" ? styles.tabBtnActive : ""
+            }`}
+        >
+          Ajustes
+        </button>
       </div>
 
       <div className={styles.tabContent}>
@@ -119,6 +129,10 @@ export default function AdminPage() {
 
         {tab === "permisos" && (
           <PermisosSection setMsg={setMsg} />
+        )}
+
+        {tab === "ajustes" && (
+          <AjustesSection setMsg={setMsg} />
         )}
       </div>
     </div>

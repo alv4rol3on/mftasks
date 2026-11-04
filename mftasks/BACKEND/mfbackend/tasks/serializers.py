@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from usuarios.permissions import es_administrador, es_cliente
-from .models import ArchivoTarea, Subtarea, Tarea
+from .models import ArchivoTarea, Subtarea, Tarea, ConfiguracionAprobacion
 from .permissions import es_asignador_del_equipo, tiene_permiso_subcampana
 from .services.cliente_acciones import (
     puede_agregar_informacion,
@@ -12,7 +12,9 @@ from .services.confirmacion import (
 )
 from .services.estado_cliente import explicar_estado_cliente
 from .services.rich_text import html_a_texto, sanitizar_html
+from .models import HorarioLaboral
 
+from datetime import timedelta
 
 class SubtareaSerializer(serializers.ModelSerializer):
 
@@ -159,6 +161,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     paso_aprobacion_nombre = serializers.SerializerMethodField()
     aprobaciones = serializers.SerializerMethodField()
+    fecha_limite_aprobacion = serializers.SerializerMethodField()
     puedo_aprobar = serializers.SerializerMethodField()
     auto_aprobada = serializers.SerializerMethodField()
 
@@ -185,7 +188,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tarea
-        fields = ["id", "ticket", "asunto","tipo_solicitud", "detalle_tipo_solicitud", "descripcion", "cliente", "cliente_nombre", "entidad", "entidad_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_cancelacion", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "prioridad", "subtareas", "puedo_operar", "puede_triar", "puede_cancelar", "puede_agregar_informacion", "puede_confirmar_solucion", "puede_reabrir", "puedo_resolver_reapertura", "estado_explicado", "siguiente_paso", "motivo_demora", "equipo_lider_nombre", "confirmacion_cliente", "fecha_limite_confirmacion", "fecha_confirmacion_cliente", "reaperturas_cliente", "fecha_ultima_reapertura", "motivo_reapertura", "fecha_solicitud_reapertura", "plazo_reapertura_dias", "motivo_rechazo_reapertura", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos"]
+        fields = ["id", "ticket", "asunto","tipo_solicitud", "detalle_tipo_solicitud", "descripcion", "cliente", "cliente_nombre", "entidad", "entidad_nombre", "campana_nombre", "subcampana", "subcampana_nombre", "equipo", "equipo_nombre", "aprobador", "aprobador_nombre", "solicitante", "solicitante_nombre", "estado", "paso_aprobacion", "paso_aprobacion_nombre", "aprobaciones", "puedo_aprobar", "auto_aprobada", "motivo_rechazo", "motivo_cancelacion", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "fecha_creacion", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "incluye_sabado", "progreso", "prioridad", "subtareas", "puedo_operar", "puede_triar", "puede_cancelar", "puede_agregar_informacion", "puede_confirmar_solucion", "puede_reabrir", "puedo_resolver_reapertura", "estado_explicado", "siguiente_paso", "motivo_demora", "equipo_lider_nombre", "confirmacion_cliente", "fecha_limite_confirmacion", "fecha_confirmacion_cliente", "reaperturas_cliente", "fecha_ultima_reapertura", "motivo_reapertura", "fecha_solicitud_reapertura", "plazo_reapertura_dias", "motivo_rechazo_reapertura", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "archivos", "fecha_limite_aprobacion"]
         read_only_fields = ["estado", "progreso", "fecha_respuesta", "fecha_inicio", "fecha_entrega_aproximada", "motivo_rechazo", "motivo_cancelacion", "aprobador", "solicitante", "ticket", "motivo_standby", "fecha_standby", "fecha_fin_standby", "standby_por", "fecha_solucion", "tiempo_tomado_segundos", "tiempo_tomado_horas", "tiempo_tomado_formateado", "tiempo_planificado_segundos", "fuera_de_tiempo", "activo", "fecha_inactivacion", "inactivada_por", "confirmacion_cliente", "fecha_limite_confirmacion", "fecha_confirmacion_cliente", "reaperturas_cliente", "fecha_ultima_reapertura", "motivo_reapertura", "fecha_solicitud_reapertura", "plazo_reapertura_dias", "motivo_rechazo_reapertura"]
 
     def get_cliente_nombre(self, obj):
@@ -241,6 +244,13 @@ class TaskSerializer(serializers.ModelSerializer):
             }
             for r in registros
         ]
+
+    def get_fecha_limite_aprobacion(self, obj):
+        if obj.fecha_limite_aprobacion:
+            return obj.fecha_limite_aprobacion
+
+        # Solicitudes antiguas: plazo inicial de 72 horas.
+        return obj.fecha_creacion + timedelta(hours=72)
 
     def get_puedo_aprobar(self, obj):
         request = self.context.get("request")
@@ -477,3 +487,53 @@ class TaskSerializer(serializers.ModelSerializer):
             attrs["detalle_tipo_solicitud"] = ""
         
         return attrs
+
+class HorarioLaboralSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = HorarioLaboral
+        fields = [
+            "id",
+            "dia",
+            "activo",
+            "hora_inicio",
+            "hora_fin",
+        ]
+
+    def validate(self, attrs):
+        activo = attrs.get(
+            "activo",
+            getattr(self.instance, "activo", True)
+        )
+
+        inicio = attrs.get(
+            "hora_inicio",
+            getattr(self.instance, "hora_inicio", None)
+        )
+
+        fin = attrs.get(
+            "hora_fin",
+            getattr(self.instance, "hora_fin", None)
+        )
+
+        if activo and inicio and fin and inicio >= fin:
+            raise serializers.ValidationError({
+                "hora_fin": "La hora de fin debe ser posterior a la hora de inicio."
+            })
+
+        return attrs
+
+class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ConfiguracionAprobacion
+        fields = ["id", "horas_limite"]
+        read_only_fields = ["id"]
+
+    def validate_horas_limite(self, value):
+        if not 1 <= value <= 72:
+            raise serializers.ValidationError(
+                "El plazo debe estar entre 1 y 72 horas."
+            )
+
+        return value

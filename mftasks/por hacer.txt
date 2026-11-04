@@ -1,2 +1,6 @@
-- arreglar las notificaciones por correo
+
+- el administrador deberia tener opciones sobre un equipo por ejemplo renombrar, eliminar, etc
+- cosas que debe haber en ajustes session
+    - tiempo para revision para confirmacion de solicitudes
+    - tiempo para la revision y confirmacion de la solucion por parte del cliente
 zcQJcdC52ik123

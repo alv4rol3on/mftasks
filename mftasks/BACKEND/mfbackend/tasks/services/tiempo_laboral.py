@@ -1,18 +1,56 @@
 from datetime import datetime, time, timedelta
 
 from django.utils import timezone
-from ..models import Subtarea, Tarea, TareaLog
+from ..models import Subtarea, Tarea, TareaLog, HorarioLaboral
 from typing import Optional
+from django.core.cache import cache
+
+
+# ============================================================
+# CONFIGURACIÓN DINÁMICA DEL HORARIO LABORAL
+# ============================================================
+
+HORARIOS_DEFAULT = {
+    0: (True, time(9, 0), time(18, 0)),
+    1: (True, time(9, 0), time(18, 0)),
+    2: (True, time(9, 0), time(18, 0)),
+    3: (True, time(9, 0), time(18, 0)),
+    4: (True, time(9, 0), time(18, 0)),
+    5: (True, time(9, 0), time(13, 0)),
+    6: (False, time(9, 0), time(13, 0)),
+}
+
+
+def obtener_horarios_laborales():
+    def cargar():
+        horarios = dict(HORARIOS_DEFAULT)
+
+        registros = HorarioLaboral.objects.all()
+
+        for registro in registros:
+            horarios[registro.dia] = (
+                registro.activo,
+                registro.hora_inicio,
+                registro.hora_fin,
+            )
+
+        return horarios
+
+    return cache.get_or_set(
+        "horarios_laborales",
+        cargar,
+        timeout=300,
+    )
 
 # ============================================================
 # CONFIGURACIÓN DEL HORARIO LABORAL
 # ============================================================
 
 # Lunes a viernes 09:00-18:00, Sábado 09:00-13:00, Domingo no laboral
-HORA_INICIO_LV = time(9, 0)
-HORA_FIN_LV = time(18, 0)
-HORA_INICIO_SAB = time(9, 0)
-HORA_FIN_SAB = time(13, 0)
+#HORA_INICIO_LV = time(9, 0)
+#HORA_FIN_LV = time(18, 0)
+#HORA_INICIO_SAB = time(9, 0)
+#HORA_FIN_SAB = time(13, 0)
 
 
 # ============================================================
@@ -20,25 +58,18 @@ HORA_FIN_SAB = time(13, 0)
 # ============================================================
 
 def _jornada(fecha, incluye_sabado: bool, tzinfo):
-    """
-    Retorna (inicio_jornada, fin_jornada) para la fecha dada o None si no es laboral.
 
-    El parámetro 'incluye_sabado' se mantiene por compatibilidad de firmas, pero
-    el sábado ya siempre es laborable (09:00-13:00).
-    """
-    wd = fecha.weekday()
-    if wd < 5:  # L-V
-        return (
-            datetime.combine(fecha, HORA_INICIO_LV, tzinfo=tzinfo),
-            datetime.combine(fecha, HORA_FIN_LV, tzinfo=tzinfo),
-        )
-    if wd == 5:  # Sábado
-        return (
-            datetime.combine(fecha, HORA_INICIO_SAB, tzinfo=tzinfo),
-            datetime.combine(fecha, HORA_FIN_SAB, tzinfo=tzinfo),
-        )
-    # Domingo: no laboral
-    return None
+    horarios = obtener_horarios_laborales()
+
+    activo, hora_inicio, hora_fin = horarios[fecha.weekday()]
+
+    if not activo:
+        return None
+
+    return (
+        datetime.combine(fecha, hora_inicio, tzinfo=tzinfo),
+        datetime.combine(fecha, hora_fin, tzinfo=tzinfo),
+    )
 
 
 def obtener_inicio_efectivo_tarea(tarea: Tarea) -> Optional[datetime]:
@@ -198,7 +229,9 @@ def sumar_dias_habiles(base: datetime, dias: int) -> datetime:
 
     while restantes > 0:
         cursor += timedelta(days=1)
-        if cursor.weekday() < 5:
+        activo, _, _ = obtener_horarios_laborales()[cursor.weekday()]
+
+        if activo:
             restantes -= 1
 
     return cursor
@@ -512,19 +545,25 @@ def calcular_tiempo_planificado_efectivo_tarea(tarea: Tarea) -> timedelta:
 # ============================================================
 
 def esta_en_jornada(fecha: datetime, incluye_sabado: bool = False) -> bool:
-    """True si fecha está dentro de jornada laboral (America/Lima ya en tzinfo)."""
+
     if fecha.tzinfo is None:
-        fecha = timezone.make_aware(fecha, timezone.get_current_timezone())
-    # convertir a zona Lima para evaluar wd/hora
-    lima = timezone.localtime(fecha)
-    wd = lima.weekday()  # 0 Lun
-    total_min = lima.hour * 60 + lima.minute
-    if wd < 5:
-        return 9 * 60 <= total_min < 18 * 60
-    if wd == 5:
-        return 9 * 60 <= total_min < 13 * 60
-    # Domingo (wd == 6): no laboral
-    return False
+        fecha = timezone.make_aware(
+            fecha,
+            timezone.get_current_timezone()
+        )
+
+    fecha = timezone.localtime(fecha)
+
+    horarios = obtener_horarios_laborales()
+
+    activo, hora_inicio, hora_fin = horarios[fecha.weekday()]
+
+    if not activo:
+        return False
+
+    hora_actual = fecha.time().replace(tzinfo=None)
+
+    return hora_inicio <= hora_actual < hora_fin
 
 
 def calcular_tiempo_restante_tarea(

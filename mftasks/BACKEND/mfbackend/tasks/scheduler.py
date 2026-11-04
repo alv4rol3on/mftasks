@@ -1,6 +1,11 @@
 import logging
 from django.utils import timezone
 from django.db import transaction
+from datetime import timedelta
+from django.db.models import Q
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +104,40 @@ def check_confirmaciones_vencidas():
             count,
         )
 
+def check_aprobaciones_vencidas():
+    from .models import Tarea
+    from .services.aprobaciones import rechazar_solicitud_vencida
+
+    ahora = timezone.now()
+
+    candidatas = Tarea.objects.filter(
+        estado=Tarea.Estado.EN_ESPERA,
+    ).filter(
+        Q(fecha_limite_aprobacion__lte=ahora)
+        |
+        Q(
+            fecha_limite_aprobacion__isnull=True,
+            fecha_creacion__lte=ahora - timedelta(hours=72),
+        )
+    ).values_list("id", flat=True)
+
+    count = 0
+
+    for tarea_id in candidatas:
+        try:
+            if rechazar_solicitud_vencida(tarea_id):
+                count += 1
+        except Exception:
+            logger.exception(
+                "Error al vencer automáticamente la solicitud %s",
+                tarea_id,
+            )
+
+    if count:
+        logger.info(
+            "APScheduler: %s solicitudes rechazadas por vencimiento.",
+            count,
+        )
 
 def enviar_digest_miembros():
     """09:00 -> a miembros activos (no líderes): solicitudes sin solucionar."""
@@ -167,7 +206,6 @@ def enviar_digest_miembros():
             enviados,
         )
 
-
 _scheduler = None
 
 
@@ -176,10 +214,6 @@ def start_scheduler():
     if _scheduler is not None:
         return
     try:
-        from apscheduler.schedulers.background import BackgroundScheduler
-        from apscheduler.triggers.cron import CronTrigger
-        from apscheduler.triggers.interval import IntervalTrigger
-
         _scheduler = BackgroundScheduler(timezone=str(timezone.get_current_timezone()))
         _scheduler.add_job(
             check_inicios_programados,
@@ -202,6 +236,15 @@ def start_scheduler():
             enviar_digest_miembros,
             trigger=CronTrigger(hour=9, minute=0),
             id="digest_miembros_0900",
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+
+        _scheduler.add_job(
+            check_aprobaciones_vencidas,
+            trigger=IntervalTrigger(seconds=60),
+            id="check_aprobaciones_vencidas",
             max_instances=1,
             coalesce=True,
             replace_existing=True,

@@ -108,12 +108,12 @@ export default function DashboardLayout({
                 aria-label={
                   tema === "dark"
                     ? "Activar modo claro"
-                    : "Activar modo noche"
+                    : "Activar modo oscuro"
                 }
                 title={
                   tema === "dark"
                     ? "Activar modo claro"
-                    : "Activar modo noche"
+                    : "Activar modo oscuro"
                 }
               >
                 {tema === "dark" ? "🌙" : "☀️"}
