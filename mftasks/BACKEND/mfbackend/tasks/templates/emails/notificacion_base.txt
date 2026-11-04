@@ -12,59 +12,16 @@ Asunto: {{ titulo }}
 Estado: {{ estado }}
 {% endif %}
 
-{% if descripcion_texto %}
-Descripción: {{ descripcion_texto }}
-{% endif %}
-
-{% if campana %}
-Cliente / Campaña: {{ campana }}
-{% endif %}
-
-{% if subcampana %}
-Subcampaña: {{ subcampana }}
-{% endif %}
-
-{% if equipo_nombre %}
-Equipo: {{ equipo_nombre }}
-{% endif %}
-
-{% if solicitante_nombre %}
-Solicitante: {{ solicitante_nombre }}
-{% endif %}
-
-{% if fecha_creacion %}
-Fecha de creación: {{ fecha_creacion }}
-{% endif %}
-
-{% if fecha_entrega_aproximada %}
-Entrega aproximada: {{ fecha_entrega_aproximada }}
-{% endif %}
-
-{% if adjuntos %}
-Adjuntos:
-{% for archivo in adjuntos %}
-- {{ archivo }}
-{% endfor %}
-{% endif %}
-
 {% if nivel_nombre %}
 Nivel pendiente: {{ nivel_nombre }}
 {% endif %}
 
-{% if aprobador_nombre %}
-Resuelto por: {{ aprobador_nombre }}
-{% endif %}
-
 {% if motivo_rechazo %}
-Motivo de rechazo: {{ motivo_rechazo }}
+Motivo: {{ motivo_rechazo }}
 {% endif %}
 
 {% if motivo_standby %}
-Motivo de pausa: {{ motivo_standby }}
-{% endif %}
-
-{% if fecha_respuesta %}
-Fecha de respuesta: {{ fecha_respuesta }}
+Motivo: {{ motivo_standby }}
 {% endif %}
 
 {% if fecha_solucion %}
@@ -73,4 +30,4 @@ Fecha de solución: {{ fecha_solucion }}
 
 {% block extra %}{% endblock %}
 
-Este correo fue generado automáticamente por el sistema MF.
+Sistema de Solicitudes MF. Correo automático, no respondas a este mensaje.

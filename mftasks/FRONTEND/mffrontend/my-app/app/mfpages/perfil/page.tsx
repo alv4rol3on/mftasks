@@ -26,7 +26,6 @@ const CAMPOS_CLIENTE: { key: CampoBooleano; label: string }[] = [
   { key: "cliente_solicitud_standby", label: "Solicitud en pausa (standby)" },
   { key: "cliente_solicitud_reanudada", label: "Solicitud reanudada (sale de pausa)" },
   { key: "cliente_solicitud_solucionada", label: "Solicitud resuelta" },
-  { key: "cliente_resumen_diario", label: "Resumen diario de mis solicitudes (9:00 a.m.)" },
 ];
 
 const CAMPOS_EQUIPO: { key: CampoBooleano; label: string; descripcion?: string }[] = [

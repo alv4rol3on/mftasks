@@ -16,10 +16,6 @@ EVENTOS_EMAIL = {
         "asunto": "Solicitud {codigo} registrada correctamente",
         "template": "emails/solicitud_creada.html",
     },
-    "CLIENTE_RESUMEN_DIARIO": {
-        "asunto": "Resumen de tus solicitudes",
-        "template": "emails/cliente_resumen_diario.html",
-    },
     "SOLICITUD_APROBADA": {
         "asunto": "Solicitud {codigo} aprobada",
         "template": "emails/solicitud_aprobada.html",

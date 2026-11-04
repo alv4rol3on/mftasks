@@ -4,16 +4,6 @@ from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
-ESTADOS_RESUMEN_CLIENTE = [
-    ("EN_ESPERA", "En espera"),
-    ("APROBADO", "Aprobado"),
-    ("EN_DESARROLLO", "En desarrollo"),
-    ("STAND_BY", "En pausa"),
-    ("SOLUCIONADO", "Solucionado"),
-    ("REAPERTURA_PENDIENTE", "Reapertura pendiente"),
-    ("RECHAZADO", "Rechazado"),
-]
-
 ESTADOS_ABIERTOS = ["APROBADO", "EN_DESARROLLO", "STAND_BY"]
 
 
@@ -178,53 +168,6 @@ def enviar_digest_miembros():
         )
 
 
-def enviar_resumen_clientes():
-    """09:00 -> a cada cliente: conteo de sus solicitudes por estado."""
-    from .models import Tarea
-    from usuarios.models import User
-    from .services.notificaciones_email import programar_correo_tarea
-
-    ahora = timezone.localtime(timezone.now())
-    from django.db.models import Q
-    usuarios = User.objects.filter(
-        Q(tipo_usuario="CLIENTE") | Q(roles__rol__nombre__iexact="CLIENTE"),
-        is_active=True,
-    ).distinct()
-
-    enviados = 0
-
-    for usuario in usuarios:
-        qs = Tarea.objects.filter(solicitante=usuario)
-        total = qs.count()
-        if total == 0:
-            continue
-
-        resumen = [
-            {"estado": etiqueta, "total": qs.filter(estado=valor).count()}
-            for valor, etiqueta in ESTADOS_RESUMEN_CLIENTE
-        ]
-        primera = qs.order_by("fecha_creacion").first()
-
-        programado = programar_correo_tarea(
-            evento="CLIENTE_RESUMEN_DIARIO",
-            tarea=primera,
-            usuario_destinatario=usuario,
-            mensaje=(
-                f"Resumen de tus {total} solicitud(es) al "
-                f"{ahora.strftime('%d/%m/%Y')}."
-            ),
-            contexto_adicional={"resumen": resumen, "total": total},
-        )
-        if programado:
-            enviados += 1
-
-    if enviados:
-        logger.info(
-            "APScheduler: resúmenes diarios enviados a %s cliente(s).",
-            enviados,
-        )
-
-
 _scheduler = None
 
 
@@ -259,15 +202,6 @@ def start_scheduler():
             enviar_digest_miembros,
             trigger=CronTrigger(hour=9, minute=0),
             id="digest_miembros_0900",
-            max_instances=1,
-            coalesce=True,
-            replace_existing=True,
-        )
-        # 09:00 Clientes (resumen de estados)
-        _scheduler.add_job(
-            enviar_resumen_clientes,
-            trigger=CronTrigger(hour=9, minute=0),
-            id="resumen_clientes_0900",
             max_instances=1,
             coalesce=True,
             replace_existing=True,

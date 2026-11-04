@@ -23,7 +23,6 @@ EVENTO_A_PREFERENCIA = {
     "EQUIPO_ALERTA_DIARIA": "equipo_alerta_diaria",
     "SOLICITUD_PENDIENTE_APROBADORES": "equipo_pendiente_revision",
     "SOLICITUD_PENDIENTE_LIDER": "equipo_pendiente_revision",
-    "CLIENTE_RESUMEN_DIARIO": "cliente_resumen_diario",
 }
 
 

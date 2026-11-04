@@ -548,7 +548,6 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
             "cliente_solicitud_standby",
             "cliente_solicitud_reanudada",
             "cliente_solicitud_solucionada",
-            "cliente_resumen_diario",
             "equipo_nueva_solicitud",
             "equipo_pendiente_revision",
             "equipo_alerta_diaria",

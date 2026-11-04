@@ -457,7 +457,6 @@ class PreferenciaNotificacion(models.Model):
     cliente_solicitud_standby = models.BooleanField(default=True)
     cliente_solicitud_reanudada = models.BooleanField(default=True)
     cliente_solicitud_solucionada = models.BooleanField(default=True)
-    cliente_resumen_diario = models.BooleanField(default=True)
 
     # Líder / Miembro del equipo
     equipo_nueva_solicitud = models.BooleanField(default=True)

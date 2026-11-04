@@ -6,4 +6,4 @@
 - {{ t.codigo }} | {{ t.titulo }} | {{ t.estado }}
 {% endfor %}
 
-Este correo fue generado automáticamente por el sistema MF.
+Sistema de Solicitudes MF. Correo automático, no respondas a este mensaje.

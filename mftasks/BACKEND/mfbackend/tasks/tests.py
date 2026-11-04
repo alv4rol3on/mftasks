@@ -920,37 +920,6 @@ class NotificacionesDiariasTestCase(APITestCase):
         )
 
     @patch("tasks.services.notificaciones_email.programar_correo_tarea")
-    def test_resumen_clientes_cuenta_estados(self, mock_envio):
-        mock_envio.return_value = True
-        cliente = _crear_usuario("clienten@empresa.com")
-        _asignar_rol(cliente, "CLIENTE")
-        Tarea.objects.create(
-            asunto="A", descripcion="d", subcampana=self.sub,
-            estado=Tarea.Estado.EN_DESARROLLO, equipo=self.equipo, solicitante=cliente,
-        )
-        Tarea.objects.create(
-            asunto="B", descripcion="d", subcampana=self.sub,
-            estado=Tarea.Estado.SOLUCIONADO, equipo=self.equipo, solicitante=cliente,
-        )
-
-        from tasks.scheduler import enviar_resumen_clientes
-        enviar_resumen_clientes()
-
-        for call in mock_envio.call_args_list:
-            if (
-                call.kwargs.get("evento") == "CLIENTE_RESUMEN_DIARIO"
-                and call.kwargs.get("usuario_destinatario") == cliente
-            ):
-                contexto = call.kwargs["contexto_adicional"]
-                self.assertEqual(contexto["total"], 2)
-                conteos = {f["estado"]: f["total"] for f in contexto["resumen"]}
-                self.assertEqual(conteos["En desarrollo"], 1)
-                self.assertEqual(conteos["Solucionado"], 1)
-                break
-        else:
-            self.fail("No se programó el resumen para el cliente")
-
-    @patch("tasks.services.notificaciones_email.programar_correo_tarea")
     def test_digest_incluye_sub_lider(self, mock_envio):
         mock_envio.return_value = True
         sublider = _crear_usuario("sublidern@empresa.com")
@@ -1029,18 +998,17 @@ class ContenidoCorreosTestCase(TestCase):
         _, kwargs = mock_send.call_args
         self.assertIn(self.solicitante.email, kwargs["destinatarios"])
 
-    def test_plantilla_rechazo_incluye_motivo_y_resolutor(self):
+    def test_plantilla_rechazo_incluye_motivo(self):
         html = render_to_string(
             "emails/solicitud_rechazada.html",
             {
                 "codigo": "T-1",
                 "mensaje": "Tu solicitud fue rechazada.",
                 "motivo_rechazo": "No aplica",
-                "aprobador_nombre": "Juan Perez",
             },
         )
         self.assertIn("No aplica", html)
-        self.assertIn("Juan Perez", html)
+        self.assertNotIn("Resuelto por", html)
 
     def test_saludo_neutro_sin_aprobadores(self):
         html = render_to_string(
