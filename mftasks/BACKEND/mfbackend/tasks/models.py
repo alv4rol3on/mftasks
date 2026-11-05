@@ -631,6 +631,15 @@ class ConfiguracionAprobacion(models.Model):
         verbose_name="Horas límite de aprobación",
     )
 
+    dias_habiles_confirmacion = models.PositiveSmallIntegerField(
+        default=5,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(30),
+        ],
+        verbose_name="Días hábiles para confirmación del cliente",
+    )
+
     class Meta:
         verbose_name = "Configuración de aprobación"
         verbose_name_plural = "Configuración de aprobación"

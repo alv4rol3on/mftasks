@@ -249,8 +249,9 @@ class TaskSerializer(serializers.ModelSerializer):
         if obj.fecha_limite_aprobacion:
             return obj.fecha_limite_aprobacion
 
-        # Solicitudes antiguas: plazo inicial de 72 horas.
-        return obj.fecha_creacion + timedelta(hours=72)
+        # Solicitudes antiguas: usar el plazo configurado actualmente.
+        horas = ConfiguracionAprobacion.obtener().horas_limite
+        return obj.fecha_creacion + timedelta(hours=horas)
 
     def get_puedo_aprobar(self, obj):
         request = self.context.get("request")
@@ -527,13 +528,21 @@ class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConfiguracionAprobacion
-        fields = ["id", "horas_limite"]
+        fields = ["id", "horas_limite", "dias_habiles_confirmacion"]
         read_only_fields = ["id"]
 
     def validate_horas_limite(self, value):
         if not 1 <= value <= 72:
             raise serializers.ValidationError(
                 "El plazo debe estar entre 1 y 72 horas."
+            )
+
+        return value
+
+    def validate_dias_habiles_confirmacion(self, value):
+        if not 1 <= value <= 30:
+            raise serializers.ValidationError(
+                "El plazo debe estar entre 1 y 30 días hábiles."
             )
 
         return value

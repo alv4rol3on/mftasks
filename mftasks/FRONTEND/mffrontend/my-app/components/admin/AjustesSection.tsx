@@ -47,8 +47,12 @@ export default function AjustesSection({ setMsg }: Props) {
   const [horasLimite, setHorasLimite] = useState(72);
   const [horasOriginales, setHorasOriginales] = useState(72);
 
+  const [diasConfirmacion, setDiasConfirmacion] = useState(5);
+  const [diasOriginales, setDiasOriginales] = useState(5);
+
   const [cargandoConfig, setCargandoConfig] = useState(true);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
+  const [guardandoConfirmacion, setGuardandoConfirmacion] = useState(false);
 
   const cargarConfiguracion = async () => {
     setCargandoConfig(true);
@@ -57,10 +61,14 @@ export default function AjustesSection({ setMsg }: Props) {
       const data = await apiFetch<{
         id: number;
         horas_limite: number;
+        dias_habiles_confirmacion: number;
       }>("/api/tasks/configuracion-aprobacion/1/");
 
       setHorasLimite(data.horas_limite);
       setHorasOriginales(data.horas_limite);
+
+      setDiasConfirmacion(data.dias_habiles_confirmacion);
+      setDiasOriginales(data.dias_habiles_confirmacion);
 
     } catch (e) {
       setMsg(
@@ -108,6 +116,46 @@ export default function AjustesSection({ setMsg }: Props) {
       );
     } finally {
       setGuardandoConfig(false);
+    }
+  };
+
+  const guardarConfirmacion = async () => {
+    if (
+      !Number.isInteger(diasConfirmacion) ||
+      diasConfirmacion < 1 ||
+      diasConfirmacion > 30
+    ) {
+      setMsg("El plazo debe ser un número entero entre 1 y 30 días hábiles.");
+      return;
+    }
+
+    if (diasConfirmacion === diasOriginales) {
+      setMsg("No hay cambios pendientes.");
+      return;
+    }
+
+    setGuardandoConfirmacion(true);
+
+    try {
+      await apiFetch(
+        "/api/tasks/configuracion-aprobacion/1/",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            dias_habiles_confirmacion: diasConfirmacion,
+          }),
+        }
+      );
+
+      setDiasOriginales(diasConfirmacion);
+      setMsg("Plazo de confirmación del cliente actualizado correctamente.");
+
+    } catch (e) {
+      setMsg(
+        `Error al guardar configuración: ${(e as Error).message}`
+      );
+    } finally {
+      setGuardandoConfirmacion(false);
     }
   };
 
@@ -368,6 +416,100 @@ export default function AjustesSection({ setMsg }: Props) {
                 onClick={guardarConfiguracion}
               >
                 {guardandoConfig ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      <div className={styles.card}>
+
+        <div className={styles.usersHeader}>
+          <div>
+            <h3 className={styles.cardTitle} style={{ margin: 0 }}>
+              Plazo para confirmar la solución
+            </h3>
+
+            <p
+              style={{
+                fontSize: 13,
+                color: "var(--color-text-secondary)",
+                margin: "5px 0 0",
+              }}
+            >
+              Define cuántos días hábiles tiene el cliente para confirmar o
+              reabrir una solución.
+            </p>
+          </div>
+        </div>
+
+        {cargandoConfig ? (
+          <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
+            Cargando configuración...
+          </p>
+        ) : (
+          <div style={{ marginTop: 20, maxWidth: 320 }}>
+            <label className={styles.field}>
+              <span>Plazo máximo de confirmación (días hábiles)</span>
+
+              <input
+                type="number"
+                min={1}
+                max={30}
+                step={1}
+                value={diasConfirmacion}
+                disabled={guardandoConfirmacion}
+                onChange={e => {
+                  const valor = e.target.value;
+                  setDiasConfirmacion(valor === "" ? 0 : Number(valor));
+                }}
+                className={styles.input}
+              />
+            </label>
+
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 8,
+                background: "var(--color-select)",
+                color: "var(--color-text-secondary)",
+                fontSize: 12,
+              }}
+            >
+              <strong style={{ color: "var(--color-text)" }}>
+                Importante:
+              </strong>{" "}
+              Si el cliente no confirma ni reabre dentro del plazo, la solución
+              se confirmará automáticamente. El tiempo se cuenta en días
+              hábiles.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                disabled={
+                  diasConfirmacion === diasOriginales ||
+                  guardandoConfirmacion ||
+                  cargandoConfig
+                }
+                onClick={() => setDiasConfirmacion(diasOriginales)}
+              >
+                Descartar
+              </button>
+
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={
+                  diasConfirmacion === diasOriginales ||
+                  guardandoConfirmacion ||
+                  cargandoConfig
+                }
+                onClick={guardarConfirmacion}
+              >
+                {guardandoConfirmacion ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>

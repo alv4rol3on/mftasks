@@ -1,13 +1,12 @@
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import Subtarea, Tarea, TareaLog
+from ..models import ConfiguracionAprobacion, Subtarea, Tarea, TareaLog
 from .logs import registrar_log
 from .notificaciones import notificar_tarea
 from .tiempo_laboral import sumar_dias_habiles
 
 
-PLAZO_CONFIRMACION_DIAS_HABILES = 5
 MAX_REAPERTURAS_CLIENTE = 2
 
 
@@ -22,10 +21,12 @@ def _ahora():
 def programar_confirmacion(tarea: Tarea) -> Tarea:
     """Marca la solicitud como solucionada pendiente de confirmación del cliente."""
     ahora = _ahora()
+    dias_habiles = ConfiguracionAprobacion.obtener().dias_habiles_confirmacion
+
     tarea.confirmacion_cliente = Tarea.ConfirmacionCliente.PENDIENTE
     tarea.fecha_limite_confirmacion = sumar_dias_habiles(
         tarea.fecha_solucion or ahora,
-        PLAZO_CONFIRMACION_DIAS_HABILES,
+        dias_habiles,
     )
     tarea.fecha_confirmacion_cliente = None
     tarea.save(

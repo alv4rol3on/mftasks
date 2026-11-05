@@ -8,8 +8,11 @@ def obtener_fecha_limite_aprobacion(tarea):
     if tarea.fecha_limite_aprobacion:
         return tarea.fecha_limite_aprobacion
 
-    # Compatibilidad con solicitudes antiguas.
-    return tarea.fecha_creacion + timedelta(hours=72)
+    # Compatibilidad con solicitudes antiguas: plazo configurado actualmente.
+    from tasks.models import ConfiguracionAprobacion
+
+    horas = ConfiguracionAprobacion.obtener().horas_limite
+    return tarea.fecha_creacion + timedelta(hours=horas)
 
 
 def aprobacion_vencida(tarea):

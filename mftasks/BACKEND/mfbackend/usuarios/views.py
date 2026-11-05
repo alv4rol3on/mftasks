@@ -477,16 +477,15 @@ class EquipoViewSet(ModelViewSet):
         if subcampana_id:
             base = self._filtrar_por_permiso_lider(base, subcampana_id)
 
-        # Administrador ve todos
+        # Administrador ve todos (incluye inactivos para poder reactivarlos)
         if es_administrador(user):
             return base
         # CLIENTE nunca es miembro de equipo: solo ve equipos activos para elegir
         # destino al solicitar (no ve miembros)
         if es_cliente(user):
             return base.filter(activo=True)
-        # Usuarios internos: ven todos los equipos (el frontend ofrece el filtro
-        # "solo mis equipos")
-        return base
+        # Usuarios internos: solo equipos activos.
+        return base.filter(activo=True)
 
     @staticmethod
     def _filtrar_por_permiso_lider(queryset, subcampana_id):
@@ -514,6 +513,38 @@ class EquipoViewSet(ModelViewSet):
             return EquipoCreateSerializer
 
         return EquipoDetailSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        from tasks.models import Tarea
+
+        equipo = self.get_object()
+        estados_abiertos = [
+            Tarea.Estado.EN_ESPERA,
+            Tarea.Estado.APROBADO,
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+            Tarea.Estado.REAPERTURA_PENDIENTE,
+        ]
+
+        if equipo.tareas.filter(
+            estado__in=estados_abiertos,
+            activo=True,
+        ).exists():
+            return Response(
+                {
+                    "detail": (
+                        "No se puede eliminar el equipo porque tiene "
+                        "solicitudes abiertas. Finaliza o cancela esas "
+                        "solicitudes primero."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        equipo.activo = False
+        equipo.save(update_fields=["activo"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @staticmethod
     def _validar_estado(payload):

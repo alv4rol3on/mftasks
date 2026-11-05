@@ -378,6 +378,79 @@ class EquipoCreacionPermisosTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
+class EquipoAdminAccionesTestCase(APITestCase):
+
+    def setUp(self):
+        from tasks.models import Tarea
+
+        self.admin = _crear_usuario("adminacc@empresa.com")
+        _asignar_rol(self.admin, "Administrador")
+        self.lider = _crear_usuario("lideracc@empresa.com")
+        _asignar_rol(self.lider, "GTR")
+        self.equipo = Equipo.objects.create(
+            nombre="Equipo acciones",
+            lider=self.lider,
+        )
+        self.Tarea = Tarea
+
+    def test_admin_renombra_equipo(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.patch(
+            reverse("equipo-detail", args=[self.equipo.id]),
+            {"nombre": "Equipo renombrado"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.equipo.refresh_from_db()
+        self.assertEqual(self.equipo.nombre, "Equipo renombrado")
+
+    def test_admin_elimina_equipo_sin_solicitudes_abiertas(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.delete(
+            reverse("equipo-detail", args=[self.equipo.id]),
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.equipo.refresh_from_db()
+        self.assertFalse(self.equipo.activo)
+
+    def test_admin_no_elimina_equipo_con_solicitud_abierta(self):
+        self.Tarea.objects.create(
+            asunto="Solicitud abierta",
+            descripcion="d",
+            estado=self.Tarea.Estado.EN_ESPERA,
+            equipo=self.equipo,
+            solicitante=self.lider,
+        )
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.delete(
+            reverse("equipo-detail", args=[self.equipo.id]),
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.equipo.refresh_from_db()
+        self.assertTrue(self.equipo.activo)
+
+    def test_admin_reactiva_equipo(self):
+        self.equipo.activo = False
+        self.equipo.save(update_fields=["activo"])
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.patch(
+            reverse("equipo-detail", args=[self.equipo.id]),
+            {"activo": True},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.equipo.refresh_from_db()
+        self.assertTrue(self.equipo.activo)
+
+
 class EquipoBajaMiembroTestCase(APITestCase):
 
     def setUp(self):

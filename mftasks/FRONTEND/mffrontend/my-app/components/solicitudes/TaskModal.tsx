@@ -9,6 +9,7 @@ import RichTextView from "@/components/shared/RichTextView";
 import ReaperturaAprobarModal, {
     type AprobarReaperturaPayload,
 } from "./ReaperturaAprobarModal";
+import ApprovalCountdown from "./ApprovalCountdown";
 
 type EventoSeguimiento = {
     id: number;
@@ -305,6 +306,19 @@ export default function TaskModal({
                             borderRadius: 10,
                         }}
                     ><h3>Flujo de aprobación</h3>
+
+                        {tarea.estado === "EN_ESPERA" && tarea.fecha_limite_aprobacion && (
+                            <p
+                                style={{
+                                    margin: "0 0 12px",
+                                    fontSize: 12,
+                                    color: "var(--color-text-secondary)",
+                                }}
+                            >
+                                Tiempo restante para aprobar o rechazar:{" "}
+                                <ApprovalCountdown fechaLimite={tarea.fecha_limite_aprobacion} />
+                            </p>
+                        )}
 
                         <div
                             style={{

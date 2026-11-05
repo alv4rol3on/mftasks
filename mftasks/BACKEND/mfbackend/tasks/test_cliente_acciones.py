@@ -7,8 +7,12 @@ from rest_framework.test import APITestCase
 
 from usuarios.models import Equipo, EquipoMiembro, User
 
-from .models import Subtarea, Tarea, TareaLog
-from .services.confirmacion import confirmar_automaticamente
+from .models import ConfiguracionAprobacion, Subtarea, Tarea, TareaLog
+from .services.confirmacion import (
+    confirmar_automaticamente,
+    programar_confirmacion,
+)
+from .services.tiempo_laboral import sumar_dias_habiles
 
 
 class ClienteAccionesTestCase(APITestCase):
@@ -481,3 +485,48 @@ class ClienteAccionesTestCase(APITestCase):
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ConfirmacionPlazoConfigurableTestCase(APITestCase):
+
+    def setUp(self):
+        self.cliente = User.objects.create_user(
+            email="clientep@test.com",
+            nombres="Cliente",
+            apellidos="Plazo",
+            password="segura-123",
+            tipo_usuario="CLIENTE",
+        )
+        self.lider = User.objects.create_user(
+            email="liderp@test.com",
+            nombres="Lider",
+            apellidos="Plazo",
+            password="segura-123",
+        )
+        self.equipo = Equipo.objects.create(
+            nombre="Equipo Plazo",
+            lider=self.lider,
+        )
+        config = ConfiguracionAprobacion.obtener()
+        config.dias_habiles_confirmacion = 3
+        config.save()
+        self.tarea = Tarea.objects.create(
+            asunto="Solicitud plazo",
+            descripcion="Descripcion",
+            equipo=self.equipo,
+            solicitante=self.cliente,
+            estado=Tarea.Estado.SOLUCIONADO,
+            fecha_solucion=timezone.localtime(timezone.now()),
+        )
+
+    def test_programar_confirmacion_usa_dias_configurados(self):
+        programar_confirmacion(self.tarea)
+
+        self.tarea.refresh_from_db()
+        esperado = sumar_dias_habiles(self.tarea.fecha_solucion, 3)
+
+        self.assertEqual(
+            self.tarea.confirmacion_cliente,
+            Tarea.ConfirmacionCliente.PENDIENTE,
+        )
+        self.assertEqual(self.tarea.fecha_limite_confirmacion, esperado)

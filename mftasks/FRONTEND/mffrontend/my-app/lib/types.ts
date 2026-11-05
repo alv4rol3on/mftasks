@@ -110,6 +110,7 @@ export interface Task {
     fecha_solicitud_reapertura?: string | null;
     plazo_reapertura_dias?: number | null;
     motivo_rechazo_reapertura?: string | null;
+    fecha_limite_aprobacion?: string | null;
     motivo_rechazo: string;
     motivo_cancelacion?: string | null;
     motivo_standby?: string | null;

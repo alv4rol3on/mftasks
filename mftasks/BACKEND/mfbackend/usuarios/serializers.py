@@ -412,6 +412,25 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             "mi_estado",
         ]
 
+    def validate_nombre(self, value):
+        nombre = (value or "").strip()
+
+        if not nombre:
+            raise serializers.ValidationError(
+                "El nombre del equipo es obligatorio."
+            )
+
+        existentes = Equipo.objects.filter(nombre__iexact=nombre)
+        if self.instance is not None:
+            existentes = existentes.exclude(pk=self.instance.pk)
+
+        if existentes.exists():
+            raise serializers.ValidationError(
+                f"Ya existe un equipo con el nombre '{nombre}'."
+            )
+
+        return nombre
+
     def get_miembros(self, obj):
         request = self.context.get("request")
         qs = obj.miembros.select_related("usuario", "usuario__disponibilidad").all()

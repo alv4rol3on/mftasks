@@ -55,6 +55,11 @@ export default function EquiposPage() {
   const [busquedaUsuario, setBusquedaUsuario] = useState<string>("");
   // modal crear equipo
   const [modalCrear, setModalCrear] = useState(false);
+  // opciones de administrador sobre el equipo
+  const [modalRenombrar, setModalRenombrar] = useState<{ equipo: EquipoInfo; nombre: string } | null>(null);
+  const [modalEliminar, setModalEliminar] = useState<EquipoInfo | null>(null);
+  const [accionEquipo, setAccionEquipo] = useState(false);
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
   // modal de integrante (ajustes: sub-líder, inactivar, eliminar)
   const [modalMiembro, setModalMiembro] = useState<{ equipo: EquipoInfo; miembro: EquipoMiembroDetallado } | null>(null);
   const [usuariosTodos, setUsuariosTodos] = useState<UsuarioLista[]>([]);
@@ -78,6 +83,7 @@ export default function EquiposPage() {
 
   const equiposVisibles = equipos
     .filter((e) => !soloMios || esMiEquipo(e))
+    .filter((e) => mostrarInactivos || e.activo)
     .filter((e) => filtroTipo === "TODOS" || (e.tipo_equipo ?? "GTR") === filtroTipo);
   const [nuevo, setNuevo] = useState({
     nombre: "",
@@ -492,6 +498,70 @@ export default function EquiposPage() {
     }
   };
 
+  const abrirModalRenombrar = (equipo: EquipoInfo) => {
+    setMensaje(null);
+    setModalRenombrar({ equipo, nombre: equipo.nombre });
+  };
+
+  const renombrarEquipo = async () => {
+    if (!modalRenombrar) return;
+
+    const nombre = modalRenombrar.nombre.trim();
+    if (!nombre) {
+      setMensaje("El nombre del equipo es obligatorio.");
+      return;
+    }
+
+    setAccionEquipo(true);
+    try {
+      await apiFetch(`/api/usuarios/equipos/${modalRenombrar.equipo.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ nombre }),
+      });
+      setMensaje(`Equipo renombrado a "${nombre}" correctamente.`);
+      setModalRenombrar(null);
+      await recargar();
+    } catch (e) {
+      setMensaje(`Error al renombrar el equipo: ${(e as Error).message}`);
+    } finally {
+      setAccionEquipo(false);
+    }
+  };
+
+  const eliminarEquipo = async () => {
+    if (!modalEliminar) return;
+
+    setAccionEquipo(true);
+    try {
+      await apiFetch(`/api/usuarios/equipos/${modalEliminar.id}/`, {
+        method: "DELETE",
+      });
+      setMensaje(`Equipo "${modalEliminar.nombre}" eliminado correctamente.`);
+      setModalEliminar(null);
+      await recargar();
+    } catch (e) {
+      setMensaje(`Error al eliminar el equipo: ${(e as Error).message}`);
+    } finally {
+      setAccionEquipo(false);
+    }
+  };
+
+  const reactivarEquipo = async (equipo: EquipoInfo) => {
+    setAccionEquipo(true);
+    try {
+      await apiFetch(`/api/usuarios/equipos/${equipo.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ activo: true }),
+      });
+      setMensaje(`Equipo "${equipo.nombre}" reactivado correctamente.`);
+      await recargar();
+    } catch (e) {
+      setMensaje(`Error al reactivar el equipo: ${(e as Error).message}`);
+    } finally {
+      setAccionEquipo(false);
+    }
+  };
+
   const usuariosFiltrados = usuariosDisponibles.filter((u) => {
     const q = busquedaUsuario.trim().toLowerCase();
     if (!q) return true;
@@ -540,6 +610,24 @@ export default function EquiposPage() {
           >
             {soloMios ? "Filtro: solo mis equipos" : "Filtro: todos los equipos"}
           </button>
+          {esAdmin && (
+            <button
+              type="button"
+              onClick={() => setMostrarInactivos((v) => !v)}
+              style={{
+                border: "1px solid var(--color-border)",
+                background: mostrarInactivos ? "var(--color-surface)" : "var(--color-background)",
+                color: "var(--color-text)",
+                borderRadius: 8,
+                padding: "8px 14px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {mostrarInactivos ? "Ocultar equipos inactivos" : "Mostrar equipos inactivos"}
+            </button>
+          )}
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
             {equiposVisibles.length} de {equipos.length} equipo(s)
           </span>
@@ -597,6 +685,18 @@ export default function EquiposPage() {
                   <div className={styles.cardHeaderLeft}>
                     <div className={styles.cardTitleRow}>
                       <h3 className={styles.cardTitle}>{equipo.nombre}</h3>
+                      {!equipo.activo && (
+                        <span
+                          className={styles.badge}
+                          style={{
+                            background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))",
+                            color: "var(--color-danger)",
+                            border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))",
+                          }}
+                        >
+                          Inactivo
+                        </span>
+                      )}
                       {puedoGestionar ? (
                         <span className={`${styles.badge} ${styles.badgeGestionar}`}>
                           Puedes gestionar
@@ -618,6 +718,71 @@ export default function EquiposPage() {
                     </div>
                   </div>
                   <div className={styles.cardHeaderRight}>
+                    {esAdmin && (
+                      <div
+                        style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => abrirModalRenombrar(equipo)}
+                          disabled={accionEquipo}
+                          style={{
+                            background: "var(--color-background)",
+                            color: "var(--color-text)",
+                            border: "1px solid var(--color-border)",
+                            borderRadius: 8,
+                            padding: "6px 10px",
+                            cursor: accionEquipo ? "not-allowed" : "pointer",
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Renombrar
+                        </button>
+
+                        {equipo.activo ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMensaje(null);
+                              setModalEliminar(equipo);
+                            }}
+                            disabled={accionEquipo}
+                            style={{
+                              background: "var(--color-background)",
+                              color: "var(--color-danger)",
+                              border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))",
+                              borderRadius: 8,
+                              padding: "6px 10px",
+                              cursor: accionEquipo ? "not-allowed" : "pointer",
+                              fontSize: 12,
+                              fontWeight: 600,
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => reactivarEquipo(equipo)}
+                            disabled={accionEquipo}
+                            style={{
+                              background: "var(--color-background)",
+                              color: "var(--color-done)",
+                              border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))",
+                              borderRadius: 8,
+                              padding: "6px 10px",
+                              cursor: accionEquipo ? "not-allowed" : "pointer",
+                              fontSize: 12,
+                              fontWeight: 600,
+                            }}
+                          >
+                            Reactivar
+                          </button>
+                        )}
+                      </div>
+                    )}
                     <span className={`${styles.cardHeaderArrow} ${expandido ? styles.cardHeaderArrowOpen : ""}`}>▼</span>
                   </div>
                 </div>
@@ -971,6 +1136,104 @@ export default function EquiposPage() {
                 style={{ background: agregarUsuarioId ? "var(--color-brand)" : "var(--color-text-secondary)", color: "var(--color-on-accent)", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
               >
                 Agregar al equipo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal renombrar equipo (admin) */}
+      {modalRenombrar && (
+        <div
+          onClick={() => setModalRenombrar(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 440, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Renombrar equipo</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+              Nombre actual: <strong>{modalRenombrar.equipo.nombre}</strong>
+            </p>
+
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+              Nuevo nombre
+              <input
+                value={modalRenombrar.nombre}
+                onChange={(e) => setModalRenombrar((prev) => prev ? { ...prev, nombre: e.target.value } : prev)}
+                placeholder="Nombre del equipo"
+                autoFocus
+                style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+              />
+            </label>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setModalRenombrar(null)}
+                style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={renombrarEquipo}
+                disabled={accionEquipo || !modalRenombrar.nombre.trim()}
+                style={{
+                  background: accionEquipo || !modalRenombrar.nombre.trim() ? "var(--color-disabled)" : "var(--color-brand)",
+                  color: accionEquipo || !modalRenombrar.nombre.trim() ? "var(--color-text-secondary)" : "var(--color-on-accent)",
+                  border: "1px solid var(--color-brand)",
+                  padding: "8px 14px",
+                  borderRadius: "var(--radius-control)",
+                  cursor: accionEquipo || !modalRenombrar.nombre.trim() ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {accionEquipo ? "Guardando..." : "Guardar nombre"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal eliminar equipo (admin) */}
+      {modalEliminar && (
+        <div
+          onClick={() => setModalEliminar(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 460, boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-danger)" }}>Eliminar equipo</h3>
+            <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--color-text)" }}>
+              ¿Deseas eliminar el equipo <strong>{modalEliminar.nombre}</strong>?
+            </p>
+            <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+              El equipo quedará inactivo y se conservarán sus solicitudes e historial. No podrás eliminarlo si aún tiene solicitudes abiertas.
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setModalEliminar(null)}
+                style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={eliminarEquipo}
+                disabled={accionEquipo}
+                style={{
+                  background: accionEquipo ? "var(--color-disabled)" : "var(--color-danger)",
+                  color: accionEquipo ? "var(--color-text-secondary)" : "var(--color-on-accent)",
+                  border: "1px solid var(--color-danger)",
+                  padding: "8px 14px",
+                  borderRadius: "var(--radius-control)",
+                  cursor: accionEquipo ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {accionEquipo ? "Eliminando..." : "Eliminar equipo"}
               </button>
             </div>
           </div>

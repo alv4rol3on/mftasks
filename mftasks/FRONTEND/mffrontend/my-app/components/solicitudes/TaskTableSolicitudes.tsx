@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import TaskModal from "./TaskModal";
 import PrioridadBadge, { PRIORIDAD_ORDEN } from "@/components/tareas/PrioridadBadge";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
+import ApprovalCountdown from "./ApprovalCountdown";
 import styles from "./TasksTableSolicitudes.module.css";
 import { Task } from "@/lib/types";
 
@@ -84,6 +85,7 @@ export default function TaskTableSolicitudes({
               <div>Asunto</div>
               <div>Cliente</div>
               <div>Equipo</div>
+              <div>Tiempo de revisión</div>
             </div>
 
             {ordenadas.map((tarea) => (
@@ -113,6 +115,14 @@ export default function TaskTableSolicitudes({
                 <div>{tarea.cliente_nombre}</div>
 
                 <div>{tarea.equipo_nombre}</div>
+
+                <div>
+                  {tarea.estado === "EN_ESPERA" ? (
+                    <ApprovalCountdown fechaLimite={tarea.fecha_limite_aprobacion} />
+                  ) : (
+                    "—"
+                  )}
+                </div>
               </div>
             ))}
           </div>
