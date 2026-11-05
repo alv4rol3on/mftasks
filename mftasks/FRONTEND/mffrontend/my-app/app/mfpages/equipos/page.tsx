@@ -7,6 +7,7 @@ import type { EquipoInfo, EquipoMiembroDetallado, RolInfo } from "@/lib/types";
 import RefreshButton from "@/components/ui/RefreshButton";
 import PageLoader from "@/components/ui/PageLoader";
 import styles from "./Equipos.module.css";
+import IconButton from "@/components/ui/IconButton";
 
 type EquipoApiResponse = EquipoInfo[] | { results: EquipoInfo[] };
 
@@ -723,7 +724,7 @@ export default function EquiposPage() {
                         style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button
+                        {/*<button
                           type="button"
                           onClick={() => abrirModalRenombrar(equipo)}
                           disabled={accionEquipo}
@@ -739,47 +740,37 @@ export default function EquiposPage() {
                           }}
                         >
                           Renombrar
-                        </button>
+                        </button>*/}
+                        <IconButton
+                          icon="edit"
+                          variant="primary"
+                          disabled={accionEquipo}
+                          title={
+                            esAdmin
+                              ? "Cambiar nombre del equipo"
+                              : "No se puede cambiar nombre del equipo"
+                          }
+                          onClick={() => abrirModalRenombrar(equipo)}
+                        />
 
                         {equipo.activo ? (
-                          <button
-                            type="button"
+                          <IconButton
+                            icon="trash"
+                            variant="danger"
+                            title="Eliminar equipo"
                             onClick={() => {
                               setMensaje(null);
                               setModalEliminar(equipo);
                             }}
-                            disabled={accionEquipo}
-                            style={{
-                              background: "var(--color-background)",
-                              color: "var(--color-danger)",
-                              border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))",
-                              borderRadius: 8,
-                              padding: "6px 10px",
-                              cursor: accionEquipo ? "not-allowed" : "pointer",
-                              fontSize: 12,
-                              fontWeight: 600,
-                            }}
-                          >
-                            Eliminar
-                          </button>
+                          />
                         ) : (
-                          <button
-                            type="button"
+
+                          <IconButton
+                            icon="power"
+                            variant="success"
+                            title="Reactivar equipo"
                             onClick={() => reactivarEquipo(equipo)}
-                            disabled={accionEquipo}
-                            style={{
-                              background: "var(--color-background)",
-                              color: "var(--color-done)",
-                              border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))",
-                              borderRadius: 8,
-                              padding: "6px 10px",
-                              cursor: accionEquipo ? "not-allowed" : "pointer",
-                              fontSize: 12,
-                              fontWeight: 600,
-                            }}
-                          >
-                            Reactivar
-                          </button>
+                          />
                         )}
                       </div>
                     )}
@@ -1188,7 +1179,7 @@ export default function EquiposPage() {
                   fontWeight: 700,
                 }}
               >
-                {accionEquipo ? "Guardando..." : "Guardar nombre"}
+                {accionEquipo ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>
@@ -1210,12 +1201,16 @@ export default function EquiposPage() {
               El equipo quedará inactivo y se conservarán sus solicitudes e historial. No podrás eliminarlo si aún tiene solicitudes abiertas.
             </p>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button
-                type="button"
-                onClick={() => setModalEliminar(null)}
-                style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
-              >
+            <div style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              marginTop: 24,
+            }}>              <button
+              type="button"
+              onClick={() => setModalEliminar(null)}
+              className={styles.btnSecondary}
+            >
                 Cancelar
               </button>
               <button

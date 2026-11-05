@@ -44,6 +44,9 @@ export default function AssignmentPanel({
     const [sugerencias, setSugerencias] = useState<Record<number, SugerenciaAsignacion>>({});
     const [sugiriendo, setSugiriendo] = useState(false);
     const [reabrirTarget, setReabrirTarget] = useState<Subtarea | null>(null);
+    const [renombrarTarget, setRenombrarTarget] = useState<Subtarea | null>(null);
+    const [nuevoNombre, setNuevoNombre] = useState("");
+    const [renombrando, setRenombrando] = useState(false);
 
     const cargarMiembros = async () => {
         setMiembrosLoading(true);
@@ -257,6 +260,49 @@ export default function AssignmentPanel({
         await onTareaMutated?.();
     };
 
+    const handleRenombrar = async () => {
+        if (!renombrarTarget) return;
+
+        const nombre = nuevoNombre.trim();
+
+        if (!nombre) {
+            setAsigErr("El nombre de la subtarea no puede estar vacío.");
+            return;
+        }
+
+        if (nombre === renombrarTarget.descripcion.trim()) {
+            setRenombrarTarget(null);
+            return;
+        }
+
+        setAsigErr(null);
+        setAsigMsg(null);
+        setRenombrando(true);
+
+        try {
+            await apiFetch(
+                `/api/tasks/tasks/${tarea.id}/subtareas/${renombrarTarget.id}/renombrar/`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        descripcion_subtarea: nombre,
+                    }),
+                }
+            );
+
+            setAsigMsg("Nombre de la subtarea actualizado correctamente.");
+            setRenombrarTarget(null);
+            setNuevoNombre("");
+
+            await onTareaMutated?.();
+
+        } catch (e) {
+            setAsigErr((e as Error).message);
+        } finally {
+            setRenombrando(false);
+        }
+    };
+
     return (
         <div>
             <div className={styles.assignmentHeader}>
@@ -328,17 +374,17 @@ export default function AssignmentPanel({
                                                 <span className={styles.mutedText}>{miembrosLoading ? "Cargando…" : "Sin miembros activos"}</span>
                                             ) : (
                                                 <>
-                                                <select
-                                                    value={draftAsignado[subtarea.id] ?? ""}
-                                                    onChange={(e) => setDraftAsignado((prev) => ({ ...prev, [subtarea.id]: e.target.value ? Number(e.target.value) : "" }))}
-                                                    className={styles.estadoSelect}
-                                                    aria-label={`Nuevo asignado para ${subtarea.descripcion}`}
-                                                >
-                                                    <option value="">— seleccionar —</option>
-                                                    {opcionesAsignables.map((o) => (
-                                                        <option key={o.id} value={o.id}>{o.nombre}</option>
-                                                    ))}
-                                                </select>
+                                                    <select
+                                                        value={draftAsignado[subtarea.id] ?? ""}
+                                                        onChange={(e) => setDraftAsignado((prev) => ({ ...prev, [subtarea.id]: e.target.value ? Number(e.target.value) : "" }))}
+                                                        className={styles.estadoSelect}
+                                                        aria-label={`Nuevo asignado para ${subtarea.descripcion}`}
+                                                    >
+                                                        <option value="">— seleccionar —</option>
+                                                        {opcionesAsignables.map((o) => (
+                                                            <option key={o.id} value={o.id}>{o.nombre}</option>
+                                                        ))}
+                                                    </select>
                                                     {sugerencias[subtarea.id] && (
                                                         <div className={styles.subtaskMeta} style={{ marginTop: 4 }}>
                                                             Sugerido: {sugerencias[subtarea.id].sugerido_nombre} · carga {sugerencias[subtarea.id].carga_actual}
@@ -354,7 +400,7 @@ export default function AssignmentPanel({
                                                         icon="power"
                                                         variant="success"
                                                         onClick={() => setReabrirTarget(subtarea)}
-                                                        disabled={inactivandoId === subtarea.id || !puedeOperar || tarea.estado === "RECHAZADO" || tarea.estado === "CANCELADO"}
+                                                        disabled={inactivandoId === subtarea.id || !puedeOperar || tarea.estado === "RECHAZADO" || tarea.estado === "CANCELADO" || tarea.estado === "SOLUCIONADO"}
                                                         title="Reabrir subtarea solucionada"
                                                     />
                                                 ) : !inactiva ? (
@@ -374,6 +420,18 @@ export default function AssignmentPanel({
                                                         title="Reactivar subtarea"
                                                     />
                                                 )}
+                                                <IconButton
+                                                    icon="edit"
+                                                    variant="primary"
+                                                    title="Cambiar nombre de la subtarea"
+                                                    disabled={!puedeOperar || inactiva || renombrando || subtarea.estado === "SOLUCIONADO"}
+                                                    onClick={() => {
+                                                        setNuevoNombre(subtarea.descripcion);
+                                                        setRenombrarTarget(subtarea);
+                                                        setAsigErr(null);
+                                                        setAsigMsg(null);
+                                                    }}
+                                                />
                                             </div>
                                         </td>
                                     </tr>
@@ -390,6 +448,115 @@ export default function AssignmentPanel({
                     onClose={() => setReabrirTarget(null)}
                     onConfirmar={handleReabrir}
                 />
+            )}
+
+            {renombrarTarget && (
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(0, 0, 0, 0.55)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 10000,
+                        padding: 20,
+                    }}
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget && !renombrando) {
+                            setRenombrarTarget(null);
+                        }
+                    }}
+                >
+                    <div
+                        style={{
+                            width: "100%",
+                            maxWidth: 460,
+                            background: "var(--color-background)",
+                            color: "var(--color-text)",
+                            borderRadius: 12,
+                            padding: 24,
+                            boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+                        }}
+                    >
+                        <h3 style={{ margin: "0 0 8px" }}>
+                            Renombrar subtarea
+                        </h3>
+
+                        <label
+                            style={{
+                                display: "block",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Nombre de la subtarea
+                        </label>
+
+                        <input
+                            type="text"
+                            value={nuevoNombre}
+                            onChange={(e) => setNuevoNombre(e.target.value)}
+                            maxLength={255}
+                            autoFocus
+                            disabled={renombrando}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    void handleRenombrar();
+                                }
+                            }}
+                            style={{
+                                width: "100%",
+                                boxSizing: "border-box",
+                                padding: "11px 12px",
+                                borderRadius: 8,
+                                border: "1px solid var(--color-border)",
+                                background: "var(--color-input, var(--color-surface))",
+                                color: "var(--color-text)",
+                                fontSize: 14,
+                                outline: "none",
+                            }}
+                        />
+
+                        <div style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 10,
+                            marginTop: 24,
+                        }}>
+                            <button
+                                type="button"
+                                className={styles.btnSecondary}
+                                disabled={renombrando}
+                                onClick={() => setRenombrarTarget(null)}
+                                style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+
+                            >
+                                Cancelar
+                            </button>
+
+                            <button
+                                type="button"
+                                className={styles.saveButton}
+                                disabled={renombrando || !nuevoNombre.trim()}
+                                onClick={() => void handleRenombrar()}
+                                style={{
+                                    background: renombrando || !nuevoNombre.trim() ? "var(--color-disabled)" : "var(--color-brand)",
+                                    color: renombrando || !nuevoNombre.trim() ? "var(--color-text-secondary)" : "var(--color-on-accent)",
+                                    border: "1px solid var(--color-brand)",
+                                    padding: "8px 14px",
+                                    borderRadius: "var(--radius-control)",
+                                    cursor: renombrando || !nuevoNombre.trim() ? "not-allowed" : "pointer",
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                }}
+                            >
+                                {renombrando ? "Guardando…" : "Guardar cambios"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

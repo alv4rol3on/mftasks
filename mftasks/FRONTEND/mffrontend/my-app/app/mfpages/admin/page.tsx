@@ -110,7 +110,7 @@ export default function AdminPage() {
           className={`${styles.tabBtn} ${tab === "ajustes" ? styles.tabBtnActive : ""
             }`}
         >
-          Ajustes
+          Ajustes de tiempos
         </button>
       </div>
 

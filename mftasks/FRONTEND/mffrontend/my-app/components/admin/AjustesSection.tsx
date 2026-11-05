@@ -389,7 +389,9 @@ export default function AjustesSection({ setMsg }: Props) {
               </strong>{" "}
               Si una solicitud no es aprobada ni rechazada dentro del plazo,
               será rechazada automáticamente y se notificará al solicitante.
-              El tiempo se cuenta en horas corridas.
+              El tiempo se cuenta en horas corridas y las solicitudes enviadas 
+              previamente no aumentaran ni disminuiran su tiempo luego de la
+              configuración.
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button
@@ -428,7 +430,7 @@ export default function AjustesSection({ setMsg }: Props) {
         <div className={styles.usersHeader}>
           <div>
             <h3 className={styles.cardTitle} style={{ margin: 0 }}>
-              Plazo para confirmar la solución
+              Plazo para confirmación del cliente
             </h3>
 
             <p

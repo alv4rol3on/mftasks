@@ -1,6 +1,6 @@
 
-- el administrador deberia tener opciones sobre un equipo por ejemplo renombrar, eliminar, etc
-- cosas que debe haber en ajustes session
-    - tiempo para revision para confirmacion de solicitudes
-    - tiempo para la revision y confirmacion de la solucion por parte del cliente
+- renombrar subtareas desde asignaciones y que aparezca en el log el cambio realizado
+- paginacion de equipos de 10 en 10 y una barra de busqueda
+- configuracion de rol: 
+
 zcQJcdC52ik123

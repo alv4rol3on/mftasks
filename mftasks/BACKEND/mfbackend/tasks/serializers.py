@@ -101,6 +101,25 @@ class SubtareaSerializer(serializers.ModelSerializer):
         segundos = seg % 60
         return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
+    def validate_descripcion(self, value):
+            descripcion = (value or "").strip()
+
+            if not descripcion:
+                raise serializers.ValidationError(
+                    "El nombre del equipo es obligatorio."
+                )
+
+            existentes = Subtarea.objects.filter(nombre__iexact=descripcion)
+            if self.instance is not None:
+                existentes = existentes.exclude(pk=self.instance.pk)
+
+            if existentes.exists():
+                raise serializers.ValidationError(
+                    f"Ya existe una subtarea que dice: '{descripcion}'."
+                )
+
+            return descripcion
+
 class ArchivoTareaSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     subido_por_nombre = serializers.SerializerMethodField()

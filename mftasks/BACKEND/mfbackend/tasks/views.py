@@ -1735,7 +1735,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         programar_correo_equipo(
             evento="SOLICITUD_CONFIRMADA",
             tarea=tarea,
-            mensaje="El cliente confirmó que la solución fue satisfactoria.",
+            mensaje="El cliente confirmó que la solución fue satisfactoria. SOLICITUD CERRADA",
         )
 
         return Response(
@@ -2210,6 +2210,81 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
 
         return Response(SubtareaSerializer(subtarea).data, status=status.HTTP_200_OK)
+
+
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticatedActivo, EsAsignadorDeEquipoDeTarea],
+        url_path=r"subtareas/(?P<subtarea_id>[^/.]+)/renombrar",
+    )
+    def renombrar_subtarea(self, request, pk=None, subtarea_id=None):
+        tarea = self.get_object()
+
+        subtarea = get_object_or_404(
+            Subtarea,
+            id=subtarea_id,
+            tarea=tarea,
+        )
+
+        # No permitir modificar subtareas inactivadas.
+        if not subtarea.activo:
+            return Response(
+                {"detail": "No se puede renombrar una subtarea inactivada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Solo permitir modificaciones durante el desarrollo o pausa.
+        if tarea.estado not in [
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+        ]:
+            return Response(
+                {"detail": "Solo se pueden renombrar subtareas de tareas en desarrollo o en pausa."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        descripcion = (
+            request.data.get("descripcion_subtarea") or ""
+        ).strip()
+
+        if not descripcion:
+            return Response(
+                {"detail": "El nombre de la subtarea es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        max_length = Subtarea._meta.get_field("descripcion").max_length
+
+        if max_length and len(descripcion) > max_length:
+            return Response(
+                {"detail": f"El nombre no puede superar los {max_length} caracteres."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if descripcion == subtarea.descripcion:
+            return Response(
+                {"detail": "El nombre no presenta cambios."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nombre_anterior = subtarea.descripcion
+
+        subtarea.descripcion = descripcion
+        subtarea.save(update_fields=["descripcion"])
+
+        return Response(
+            {
+                **SubtareaSerializer(subtarea).data,
+                "nombre_anterior": nombre_anterior,
+                "nombre_nuevo": descripcion,
+                "detail": "Nombre de la subtarea actualizado correctamente.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 
     @action(
         detail=True,

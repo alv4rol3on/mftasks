@@ -315,7 +315,7 @@ export default function TaskModal({
                                     color: "var(--color-text-secondary)",
                                 }}
                             >
-                                Tiempo restante para aprobar o rechazar:{" "}
+                                Tiempo restante de respuesta:{" "}
                                 <ApprovalCountdown fechaLimite={tarea.fecha_limite_aprobacion} />
                             </p>
                         )}
