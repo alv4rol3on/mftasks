@@ -415,6 +415,7 @@ class TareaLog(models.Model):
         SOLICITUD_REAPERTURA = "SOLICITUD_REAPERTURA", "Solicitud de reapertura"
         REAPERTURA_RECHAZADA = "REAPERTURA_RECHAZADA", "Reapertura rechazada"
         CAMBIO_PRIORIDAD = "CAMBIO_PRIORIDAD", "Cambio de prioridad"
+        CAMBIO_NOMBRE_SUBTAREA = "CAMBIO_NOMBRE_SUBTAREA", "Cambio de nombre de subtarea"
 
     tarea = models.ForeignKey(
         Tarea,

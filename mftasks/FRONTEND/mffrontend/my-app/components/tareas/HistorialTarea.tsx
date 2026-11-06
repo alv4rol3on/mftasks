@@ -40,6 +40,9 @@ const ETIQUETAS_EVENTO: Record<string, string> = {
     CONFIRMACION_AUTOMATICA: "Confirmación automática",
     REAPERTURA: "Reapertura",
     CAMBIO_PRIORIDAD: "Cambio de prioridad",
+    CAMBIO_NOMBRE_SUBTAREA: "Cambio de nombre de subtarea",
+    SOLICITUD_REAPERTURA: "Solicitud de reapertura",
+    REAPERTURA_RECHAZADA: "Reapertura rechazada",
 };
 
 type Props = {

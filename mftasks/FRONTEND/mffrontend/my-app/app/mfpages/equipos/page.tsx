@@ -6,6 +6,7 @@ import { getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo, EquipoMiembroDetallado, RolInfo } from "@/lib/types";
 import RefreshButton from "@/components/ui/RefreshButton";
 import PageLoader from "@/components/ui/PageLoader";
+import Pagination from "@/components/ui/Pagination";
 import styles from "./Equipos.module.css";
 import IconButton from "@/components/ui/IconButton";
 
@@ -20,6 +21,14 @@ function extraerEquipos(data: EquipoApiResponse): EquipoInfo[] {
 type Pendiente = { subtarea_id: number; descripcion: string; tarea_id: number; tarea_asunto: string; estado: string };
 
 type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+
+const PAGE_SIZE_EQUIPOS = 10;
+
+const normalizarBusqueda = (valor: string) =>
+  valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 type UsuarioLista = {
   id: number;
@@ -77,6 +86,8 @@ export default function EquiposPage() {
   const puedeCrearEquipo = esAdmin;
   const [soloMios, setSoloMios] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
+  const [busquedaEquipos, setBusquedaEquipos] = useState("");
+  const [paginaEquipos, setPaginaEquipos] = useState(1);
 
   const esMiEquipo = (equipo: EquipoInfo) =>
     equipo.lider?.id === usuario?.id ||
@@ -86,6 +97,33 @@ export default function EquiposPage() {
     .filter((e) => !soloMios || esMiEquipo(e))
     .filter((e) => mostrarInactivos || e.activo)
     .filter((e) => filtroTipo === "TODOS" || (e.tipo_equipo ?? "GTR") === filtroTipo);
+
+  const equiposFiltrados = equiposVisibles.filter((equipo) => {
+    const q = normalizarBusqueda(busquedaEquipos.trim());
+    if (!q) return true;
+
+    const textos = [
+      equipo.nombre,
+      equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "",
+      ...(equipo.miembros ?? []).flatMap((m) => [
+        `${m.nombres} ${m.apellidos}`,
+        m.email ?? "",
+      ]),
+    ];
+
+    return textos.some((texto) => normalizarBusqueda(texto).includes(q));
+  });
+
+  const totalPaginasEquipos = Math.max(
+    1,
+    Math.ceil(equiposFiltrados.length / PAGE_SIZE_EQUIPOS)
+  );
+  const paginaEquiposActual = Math.min(paginaEquipos, totalPaginasEquipos);
+  const equiposPaginados = equiposFiltrados.slice(
+    (paginaEquiposActual - 1) * PAGE_SIZE_EQUIPOS,
+    paginaEquiposActual * PAGE_SIZE_EQUIPOS
+  );
+
   const [nuevo, setNuevo] = useState({
     nombre: "",
     lider: "",
@@ -593,11 +631,28 @@ export default function EquiposPage() {
         </div>
       </div>
 
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          type="search"
+          value={busquedaEquipos}
+          onChange={(e) => {
+            setBusquedaEquipos(e.target.value);
+            setPaginaEquipos(1);
+          }}
+          placeholder="Buscar por equipo, líder o integrante…"
+          aria-label="Buscar equipos"
+          className={styles.searchInput}
+        />
+      </div>
+
       {!esClientePuro && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button
             type="button"
-            onClick={() => setSoloMios((v) => !v)}
+            onClick={() => {
+              setSoloMios((v) => !v);
+              setPaginaEquipos(1);
+            }}
             style={{
               border: "1px solid var(--color-border)",
               background: soloMios ? "var(--color-solomios)" : "var(--color-background)",
@@ -614,7 +669,10 @@ export default function EquiposPage() {
           {esAdmin && (
             <button
               type="button"
-              onClick={() => setMostrarInactivos((v) => !v)}
+              onClick={() => {
+                setMostrarInactivos((v) => !v);
+                setPaginaEquipos(1);
+              }}
               style={{
                 border: "1px solid var(--color-border)",
                 background: mostrarInactivos ? "var(--color-surface)" : "var(--color-background)",
@@ -630,7 +688,7 @@ export default function EquiposPage() {
             </button>
           )}
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-            {equiposVisibles.length} de {equipos.length} equipo(s)
+            {equiposFiltrados.length} de {equipos.length} equipo(s)
           </span>
         </div>
       )}
@@ -650,22 +708,25 @@ export default function EquiposPage() {
         </div>
       )}
 
-      {equiposVisibles.length === 0 ? (
+      {equiposFiltrados.length === 0 ? (
         <div style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24, textAlign: "center" }}>
           <p style={{ color: "var(--color-text-secondary)", fontSize: 14, margin: 0 }}>
-            {soloMios
-              ? "No perteneces a ningún equipo aún."
-              : filtroTipo !== "TODOS"
-                ? "No hay equipos de ese tipo."
-                : esClientePuro
-                  ? "No hay equipos activos disponibles por el momento."
-                  : "No hay equipos disponibles."}
+            {busquedaEquipos.trim()
+              ? "No se encontraron equipos con esa búsqueda."
+              : soloMios
+                ? "No perteneces a ningún equipo aún."
+                : filtroTipo !== "TODOS"
+                  ? "No hay equipos de ese tipo."
+                  : esClientePuro
+                    ? "No hay equipos activos disponibles por el momento."
+                    : "No hay equipos disponibles."}
           </p>
           {!esClientePuro && !soloMios && <p style={{ color: "var(--color-text-secondary)", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
         </div>
       ) : (
-        <div className={styles.grid}>
-          {equiposVisibles.map((equipo) => {
+        <>
+          <div className={styles.grid}>
+            {equiposPaginados.map((equipo) => {
             const expandido = equipoExpandido === equipo.id;
             const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
             const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";
@@ -913,8 +974,19 @@ export default function EquiposPage() {
                 )}
               </div>
             );
-          })}
-        </div>
+            })}
+          </div>
+          <Pagination
+            page={paginaEquiposActual}
+            totalPages={totalPaginasEquipos}
+            totalItems={equiposFiltrados.length}
+            pageSize={PAGE_SIZE_EQUIPOS}
+            onPageChange={(pagina) => {
+              setPaginaEquipos(pagina);
+              setEquipoExpandido(null);
+            }}
+          />
+        </>
       )}
 
       {/* Modal de integrante */}

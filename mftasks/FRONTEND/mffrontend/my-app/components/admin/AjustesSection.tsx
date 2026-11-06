@@ -327,23 +327,17 @@ export default function AjustesSection({ setMsg }: Props) {
   // --------------------------------------------------
 
   return (
-    <div className={styles.container}>
+    <div className={styles.settingsGrid}>
 
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.settingsCard}`}>
 
-        <div className={styles.usersHeader}>
+        <div className={styles.settingsHeader}>
           <div>
-            <h3 className={styles.cardTitle} style={{ margin: 0 }}>
+            <h3 className={styles.settingsTitle}>
               Plazo para aprobar o rechazar solicitudes
             </h3>
 
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--color-text-secondary)",
-                margin: "5px 0 0",
-              }}
-            >
+            <p className={styles.settingsDescription}>
               Define cuánto tiempo tienen los responsables para resolver
               una solicitud pendiente.
             </p>
@@ -351,11 +345,11 @@ export default function AjustesSection({ setMsg }: Props) {
         </div>
 
         {cargandoConfig ? (
-          <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
+          <p className={styles.settingsLoading}>
             Cargando configuración...
           </p>
         ) : (
-          <div style={{ marginTop: 20, maxWidth: 320 }}>
+          <div className={styles.settingsForm}>
             <label className={styles.field}>
               <span>Plazo máximo de aprobación (horas)</span>
 
@@ -374,26 +368,15 @@ export default function AjustesSection({ setMsg }: Props) {
               />
             </label>
 
-            <div
-              style={{
-                marginTop: 12,
-                padding: 12,
-                borderRadius: 8,
-                background: "var(--color-select)",
-                color: "var(--color-text-secondary)",
-                fontSize: 12,
-              }}
-            >
-              <strong style={{ color: "var(--color-text)" }}>
-                Importante:
-              </strong>{" "}
+            <div className={styles.settingsNote}>
+              <strong>Importante:</strong>{" "}
               Si una solicitud no es aprobada ni rechazada dentro del plazo,
               será rechazada automáticamente y se notificará al solicitante.
               El tiempo se cuenta en horas corridas y las solicitudes enviadas 
               previamente no aumentaran ni disminuiran su tiempo luego de la
               configuración.
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className={styles.settingsActions}>
               <button
                 type="button"
                 className={styles.btnSecondary}
@@ -425,21 +408,15 @@ export default function AjustesSection({ setMsg }: Props) {
 
       </div>
 
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.settingsCard}`}>
 
-        <div className={styles.usersHeader}>
+        <div className={styles.settingsHeader}>
           <div>
-            <h3 className={styles.cardTitle} style={{ margin: 0 }}>
+            <h3 className={styles.settingsTitle}>
               Plazo para confirmación del cliente
             </h3>
 
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--color-text-secondary)",
-                margin: "5px 0 0",
-              }}
-            >
+            <p className={styles.settingsDescription}>
               Define cuántos días hábiles tiene el cliente para confirmar o
               reabrir una solución.
             </p>
@@ -447,11 +424,11 @@ export default function AjustesSection({ setMsg }: Props) {
         </div>
 
         {cargandoConfig ? (
-          <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
+          <p className={styles.settingsLoading}>
             Cargando configuración...
           </p>
         ) : (
-          <div style={{ marginTop: 20, maxWidth: 320 }}>
+          <div className={styles.settingsForm}>
             <label className={styles.field}>
               <span>Plazo máximo de confirmación (días hábiles)</span>
 
@@ -470,24 +447,13 @@ export default function AjustesSection({ setMsg }: Props) {
               />
             </label>
 
-            <div
-              style={{
-                marginTop: 12,
-                padding: 12,
-                borderRadius: 8,
-                background: "var(--color-select)",
-                color: "var(--color-text-secondary)",
-                fontSize: 12,
-              }}
-            >
-              <strong style={{ color: "var(--color-text)" }}>
-                Importante:
-              </strong>{" "}
+            <div className={styles.settingsNote}>
+              <strong>Importante:</strong>{" "}
               Si el cliente no confirma ni reabre dentro del plazo, la solución
               se confirmará automáticamente. El tiempo se cuenta en días
               hábiles.
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className={styles.settingsActions}>
               <button
                 type="button"
                 className={styles.btnSecondary}
@@ -519,92 +485,49 @@ export default function AjustesSection({ setMsg }: Props) {
 
       </div>
 
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.settingsCard} ${styles.settingsCardWide}`}>
 
-        <div className={styles.usersHeader}>
+        <div className={styles.settingsHeader}>
           <div>
-            <h3 className={styles.cardTitle} style={{ margin: 0 }}>
+            <h3 className={styles.settingsTitle}>
               Horarios laborales
             </h3>
 
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--color-text-secondary)",
-                margin: "5px 0 0",
-              }}
-            >
+            <p className={styles.settingsDescription}>
               Configura las horas de trabajo para cada día de la semana.
             </p>
           </div>
 
         </div>
 
-        <div
-          style={{
-            marginTop: 20,
-            padding: 14,
-            borderRadius: 10,
-            background: "var(--color-select)",
-            color: "var(--color-text-secondary)",
-            fontSize: 13,
-          }}
-        >
-          <strong style={{ color: "var(--color-text)" }}>
-            Importante:
-          </strong>{" "}
+        <div className={styles.settingsNote}>
+          <strong>Importante:</strong>{" "}
           Estos horarios se aplican globalmente a los contadores de tareas y
           subtareas. Los días desactivados no acumulan tiempo laboral.
         </div>
 
         {cargando ? (
-          <div
-            style={{
-              padding: 35,
-              textAlign: "center",
-              color: "var(--color-text-secondary)",
-            }}
-          >
+          <div className={styles.settingsLoading} style={{ padding: 24, textAlign: "center" }}>
             Cargando horarios...
           </div>
         ) : (
-          <div style={{ marginTop: 20 }}>
+          <div className={styles.hoursSection}>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "minmax(110px, 1.2fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(100px, 0.8fr)",
-                gap: 12,
-                padding: "0 14px 12px",
-                borderBottom: "1px solid var(--color-border)",
-                fontSize: 12,
-                fontWeight: 700,
-                color: "var(--color-text-secondary)",
-              }}
-            >
+            <div className={styles.hoursHeader}>
               <span>DÍA</span>
               <span>HORA DE INICIO</span>
               <span>HORA DE FIN</span>
               <span>LABORABLE</span>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className={styles.hoursTable}>
               {horarios.map(h => (
                 <div
                   key={h.dia}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "minmax(110px, 1.2fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(100px, 0.8fr)",
-                    gap: 12,
-                    alignItems: "center",
-                    padding: "14px",
-                    borderBottom: "1px solid var(--color-border)",
-                    opacity: h.activo ? 1 : 0.65,
-                  }}
+                  className={styles.hoursRow}
+                  style={{ opacity: h.activo ? 1 : 0.65 }}
                 >
-                  <strong style={{ fontSize: 13 }}>
+                  <strong className={styles.hoursDay}>
                     {DIAS[h.dia]}
                   </strong>
 
@@ -632,42 +555,43 @@ export default function AjustesSection({ setMsg }: Props) {
                     className={styles.input}
                   />
 
-                  <Switch
-                    checked={h.activo}
-                    disabled={guardando}
-                    onChange={activo =>
-                      actualizarHorario(h.dia, { activo })
-                    }
-                    label={
-                      h.activo
-                        ? "Día laborable"
-                        : "Día no laborable"
-                    }
-                  />
+                  <div className={styles.hoursSwitch}>
+                    <Switch
+                      checked={h.activo}
+                      disabled={guardando}
+                      onChange={activo =>
+                        actualizarHorario(h.dia, { activo })
+                      }
+                      label={
+                        h.activo
+                          ? "Día laborable"
+                          : "Día no laborable"
+                      }
+                    />
+                  </div>
                 </div>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              className={styles.btnSecondary}
-              onClick={restablecerCambios}
-              disabled={!hayCambios || guardando}
-            >
-              Descartar
-            </button>
+            <div className={styles.settingsActions}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={restablecerCambios}
+                disabled={!hayCambios || guardando}
+              >
+                Descartar
+              </button>
 
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              onClick={guardarHorarios}
-              disabled={!hayCambios || guardando || cargando}
-            >
-              {guardando ? "Guardando..." : "Guardar cambios"}
-            </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                onClick={guardarHorarios}
+                disabled={!hayCambios || guardando || cargando}
+              >
+                {guardando ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
           </div>
-          </div>
-          
         )}
 
       </div>

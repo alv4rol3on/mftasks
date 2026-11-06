@@ -2274,6 +2274,17 @@ class TaskViewSet(viewsets.ModelViewSet):
         subtarea.descripcion = descripcion
         subtarea.save(update_fields=["descripcion"])
 
+        registrar_log(
+            tarea=tarea,
+            subtarea=subtarea,
+            usuario=request.user,
+            tipo_evento=TareaLog.TipoEvento.CAMBIO_NOMBRE_SUBTAREA,
+            detalle=(
+                f'Nombre de subtarea actualizado: "{nombre_anterior}" → '
+                f'"{descripcion}".'
+            ),
+        )
+
         return Response(
             {
                 **SubtareaSerializer(subtarea).data,
