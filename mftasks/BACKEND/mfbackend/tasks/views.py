@@ -712,7 +712,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             estado_anterior=estado_anterior,
             estado_nuevo=tarea.estado,
             detalle=(
-                "Aprobado por aprobadores; pasa a revisión del líder."
+                "Aprobado por superiores; pasa a revisión del líder."
                 if paso_actual == Tarea.PasoAprobacion.APROBADORES
                 else "Aprobación final por el líder del equipo."
             ),
@@ -2336,18 +2336,35 @@ class TaskViewSet(viewsets.ModelViewSet):
             _recalcular_progreso_tarea(tarea)
             # si tras inactivar todas las activas están solucionadas, cerrar tarea
             activas = Subtarea.objects.filter(tarea=tarea, activo=True)
-            if activas.exists() and all(s.estado == Subtarea.Estado.SOLUCIONADO for s in activas):
-                estado_ant = tarea.estado
-                tarea.estado = Tarea.Estado.SOLUCIONADO
-                tarea.fecha_solucion = ahora
-                tarea.save(update_fields=["progreso", "estado", "fecha_solucion"])
-                solicitud_resuelta = estado_ant != Tarea.Estado.SOLUCIONADO
+            
+        if activas.exists() and all(
+            s.estado == Subtarea.Estado.SOLUCIONADO
+            for s in activas
+        ):
+            estado_ant = tarea.estado
+
+            tarea.estado = Tarea.Estado.SOLUCIONADO
+            tarea.fecha_solucion = ahora
+
+            tarea.save(
+                update_fields=["progreso", "estado", "fecha_solucion"]
+            )
+
+            solicitud_resuelta = estado_ant != Tarea.Estado.SOLUCIONADO
+
+            if solicitud_resuelta:
                 registrar_log(
-                    tarea=tarea, usuario=request.user,
+                    tarea=tarea,
+                    usuario=request.user,
                     tipo_evento=TareaLog.TipoEvento.FIN,
-                    estado_anterior=estado_ant, estado_nuevo=tarea.estado,
+                    estado_anterior=estado_ant,
+                    estado_nuevo=tarea.estado,
                     detalle="Tarea finalizada tras inactivar subtareas pendientes.",
                 )
+
+                # Aplicar configuración de confirmación del cliente
+                programar_confirmacion(tarea)
+
             else:
                 # si no quedan activas en STAND_BY y tarea estaba STAND_BY, reanudar
                 if tarea.estado == Tarea.Estado.STAND_BY and not activas.filter(estado=Subtarea.Estado.STAND_BY).exists():

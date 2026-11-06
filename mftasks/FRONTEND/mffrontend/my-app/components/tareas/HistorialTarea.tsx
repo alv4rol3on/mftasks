@@ -96,7 +96,7 @@ export default function HistorialTarea({ tareaId }: Props) {
             <div className={styles.historyHeader}>
                 <div>
                     <h3 className={styles.sectionTitle}>Historial de la solicitud</h3>
-                    <p className={styles.sectionHint}>Trazabilidad de la solicitud y de sus subtareas.</p>
+                    <p className={styles.sectionHint}>Historial de eventos y cambios realizados dentro de la solicitud.</p>
                 </div>
                 <RefreshButton onClick={cargarLogs} loading={recargando} variant="outline" title="Recargar historial" />
             </div>

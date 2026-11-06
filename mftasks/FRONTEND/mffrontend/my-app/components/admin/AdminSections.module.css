@@ -72,8 +72,9 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
 }
 
 .input {
@@ -164,6 +165,10 @@
   min-width: 0;
 }
 
+.fieldFull {
+  grid-column: 1 / -1;
+}
+
 .field > span {
   font-size: 12px;
   font-weight: 600;
@@ -183,14 +188,19 @@
 }
 
 .sectionDivider {
-  margin: 16px 0 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+  grid-column: 1 / -1;
+  margin: 10px 0 2px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--color-border);
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+}
+
+.sectionDivider:first-child {
+  margin-top: 0;
 }
 
 .modalHint {
@@ -945,4 +955,14 @@
   .hoursRow {
     grid-template-columns: 1fr;
   }
+}
+
+
+.input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+}
+
+.select:invalid {
+  color: var(--color-text-secondary);
 }

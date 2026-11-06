@@ -122,10 +122,10 @@ export default function AjustesSection({ setMsg }: Props) {
   const guardarConfirmacion = async () => {
     if (
       !Number.isInteger(diasConfirmacion) ||
-      diasConfirmacion < 1 ||
+      diasConfirmacion < 0 ||
       diasConfirmacion > 30
     ) {
-      setMsg("El plazo debe ser un número entero entre 1 y 30 días hábiles.");
+      setMsg("El plazo debe ser un número entero entre 0(desactivado) y 30 días hábiles.");
       return;
     }
 
@@ -434,7 +434,7 @@ export default function AjustesSection({ setMsg }: Props) {
 
               <input
                 type="number"
-                min={1}
+                min={0}
                 max={30}
                 step={1}
                 value={diasConfirmacion}

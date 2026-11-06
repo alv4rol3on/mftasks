@@ -1,6 +1,2 @@
 
-- renombrar subtareas desde asignaciones y que aparezca en el log el cambio realizado
-- paginacion de equipos de 10 en 10 y una barra de busqueda
-- configuracion de rol: 
-
 zcQJcdC52ik123

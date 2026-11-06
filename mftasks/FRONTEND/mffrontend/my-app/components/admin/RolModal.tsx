@@ -132,19 +132,18 @@ export default function RolModal({
     >
       <div className={styles.formGrid}>
         <label className={styles.field}>
-          <span>Nombre del rol *</span>
           <input
             className={styles.input}
-            placeholder="p. ej. Coordinador"
+            placeholder="Nombre del rol(p. ej. Coordinador) *"
             value={form.nombre}
             onChange={(e) => setForm({ ...form, nombre: e.target.value })}
           />
         </label>
 
         <label className={styles.field}>
-          <span>Descripción</span>
           <input
             className={styles.input}
+            placeholder="Descripción *"
             value={form.descripcion}
             onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
           />

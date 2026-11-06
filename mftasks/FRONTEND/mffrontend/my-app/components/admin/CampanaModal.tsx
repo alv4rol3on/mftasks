@@ -295,9 +295,8 @@ export default function CampanaModal({
       {tipoCreacion === "entidad" && (
         <div className={styles.createForm} style={{ maxWidth: "100%" }}>
           <div className={styles.createField} style={{ position: "relative" }}>
-            <label>Nombre entidad *</label>
             <input
-              placeholder="Ej: BBVA, Scotiabank..."
+              placeholder="Nombre entidad (Ej: BBVA, Scotiabank...)*"
               value={nuevaEntidad.nombre}
               onChange={(e) =>
                 setNuevaEntidad({ ...nuevaEntidad, nombre: e.target.value })
@@ -322,7 +321,7 @@ export default function CampanaModal({
               </div>
             )}
           </div>
-          <div className={styles.createField}>
+          {/*<div className={styles.createField}>
             <label>Razón social</label>
             <input
               value={nuevaEntidad.razon_social}
@@ -375,14 +374,13 @@ export default function CampanaModal({
               }
               className={styles.input}
             />
-          </div>
+          </div>*/}
         </div>
       )}
 
       {tipoCreacion === "campana" && (
         <div className={styles.createForm} style={{ maxWidth: "100%" }}>
           <div className={styles.createField}>
-            <label>Entidad *</label>
             <SearchableSelect
               value={nuevaCampana.entidadId}
               onChange={(value) =>
@@ -393,9 +391,8 @@ export default function CampanaModal({
             />
           </div>
           <div className={styles.createField} style={{ position: "relative" }}>
-            <label>Nombre campaña *</label>
             <input
-              placeholder="Ej: Campaña Outbound"
+              placeholder="Nombre campaña *(Ej: Campaña Outbound)"
               value={nuevaCampana.nombre}
               onChange={(e) =>
                 setNuevaCampana({ ...nuevaCampana, nombre: e.target.value })
@@ -429,7 +426,6 @@ export default function CampanaModal({
       {tipoCreacion === "subcampana" && (
         <div className={styles.createForm} style={{ maxWidth: "100%" }}>
           <div className={styles.createField}>
-            <label>Campaña padre *</label>
             <SearchableSelect
               value={nuevaSubcampana.campanaId}
               onChange={(value) =>
@@ -444,9 +440,8 @@ export default function CampanaModal({
             />
           </div>
           <div className={styles.createField} style={{ position: "relative" }}>
-            <label>Nombre subcampaña *</label>
             <input
-              placeholder="Ej: Tarjetas Out, Digital..."
+              placeholder="Nombre subcampaña(Ej: Tarjetas Out, Digital...)*"
               value={nuevaSubcampana.nombre}
               onChange={(e) =>
                 setNuevaSubcampana({

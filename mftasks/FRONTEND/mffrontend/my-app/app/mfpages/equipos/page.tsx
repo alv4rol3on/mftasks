@@ -861,7 +861,7 @@ export default function EquiposPage() {
                     <div style={{ marginBottom: 12, background: "var(--color-background)", border: `1px solid ${liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                          {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeEstado(liderMiembro.estado)} {liderMiembro && badgeDisponibilidad(liderMiembro)}
+                          {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeDisponibilidad(liderMiembro)}
                         </div>
                         <div style={{ fontSize: 12, color: "var(--color-background-2)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `▸ ${equipo.lider.cargo}` : ""}</div>
                         {liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" && (

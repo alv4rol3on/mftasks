@@ -57,7 +57,7 @@ export default function AdminPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Administración</h1>
+          <h1 className={styles.title}>Administración general </h1>
         </div>
       </div>
 

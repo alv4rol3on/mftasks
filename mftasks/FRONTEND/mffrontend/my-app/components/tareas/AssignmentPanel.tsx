@@ -308,10 +308,10 @@ export default function AssignmentPanel({
             <div className={styles.assignmentHeader}>
                 <div>
                     <h3 className={styles.sectionTitle}>Asignaciones</h3>
-                    <p className={styles.sectionHint}>Cambia el asignado, sugiere por carga o reabre subtareas solucionadas.</p>
+                    <p className={styles.sectionHint}>Cambia el asignado, renombra o reabre subtareas.</p>
                 </div>
                 <div className={styles.assignmentActions}>
-                    <button
+                    {/*<button
                         type="button"
                         onClick={() => void handleSugerir()}
                         disabled={!puedeOperar || sugiriendo || tarea.subtareas.length === 0}
@@ -320,7 +320,7 @@ export default function AssignmentPanel({
                         style={{ padding: "7px 12px", fontSize: 12 }}
                     >
                         {sugiriendo ? "Sugiriendo…" : "Sugerir por carga"}
-                    </button>
+                    </button>*/}
                     <RefreshButton onClick={cargarMiembros} loading={miembrosLoading} variant="outline" title="Recargar equipo" />
                     <button
                         type="button"

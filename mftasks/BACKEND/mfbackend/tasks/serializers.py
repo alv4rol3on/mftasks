@@ -559,9 +559,9 @@ class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
         return value
 
     def validate_dias_habiles_confirmacion(self, value):
-        if not 1 <= value <= 30:
+        if not 0 <= value <= 30:
             raise serializers.ValidationError(
-                "El plazo debe estar entre 1 y 30 días hábiles."
+                "El plazo debe estar entre 0(desactivado) y 30 días hábiles."
             )
 
         return value

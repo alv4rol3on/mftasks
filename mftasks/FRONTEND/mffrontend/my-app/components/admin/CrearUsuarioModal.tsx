@@ -8,7 +8,7 @@ import Modal from "@/components/ui/Modal";
 import styles from "./AdminSections.module.css";
 import type { RolJerarquico } from "./EditarUsuarioModal";
 
-type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+type TipoUsuario = "" | "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
 
 type Props = {
   rolesJerarquicos: RolJerarquico[];
@@ -44,7 +44,7 @@ const FORM_VACIO: FormState = {
   descripcion_cargo: "",
   telefono: "",
   password: "",
-  tipo_usuario: "COLABORADOR",
+  tipo_usuario: "",
   rol: "",
 };
 
@@ -69,6 +69,11 @@ export default function CrearUsuarioModal({
 
     if (!/^\d{8}$/.test(form.dni)) {
       setError("El DNI debe contener exactamente 8 números.");
+      return;
+    }
+
+    if (!form.tipo_usuario) {
+      setError("Selecciona un tipo de usuario.");
       return;
     }
 
@@ -139,94 +144,93 @@ export default function CrearUsuarioModal({
 
   return (
     <Modal title="Crear nuevo usuario" onClose={onClose} footer={footer} maxWidth={640}>
+
       <div className={styles.formGrid}>
-        <label className={styles.field}>
-          <span>Nombres *</span>
-          <input
-            className={styles.input}
-            value={form.nombres}
-            onChange={(e) => setForm({ ...form, nombres: e.target.value })}
-          />
-        </label>
+
+        {/* DATOS PERSONALES */}
+        <div className={styles.sectionDivider}>
+          Datos personales
+        </div>
+
+        <input
+          className={styles.input}
+          placeholder="Nombres *"
+          value={form.nombres}
+          onChange={(e) => setForm({ ...form, nombres: e.target.value })}
+        />
+
+
+        <input
+          className={styles.input}
+          placeholder="Apellidos *"
+          value={form.apellidos}
+          onChange={(e) => setForm({ ...form, apellidos: e.target.value })}
+        />
+
+
+
+        <input
+          className={styles.input}
+          placeholder="DNI *"
+          value={form.dni}
+          onChange={(e) => handleDniChange(e.target.value)}
+          inputMode="numeric"
+          maxLength={8}
+        />
+
+        <input
+          className={styles.input}
+          placeholder="Telefono "
+          value={form.telefono}
+          onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+        />
+
+
+
+        <input
+          className={styles.input}
+          placeholder="Cargo"
+          value={form.cargo}
+          onChange={(e) => setForm({ ...form, cargo: e.target.value })}
+        />
+
+        {/* CREDENCIALES */}
+        <div className={styles.sectionDivider}>
+          Credenciales de acceso
+        </div>
+
+
+        <input
+          className={styles.input}
+          type="email"
+          placeholder="Correo electrònico *"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
+
+
+
+        {/* CONFIGURACIÓN */}
+        <div className={styles.sectionDivider}>
+          Configuración del usuario
+        </div>
 
         <label className={styles.field}>
-          <span>Apellidos *</span>
-          <input
-            className={styles.input}
-            value={form.apellidos}
-            onChange={(e) => setForm({ ...form, apellidos: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>DNI *</span>
-          <input
-            className={styles.input}
-            value={form.dni}
-            onChange={(e) => handleDniChange(e.target.value)}
-            inputMode="numeric"
-            maxLength={8}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Email *</span>
-          <input
-            className={styles.input}
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Cargo</span>
-          <input
-            className={styles.input}
-            value={form.cargo}
-            onChange={(e) => setForm({ ...form, cargo: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Teléfono</span>
-          <input
-            className={styles.input}
-            value={form.telefono}
-            onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Descripción del cargo</span>
-          <input
-            className={styles.input}
-            value={form.descripcion_cargo}
-            onChange={(e) =>
-              setForm({ ...form, descripcion_cargo: e.target.value })
-            }
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Password</span>
-          <input
-            className={styles.input}
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Tipo</span>
           <select
             className={styles.select}
             value={form.tipo_usuario}
             onChange={(e) =>
-              setForm({ ...form, tipo_usuario: e.target.value as TipoUsuario })
+              setForm({
+                ...form,
+                tipo_usuario: e.target.value as TipoUsuario,
+                rol: "",
+              })
             }
           >
+            <option value="" disabled>
+              Selecciona el tipo de usuario *
+            </option>
+
             {TIPOS_USUARIO.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
@@ -237,13 +241,13 @@ export default function CrearUsuarioModal({
 
         {form.tipo_usuario === "COLABORADOR" && (
           <label className={styles.field}>
-            <span>Rol *</span>
             <select
               className={styles.select}
               value={form.rol}
               onChange={(e) => setForm({ ...form, rol: e.target.value })}
             >
-              <option value="">Selecciona un rol...</option>
+              <option value="">Selecciona un rol *</option>
+
               {rolesJerarquicos.map((r) => (
                 <option key={r.id} value={r.nombre}>
                   {r.nombre}
@@ -252,7 +256,9 @@ export default function CrearUsuarioModal({
             </select>
           </label>
         )}
+
       </div>
+
 
       {error && (
         <div className={`${styles.msg} ${styles.msgError}`} style={{ marginTop: 12 }}>

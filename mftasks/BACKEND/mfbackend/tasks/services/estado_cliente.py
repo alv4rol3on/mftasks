@@ -52,9 +52,9 @@ def explicar_estado_cliente(tarea: Tarea) -> dict:
             siguiente = "El líder debe aprobarla o rechazarla para continuar."
             motivo = "Pendiente de revisión del líder."
         else:
-            explicacion = "Tu solicitud está en revisión por la cadena de aprobación."
+            explicacion = "Tu solicitud está en proceso de revisión"
             siguiente = "Un aprobador debe revisar y aprobar la solicitud."
-            motivo = "Pendiente de aprobación jerárquica."
+            motivo = "Pendiente de aprobación jerárquica."  
 
     elif estado == Tarea.Estado.APROBADO:
         explicacion = "Tu solicitud fue aprobada y está pendiente de planificación."

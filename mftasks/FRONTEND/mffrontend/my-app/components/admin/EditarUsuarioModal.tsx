@@ -183,66 +183,59 @@ export default function EditarUsuarioModal({
         </div>
       )}
 
-      <div className={styles.formGrid}>
-        <label className={styles.field}>
-          <span>Nombres</span>
-          <input
-            className={styles.input}
-            value={form.nombres}
-            onChange={(e) => setForm({ ...form, nombres: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Apellidos</span>
-          <input
-            className={styles.input}
-            value={form.apellidos}
-            onChange={(e) => setForm({ ...form, apellidos: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Email</span>
-          <input
-            className={styles.input}
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>DNI</span>
-          <input
-            className={styles.input}
-            value={form.dni}
-            onChange={(e) => handleDniChange(e.target.value)}
-            inputMode="numeric"
-            maxLength={8}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Cargo</span>
-          <input
-            className={styles.input}
-            value={form.cargo}
-            onChange={(e) => setForm({ ...form, cargo: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>Teléfono</span>
-          <input
-            className={styles.input}
-            value={form.telefono}
-            onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-          />
-        </label>
+      {/* DATOS PERSONALES */}
+      <div className={styles.sectionDivider}>
+        Datos personales
       </div>
 
-      <label className={styles.field} style={{ marginTop: 12 }}>
+      <div className={styles.formGrid}>
+        <input
+          className={styles.input}
+          placeholder="Nombres *"
+          value={form.nombres}
+          onChange={(e) => setForm({ ...form, nombres: e.target.value })}
+        />
+
+        <input
+          className={styles.input}
+          placeholder="Apellidos *"
+          value={form.apellidos}
+          onChange={(e) => setForm({ ...form, apellidos: e.target.value })}
+        />
+
+        <input
+          className={styles.input}
+          type="email"
+          placeholder="Correo electrónico *"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
+
+        <input
+          className={styles.input}
+          placeholder="DNI *"
+          value={form.dni}
+          onChange={(e) => handleDniChange(e.target.value)}
+          inputMode="numeric"
+          maxLength={8}
+        />
+
+        <input
+          className={styles.input}
+          placeholder="Cargo"
+          value={form.cargo}
+          onChange={(e) => setForm({ ...form, cargo: e.target.value })}
+        />
+
+        <input
+          className={styles.input}
+          placeholder="Teléfono"
+          value={form.telefono}
+          onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+        />
+      </div>
+
+      {/*<label className={styles.field} style={{ marginTop: 12 }}>
         <span>Descripción del cargo</span>
         <textarea
           className={styles.textarea}
@@ -250,9 +243,12 @@ export default function EditarUsuarioModal({
           value={form.descripcion_cargo}
           onChange={(e) => setForm({ ...form, descripcion_cargo: e.target.value })}
         />
-      </label>
+      </label>*/}
 
-      <div className={styles.sectionDivider}>Acceso y rol</div>
+      {/* CONFIGURACIÓN DEL USUARIO */}
+      <div className={styles.sectionDivider}>
+        Configuración del usuario
+      </div>
 
       {bloqueo && (
         <div className={`${styles.msg} ${styles.msgError}`} style={{ marginBottom: 12 }}>
@@ -261,47 +257,48 @@ export default function EditarUsuarioModal({
       )}
 
       <div className={styles.formGrid}>
-        <label className={styles.field}>
-          <span>Tipo</span>
+
+        <select
+          className={styles.select}
+          value={form.tipo_usuario}
+          disabled={Boolean(bloqueo)}
+          title={bloqueo ?? undefined}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              tipo_usuario: e.target.value as TipoUsuario,
+              rol: "",
+            })
+          }
+        >
+          {TIPOS_USUARIO.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+
+        {form.tipo_usuario === "COLABORADOR" && (
           <select
             className={styles.select}
-            value={form.tipo_usuario}
+            value={form.rol}
             disabled={Boolean(bloqueo)}
             title={bloqueo ?? undefined}
-            onChange={(e) =>
-              setForm({ ...form, tipo_usuario: e.target.value as TipoUsuario })
-            }
+            onChange={(e) => setForm({ ...form, rol: e.target.value })}
           >
-            {TIPOS_USUARIO.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
+            <option value="">Selecciona un rol *</option>
+
+            {rolesJerarquicos.map((r) => (
+              <option key={r.id} value={r.nombre}>
+                {r.nombre}
               </option>
             ))}
           </select>
-        </label>
-
-        {form.tipo_usuario === "COLABORADOR" && (
-          <label className={styles.field}>
-            <span>Rol</span>
-            <select
-              className={styles.select}
-              value={form.rol}
-              disabled={Boolean(bloqueo)}
-              title={bloqueo ?? undefined}
-              onChange={(e) => setForm({ ...form, rol: e.target.value })}
-            >
-              <option value="">Selecciona un rol...</option>
-              {rolesJerarquicos.map((r) => (
-                <option key={r.id} value={r.nombre}>
-                  {r.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
         )}
 
-        <label className={styles.field}>
-          <span>Activo</span>
+        <div className={styles.field}>
+          <span>Estado del usuario</span>
+
           <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36 }}>
             <Switch
               checked={form.is_active}
@@ -316,11 +313,13 @@ export default function EditarUsuarioModal({
                     : "Activar"
               }
             />
+
             <span style={{ fontSize: 12, color: "var(--color-text)" }}>
               {form.is_active ? "Habilitado" : "Inhabilitado"}
             </span>
           </div>
-        </label>
+        </div>
+
       </div>
 
       {error && (

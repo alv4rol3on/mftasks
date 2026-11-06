@@ -18,10 +18,31 @@ def _ahora():
     return timezone.localtime(timezone.now())
 
 
+
 def programar_confirmacion(tarea: Tarea) -> Tarea:
-    """Marca la solicitud como solucionada pendiente de confirmación del cliente."""
+    """
+    Programa la confirmación del cliente.
+    Si la configuración es 0 días, confirma automáticamente.
+    """
     ahora = _ahora()
     dias_habiles = ConfiguracionAprobacion.obtener().dias_habiles_confirmacion
+
+    if dias_habiles == 0:
+        tarea.confirmacion_cliente = Tarea.ConfirmacionCliente.CONFIRMADA
+        tarea.fecha_confirmacion_cliente = ahora
+        tarea.fecha_limite_confirmacion = None
+
+        tarea.save(
+            update_fields=[
+                "confirmacion_cliente",
+                "fecha_confirmacion_cliente",
+                "fecha_limite_confirmacion",
+            ]
+        )
+
+        transaction.on_commit(lambda: notificar_tarea(tarea))
+
+        return tarea
 
     tarea.confirmacion_cliente = Tarea.ConfirmacionCliente.PENDIENTE
     tarea.fecha_limite_confirmacion = sumar_dias_habiles(
@@ -29,6 +50,7 @@ def programar_confirmacion(tarea: Tarea) -> Tarea:
         dias_habiles,
     )
     tarea.fecha_confirmacion_cliente = None
+
     tarea.save(
         update_fields=[
             "confirmacion_cliente",
@@ -36,6 +58,7 @@ def programar_confirmacion(tarea: Tarea) -> Tarea:
             "fecha_confirmacion_cliente",
         ]
     )
+
     return tarea
 
 

@@ -635,7 +635,7 @@ class ConfiguracionAprobacion(models.Model):
     dias_habiles_confirmacion = models.PositiveSmallIntegerField(
         default=5,
         validators=[
-            MinValueValidator(1),
+            MinValueValidator(0),
             MaxValueValidator(30),
         ],
         verbose_name="Días hábiles para confirmación del cliente",

@@ -103,7 +103,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
       }}
     >
 
-      {puedeCancelar && (
+      {puedeCancelar && tarea.estado=="EN_ESPERA" &&(
         <button
           type="button"
           onClick={() => setAccion("cancelar")}
@@ -203,7 +203,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                       {tarea.estado_explicado}
                     </p>
                   )}
-                  {tarea.siguiente_paso && (
+                  {tarea.siguiente_paso && tarea.estado != "EN_ESPERA" && (
                     <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
                       {tarea.siguiente_paso == "-" ? (
                         null
@@ -211,7 +211,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
                       }
                     </p>
                   )}
-                  {tarea.motivo_demora && (
+                  {tarea.motivo_demora && tarea.estado != "EN_ESPERA" && (
                     <p style={{ margin: 0, fontSize: 12, color: "var(--color-waiting)" }}>
                       <strong>Motivo:</strong> {tarea.motivo_demora}
                     </p>
