@@ -16,12 +16,24 @@ import RolesSection from "@/components/admin/RolesSection";
 
 type Tab = "usuarios" | "roles" | "permisos" | "campanas" | "ajustes";
 
+const TAB_TITULOS: Record<Tab, string> = {
+  usuarios: "Usuarios",
+  roles: "Roles",
+  permisos: "Permisos",
+  campanas: "Campañas",
+  ajustes: "Ajustes de tiempos",
+};
+
 export default function AdminPage() {
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>("usuarios");
   const [msg, setMsg] = useState<string | null>(null);
   const [esAdmin, setEsAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    document.title = `${TAB_TITULOS[tab]} · Administración general · MF Tasks`;
+  }, [tab]);
 
   useEffect(() => {
     const usuario = getUsuarioActual();

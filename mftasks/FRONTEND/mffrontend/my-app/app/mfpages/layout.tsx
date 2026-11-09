@@ -1,8 +1,8 @@
 import DashboardLayout from "../../components/DashboardLayout";
 
 export const metadata = {
-  title: "MF",
-  description: "MF en Next.js",
+  title: "MF Tasks",
+  description: "Sistema de solicitudes y tareas MF",
 };
 
 export default function Layout({

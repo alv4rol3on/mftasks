@@ -966,3 +966,46 @@
 .select:invalid {
   color: var(--color-text-secondary);
 }
+/* Entidades editables */
+.entidadesBlock {
+  margin-bottom: 12px;
+}
+
+.entidadesTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 6px;
+}
+
+.entidadesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.entidadChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.campanaTitleWrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.campanaTitleSep {
+  color: var(--color-text-secondary);
+  margin: 0 2px;
+}

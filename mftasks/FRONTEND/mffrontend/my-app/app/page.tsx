@@ -21,6 +21,10 @@ export default function Home() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        document.title = "Iniciar sesión · MF Tasks";
+    }, []);
+
+    useEffect(() => {
         if (inProgress !== InteractionStatus.None) return;
 
         const cuenta =

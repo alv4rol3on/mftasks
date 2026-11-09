@@ -5,9 +5,13 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import Switch from "@/components/ui/Switch";
 import Pagination from "@/components/ui/Pagination";
+import IconButton from "@/components/ui/IconButton";
 
 import styles from "./AdminSections.module.css";
 import CampanaModal from "./CampanaModal";
+import EditarNombreModal, {
+  type TipoNombre,
+} from "./EditarNombreModal";
 
 type Subcampana = {
   id: number;
@@ -39,6 +43,12 @@ type Props = {
 
 const PAGE_SIZE_CAMPANAS = 6;
 
+type EditTarget = {
+  tipo: TipoNombre;
+  id: number;
+  nombre: string;
+};
+
 export default function CampanasSection({ setMsg }: Props) {
   const [campanas, setCampanas] = useState<CampanaPerm[]>([]);
   const [entidades, setEntidades] = useState<EntidadPerm[]>([]);
@@ -56,6 +66,43 @@ export default function CampanasSection({ setMsg }: Props) {
   const [pageCampanas, setPageCampanas] = useState(1);
 
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+
+  const nombresExistentes = (() => {
+    if (!editTarget) return [];
+
+    if (editTarget.tipo === "entidad") {
+      return entidades.filter((entidad) => entidad.id !== editTarget.id);
+    }
+
+    if (editTarget.tipo === "campana") {
+      const campana = campanas.find(
+        (item) => item.id === editTarget.id
+      );
+
+      if (!campana) return [];
+
+      return campanas.filter(
+        (item) =>
+          item.entidad === campana.entidad && item.id !== campana.id
+      );
+    }
+
+    for (const campana of campanas) {
+      const sub = campana.subcampanas.find(
+        (item) => item.id === editTarget.id
+      );
+
+      if (sub) {
+        return campana.subcampanas.filter(
+          (item) => item.id !== sub.id
+        );
+      }
+    }
+
+    return [];
+  })();
 
   // --------------------------------------------------
   // CARGAR CAMPAÑAS
@@ -305,6 +352,34 @@ export default function CampanasSection({ setMsg }: Props) {
           </button>
         </div>
 
+        {entidades.length > 0 && (
+          <div className={styles.entidadesBlock}>
+            <div className={styles.entidadesTitle}>Entidades</div>
+
+            <div className={styles.entidadesList}>
+              {entidades.map((entidad) => (
+                <span key={entidad.id} className={styles.entidadChip}>
+                  <span>{entidad.nombre}</span>
+
+                  <IconButton
+                    icon="edit"
+                    size={12}
+                    variant="primary"
+                    title={`Editar nombre de la entidad ${entidad.nombre}`}
+                    onClick={() =>
+                      setEditTarget({
+                        tipo: "entidad",
+                        id: entidad.id,
+                        nombre: entidad.nombre,
+                      })
+                    }
+                  />
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className={styles.permisosHeader}>
           <div className={styles.permisosField} style={{ maxWidth: 400 }}>
             <label style={{ fontSize: 13, fontWeight: 600 }}>
@@ -416,23 +491,54 @@ export default function CampanasSection({ setMsg }: Props) {
                     aria-expanded={abierta}
                     style={{ cursor: "pointer" }}
                   >
-                    <div>
+                    <div className={styles.campanaTitleWrap}>
                       <span className={styles.campanaTitle}>
-                        {camp.entidad_nombre} · {camp.nombre}
-                      </span>{" "}
-                      {/*<span className={styles.campanaCode}>
-                        ({camp.codigo})
+                        {camp.entidad_nombre}
                       </span>
 
                       <span
-                        className={`${styles.badgeActive} ${
-                          camp.activo
-                            ? styles.badgeActiveOn
-                            : styles.badgeActiveOff
-                        }`}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                       >
-                        {camp.activo ? "activa" : "inactiva"}
-                      </span>*/}
+                        <IconButton
+                          icon="edit"
+                          size={12}
+                          variant="primary"
+                          title={`Editar nombre de la entidad ${camp.entidad_nombre}`}
+                          onClick={() =>
+                            setEditTarget({
+                              tipo: "entidad",
+                              id: camp.entidad,
+                              nombre: camp.entidad_nombre ?? "",
+                            })
+                          }
+                        />
+                      </span>
+
+                      <span className={styles.campanaTitleSep}>·</span>
+
+                      <span className={styles.campanaTitle}>
+                        {camp.nombre}
+                      </span>
+
+                      <span
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <IconButton
+                          icon="edit"
+                          size={12}
+                          variant="primary"
+                          title={`Editar nombre de la campaña ${camp.nombre}`}
+                          onClick={() =>
+                            setEditTarget({
+                              tipo: "campana",
+                              id: camp.id,
+                              nombre: camp.nombre,
+                            })
+                          }
+                        />
+                      </span>
                     </div>
 
                     <span
@@ -516,6 +622,20 @@ export default function CampanasSection({ setMsg }: Props) {
                                   gap: 6,
                                 }}
                               >
+                                <IconButton
+                                  icon="edit"
+                                  size={12}
+                                  variant="primary"
+                                  title={`Editar nombre de la subcampaña ${sub.nombre}`}
+                                  onClick={() =>
+                                    setEditTarget({
+                                      tipo: "subcampana",
+                                      id: sub.id,
+                                      nombre: sub.nombre,
+                                    })
+                                  }
+                                />
+
                                 {/*<span
                                   className={`${styles.badgeActive} ${
                                     sub.activo && camp.activo
@@ -576,6 +696,21 @@ export default function CampanasSection({ setMsg }: Props) {
           entidades={entidades}
           campanas={campanas}
           onClose={() => setModalOpen(false)}
+          onSaved={async (m) => {
+            setMsg(m);
+            await cargarCampanas();
+          }}
+        />
+      )}
+
+      {editTarget && (
+        <EditarNombreModal
+          key={`${editTarget.tipo}-${editTarget.id}`}
+          tipo={editTarget.tipo}
+          id={editTarget.id}
+          nombreActual={editTarget.nombre}
+          nombresExistentes={nombresExistentes}
+          onClose={() => setEditTarget(null)}
           onSaved={async (m) => {
             setMsg(m);
             await cargarCampanas();

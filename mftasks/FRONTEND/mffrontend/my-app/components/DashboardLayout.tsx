@@ -17,6 +17,46 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+function tituloParaRuta(pathname: string): string | null {
+  // La página de administración controla su propio título según la pestaña.
+  if (pathname === "/mfpages/admin" || pathname.startsWith("/mfpages/admin/")) {
+    return null;
+  }
+
+  if (
+    pathname.startsWith("/mfpages/tareas/") &&
+    pathname.endsWith("/iniciar")
+  ) {
+    return "Iniciar tarea · MF Tasks";
+  }
+
+  if (pathname.startsWith("/mfpages/tareas/")) {
+    return "Detalle de tarea · MF Tasks";
+  }
+
+  if (pathname.startsWith("/mfpages/tareas")) {
+    return "Tareas en desarrollo · MF Tasks";
+  }
+
+  if (pathname.startsWith("/mfpages/solicitudes")) {
+    return "Solicitudes · MF Tasks";
+  }
+
+  if (pathname.startsWith("/mfpages/equipos")) {
+    return "Equipos · MF Tasks";
+  }
+
+  if (pathname.startsWith("/mfpages/perfil")) {
+    return "Perfil · MF Tasks";
+  }
+
+  if (pathname.startsWith("/mfpages/cliente/mis-solicitudes")) {
+    return "Seguimiento de solicitudes · MF Tasks";
+  }
+
+  return "MF Tasks";
+}
+
 export default function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
@@ -30,6 +70,14 @@ export default function DashboardLayout({
   const [codigo, setCodigo] = useState<string | null>(null);
 
   const [tema, setTema] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const titulo = tituloParaRuta(pathname);
+
+    if (titulo) {
+      document.title = titulo;
+    }
+  }, [pathname]);
 
 
 

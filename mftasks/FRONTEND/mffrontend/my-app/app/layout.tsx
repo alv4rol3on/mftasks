@@ -4,6 +4,11 @@ import { ToastProvider } from "@/components/ui/Toast";
 import VmErrorFilter from "@/components/ui/VmErrorFilter";
 import { TasksWebSocketProvider } from "./providers/TasksWebSocketProvider";
 
+export const metadata = {
+    title: "MF Tasks",
+    description: "Sistema de solicitudes y tareas MF",
+};
+
 export default function RootLayout({
     children,
 }: Readonly<{
