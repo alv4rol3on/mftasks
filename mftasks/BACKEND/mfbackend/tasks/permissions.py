@@ -76,9 +76,7 @@ def es_asignador_del_equipo(user, equipo):
         return False
 
     # Administrador puede gestionar cualquier equipo
-    if user.roles.filter(
-        rol__nombre__iexact="Administrador"
-    ).exists():
+    if es_administrador(user):
         return True
 
     # Líder real de ESTE equipo
@@ -350,5 +348,12 @@ class EsAsignadoDeSubtarea(BasePermission):
             equipo = obj.tarea.equipo
         except Exception:
             return False
-        is_member = equipo.lider_id == request.user.id or equipo.miembros.filter(usuario=request.user).exists()
+        is_member = (
+            equipo.lider_id == request.user.id
+            or equipo.miembros.filter(
+                usuario=request.user,
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+            ).exists()
+        )
+
         return is_member

@@ -1,2 +1,3 @@
-
+- revisar seguridad
+- logs de cada cambio 
 zcQJcdC52ik123

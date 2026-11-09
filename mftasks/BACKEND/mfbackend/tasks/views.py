@@ -83,7 +83,7 @@ from .services.aprobaciones import (
 )
 
 from campanas.models import PermisoCampana
-from usuarios.models import Rol
+from usuarios.models import Rol, EquipoMiembro
 from usuarios.disponibilidad import esta_disponible, excluir_no_disponibles
 
 
@@ -888,7 +888,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         equipo = tarea.equipo
 
-        from usuarios.models import EquipoMiembro
         miembros_qs = excluir_no_disponibles(
             equipo.miembros.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO),
             prefix="usuario",
@@ -1213,7 +1212,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         equipo = tarea.equipo
 
-        from usuarios.models import EquipoMiembro
         miembros_qs = excluir_no_disponibles(
             equipo.miembros.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO),
             prefix="usuario",
@@ -1583,6 +1581,22 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def archivos_zip(self, request, pk=None):
         tarea = self.get_object()
+
+        from .permissions import es_miembro_del_equipo
+
+        es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
+        es_solicitante = tarea.solicitante_id == request.user.id
+
+        if not (
+            es_equipo
+            or es_solicitante
+            or es_administrador(request.user)
+        ):
+            return Response(
+                {"detail": "No tienes permiso para consultar esta información."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         archivos = list(tarea.archivos.all())
         if not archivos:
             return Response(
@@ -1653,6 +1667,22 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def informacion_cliente(self, request, pk=None):
         tarea = self.get_object()
+
+        from .permissions import es_miembro_del_equipo
+
+        es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
+        es_solicitante = tarea.solicitante_id == request.user.id
+
+        if not (
+            es_equipo
+            or es_solicitante
+            or es_administrador(request.user)
+        ):
+            return Response(
+                {"detail": "No tienes permiso para consultar esta información."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         logs = (
             TareaLog.objects.filter(
                 tarea=tarea,
@@ -1904,7 +1934,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         is_member = (
             tarea.equipo.lider_id == request.user.id
             or tarea.equipo.miembros.filter(
-                usuario=request.user
+                usuario=request.user,
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO
             ).exists()
         )
 
@@ -2026,7 +2057,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Miembro/asignador (y también CLIENTE) solo si es de su equipo y es el asignado
         is_member = (
             tarea.equipo.lider_id == request.user.id
-            or tarea.equipo.miembros.filter(usuario=request.user).exists()
+            or tarea.equipo.miembros.filter(
+                usuario=request.user,
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO
+            ).exists()
         )
         if not is_member:
             return Response(
@@ -2166,7 +2200,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         if nuevo_id == subtarea.asignado_id:
             return Response({"detail": "El nuevo asignado es el mismo que el actual."}, status=status.HTTP_400_BAD_REQUEST)
         # Validar que nuevo asignado sea miembro activo del equipo (o líder)
-        from usuarios.models import EquipoMiembro
         equipo = tarea.equipo
         miembros_activos = set(
             excluir_no_disponibles(
@@ -2437,12 +2470,17 @@ class TaskViewSet(viewsets.ModelViewSet):
         tarea = self.get_object()
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
         # solo miembro/lider del equipo puede poner standby (tu r3)
-        is_member = tarea.equipo.lider_id == request.user.id or tarea.equipo.miembros.filter(usuario=request.user).exclude(estado="INACTIVO").exists()
+        is_member = (
+            tarea.equipo.lider_id == request.user.id
+            or tarea.equipo.miembros.filter(
+                usuario=request.user,
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO
+            ).exists()
+        )
         if not is_member:
             return Response({"detail": "No perteneces al equipo."}, status=status.HTTP_403_FORBIDDEN)
         if subtarea.asignado_id != request.user.id and tarea.equipo.lider_id != request.user.id:
             # lider puede pausar cualquier subtarea, miembro solo la suya
-            from usuarios.models import EquipoMiembro
             is_lider = EquipoMiembro.objects.filter(equipo=tarea.equipo, usuario=request.user, rol_en_equipo=EquipoMiembro.RolEnEquipo.LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists() or tarea.equipo.lider_id == request.user.id
             if not is_lider:
                 return Response({"detail": "Solo el asignado o el líder puede pausar."}, status=status.HTTP_403_FORBIDDEN)
@@ -2544,10 +2582,10 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         is_member = (
             tarea.equipo.lider_id == request.user.id
-            or tarea.equipo.miembros
-            .filter(usuario=request.user)
-            .exclude(estado="INACTIVO")
-            .exists()
+            or tarea.equipo.miembros.filter(
+                usuario=request.user,
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO
+            ).exists()
         )
 
         if not is_member:
@@ -2567,7 +2605,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             subtarea.asignado_id != request.user.id
             and tarea.equipo.lider_id != request.user.id
         ):
-            from usuarios.models import EquipoMiembro
 
             is_lider = EquipoMiembro.objects.filter(
                 equipo=tarea.equipo,
@@ -2824,9 +2861,20 @@ class TaskViewSet(viewsets.ModelViewSet):
         if bloqueadora_id == subtarea.id:
             return Response({"detail": "No puede depender de sí misma."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            bloqueadora = Subtarea.objects.get(id=bloqueadora_id)
+            bloqueadora = Subtarea.objects.get(
+                id=bloqueadora_id,
+                tarea=tarea,
+            )
         except Subtarea.DoesNotExist:
-            return Response({"detail": "Subtarea bloqueadora no existe."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {
+                    "detail": (
+                        "La subtarea bloqueadora no existe "
+                        "o no pertenece a esta solicitud."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
         if _detecta_ciclo_subtarea(subtarea.id, bloqueadora_id):
             return Response({"detail": "Ciclo detectado."}, status=status.HTTP_400_BAD_REQUEST)
         from .models import DependenciaSubtarea

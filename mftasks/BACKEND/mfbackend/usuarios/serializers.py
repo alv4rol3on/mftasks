@@ -100,8 +100,30 @@ class DisponibilidadUsuarioSerializer(serializers.ModelSerializer):
 
         return attrs
 
+class DatosPersonalesAdminMixin:
+    """
+    DNI y teléfono solo se muestran a administradores.
+    """
 
-class UserSerializer(serializers.ModelSerializer):
+    def get_fields(self):
+        fields = super().get_fields()
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        es_admin = False
+
+        if user and user.is_authenticated:
+            from .permissions import es_administrador
+            es_admin = es_administrador(user)
+
+        if not es_admin:
+            fields.pop("dni", None)
+            fields.pop("telefono", None)
+
+        return fields
+
+class UserSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
     roles = serializers.SerializerMethodField()
@@ -271,7 +293,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 continue
         return user
 
-class UserDetailSerializer(serializers.ModelSerializer):
+class UserDetailSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
 
     roles = serializers.SerializerMethodField()
 
@@ -335,7 +357,7 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["fecha_actualizacion"]
 
-class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
+class EquipoMiembroDetailSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
     usuario = UserSerializer(read_only=True)
 
     # campos planos para facilitar consumo en frontend
@@ -453,7 +475,11 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
                         qs = qs.exclude(estado=EquipoMiembro.EstadoMiembro.INACTIVO)
             except Exception:
                 pass
-        return EquipoMiembroDetailSerializer(qs, many=True).data
+        return EquipoMiembroDetailSerializer(
+            qs,
+            many=True,
+            context=self.context,
+        ).data
 
     def get_puedo_gestionar(self, obj):
         request = self.context.get("request")

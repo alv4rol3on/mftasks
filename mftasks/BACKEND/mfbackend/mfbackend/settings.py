@@ -194,7 +194,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://*.trycloudflare.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://192.168.202.10:3000",

@@ -122,7 +122,24 @@ class MicrosoftLoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if azure_id and usuario.azure_id != azure_id:
+        # Proteger la vinculación de la cuenta Microsoft.
+        if usuario.azure_id and usuario.azure_id != azure_id:
+            logger.warning(
+                "Login SSO rechazado: el usuario %s ya tiene otro azure_id vinculado.",
+                usuario.email,
+            )
+            return Response(
+                {
+                    "detail": (
+                        "Tu cuenta ya está vinculada a otra cuenta de Microsoft. "
+                        "Contacta con el administrador."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Vinculación inicial: solo si todavía no tiene azure_id.
+        if not usuario.azure_id:
             usuario.azure_id = azure_id
 
         usuario.last_login = timezone.now()
@@ -351,32 +368,46 @@ class UserViewSet(ModelViewSet):
                 raise PermissionDenied("No se puede modificar usuarios administradores.")
         return obj
 
+    from django.db import transaction
+
+    @transaction.atomic
     def perform_update(self, serializer):
-        # Manejar cambio de roles si viene en request
         roles = serializer.validated_data.pop("roles", None)
         tipo_usuario_explicito = serializer.validated_data.get("tipo_usuario")
+
         serializer.save()
+
         if roles is not None:
             from .models import Rol, TipoUsuario, UserRol
+
             user = serializer.instance
-            # Roles ya validados en el serializer (deben existir).
-            # No tocar Administrador si ya lo tenía (bloqueado arriba).
-            UserRol.objects.filter(usuario=user).exclude(rol__nombre__iexact="Administrador").delete()
+
+            UserRol.objects.filter(
+                usuario=user
+            ).exclude(
+                rol__nombre__iexact="Administrador"
+            ).delete()
+
             for rname in roles:
                 rol_obj = Rol.objects.get(nombre__iexact=rname)
-                UserRol.objects.get_or_create(usuario=user, rol=rol_obj)
-            # Derivar tipo_usuario de los roles si no se indicó explícitamente.
+                UserRol.objects.get_or_create(
+                    usuario=user,
+                    rol=rol_obj
+                )
+
             if not tipo_usuario_explicito:
                 nombres = {
                     (ur.rol.nombre or "").lower()
                     for ur in user.roles.select_related("rol")
                 }
+
                 if "administrador" in nombres:
                     nuevo = TipoUsuario.ADMINISTRADOR
                 elif "cliente" in nombres:
                     nuevo = TipoUsuario.CLIENTE
                 else:
                     nuevo = TipoUsuario.COLABORADOR
+
                 if user.tipo_usuario != nuevo:
                     user.tipo_usuario = nuevo
                     user.save(update_fields=["tipo_usuario"])
@@ -787,28 +818,93 @@ class EquipoViewSet(ModelViewSet):
             estado=EquipoMiembro.EstadoMiembro.ACTIVO,
         )
         from .serializers import EquipoMiembroDetailSerializer
-        return Response(EquipoMiembroDetailSerializer(miembro).data, status=status.HTTP_201_CREATED)
+        return Response(
+            EquipoMiembroDetailSerializer(
+                miembro,
+                context={"request": request},
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
 
-    @action(detail=True, methods=["get"], url_path="miembros/(?P<usuario_id>[^/.]+)/subtareas-pendientes")
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="miembros/(?P<usuario_id>[^/.]+)/subtareas-pendientes"
+    )
     def subtareas_pendientes(self, request, pk=None, usuario_id=None):
-        equipo = self.get_object()
-        try:
-            miembro = EquipoMiembro.objects.get(equipo=equipo, usuario_id=usuario_id)
-        except EquipoMiembro.DoesNotExist:
-            return Response({"detail": "El usuario no es miembro del equipo."}, status=status.HTTP_404_NOT_FOUND)
         from tasks.models import Subtarea, Tarea
+        from tasks.permissions import es_asignador_del_equipo
+
+        equipo = self.get_object()
+
+        # 1. Verificar permisos sobre el equipo
+        if not es_asignador_del_equipo(request.user, equipo):
+            return Response(
+                {
+                    "detail": (
+                        "No tienes autorización para consultar "
+                        "las subtareas pendientes de este equipo."
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # 2. Verificar que el integrante pertenece al equipo
+        try:
+            miembro = EquipoMiembro.objects.select_related("usuario").get(
+                equipo=equipo,
+                usuario_id=usuario_id,
+                estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+            )
+        except EquipoMiembro.DoesNotExist:
+            return Response(
+                {
+                    "detail": (
+                        "El usuario no es miembro activo del equipo."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # 3. Obtener las subtareas pendientes del integrante
         pendientes = Subtarea.objects.filter(
             asignado_id=miembro.usuario_id,
-            estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
+            estado__in=[
+                Subtarea.Estado.EN_ESPERA,
+                Subtarea.Estado.EN_DESARROLLO,
+            ],
             tarea__equipo=equipo,
             tarea__estado=Tarea.Estado.EN_DESARROLLO,
         ).select_related("tarea")
+
+        # 4. Preparar la respuesta
         data = [
-            {"subtarea_id": p.id, "descripcion": p.descripcion, "tarea_id": p.tarea_id, "tarea_asunto": p.tarea.asunto, "estado": p.estado, "peso": p.peso}
+            {
+                "subtarea_id": p.id,
+                "descripcion": p.descripcion,
+                "tarea_id": p.tarea_id,
+                "tarea_asunto": p.tarea.asunto,
+                "estado": p.estado,
+                "peso": p.peso,
+            }
             for p in pendientes
         ]
-        return Response({"usuario": {"id": miembro.usuario_id, "nombre": f"{miembro.usuario.nombres} {miembro.usuario.apellidos}"}, "pendientes": data, "total": len(data)}, status=status.HTTP_200_OK)
 
+        # 5. Devolver las subtareas
+        return Response(
+            {
+                "usuario": {
+                    "id": miembro.usuario_id,
+                    "nombre": (
+                        f"{miembro.usuario.nombres} "
+                        f"{miembro.usuario.apellidos}"
+                    ).strip(),
+                },
+                "pendientes": data,
+                "total": len(data),
+            },
+            status=status.HTTP_200_OK,
+        )
     @action(detail=True, methods=["post"], url_path="miembros/(?P<usuario_id>[^/.]+)/reasignar-subtareas")
     def reasignar_subtareas(self, request, pk=None, usuario_id=None):
         from tasks.models import Subtarea, Tarea

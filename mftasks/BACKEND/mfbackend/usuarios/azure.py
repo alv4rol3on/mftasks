@@ -79,13 +79,26 @@ class AzureTokenValidator:
 
         claims = cls._extraer_claims(token)
 
-        oid = claims.get("oid") or claims.get("sub")
+        oid = claims.get("oid")
+
+        if not oid:
+            raise AzureTokenValidationError(
+                "El token no contiene el identificador de usuario de Microsoft."
+            )
+
+        oid = str(oid)
 
         email = (
             claims.get("preferred_username")
             or claims.get("email")
-            or oid
         )
+
+        if not email or "@" not in email:
+            raise AzureTokenValidationError(
+                "El token no contiene un correo electrónico válido."
+            )
+
+        email = email.strip().lower()
 
         if email and "@" in email:
             email = email.lower()
@@ -93,19 +106,18 @@ class AzureTokenValidator:
         if oid:
             oid = str(oid)
 
-        dominios_permitidos = settings.AZURE_ALLOWED_DOMAINS
+        dominios_permitidos = {
+            d.strip().lower()
+            for d in settings.AZURE_ALLOWED_DOMAINS
+            if d.strip()
+        }
 
-        if dominios_permitidos:
-            dominio = (
-                email.rsplit("@", 1)[-1]
-                if email and "@" in email
-                else None
+        dominio = email.rsplit("@", 1)[-1].lower()
+
+        if dominios_permitidos and dominio not in dominios_permitidos:
+            raise AzureTokenValidationError(
+                "El dominio del correo no está permitido."
             )
-
-            if dominio not in dominios_permitidos:
-                raise AzureTokenValidationError(
-                    f"El dominio del correo '{dominio}' no está permitido."
-                )
 
         return {
             "azure_id": oid,
