@@ -43,10 +43,30 @@ export function useTareaDetalle(tareaId: number | null) {
   }, [cargar]);
 
   useEffect(() => {
-    if (!tareaId) return;
+    if (!tareaId || !tarea) return;
+
+    const necesitaWebSocket =
+      tarea.estado === "EN_DESARROLLO" ||
+      tarea.estado === "REAPERTURA_PENDIENTE" ||
+      (
+        tarea.estado === "SOLUCIONADO" &&
+        tarea.confirmacion_cliente === "PENDIENTE"
+      );
+
+    if (!necesitaWebSocket) return;
+
     observarTarea(tareaId);
-    return () => dejarDeObservarTarea(tareaId);
-  }, [tareaId, observarTarea, dejarDeObservarTarea]);
+
+    return () => {
+      dejarDeObservarTarea(tareaId);
+    };
+  }, [
+    tareaId,
+    tarea?.estado,
+    tarea?.confirmacion_cliente,
+    observarTarea,
+    dejarDeObservarTarea,
+  ]);
 
   useEffect(() => {
     if (wsDisponible || !tareaId) return;

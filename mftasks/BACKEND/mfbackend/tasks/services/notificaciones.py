@@ -22,6 +22,7 @@ def _progreso(tarea):
     return float(tarea.progreso or 0)
 
 
+
 def notificar_tarea(tarea):
     """Emite el estado actual de la tarea al grupo tarea_<id>."""
     _enviar_grupo(
@@ -32,8 +33,10 @@ def notificar_tarea(tarea):
             "estado_nuevo": tarea.estado,
             "progreso": _progreso(tarea),
             "activo": bool(tarea.activo),
+            "confirmacion_cliente": tarea.confirmacion_cliente,
         },
     )
+
 
 
 def notificar_subtarea(tarea, subtarea):

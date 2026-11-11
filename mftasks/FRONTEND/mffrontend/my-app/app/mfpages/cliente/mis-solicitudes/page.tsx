@@ -81,27 +81,33 @@ export default function MisSolicitudesPage() {
   }, [wsDisponible, cargar]);
 
   const idsTareas = useMemo(
-    () => tareas.map((t) => t.id),
+    () =>
+      tareas
+        .filter((t) =>
+          t.estado === "EN_DESARROLLO" ||
+          t.estado === "REAPERTURA_PENDIENTE" ||
+          (
+            t.estado === "SOLUCIONADO" &&
+            t.confirmacion_cliente === "PENDIENTE"
+          )
+        )
+        .map((t) => t.id),
     [tareas]
   );
 
   const idsTareasKey = idsTareas.join(",");
 
   useEffect(() => {
-    idsTareas.forEach((id) => {
-      observarTarea(id);
-    });
+    const ids = idsTareasKey
+      ? idsTareasKey.split(",").map(Number)
+      : [];
+
+    ids.forEach((id) => observarTarea(id));
 
     return () => {
-      idsTareas.forEach((id) => {
-        dejarDeObservarTarea(id);
-      });
+      ids.forEach((id) => dejarDeObservarTarea(id));
     };
-  }, [
-    idsTareasKey,
-    observarTarea,
-    dejarDeObservarTarea,
-  ]);
+  }, [idsTareasKey, observarTarea, dejarDeObservarTarea]);
 
   useEffect(() => {
     if (
@@ -252,7 +258,6 @@ export default function MisSolicitudesPage() {
         }}
       >
         <h2 className="text-lg font-medium" style={{ margin: 0 }}>Seguimiento de Solicitudes</h2>
-        <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{filtradas.length} de {tareas.length} solicitudes</span>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <button

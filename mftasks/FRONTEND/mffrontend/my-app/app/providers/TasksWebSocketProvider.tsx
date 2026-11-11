@@ -20,6 +20,12 @@ export type TaskWebSocketEvent = {
     estado_nuevo?: string;
     progreso?: number;
     activo?: boolean;
+    confirmacion_cliente?:
+    | "PENDIENTE"
+    | "CONFIRMADA"
+    | "REABIERTA"
+    | null;
+
     [key: string]: unknown;
 };
 
@@ -87,7 +93,7 @@ export function TasksWebSocketProvider({
     const reconexiones = useRef<Record<number, ReturnType<typeof setTimeout>>>(
         {}
     );
-    const abrirSocketRef = useRef<(taskId: number) => void>(() => {});
+    const abrirSocketRef = useRef<(taskId: number) => void>(() => { });
     const falloGlobal = useRef(false);
     const avisoMostrado = useRef(false);
     const refreshIntentado = useRef<Set<number>>(new Set());
@@ -151,10 +157,39 @@ export function TasksWebSocketProvider({
             try {
                 const data = JSON.parse(event.data);
 
+
                 if (data.type === "task_status_changed") {
                     setEventos((prev) => ({ ...prev, [taskId]: data }));
+
+                    const solicitudCerrada =
+                        data.estado_nuevo === "RECHAZADO" ||
+                        data.estado_nuevo === "CANCELADO" ||
+                        (
+                            data.estado_nuevo === "SOLUCIONADO" &&
+                            data.confirmacion_cliente === "CONFIRMADA"
+                        );
+
+                    if (solicitudCerrada) {
+                        // Evitar que onclose intente reconectar.
+                        deseados.current.delete(taskId);
+
+                        const timer = reconexiones.current[taskId];
+
+                        if (timer) {
+                            clearTimeout(timer);
+                            delete reconexiones.current[taskId];
+                        }
+
+                        const socket = sockets.current[taskId];
+
+                        if (socket) {
+                            socket.close(1000, "Solicitud cerrada definitivamente");
+                        }
+                    }
+
                     return;
                 }
+
 
                 if (data.type === "subtask_status_changed") {
                     setSubtareaEventos((prev) => ({

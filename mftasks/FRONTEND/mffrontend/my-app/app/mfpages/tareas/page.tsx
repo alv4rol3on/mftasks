@@ -96,8 +96,34 @@ export default function TareasPage() {
     }
   }, [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana, filtroPrioridad]);
 
-  const idsTareas = useMemo(() => tareas.map((t) => t.id), [tareas]);
+  const idsTareas = useMemo(
+    () =>
+      tareas
+        .filter((tarea) =>
+          tarea.estado === "EN_DESARROLLO" ||
+          tarea.estado === "REAPERTURA_PENDIENTE" ||
+          (
+            tarea.estado === "SOLUCIONADO" &&
+            tarea.confirmacion_cliente === "PENDIENTE"
+          )
+        )
+        .map((tarea) => tarea.id),
+    [tareas]
+  );
+  const idsTareasKey = idsTareas.join(",");
+  useEffect(() => {
+    console.log("Tareas recibidas:", tareas.length);
+    console.log("IDs con WebSocket:", idsTareas);
 
+    console.table(
+      tareas.map((tarea) => ({
+        id: tarea.id,
+        estado: tarea.estado,
+        confirmacion: tarea.confirmacion_cliente,
+        observar: idsTareas.includes(tarea.id),
+      }))
+    );
+  }, [tareas, idsTareas]);
   const rangoDefecto = rangoFechasPorDefecto();
   const usaRangoFechas = !estadoIgnoraRangoFechas(filtroEstado);
   const hayFiltros =
@@ -135,12 +161,16 @@ export default function TareasPage() {
   };
 
   useEffect(() => {
-    idsTareas.forEach((id) => observarTarea(id));
+    const ids = idsTareasKey
+      ? idsTareasKey.split(",").map(Number)
+      : [];
+
+    ids.forEach((id) => observarTarea(id));
 
     return () => {
-      idsTareas.forEach((id) => dejarDeObservarTarea(id));
+      ids.forEach((id) => dejarDeObservarTarea(id));
     };
-  }, [idsTareas, observarTarea, dejarDeObservarTarea]);
+  }, [idsTareasKey, observarTarea, dejarDeObservarTarea]);
 
   useEffect(() => {
     if (
@@ -170,6 +200,10 @@ export default function TareasPage() {
               typeof evento.activo === "boolean"
                 ? evento.activo
                 : actualizada.activo,
+            confirmacion_cliente:
+              evento.confirmacion_cliente !== undefined
+                ? evento.confirmacion_cliente
+                : actualizada.confirmacion_cliente,
           };
         }
 
