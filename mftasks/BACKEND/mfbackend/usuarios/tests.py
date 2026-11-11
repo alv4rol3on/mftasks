@@ -1044,3 +1044,29 @@ class DisponibilidadAsignacionTestCase(TestCase):
 
         self.assertIn(disponible.id, ids)
         self.assertNotIn(ausente.id, ids)
+
+
+class LogoutBlacklistTestCase(APITestCase):
+    """El logout debe invalidar el refresh token."""
+
+    def test_logout_invalida_refresh(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        usuario = _crear_usuario("logout@empresa.com")
+        refresh = str(RefreshToken.for_user(usuario))
+
+        self.client.force_authenticate(user=usuario)
+        respuesta = self.client.post(
+            reverse("logout"),
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_205_RESET_CONTENT)
+
+        self.client.force_authenticate(user=None)
+        respuesta = self.client.post(
+            reverse("token-refresh"),
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)

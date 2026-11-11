@@ -641,6 +641,11 @@ class ConfiguracionAprobacion(models.Model):
         verbose_name="Días hábiles para confirmación del cliente",
     )
 
+    hora_alerta_diaria = models.TimeField(
+        default=time(9, 0),
+        verbose_name="Hora de la alerta diaria",
+    )
+
     class Meta:
         verbose_name = "Configuración de aprobación"
         verbose_name_plural = "Configuración de aprobación"

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { apiFetchBlob } from "@/lib/api";
-import { apiBaseUrl } from "@/lib/authConfig";
 import { ArchivoTarea } from "@/lib/types";
 
 type Props = {
@@ -14,9 +13,30 @@ type Props = {
 
 export default function AdjuntosTarea({ archivos, tareaId, ticket, titulo = "Archivos adjuntos" }: Props) {
     const [descargando, setDescargando] = useState(false);
+    const [descargandoId, setDescargandoId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     if (!archivos || archivos.length === 0) return null;
+
+    const descargarArchivo = async (archivo: ArchivoTarea) => {
+        setError(null);
+        setDescargandoId(archivo.id);
+        try {
+            const blob = await apiFetchBlob(archivo.url);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = archivo.nombre || `archivo-${archivo.id}`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            setError((e as Error).message);
+        } finally {
+            setDescargandoId(null);
+        }
+    };
 
     const descargarZip = async () => {
         setDescargando(true);
@@ -80,13 +100,28 @@ export default function AdjuntosTarea({ archivos, tareaId, ticket, titulo = "Arc
                     }}
                 >
                     <span>📎</span>
-                    <a
-                        href={`${apiBaseUrl}${archivo.url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <button
+                        type="button"
+                        onClick={() => descargarArchivo(archivo)}
+                        disabled={descargandoId === archivo.id}
+                        style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            color: "var(--color-link, #2563eb)",
+                            cursor:
+                                descargandoId === archivo.id
+                                    ? "wait"
+                                    : "pointer",
+                            textDecoration: "underline",
+                            fontSize: "inherit",
+                        }}
                     >
-                        📥 Descargar {archivo.nombre}
-                    </a>
+                        📥{" "}
+                        {descargandoId === archivo.id
+                            ? "Descargando…"
+                            : `Descargar ${archivo.nombre}`}
+                    </button>
                 </div>
             ))}
 

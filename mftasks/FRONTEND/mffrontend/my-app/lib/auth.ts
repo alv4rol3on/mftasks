@@ -174,6 +174,24 @@ export async function obtenerDatosMe(): Promise<DatosUsuario> {
 export async function cerrarSesion(
     instance: IPublicClientApplication
 ): Promise<void> {
+    const refresh = localStorage.getItem("refresh");
+    const access = localStorage.getItem("access");
+
+    if (refresh) {
+        try {
+            await fetch(`${apiBaseUrl}/api/usuarios/auth/logout/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(access ? { Authorization: `Bearer ${access}` } : {}),
+                },
+                body: JSON.stringify({ refresh }),
+            });
+        } catch {
+            // Si el backend no responde, igualmente limpiamos la sesión local.
+        }
+    }
+
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("user");

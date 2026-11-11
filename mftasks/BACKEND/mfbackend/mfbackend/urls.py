@@ -16,10 +16,11 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.http import Http404
 from django.urls import include, path
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.views.static import serve as static_serve
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -29,9 +30,22 @@ urlpatterns = [
     path("api/campanas/", include("campanas.urls")),
 ]
 
+
+def servir_descripcion(request, path):
+    """Solo expone imágenes inline de descripciones (nombres UUID).
+
+    Los adjuntos de tareas se descargan por el endpoint autenticado
+    de la API, nunca por /media.
+    """
+    if not path.startswith("descripciones/"):
+        raise Http404()
+
+    return static_serve(request, path, document_root=settings.MEDIA_ROOT)
+
+
+urlpatterns += [
+    path("media/<path:path>", servir_descripcion),
+]
+
 if settings.DEBUG:
-    urlpatterns += static(
-        settings.MEDIA_URL,
-        document_root=settings.MEDIA_ROOT,
-    )
     urlpatterns += staticfiles_urlpatterns()

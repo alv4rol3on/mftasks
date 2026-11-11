@@ -129,7 +129,6 @@ class ArchivoTareaSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "nombre",
-            "archivo",
             "url",
             "fecha_subida",
             "subido_por",
@@ -138,7 +137,6 @@ class ArchivoTareaSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "nombre",
-            "archivo",
             "url",
             "fecha_subida",
             "subido_por",
@@ -149,7 +147,10 @@ class ArchivoTareaSerializer(serializers.ModelSerializer):
         if not obj.archivo:
             return None
 
-        return obj.archivo.url
+        # Endpoint autenticado: nunca se expone la URL pública de /media.
+        return (
+            f"/api/tasks/tasks/{obj.tarea_id}/archivos/{obj.id}/descargar/"
+        )
 
     def get_subido_por_nombre(self, obj):
         if not obj.subido_por:
@@ -561,7 +562,12 @@ class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConfiguracionAprobacion
-        fields = ["id", "horas_limite", "dias_habiles_confirmacion"]
+        fields = [
+            "id",
+            "horas_limite",
+            "dias_habiles_confirmacion",
+            "hora_alerta_diaria",
+        ]
         read_only_fields = ["id"]
 
     def validate_horas_limite(self, value):

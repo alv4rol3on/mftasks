@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import RetrieveUpdateAPIView
 
@@ -155,6 +156,37 @@ class MicrosoftLoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class LogoutView(APIView):
+    """Invalida el refresh token (blacklist) al cerrar sesión."""
+
+    permission_classes = [IsAuthenticatedActivo]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "refresh"
+
+    def post(self, request):
+        refresh = request.data.get("refresh")
+
+        if not refresh:
+            return Response(
+                {"detail": "El token de refresco es obligatorio."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            RefreshToken(refresh).blacklist()
+        except TokenError:
+            return Response(
+                {"detail": "El token de refresco no es válido o ya expiró."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            # No bloqueamos el cierre de sesión del cliente por un fallo
+            # interno al invalidar el token.
+            logger.exception("No se pudo invalidar el refresh token en logout.")
+
+        return Response(status=status.HTTP_205_RESET_CONTENT)
 
 
 class MeView(APIView):

@@ -9,7 +9,7 @@ from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.functions import Coalesce
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.shortcuts import get_object_or_404
@@ -55,7 +55,11 @@ from .permissions import (
     puede_resolver_reapertura,
 )
 from .serializers import SubtareaSerializer, TaskSerializer, HorarioLaboralSerializer, ConfiguracionAprobacionSerializer
-from .services.archivos import guardar_archivos, validar_archivos
+from .services.archivos import (
+    guardar_archivos,
+    nombre_seguro,
+    validar_archivos,
+)
 from .services.asignacion import sugerir_asignaciones
 from .services.cancelacion import CancelacionInvalida, cancelar_tarea
 from .services.cliente_acciones import (
@@ -1525,13 +1529,22 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Todos los roles reciben los mismos eventos y detalles.
+        # El cliente solo ve el historial de la solicitud, sin eventos internos
+        # de subtareas ni datos del personal.
+        es_cliente_historial = (
+            es_cliente(request.user)
+            and not es_administrador(request.user)
+        )
+
         qs = (
             TareaLog.objects
             .filter(tarea=tarea)
             .select_related("usuario", "subtarea")
             .order_by("-fecha", "-id")
         )
+
+        if es_cliente_historial:
+            qs = qs.filter(subtarea__isnull=True)
 
         # Filtro opcional por subtarea.
         subtarea_id = request.query_params.get("subtarea")
@@ -1552,18 +1565,30 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "estado_anterior": l.estado_anterior,
                 "estado_nuevo": l.estado_nuevo,
                 "fecha": l.fecha.isoformat() if l.fecha else None,
-                "detalle": l.detalle,
+                "detalle": "" if es_cliente_historial else l.detalle,
                 "usuario": (
-                    f"{l.usuario.nombres} {l.usuario.apellidos}"
-                    if l.usuario else None
+                    None
+                    if es_cliente_historial
+                    else (
+                        f"{l.usuario.nombres} {l.usuario.apellidos}"
+                        if l.usuario else None
+                    )
                 ),
-                "usuario_id": l.usuario_id,
-                "subtarea_id": l.subtarea_id,
+                "usuario_id": (
+                    None if es_cliente_historial else l.usuario_id
+                ),
+                "subtarea_id": (
+                    None if es_cliente_historial else l.subtarea_id
+                ),
                 "subtarea_codigo": (
-                    l.subtarea.codigo if l.subtarea else None
+                    None
+                    if es_cliente_historial
+                    else (l.subtarea.codigo if l.subtarea else None)
                 ),
                 "subtarea_descripcion": (
-                    l.subtarea.descripcion if l.subtarea else None
+                    None
+                    if es_cliente_historial
+                    else (l.subtarea.descripcion if l.subtarea else None)
                 ),
             }
             for l in logs
@@ -1610,7 +1635,9 @@ class TaskViewSet(viewsets.ModelViewSet):
             for a in archivos:
                 if not a.archivo:
                     continue
-                nombre = a.nombre or os.path.basename(a.archivo.name)
+                nombre = nombre_seguro(
+                    a.nombre or os.path.basename(a.archivo.name)
+                )
                 base, ext = os.path.splitext(nombre)
                 final = nombre
                 i = 1
@@ -1629,6 +1656,56 @@ class TaskViewSet(viewsets.ModelViewSet):
         respuesta["Content-Disposition"] = (
             f'attachment; filename="adjuntos-{tarea.ticket or tarea.id}.zip"'
         )
+        respuesta["X-Content-Type-Options"] = "nosniff"
+        return respuesta
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticatedActivo],
+        url_path=r"archivos/(?P<archivo_id>[^/.]+)/descargar",
+    )
+    def descargar_archivo(self, request, pk=None, archivo_id=None):
+        """Descarga autenticada de un adjunto, sin exponer /media."""
+        from .permissions import puede_observar_tarea
+
+        tarea = self.get_object()
+        archivo = get_object_or_404(
+            ArchivoTarea,
+            id=archivo_id,
+            tarea=tarea,
+        )
+
+        if not puede_observar_tarea(request.user, tarea):
+            return Response(
+                {"detail": "No tienes permiso para descargar este archivo."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not archivo.archivo:
+            return Response(
+                {"detail": "El archivo no está disponible."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            manejador = archivo.archivo.open("rb")
+        except (FileNotFoundError, OSError):
+            return Response(
+                {"detail": "El archivo no está disponible."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        nombre = nombre_seguro(
+            archivo.nombre or os.path.basename(archivo.archivo.name)
+        )
+        respuesta = FileResponse(
+            manejador,
+            as_attachment=True,
+            filename=nombre,
+            content_type="application/octet-stream",
+        )
+        respuesta["X-Content-Type-Options"] = "nosniff"
         return respuesta
 
     @action(
@@ -1697,7 +1774,12 @@ class TaskViewSet(viewsets.ModelViewSet):
             return {
                 "id": archivo.id,
                 "nombre": archivo.nombre,
-                "url": archivo.archivo.url if archivo.archivo else None,
+                "url": (
+                    f"/api/tasks/tasks/{tarea.id}/archivos/"
+                    f"{archivo.id}/descargar/"
+                    if archivo.archivo
+                    else None
+                ),
                 "fecha_subida": (
                     archivo.fecha_subida.isoformat()
                     if archivo.fecha_subida
@@ -2916,6 +2998,15 @@ class TaskViewSet(viewsets.ModelViewSet):
             bloqueadora = Tarea.objects.get(id=bloqueadora_id)
         except Tarea.DoesNotExist:
             return Response({"detail": "Tarea bloqueadora no existe."}, status=status.HTTP_404_NOT_FOUND)
+
+        from .permissions import puede_observar_tarea
+
+        if not puede_observar_tarea(request.user, bloqueadora):
+            return Response(
+                {"detail": "La tarea bloqueadora no existe o no tienes acceso."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         from .models import DependenciaTarea
         # ciclo simple
         if DependenciaTarea.objects.filter(bloqueada_id=bloqueadora_id, bloqueadora_id=tarea.id).exists():

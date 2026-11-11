@@ -50,9 +50,13 @@ export default function AjustesSection({ setMsg }: Props) {
   const [diasConfirmacion, setDiasConfirmacion] = useState(5);
   const [diasOriginales, setDiasOriginales] = useState(5);
 
+  const [horaAlerta, setHoraAlerta] = useState("09:00");
+  const [horaOriginal, setHoraOriginal] = useState("09:00");
+
   const [cargandoConfig, setCargandoConfig] = useState(true);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [guardandoConfirmacion, setGuardandoConfirmacion] = useState(false);
+  const [guardandoHora, setGuardandoHora] = useState(false);
 
   const cargarConfiguracion = async () => {
     setCargandoConfig(true);
@@ -62,6 +66,7 @@ export default function AjustesSection({ setMsg }: Props) {
         id: number;
         horas_limite: number;
         dias_habiles_confirmacion: number;
+        hora_alerta_diaria: string;
       }>("/api/tasks/configuracion-aprobacion/1/");
 
       setHorasLimite(data.horas_limite);
@@ -69,6 +74,10 @@ export default function AjustesSection({ setMsg }: Props) {
 
       setDiasConfirmacion(data.dias_habiles_confirmacion);
       setDiasOriginales(data.dias_habiles_confirmacion);
+
+      const hora = (data.hora_alerta_diaria || "09:00").slice(0, 5);
+      setHoraAlerta(hora);
+      setHoraOriginal(hora);
 
     } catch (e) {
       setMsg(
@@ -156,6 +165,42 @@ export default function AjustesSection({ setMsg }: Props) {
       );
     } finally {
       setGuardandoConfirmacion(false);
+    }
+  };
+
+  const guardarHoraAlerta = async () => {
+    if (!horaAlerta) {
+      setMsg("Debes indicar una hora para la alerta diaria.");
+      return;
+    }
+
+    if (horaAlerta === horaOriginal) {
+      setMsg("No hay cambios pendientes.");
+      return;
+    }
+
+    setGuardandoHora(true);
+
+    try {
+      await apiFetch(
+        "/api/tasks/configuracion-aprobacion/1/",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            hora_alerta_diaria: horaAlerta,
+          }),
+        }
+      );
+
+      setHoraOriginal(horaAlerta);
+      setMsg("Hora de la alerta diaria actualizada correctamente.");
+
+    } catch (e) {
+      setMsg(
+        `Error al guardar configuración: ${(e as Error).message}`
+      );
+    } finally {
+      setGuardandoHora(false);
     }
   };
 
@@ -478,6 +523,76 @@ export default function AjustesSection({ setMsg }: Props) {
                 onClick={guardarConfirmacion}
               >
                 {guardandoConfirmacion ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      <div className={`${styles.card} ${styles.settingsCard}`}>
+
+        <div className={styles.settingsHeader}>
+          <div>
+            <h3 className={styles.settingsTitle}>
+              Hora de la notificación diaria
+            </h3>
+
+            <p className={styles.settingsDescription}>
+              Define a qué hora se envía la alerta diaria de solicitudes sin
+              solucionar a los miembros de los equipos.
+            </p>
+          </div>
+        </div>
+
+        {cargandoConfig ? (
+          <p className={styles.settingsLoading}>
+            Cargando configuración...
+          </p>
+        ) : (
+          <div className={styles.settingsForm}>
+            <label className={styles.field}>
+              <span>Hora de envío</span>
+
+              <input
+                type="time"
+                value={horaAlerta}
+                disabled={guardandoHora}
+                onChange={e => setHoraAlerta(e.target.value)}
+                className={styles.input}
+              />
+            </label>
+
+            <div className={styles.settingsNote}>
+              <strong>Importante:</strong>{" "}
+              La alerta se envía a esta hora a todos los equipos. Si se cambia
+              la hora, el nuevo horario se aplica el mismo día.
+            </div>
+            <div className={styles.settingsActions}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                disabled={
+                  horaAlerta === horaOriginal ||
+                  guardandoHora ||
+                  cargandoConfig
+                }
+                onClick={() => setHoraAlerta(horaOriginal)}
+              >
+                Descartar
+              </button>
+
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={
+                  horaAlerta === horaOriginal ||
+                  guardandoHora ||
+                  cargandoConfig
+                }
+                onClick={guardarHoraAlerta}
+              >
+                {guardandoHora ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>

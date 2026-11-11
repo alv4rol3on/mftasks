@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiBaseUrl } from "@/lib/authConfig";
+import { apiFetchBlob } from "@/lib/api";
 import {
   fetchInformacionCliente,
   type EntradaInformacionCliente,
@@ -45,6 +45,28 @@ export default function InformacionClientePanel({
   const [entradas, setEntradas] = useState<EntradaInformacionCliente[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recargando, setRecargando] = useState(false);
+  const [descargandoId, setDescargandoId] = useState<number | null>(null);
+
+  const descargarArchivo = async (archivo: { id: number; nombre: string; url: string | null }) => {
+    if (!archivo.url) return;
+    setError(null);
+    setDescargandoId(archivo.id);
+    try {
+      const blob = await apiFetchBlob(archivo.url);
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = archivo.nombre || `archivo-${archivo.id}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDescargandoId(null);
+    }
+  };
 
   const cargar = async () => {
     setRecargando(true);
@@ -175,15 +197,25 @@ export default function InformacionClientePanel({
                           </div>
 
                           {archivo.url && (
-                            <a
-                              href={`${apiBaseUrl}${archivo.url}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              download={archivo.nombre}
+                            <button
+                              type="button"
+                              onClick={() => descargarArchivo(archivo)}
+                              disabled={descargandoId === archivo.id}
                               className={styles.historyDownload}
+                              style={{
+                                cursor:
+                                  descargandoId === archivo.id
+                                    ? "wait"
+                                    : "pointer",
+                                fontFamily: "inherit",
+                              }}
                             >
-                              <span aria-hidden="true">Descargar ↓</span>
-                            </a>
+                              <span aria-hidden="true">
+                                {descargandoId === archivo.id
+                                  ? "Descargando…"
+                                  : "Descargar ↓"}
+                              </span>
+                            </button>
                           )}
                         </li>
                       ))}

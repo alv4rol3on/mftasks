@@ -11,35 +11,58 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+def _env_bool(nombre, default=False):
+    valor = os.environ.get(nombre)
+    if valor is None:
+        return default
+    return valor.strip().lower() in ("1", "true", "yes", "on")
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-98s9$mv=75s*zic*6wjt=+2du!(ymwag0w+w@p&=1nav#)v5km",
-)
+
+def _env_list(nombre, default=()):
+    valor = os.environ.get(nombre)
+    if valor is None:
+        return list(default)
+    items = [item.strip() for item in valor.split(",") if item.strip()]
+    return items or list(default)
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
+DEBUG = _env_bool("DJANGO_DEBUG", False)
 
-#ALLOWED_HOSTS = [
-#    "localhost",
-#    "127.0.0.1",
-#    "backend",
-#    "198.41.192.57",
-#    ".trycloudflare.com",
-#    "192.168.202.12",
-#]
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
 
-ALLOWED_HOSTS = ["*"]
+_COMANDOS_DEV = ("test", "pytest", "check", "makemigrations")
+
+if not SECRET_KEY:
+    if DEBUG or any(cmd in sys.argv for cmd in _COMANDOS_DEV):
+        # Solo para desarrollo local/pruebas; en producción es obligatoria.
+        SECRET_KEY = "django-insecure-dev-only-change-me"
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY es obligatoria cuando DJANGO_DEBUG=false."
+        )
+
+ALLOWED_HOSTS = _env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    (
+        "localhost",
+        "127.0.0.1",
+        "backend",
+        "192.168.202.10",
+        "192.168.202.12",
+    ),
+)
 
 
 # Application definition
@@ -56,6 +79,7 @@ INSTALLED_APPS = [
     #librerias
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "anymail",
     #apps
@@ -69,6 +93,7 @@ AUTH_USER_MODEL = "usuarios.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -161,6 +186,32 @@ STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+
+# =========================================================
+# Seguridad (configurable por entorno)
+# =========================================================
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
+SESSION_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", False)
+CSRF_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", False)
+
+SECURE_HSTS_SECONDS = int(
+    os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0") or 0
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
+
+if _env_bool("DJANGO_BEHIND_PROXY", False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
@@ -173,31 +224,48 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
     "DEFAULT_THROTTLE_RATES": {
+        "anon": "120/min",
+        "user": "3000/min",
         "login": "10/min",
+        "refresh": "30/min",
     },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=int(os.environ.get("JWT_ACCESS_MINUTES", "30"))
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        hours=int(os.environ.get("JWT_REFRESH_HOURS", "12"))
+    ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://frontend:3000",
-    "http://192.168.202.10:3000"
-]
+CORS_ALLOWED_ORIGINS = _env_list(
+    "DJANGO_CORS_ALLOWED_ORIGINS",
+    (
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://frontend:3000",
+        "http://192.168.202.10:3000",
+    ),
+)
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://192.168.202.10:3000",
-]
+CSRF_TRUSTED_ORIGINS = _env_list(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    (
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://192.168.202.10:3000",
+    ),
+)
 
 AZURE_TENANT_ID = os.environ.get("AZURE_TENANT_ID", "")
 AZURE_CLIENT_ID = os.environ.get("AZURE_CLIENT_ID", "")
@@ -222,8 +290,9 @@ ANYMAIL = {
     "RESEND_API_KEY": os.environ.get("RESEND_API_KEY"),
 }
 
-DEFAULT_FROM_EMAIL = (
-    f"Sistema de Solicitudes <{os.getenv('DEFAULT_FROM_EMAIL', 'alv4rol3on@gmail.com')}>"
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    "Sistema de Solicitudes <no-reply@mf.local>",
 )
 
 

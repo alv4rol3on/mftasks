@@ -458,6 +458,15 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
         qs = obj.miembros.select_related("usuario", "usuario__disponibilidad").all()
         # Para cliente o usuario sin permiso de gestión, ocultar inactivos
         user = getattr(request, "user", None) if request else None
+
+        if user and user.is_authenticated:
+            from .permissions import es_administrador, es_cliente
+
+            # Los clientes no deben ver datos del personal interno
+            # (email, cargo, disponibilidad) al elegir un equipo.
+            if es_cliente(user) and not es_administrador(user):
+                return []
+
         if user and not user.is_authenticated:
             qs = qs.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO)
         elif user:

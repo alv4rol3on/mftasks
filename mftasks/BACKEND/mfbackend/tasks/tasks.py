@@ -126,14 +126,14 @@ def enviar_notificacion_email(evento, destinatarios, contexto):
 
         enviados = 1
 
-    except Exception as e:
-        print("ERROR REAL:", repr(e))
+    except Exception:
+        logger.exception("Error al enviar la notificación %s", evento)
         raise
 
     logger.info(
         "Notificación enviada. evento=%s destinatarios=%s",
         evento,
-        destinatarios_validos,
+        len(destinatarios_validos),
     )
 
     return {

@@ -31,7 +31,7 @@ const CAMPOS_CLIENTE: { key: CampoBooleano; label: string }[] = [
 const CAMPOS_EQUIPO: { key: CampoBooleano; label: string; descripcion?: string }[] = [
   { key: "equipo_nueva_solicitud", label: "Nueva solicitud en mi equipo" },
   { key: "equipo_pendiente_revision", label: "Solicitudes pendientes de revisión (aprobar o rechazar)" },
-  { key: "equipo_alerta_diaria", label: "Alerta diaria (9:00 a.m.) de solicitudes sin solucionar" },
+  { key: "equipo_alerta_diaria", label: "Alerta diaria de solicitudes sin solucionar" },
 ];
 
 function CampoNotificacion({

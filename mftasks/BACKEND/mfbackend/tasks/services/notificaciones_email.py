@@ -383,7 +383,7 @@ def programar_correo_tarea(
         ),
         evento,
         tarea.pk,
-        destinatarios_validos,
+        len(destinatarios_validos),
     )
 
     return True

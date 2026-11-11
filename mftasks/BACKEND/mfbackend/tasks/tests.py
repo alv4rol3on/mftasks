@@ -786,7 +786,7 @@ class CrearSolicitudConAdjuntoTestCase(APITestCase):
     def test_crear_solicitud_con_xlsx(self):
         archivo = SimpleUploadedFile(
             "Libro1.xlsx",
-            b"contenido-xlsx",
+            b"PK\x03\x04contenido-xlsx",
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         res = self.client.post(reverse("task-list"), self._payload(archivo), format="multipart")
@@ -796,6 +796,46 @@ class CrearSolicitudConAdjuntoTestCase(APITestCase):
         self.assertEqual(tarea.solicitante_id, self.cliente.id)
         self.assertEqual(tarea.archivos.count(), 1)
         self.assertEqual(tarea.archivos.first().nombre, "Libro1.xlsx")
+
+    def test_descarga_adjunto_autenticada(self):
+        archivo = SimpleUploadedFile(
+            "Libro1.xlsx",
+            b"PK\x03\x04contenido-xlsx",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        res = self.client.post(
+            reverse("task-list"),
+            self._payload(archivo),
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+
+        tarea = Tarea.objects.get(id=res.data["id"])
+        archivo_obj = tarea.archivos.first()
+        url = (
+            f"/api/tasks/tasks/{tarea.id}/archivos/"
+            f"{archivo_obj.id}/descargar/"
+        )
+
+        # El serializer no debe exponer la ruta pública de /media.
+        self.assertNotIn("/media/", str(res.data.get("archivos")))
+        self.assertIn(url, str(res.data.get("archivos")))
+
+        descarga = self.client.get(url)
+        self.assertEqual(descarga.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            b"".join(descarga.streaming_content),
+            b"PK\x03\x04contenido-xlsx",
+        )
+
+        # Otro cliente sin acceso a la tarea no puede descargarla.
+        otro = _crear_usuario("otro-up@empresa.com")
+        _asignar_rol(otro, "CLIENTE")
+        self.client.force_authenticate(user=otro)
+        self.assertIn(
+            self.client.get(url).status_code,
+            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
 
     def test_rechaza_extension_no_permitida(self):
         archivo = SimpleUploadedFile("mal.exe", b"x", content_type="application/octet-stream")

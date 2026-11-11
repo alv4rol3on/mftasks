@@ -1,10 +1,10 @@
 import logging
 from django.utils import timezone
+from django.core.cache import cache
 from django.db import transaction
 from datetime import timedelta
 from django.db.models import Q
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
@@ -206,6 +206,34 @@ def enviar_digest_miembros():
             enviados,
         )
 
+
+def ejecutar_digest_diario_si_corresponde():
+    """Ejecuta el digest diario cuando la hora actual coincide con la configurada."""
+    from .models import ConfiguracionAprobacion
+
+    ahora = timezone.localtime(timezone.now())
+
+    try:
+        hora_configurada = ConfiguracionAprobacion.obtener().hora_alerta_diaria
+    except Exception:
+        logger.exception("No se pudo leer la hora de la alerta diaria; se omite.")
+        return
+
+    if (ahora.hour, ahora.minute) != (
+        hora_configurada.hour,
+        hora_configurada.minute,
+    ):
+        return
+
+    clave = f"digest_diario_enviado_{ahora.date().isoformat()}"
+    if cache.get(clave):
+        return
+
+    # Marcar antes de enviar para evitar duplicados entre ejecuciones.
+    cache.set(clave, True, timeout=60 * 60 * 20)
+    enviar_digest_miembros()
+
+
 _scheduler = None
 
 
@@ -231,11 +259,11 @@ def start_scheduler():
             coalesce=True,
             replace_existing=True,
         )
-        # 09:00 Miembros de equipo
+        # Digest diario a la hora configurada (se comprueba cada minuto)
         _scheduler.add_job(
-            enviar_digest_miembros,
-            trigger=CronTrigger(hour=9, minute=0),
-            id="digest_miembros_0900",
+            ejecutar_digest_diario_si_corresponde,
+            trigger=IntervalTrigger(minutes=1),
+            id="digest_miembros_diario",
             max_instances=1,
             coalesce=True,
             replace_existing=True,
@@ -251,7 +279,7 @@ def start_scheduler():
         )
         _scheduler.start()
         logger.info(
-            "APScheduler iniciado (auto-inicio cada 60s; digests 09:00)."
+            "APScheduler iniciado (auto-inicio cada 60s; digest diario a la hora configurada)."
         )
     except Exception as e:
         logger.exception(f"No se pudo iniciar APScheduler: {e}")

@@ -7,6 +7,23 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.202.10"],
   skipTrailingSlashRedirect: true,
   devIndicators: false,
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "same-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
   experimental: {
     // El upload pasa por el proxy de Next; el default (10MB) truncaría archivos
     // cercanos al límite de 10MB más el overhead multipart.
