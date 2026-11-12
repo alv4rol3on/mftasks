@@ -56,7 +56,15 @@ export default function AdminSolicitudesTable({ tareas, onReload }: Props) {
   const paginaClamped = Math.min(pagina, totalPages);
   const paginadas = useMemo(() => tareas.slice((paginaClamped - 1) * pageSize, paginaClamped * pageSize), [tareas, paginaClamped]);
 
-  const visibleIds = useMemo(() => paginadas.map((t) => t.id), [paginadas]);
+  // El contador solo aporta "fuera de tiempo" para tareas en desarrollo.
+  // Evita polling de /contador/ para solicitudes ya cerradas.
+  const visibleIds = useMemo(
+    () =>
+      paginadas
+        .filter((t) => t.estado === "EN_DESARROLLO" && t.activo !== false)
+        .map((t) => t.id),
+    [paginadas]
+  );
   const refreshKey = useMemo(
     () =>
       paginadas

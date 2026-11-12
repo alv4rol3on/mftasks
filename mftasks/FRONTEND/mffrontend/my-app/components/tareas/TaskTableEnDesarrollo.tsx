@@ -95,7 +95,11 @@ function FilaTarea({
     conPendiente ? styles.rowPendiente : "",
   ].filter(Boolean).join(" ");
 
-  const mostrarContador = tarea.estado !== "APROBADO" && tarea.estado !== "RECHAZADO" && tarea.estado !== "CANCELADO";
+  const mostrarContador =
+    tarea.estado !== "APROBADO" &&
+    tarea.estado !== "RECHAZADO" &&
+    tarea.estado !== "CANCELADO" &&
+    (tarea.estado !== "EN_DESARROLLO" || tarea.activo !== false);
 
   return (
     <tr
@@ -164,7 +168,13 @@ function FilaTarea({
             : tarea.estado === "RECHAZADO"
               ? "Rechazado"
               : mostrarContador
-                ? <TaskCountdown tareaId={tarea.id} />
+                ? (
+                  <TaskCountdown
+                    tareaId={tarea.id}
+                    estado={tarea.estado}
+                    tiempoTomadoFormateado={tarea.tiempo_tomado_formateado}
+                  />
+                )
                 : null}
         </span>
       </td>
@@ -224,7 +234,15 @@ export default function TaskTableEnDesarrollo({
     if (pagina > totalPages) setPagina(totalPages);
   }, [pagina, totalPages]);
 
-  const visibleIds = useMemo(() => tareasPaginadas.map((t) => t.id), [tareasPaginadas]);
+  // Solo las tareas en desarrollo necesitan contador en vivo. Las cerradas
+  // se renderizan con su estado estático y no deben generar polling.
+  const visibleIds = useMemo(
+    () =>
+      tareasPaginadas
+        .filter((t) => t.estado === "EN_DESARROLLO" && t.activo !== false)
+        .map((t) => t.id),
+    [tareasPaginadas]
+  );
 
   const refreshKey = useMemo(
     () =>

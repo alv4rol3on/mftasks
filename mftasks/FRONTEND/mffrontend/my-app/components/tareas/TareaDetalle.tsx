@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTareaDetalle } from "@/app/mfpages/tareas/hooks/useTareaDetalle";
 import { useTareaAcciones } from "@/app/mfpages/tareas/hooks/useTareaAcciones";
@@ -55,6 +55,18 @@ export default function TareaDetalle({
   rutaTarea: string;
 }) {
   const { tarea, cargando, error, cargar, refreshKey } = useTareaDetalle(tareaId);
+  const tareaIdContador = tarea?.id;
+  const estadoTarea = tarea?.estado;
+  const activoTarea = tarea?.activo;
+  const idsContador = useMemo(
+    () =>
+      tareaIdContador != null &&
+      estadoTarea === "EN_DESARROLLO" &&
+      activoTarea !== false
+        ? [tareaIdContador]
+        : [],
+    [tareaIdContador, estadoTarea, activoTarea]
+  );
   const { showToast } = useToast();
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("tablero");
@@ -269,7 +281,7 @@ export default function TareaDetalle({
   };
 
   return (
-    <ContadoresProvider ids={[tarea.id]} refreshKey={refreshKey}>
+    <ContadoresProvider ids={idsContador} refreshKey={refreshKey}>
       <div className={styles.page}>
         <button type="button" className={styles.backLink} onClick={volver}>
           ← Volver a Tareas en desarrollo
@@ -290,11 +302,19 @@ export default function TareaDetalle({
               <span className={styles.headerTimer} title="Tiempo laboral restante o utilizado">
                 {tarea.estado === "APROBADO"
                   ? "Aún no iniciada"
-                  : tarea.estado === "RECHAZADO"
+                  : tarea.estado === "RECHAZADO" || tarea.estado === "CANCELADO"
                     ? "Sin temporizador"
-                    : tarea.estado === "SOLUCIONADO" && tarea.tiempo_tomado_formateado
-                      ? `Tiempo laboral utilizado: ${tarea.tiempo_tomado_formateado}`
-                      : <TaskCountdown tareaId={tarea.id} />}
+                    : tarea.estado === "SOLUCIONADO"
+                      ? `Tiempo laboral utilizado: ${tarea.tiempo_tomado_formateado ?? "00:00:00"}`
+                      : tarea.estado === "EN_DESARROLLO" && tarea.activo === false
+                        ? "Tarea inactiva"
+                        : (
+                          <TaskCountdown
+                            tareaId={tarea.id}
+                            estado={tarea.estado}
+                            tiempoTomadoFormateado={tarea.tiempo_tomado_formateado}
+                          />
+                        )}
               </span>
               {puedeIniciar && (
                 <button

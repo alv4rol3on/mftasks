@@ -718,6 +718,44 @@ def obtener_contador_tarea(
             "servidor_ahora": ahora.isoformat(),
         }
 
+    # Estados cerrados: nunca deben reportar un contador activo.
+    if tarea.estado == Tarea.Estado.CANCELADO:
+        return {
+            "activo": False,
+            "pausado": False,
+            "finalizado": True,
+            "segundos_restantes": 0,
+            "tiempo_tomado_segundos": None,
+            "incluye_sabado": incluye,
+            "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
+            "servidor_ahora": ahora.isoformat(),
+        }
+
+    if tarea.estado == Tarea.Estado.RECHAZADO:
+        return {
+            "activo": False,
+            "pausado": False,
+            "finalizado": True,
+            "segundos_restantes": 0,
+            "tiempo_tomado_segundos": None,
+            "incluye_sabado": incluye,
+            "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
+            "servidor_ahora": ahora.isoformat(),
+        }
+
+    if tarea.estado == Tarea.Estado.REAPERTURA_PENDIENTE:
+        # Congelado mientras se resuelve la solicitud de reapertura.
+        return {
+            "activo": False,
+            "pausado": True,
+            "finalizado": False,
+            "segundos_restantes": 0,
+            "tiempo_tomado_segundos": None,
+            "incluye_sabado": incluye,
+            "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
+            "servidor_ahora": ahora.isoformat(),
+        }
+
     # Si alguna subtarea activa está en STAND_BY, toda la tarea se considera
     # en pausa (no se muestra el contador) aunque el estado de la tarea no lo refleje.
     subtarea_en_standby = tarea.subtareas.filter(
@@ -747,28 +785,6 @@ def obtener_contador_tarea(
             "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
             "fecha_inicio": tarea.fecha_inicio.isoformat() if tarea.fecha_inicio else None,
             "servidor_ahora": ahora.isoformat(),
-        }
-
-    if tarea.estado == Tarea.Estado.CANCELADO:
-        return {
-            "activo": False,
-            "pausado": False,
-            "finalizado": True,
-            "segundos_restantes": 0,
-            "tiempo_tomado_segundos": None,
-            "incluye_sabado": incluye,
-            "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
-        }
-
-    if tarea.estado == Tarea.Estado.RECHAZADO:
-        return {
-            "activo": False,
-            "pausado": False,
-            "finalizado": False,
-            "segundos_restantes": 0,
-            "tiempo_tomado_segundos": None,
-            "incluye_sabado": incluye,
-            "fecha_entrega_aproximada": tarea.fecha_entrega_aproximada.isoformat() if tarea.fecha_entrega_aproximada else None,
         }
 
     if not tarea.fecha_inicio or not tarea.fecha_entrega_aproximada:
@@ -872,6 +888,33 @@ def obtener_contador_subtarea(
             "finalizado": True,
             "segundos_restantes": 0,
             "tiempo_tomado_segundos": int(tiempo_tomado.total_seconds()),
+            "incluye_sabado": incluye,
+            "fecha_inicio": subtarea.fecha_inicio.isoformat() if subtarea.fecha_inicio else None,
+            "fecha_fin": subtarea.fecha_fin.isoformat() if subtarea.fecha_fin else None,
+            "servidor_ahora": ahora.isoformat(),
+        }
+
+    # Si la tarea padre ya está cerrada o en reapertura, la subtarea tampoco
+    # debe reportar un contador activo.
+    tarea_padre = getattr(subtarea, "tarea", None)
+    if tarea_padre is not None and tarea_padre.estado in (
+        Tarea.Estado.SOLUCIONADO,
+        Tarea.Estado.CANCELADO,
+        Tarea.Estado.RECHAZADO,
+        Tarea.Estado.REAPERTURA_PENDIENTE,
+    ):
+        estado_padre = tarea_padre.estado
+        return {
+            "activo": False,
+            "pausado": estado_padre == Tarea.Estado.REAPERTURA_PENDIENTE,
+            "finalizado": estado_padre
+            in (
+                Tarea.Estado.SOLUCIONADO,
+                Tarea.Estado.CANCELADO,
+                Tarea.Estado.RECHAZADO,
+            ),
+            "segundos_restantes": 0,
+            "tiempo_tomado_segundos": None,
             "incluye_sabado": incluye,
             "fecha_inicio": subtarea.fecha_inicio.isoformat() if subtarea.fecha_inicio else None,
             "fecha_fin": subtarea.fecha_fin.isoformat() if subtarea.fecha_fin else None,

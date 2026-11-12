@@ -451,6 +451,95 @@ class EquipoAdminAccionesTestCase(APITestCase):
         self.assertTrue(self.equipo.activo)
 
 
+class EquipoCambiarLiderTestCase(APITestCase):
+
+    def setUp(self):
+        self.admin = _crear_usuario("adminlider@empresa.com")
+        _asignar_rol(self.admin, "Administrador")
+
+        self.lider = _crear_usuario("lideractual@empresa.com")
+        _asignar_rol(self.lider, "GTR")
+
+        self.candidato = _crear_usuario("nuevolider@empresa.com")
+        _asignar_rol(self.candidato, "GTR")
+
+        self.otro_rol = _crear_usuario("otrorol@empresa.com")
+        _asignar_rol(self.otro_rol, "miembro")
+
+        self.equipo = Equipo.objects.create(
+            nombre="Equipo cambio líder",
+            lider=self.lider,
+        )
+
+    def _url(self):
+        return reverse("equipo-cambiar-lider", args=[self.equipo.id])
+
+    def test_admin_cambia_lider_por_mismo_rol(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            self._url(),
+            {"codigo": self.candidato.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.equipo.refresh_from_db()
+        self.assertEqual(self.equipo.lider_id, self.candidato.id)
+
+        anterior = EquipoMiembro.objects.get(
+            equipo=self.equipo,
+            usuario=self.lider,
+        )
+        nuevo = EquipoMiembro.objects.get(
+            equipo=self.equipo,
+            usuario=self.candidato,
+        )
+        self.assertEqual(anterior.rol_en_equipo, EquipoMiembro.RolEnEquipo.MIEMBRO)
+        self.assertEqual(nuevo.rol_en_equipo, EquipoMiembro.RolEnEquipo.LIDER)
+
+    def test_solo_admin_puede_cambiar_lider(self):
+        self.client.force_authenticate(user=self.lider)
+
+        res = self.client.post(
+            self._url(),
+            {"codigo": self.candidato.codigo},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.equipo.refresh_from_db()
+        self.assertEqual(self.equipo.lider_id, self.lider.id)
+
+    def test_rechaza_candidato_con_rol_distinto(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            self._url(),
+            {"usuario_id": self.otro_rol.id},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.equipo.refresh_from_db()
+        self.assertEqual(self.equipo.lider_id, self.lider.id)
+
+    def test_rechaza_candidato_inactivo(self):
+        self.candidato.is_active = False
+        self.candidato.save(update_fields=["is_active"])
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            self._url(),
+            {"usuario_id": self.candidato.id},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.equipo.refresh_from_db()
+        self.assertEqual(self.equipo.lider_id, self.lider.id)
+
+
 class EquipoBajaMiembroTestCase(APITestCase):
 
     def setUp(self):

@@ -33,7 +33,11 @@ from .models import (
     Rol,
     User,
 )
-from .jerarquia import roles_integrante_requeridos
+from .jerarquia import (
+    puede_ser_lider,
+    rol_efectivo,
+    roles_integrante_requeridos,
+)
 from .permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
@@ -515,7 +519,13 @@ class EquipoViewSet(ModelViewSet):
 
         permisos = super().get_permissions()
 
-        if self.action in ("create", "update", "partial_update", "destroy"):
+        if self.action in (
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "cambiar_lider",
+        ):
             # Solo el Administrador crea/gestiona equipos.
             permisos += [EsAdministrador()]
 
@@ -608,6 +618,108 @@ class EquipoViewSet(ModelViewSet):
         equipo.save(update_fields=["activo"])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="cambiar-lider")
+    def cambiar_lider(self, request, pk=None):
+        """Cambia el líder del equipo por otro usuario con el mismo rol."""
+        equipo = self.get_object()
+
+        if not es_administrador(request.user):
+            return Response(
+                {"detail": "Solo un administrador puede cambiar el líder."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        codigo = (request.data.get("codigo") or "").strip()
+        usuario_id = request.data.get("usuario_id") or request.data.get("usuario")
+
+        candidato = None
+        if codigo:
+            try:
+                candidato = User.objects.get(codigo__iexact=codigo)
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": f"Usuario con código {codigo} no encontrado."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        elif usuario_id:
+            try:
+                usuario_id = int(usuario_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "usuario_id inválido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                candidato = User.objects.get(id=usuario_id)
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": "Usuario no encontrado."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            return Response(
+                {"detail": "Debe indicar codigo o usuario_id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if candidato.id == equipo.lider_id:
+            return Response(
+                {"detail": "El usuario ya es el líder del equipo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not candidato.is_active:
+            return Response(
+                {
+                    "detail": (
+                        "No se puede asignar como líder a un usuario inactivo."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not puede_ser_lider(candidato):
+            return Response(
+                {"detail": "El usuario no puede ser líder de un equipo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        rol_candidato = rol_efectivo(candidato)
+        if (
+            equipo.rol_equipo_id is None
+            or rol_candidato is None
+            or rol_candidato.pk != equipo.rol_equipo_id
+        ):
+            nombre_rol = (
+                equipo.rol_equipo.nombre if equipo.rol_equipo_id else "—"
+            )
+            return Response(
+                {
+                    "detail": (
+                        "El nuevo líder debe tener el mismo rol que el líder "
+                        f"actual ({nombre_rol})."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        equipo.lider = candidato
+        equipo.save()
+
+        # Si el candidato ya existía como miembro inactivo, reactivarlo.
+        EquipoMiembro.objects.filter(
+            equipo=equipo,
+            usuario=candidato,
+        ).update(estado=EquipoMiembro.EstadoMiembro.ACTIVO)
+
+        return Response(
+            EquipoDetailSerializer(
+                equipo,
+                context=self.get_serializer_context(),
+            ).data,
+            status=status.HTTP_200_OK,
+        )
 
     @staticmethod
     def _validar_estado(payload):

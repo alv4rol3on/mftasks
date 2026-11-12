@@ -6,6 +6,7 @@ import styles from "./IconButton.module.css";
 export type IconName =
   | "edit"
   | "trash"
+  | "user"
   | "eye"
   | "ban"
   | "power"
@@ -27,6 +28,12 @@ const ICONS: Record<IconName, ReactNode> = {
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
       <path d="M10 11v6" />
       <path d="M14 11v6" />
+    </>
+  ),
+  user: (
+    <>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </>
   ),
   eye: (

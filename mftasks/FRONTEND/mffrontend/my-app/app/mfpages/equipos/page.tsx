@@ -67,6 +67,7 @@ export default function EquiposPage() {
   const [modalCrear, setModalCrear] = useState(false);
   // opciones de administrador sobre el equipo
   const [modalRenombrar, setModalRenombrar] = useState<{ equipo: EquipoInfo; nombre: string } | null>(null);
+  const [modalCambiarLider, setModalCambiarLider] = useState<{ equipo: EquipoInfo; usuarioId: string; busqueda: string } | null>(null);
   const [modalEliminar, setModalEliminar] = useState<EquipoInfo | null>(null);
   const [accionEquipo, setAccionEquipo] = useState(false);
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
@@ -198,6 +199,37 @@ export default function EquiposPage() {
     return (u.roles ?? []).some(
       (r) => mapaRolesNombre.get(r.toLowerCase())?.puede_liderar === true
     );
+  };
+
+  /** Profundidad jerárquica de un rol (0 = raíz). */
+  const profundidadRol = (rol: RolInfo): number => {
+    const visitados = new Set<number>();
+    let actual: RolInfo | undefined = rol;
+    let profundidad = 0;
+
+    while (actual && actual.superior != null && !visitados.has(actual.id)) {
+      visitados.add(actual.id);
+      const superior: number = actual.superior;
+      actual = rolesCatalogo.find((r) => r.id === superior);
+      if (actual) profundidad += 1;
+    }
+
+    return profundidad;
+  };
+
+  /** Nombre del rol de mayor rango del usuario (misma regla que el backend). */
+  const rolEfectivoNombre = (u: UsuarioLista): string | null => {
+    const rolesUsuario = (u.roles ?? [])
+      .map((nombre) => mapaRolesNombre.get(nombre.toLowerCase()))
+      .filter((r): r is RolInfo => Boolean(r && r.activo));
+
+    if (rolesUsuario.length === 0) return null;
+
+    return [...rolesUsuario].sort(
+      (a, b) =>
+        profundidadRol(a) - profundidadRol(b) ||
+        a.nombre.localeCompare(b.nombre)
+    )[0].nombre;
   };
 
   const handleToggleSubLider = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado) => {
@@ -601,6 +633,68 @@ export default function EquiposPage() {
     }
   };
 
+  const abrirModalCambiarLider = async (equipo: EquipoInfo) => {
+    setMensaje(null);
+    setModalCambiarLider({ equipo, usuarioId: "", busqueda: "" });
+    await asegurarCatalogos();
+  };
+
+  const cambiarLider = async () => {
+    if (!modalCambiarLider || !modalCambiarLider.usuarioId) return;
+
+    setAccionEquipo(true);
+    setMensaje(null);
+    try {
+      await apiFetch(
+        `/api/usuarios/equipos/${modalCambiarLider.equipo.id}/cambiar-lider/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            usuario_id: Number(modalCambiarLider.usuarioId),
+          }),
+        }
+      );
+      setMensaje("Líder del equipo actualizado correctamente.");
+      setModalCambiarLider(null);
+      await recargar();
+    } catch (e) {
+      setMensaje(`Error al cambiar el líder: ${(e as Error).message}`);
+    } finally {
+      setAccionEquipo(false);
+    }
+  };
+
+  const candidatosCambiarLider = (() => {
+    if (!modalCambiarLider) return [] as UsuarioLista[];
+
+    const { equipo, busqueda } = modalCambiarLider;
+    const rolRequerido = (equipo.rol_equipo_nombre ?? "").toLowerCase();
+    const q = normalizarBusqueda(busqueda.trim());
+
+    return usuariosTodos
+      .filter((u) => (u.is_active ?? u.activo) !== false)
+      .filter((u) => u.id !== equipo.lider?.id)
+      .filter(
+        (u) =>
+          rolRequerido !== "" &&
+          (rolEfectivoNombre(u) ?? "").toLowerCase() === rolRequerido
+      )
+      .filter((u) => {
+        if (!q) return true;
+        return (
+          normalizarBusqueda(u.nombres).includes(q) ||
+          normalizarBusqueda(u.apellidos).includes(q) ||
+          normalizarBusqueda(u.email).includes(q) ||
+          normalizarBusqueda(u.codigo ?? "").includes(q)
+        );
+      })
+      .sort((a, b) =>
+        `${a.nombres} ${a.apellidos}`.localeCompare(
+          `${b.nombres} ${b.apellidos}`
+        )
+      );
+  })();
+
   const usuariosFiltrados = usuariosDisponibles.filter((u) => {
     const q = busquedaUsuario.trim().toLowerCase();
     if (!q) return true;
@@ -815,15 +909,24 @@ export default function EquiposPage() {
                         />
 
                         {equipo.activo ? (
-                          <IconButton
-                            icon="trash"
-                            variant="danger"
-                            title="Eliminar equipo"
-                            onClick={() => {
-                              setMensaje(null);
-                              setModalEliminar(equipo);
-                            }}
-                          />
+                          <>
+                            <IconButton
+                              icon="user"
+                              variant="info"
+                              disabled={accionEquipo}
+                              title="Cambiar líder del equipo"
+                              onClick={() => abrirModalCambiarLider(equipo)}
+                            />
+                            <IconButton
+                              icon="trash"
+                              variant="danger"
+                              title="Eliminar equipo"
+                              onClick={() => {
+                                setMensaje(null);
+                                setModalEliminar(equipo);
+                              }}
+                            />
+                          </>
                         ) : (
 
                           <IconButton
@@ -1252,6 +1355,121 @@ export default function EquiposPage() {
                 }}
               >
                 {accionEquipo ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal cambiar líder (admin) */}
+      {modalCambiarLider && (
+        <div
+          onClick={() => setModalCambiarLider(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Cambiar líder del equipo</h3>
+            <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+              Equipo: <strong>{modalCambiarLider.equipo.nombre}</strong>
+            </p>
+            <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+              Líder actual:{" "}
+              <strong>
+                {modalCambiarLider.equipo.lider
+                  ? `${modalCambiarLider.equipo.lider.nombres} ${modalCambiarLider.equipo.lider.apellidos}`
+                  : "—"}
+              </strong>
+              {modalCambiarLider.equipo.rol_equipo_nombre
+                ? ` · Rol: ${modalCambiarLider.equipo.rol_equipo_nombre}`
+                : ""}
+            </p>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
+              Solo se muestran usuarios activos con el mismo rol que el líder actual.
+            </p>
+
+            <input
+              value={modalCambiarLider.busqueda}
+              onChange={(e) =>
+                setModalCambiarLider((prev) =>
+                  prev ? { ...prev, busqueda: e.target.value } : prev
+                )
+              }
+              placeholder="Buscar por nombre, email o código"
+              style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
+            />
+
+            <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
+              {candidatosCambiarLider.length === 0 ? (
+                <div style={{ padding: 12, fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>
+                  No hay usuarios activos con el mismo rol que el líder actual.
+                </div>
+              ) : (
+                candidatosCambiarLider.map((u) => {
+                  const seleccionado = modalCambiarLider.usuarioId === String(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() =>
+                        setModalCambiarLider((prev) =>
+                          prev ? { ...prev, usuarioId: String(u.id) } : prev
+                        )
+                      }
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        textAlign: "left",
+                        background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
+                        border: `1px solid ${seleccionado ? "var(--color-detail-header)" : "var(--color-border)"}`,
+                        borderRadius: 8,
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                          {u.nombres} {u.apellidos}
+                        </span>
+                        <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
+                          {u.email} • {u.codigo ?? "—"} • {(u.roles ?? []).join(", ") || "—"}
+                        </span>
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
+                        {seleccionado ? "Seleccionado" : "Elegir"}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setModalCambiarLider(null)}
+                style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={cambiarLider}
+                disabled={!modalCambiarLider.usuarioId || accionEquipo}
+                style={{
+                  background: !modalCambiarLider.usuarioId || accionEquipo ? "var(--color-disabled)" : "var(--color-brand)",
+                  color: !modalCambiarLider.usuarioId || accionEquipo ? "var(--color-text-secondary)" : "var(--color-on-accent)",
+                  border: "1px solid var(--color-brand)",
+                  padding: "8px 14px",
+                  borderRadius: "var(--radius-control)",
+                  cursor: !modalCambiarLider.usuarioId || accionEquipo ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {accionEquipo ? "Guardando..." : "Cambiar líder"}
               </button>
             </div>
           </div>

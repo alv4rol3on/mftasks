@@ -7,6 +7,8 @@ import { apiFetch } from "@/lib/api";
 
 interface TaskCountdownProps {
   tareaId: number;
+  estado?: string | null;
+  tiempoTomadoFormateado?: string | null;
 }
 
 interface ContadorResponseFallback {
@@ -41,9 +43,14 @@ function TextoExcedido({ segundos, extra }: { segundos: number; extra: number })
   );
 }
 
-export default function TaskCountdown({ tareaId }: TaskCountdownProps) {
+export default function TaskCountdown({
+  tareaId,
+  estado,
+  tiempoTomadoFormateado,
+}: TaskCountdownProps) {
   const ctxData = useContador(tareaId);
   const conProvider = ctxData !== undefined;
+  const requiereContadorEnVivo = !estado || estado === "EN_DESARROLLO";
 
   // Fallback aislado (hooks siempre declarados): snapshot + interpolación sin drift.
   // displaySec es "firmado": positivo = restante, negativo = excedido.
@@ -57,6 +64,7 @@ export default function TaskCountdown({ tareaId }: TaskCountdownProps) {
 
   useEffect(() => {
     if (conProvider) return;
+    if (!requiereContadorEnVivo) return;
     let cancelado = false;
     let poll: ReturnType<typeof setInterval> | null = null;
     let tick: ReturnType<typeof setInterval> | null = null;
@@ -73,7 +81,7 @@ export default function TaskCountdown({ tareaId }: TaskCountdownProps) {
         if (cancelado) return;
         const snap: Snap = { raw: data, serverAhora: data.servidor_ahora ? new Date(data.servidor_ahora) : new Date() };
         setSnapshot(snap);
-        if (!snap.raw.activo || snap.raw.pausado || snap.raw.tiempo_tomado_segundos !== null) {
+        if (!snap.raw.activo || snap.raw.pausado || snap.raw.finalizado || snap.raw.tiempo_tomado_segundos !== null) {
           setDisplaySec(baseFirmada(snap.raw));
         } else {
           const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date());
@@ -89,7 +97,7 @@ export default function TaskCountdown({ tareaId }: TaskCountdownProps) {
     tick = setInterval(() => {
       const snap = snapshotRef.current;
       if (!snap) return;
-      if (!snap.raw.activo || snap.raw.pausado || snap.raw.tiempo_tomado_segundos !== null) return;
+      if (!snap.raw.activo || snap.raw.pausado || snap.raw.finalizado || snap.raw.tiempo_tomado_segundos !== null) return;
       const elapsed = segundosLaboralesEntre(snap.serverAhora, new Date());
       setDisplaySec(baseFirmada(snap.raw) - elapsed);
     }, 1000);
@@ -104,7 +112,22 @@ export default function TaskCountdown({ tareaId }: TaskCountdownProps) {
       if (tick) clearInterval(tick);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [tareaId, conProvider]);
+  }, [tareaId, conProvider, requiereContadorEnVivo]);
+
+  if (estado === "SOLUCIONADO") {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+        Tiempo tomado: {tiempoTomadoFormateado ?? "00:00:00"}
+      </span>
+    );
+  }
+
+  if (estado === "CANCELADO") return <span>Cancelada</span>;
+  if (estado === "RECHAZADO") return <span>Sin temporizador</span>;
+  if (estado === "REAPERTURA_PENDIENTE") return <span>En reapertura</span>;
+  if (estado === "STAND_BY") return <span>En pausa</span>;
+  if (estado === "APROBADO") return <span>Aún no iniciada</span>;
+  if (estado === "EN_ESPERA") return <span>Sin temporizador</span>;
 
   if (conProvider) {
     if (ctxData === null) return <span>Calculando...</span>;

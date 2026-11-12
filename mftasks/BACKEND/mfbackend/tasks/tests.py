@@ -1574,3 +1574,102 @@ class CancelacionTareaTestCase(APITestCase):
         self.assertTrue(contador["finalizado"])
         self.assertEqual(contador["segundos_restantes"], 0)
         self.assertIsNone(contador["tiempo_tomado_segundos"])
+
+
+class ContadorEstadosTerminalesTestCase(TestCase):
+    """Los contadores no deben seguir activos al cerrar tareas."""
+
+    def setUp(self):
+        self.lider = _crear_usuario("lidercontador@empresa.com")
+        _asignar_rol(self.lider, "GTR")
+        self.miembro = _crear_usuario("miembrocontador@empresa.com")
+
+        self.equipo = Equipo.objects.create(
+            nombre="Equipo contador terminal",
+            lider=self.lider,
+        )
+        self.campana = Campana.objects.create(
+            nombre="Camp contador",
+            codigo="CAMP_CONT",
+        )
+        self.subcampana = SubCampana.objects.create(
+            campana=self.campana,
+            nombre="Sub contador",
+            codigo="SUB_CONT",
+        )
+        self.tarea = Tarea.objects.create(
+            asunto="Tarea contador",
+            descripcion="d",
+            equipo=self.equipo,
+            subcampana=self.subcampana,
+            estado=Tarea.Estado.EN_DESARROLLO,
+            fecha_inicio=timezone.now() - timedelta(hours=2),
+            fecha_entrega_aproximada=timezone.now() + timedelta(hours=2),
+        )
+
+    def test_reapertura_pendiente_congela_contador(self):
+        from .services.tiempo_laboral import obtener_contador_tarea
+
+        self.tarea.estado = Tarea.Estado.REAPERTURA_PENDIENTE
+        self.tarea.save(update_fields=["estado"])
+
+        contador = obtener_contador_tarea(self.tarea)
+
+        self.assertFalse(contador["activo"])
+        self.assertTrue(contador["pausado"])
+        self.assertFalse(contador["finalizado"])
+        self.assertEqual(contador["segundos_restantes"], 0)
+
+    def test_cancelada_con_subtarea_standby_esta_finalizada(self):
+        from .services.tiempo_laboral import obtener_contador_tarea
+
+        Subtarea.objects.create(
+            tarea=self.tarea,
+            descripcion="Sub en pausa",
+            asignado=self.miembro,
+            peso=1,
+            estado=Subtarea.Estado.STAND_BY,
+            motivo_standby="pausa",
+            fecha_standby=timezone.now() - timedelta(hours=1),
+        )
+        self.tarea.estado = Tarea.Estado.CANCELADO
+        self.tarea.save(update_fields=["estado"])
+
+        contador = obtener_contador_tarea(self.tarea)
+
+        self.assertFalse(contador["activo"])
+        self.assertTrue(contador["finalizado"])
+        self.assertFalse(contador["pausado"])
+        self.assertEqual(contador["segundos_restantes"], 0)
+
+    def test_rechazada_esta_finalizada(self):
+        from .services.tiempo_laboral import obtener_contador_tarea
+
+        self.tarea.estado = Tarea.Estado.RECHAZADO
+        self.tarea.save(update_fields=["estado"])
+
+        contador = obtener_contador_tarea(self.tarea)
+
+        self.assertFalse(contador["activo"])
+        self.assertTrue(contador["finalizado"])
+        self.assertEqual(contador["segundos_restantes"], 0)
+
+    def test_subtarea_bajo_tarea_cancelada_esta_inactiva(self):
+        from .services.tiempo_laboral import obtener_contador_subtarea
+
+        subtarea = Subtarea.objects.create(
+            tarea=self.tarea,
+            descripcion="Sub en desarrollo",
+            asignado=self.miembro,
+            peso=1,
+            estado=Subtarea.Estado.EN_DESARROLLO,
+            fecha_inicio=timezone.now() - timedelta(hours=1),
+        )
+        self.tarea.estado = Tarea.Estado.CANCELADO
+        self.tarea.save(update_fields=["estado"])
+
+        contador = obtener_contador_subtarea(subtarea)
+
+        self.assertFalse(contador["activo"])
+        self.assertTrue(contador["finalizado"])
+        self.assertEqual(contador["segundos_restantes"], 0)

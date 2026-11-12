@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useMsal } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
 import { useRouter } from "next/navigation";
 import { loginRequest } from "@/lib/authConfig";
 import {
     intercambiarToken,
-    isAutenticado,
+    sesionActiva,
+    limpiarSesionLocal,
     ErrorDeSesion,
 } from "@/lib/auth";
 import Spinner from "@/components/ui/Spinner";
 import styles from "./Login.module.css";
+
+const suscribirSesion = () => () => {};
 
 export default function Home() {
     const { instance, accounts, inProgress } = useMsal();
@@ -20,11 +23,29 @@ export default function Home() {
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const verificandoSesion = useSyncExternalStore(
+        suscribirSesion,
+        sesionActiva,
+        () => false
+    );
+
     useEffect(() => {
         document.title = "Iniciar sesión · MF Tasks";
     }, []);
 
+    // Si ya existe una sesión vigente, nunca se muestra el login ni se
+    // permite iniciar sesión de nuevo hasta que el usuario cierre sesión.
     useEffect(() => {
+        if (verificandoSesion) {
+            router.replace("/mfpages/perfil");
+            return;
+        }
+
+        limpiarSesionLocal();
+    }, [router, verificandoSesion]);
+
+    useEffect(() => {
+        if (verificandoSesion) return;
         if (inProgress !== InteractionStatus.None) return;
 
         const cuenta =
@@ -35,7 +56,7 @@ export default function Home() {
 
         instance.setActiveAccount(cuenta);
 
-        if (isAutenticado()) {
+        if (sesionActiva()) {
             router.replace("/mfpages/perfil");
             return;
         }
@@ -57,9 +78,16 @@ export default function Home() {
                 setCargando(false);
             }
         })();
-    }, [instance, accounts, inProgress, router]);
+    }, [instance, accounts, inProgress, router, verificandoSesion]);
 
     const iniciarSesion = (otroCorreo = false) => {
+        if (sesionActiva()) {
+            router.replace("/mfpages/perfil");
+            return;
+        }
+
+        if (inProgress !== InteractionStatus.None) return;
+
         setError(null);
         if (otroCorreo) instance.setActiveAccount(null);
         instance.loginRedirect(
@@ -70,7 +98,7 @@ export default function Home() {
     };
 
     const autenticando =
-        cargando || inProgress !== InteractionStatus.None;
+        verificandoSesion || cargando || inProgress !== InteractionStatus.None;
 
     return (
         <main className={styles.page}>
@@ -84,9 +112,11 @@ export default function Home() {
                     <p className={styles.status} role="status" aria-live="polite">
                         <Spinner size={18} />
                         <span>
-                            {cargando
-                                ? "Autenticando con Microsoft…"
-                                : "Conectando con Microsoft…"}
+                            {verificandoSesion
+                                ? "Verificando sesión…"
+                                : cargando
+                                  ? "Autenticando con Microsoft…"
+                                  : "Conectando con Microsoft…"}
                         </span>
                     </p>
                 ) : (

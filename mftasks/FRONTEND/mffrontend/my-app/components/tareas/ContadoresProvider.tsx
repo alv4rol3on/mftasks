@@ -39,7 +39,13 @@ const SNAP_STORAGE_KEY = "mftasks-snapMap-v1";
  */
 function interpolate(snapshot: Snapshot, now: Date): ContadorResponse {
   const { raw } = snapshot;
-  if (!raw.activo || raw.pausado || raw.tiempo_tomado_segundos !== null) return raw;
+  if (
+    !raw.activo ||
+    raw.pausado ||
+    raw.finalizado ||
+    raw.tiempo_tomado_segundos !== null
+  )
+    return raw;
   const elapsed = segundosLaboralesEntre(snapshot.serverAhora, now);
   // Firmado: positivo = restante, negativo = excedido (continúa más allá de 0).
   const base = raw.con_retraso ? -(raw.segundos_retraso ?? 0) : raw.segundos_restantes;
@@ -134,8 +140,9 @@ export function ContadoresProvider({
       for (const [id, data] of results) {
         if (!idsRef.current.includes(id)) continue;
         if (data === null) {
-          // conservar snapshot previo si existe para no parpadear
-          if (!next.has(id)) next.set(id, null);
+          // Descartar snapshots obsoletos: evita que un contador activo
+          // siga corriendo cuando la tarea ya terminó o el endpoint falla.
+          next.delete(id);
         } else {
           next.set(id, {
             raw: data,
@@ -158,12 +165,16 @@ export function ContadoresProvider({
       await cargarBatch();
     };
 
-    const hayFaltantes = ids.some((id) => {
-      const s = snapMapRef.current.get(id);
-      return !s;
-    });
-    if (hayFaltantes || snapMapRef.current.size === 0) doCargar();
-    poll = setInterval(doCargar, POLL_MS);
+    if (ids.length === 0) {
+      // Sin IDs no debe existir polling ni peticiones de contador.
+      void cargarBatch();
+    } else {
+      // Refrescar de inmediato al montar/cambiar de página: evita mostrar
+      // snapshots persistidos de tareas que ya finalizaron.
+      lastFetchRef.current = 0;
+      void doCargar();
+      poll = setInterval(doCargar, POLL_MS);
+    }
 
     const onVis = () => {
       if (document.visibilityState !== "visible") return;

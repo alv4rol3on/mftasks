@@ -26,6 +26,63 @@ export interface DatosUsuario {
 
 export class ErrorDeSesion extends Error {}
 
+function decodificarPayload(token: string): Record<string, unknown> | null {
+    try {
+        const parte = token.split(".")[1];
+        if (!parte) return null;
+
+        const base64 = parte.replace(/-/g, "+").replace(/_/g, "/");
+        const relleno = "=".repeat((4 - (base64.length % 4)) % 4);
+        const json = decodeURIComponent(
+            atob(base64 + relleno)
+                .split("")
+                .map(
+                    (c) =>
+                        "%" +
+                        ("00" + c.charCodeAt(0).toString(16)).slice(-2)
+                )
+                .join("")
+        );
+
+        return JSON.parse(json) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+}
+
+function tokenVigente(token: string | null): boolean {
+    if (!token) return false;
+
+    const payload = decodificarPayload(token);
+    const exp = payload?.exp;
+
+    if (typeof exp !== "number") return false;
+
+    return exp * 1000 > Date.now() + 5000;
+}
+
+/**
+ * True si hay una sesión aún vigente en este navegador (misma pestaña o
+ * pestañas que comparten localStorage). Evita volver a iniciar sesión
+ * mientras el usuario no haya cerrado sesión.
+ */
+export function sesionActiva(): boolean {
+    if (typeof window === "undefined") return false;
+
+    return (
+        tokenVigente(localStorage.getItem("access")) ||
+        tokenVigente(localStorage.getItem("refresh"))
+    );
+}
+
+export function limpiarSesionLocal(): void {
+    if (typeof window === "undefined") return;
+
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("user");
+}
+
 function guardarTokens(access: string, refresh: string): void {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
@@ -192,9 +249,7 @@ export async function cerrarSesion(
         }
     }
 
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user");
+    limpiarSesionLocal();
 
     await instance.logoutRedirect({
         postLogoutRedirectUri: window.location.origin,
