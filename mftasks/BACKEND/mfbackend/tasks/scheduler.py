@@ -115,10 +115,7 @@ def check_aprobaciones_vencidas():
     ).filter(
         Q(fecha_limite_aprobacion__lte=ahora)
         |
-        Q(
-            fecha_limite_aprobacion__isnull=True,
-            fecha_creacion__lte=ahora - timedelta(hours=72),
-        )
+        Q(fecha_limite_aprobacion__isnull=True)
     ).values_list("id", flat=True)
 
     count = 0

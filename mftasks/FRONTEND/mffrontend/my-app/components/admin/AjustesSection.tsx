@@ -47,8 +47,8 @@ export default function AjustesSection({ setMsg }: Props) {
   const [horasLimite, setHorasLimite] = useState(72);
   const [horasOriginales, setHorasOriginales] = useState(72);
 
-  const [diasConfirmacion, setDiasConfirmacion] = useState(5);
-  const [diasOriginales, setDiasOriginales] = useState(5);
+  const [horasConfirmacion, setHorasConfirmacion] = useState(45);
+  const [horasConfirmacionOriginales, setHorasConfirmacionOriginales] = useState(45);
 
   const [horaAlerta, setHoraAlerta] = useState("09:00");
   const [horaOriginal, setHoraOriginal] = useState("09:00");
@@ -65,15 +65,15 @@ export default function AjustesSection({ setMsg }: Props) {
       const data = await apiFetch<{
         id: number;
         horas_limite: number;
-        dias_habiles_confirmacion: number;
+        horas_confirmacion: number;
         hora_alerta_diaria: string;
       }>("/api/tasks/configuracion-aprobacion/1/");
 
       setHorasLimite(data.horas_limite);
       setHorasOriginales(data.horas_limite);
 
-      setDiasConfirmacion(data.dias_habiles_confirmacion);
-      setDiasOriginales(data.dias_habiles_confirmacion);
+      setHorasConfirmacion(data.horas_confirmacion);
+      setHorasConfirmacionOriginales(data.horas_confirmacion);
 
       const hora = (data.hora_alerta_diaria || "09:00").slice(0, 5);
       setHoraAlerta(hora);
@@ -130,15 +130,17 @@ export default function AjustesSection({ setMsg }: Props) {
 
   const guardarConfirmacion = async () => {
     if (
-      !Number.isInteger(diasConfirmacion) ||
-      diasConfirmacion < 0 ||
-      diasConfirmacion > 30
+      !Number.isInteger(horasConfirmacion) ||
+      horasConfirmacion < 0 ||
+      horasConfirmacion > 270
     ) {
-      setMsg("El plazo debe ser un número entero entre 0(desactivado) y 30 días hábiles.");
+      setMsg(
+        "El plazo debe ser un número entero entre 0 y 270 horas laborales."
+      );
       return;
     }
 
-    if (diasConfirmacion === diasOriginales) {
+    if (horasConfirmacion === horasConfirmacionOriginales) {
       setMsg("No hay cambios pendientes.");
       return;
     }
@@ -151,13 +153,18 @@ export default function AjustesSection({ setMsg }: Props) {
         {
           method: "PATCH",
           body: JSON.stringify({
-            dias_habiles_confirmacion: diasConfirmacion,
+            horas_confirmacion: horasConfirmacion,
           }),
         }
       );
 
-      setDiasOriginales(diasConfirmacion);
-      setMsg("Plazo de confirmación del cliente actualizado correctamente.");
+      setHorasConfirmacionOriginales(horasConfirmacion);
+
+      setMsg(
+        horasConfirmacion === 0
+          ? "La confirmación automática inmediata fue configurada correctamente."
+          : "Plazo de confirmación del cliente actualizado correctamente."
+      );
 
     } catch (e) {
       setMsg(
@@ -415,11 +422,10 @@ export default function AjustesSection({ setMsg }: Props) {
 
             <div className={styles.settingsNote}>
               <strong>Importante:</strong>{" "}
-              Si una solicitud no es aprobada ni rechazada dentro del plazo,
-              será rechazada automáticamente y se notificará al solicitante.
-              El tiempo se cuenta en horas corridas y las solicitudes enviadas 
-              previamente no aumentaran ni disminuiran su tiempo luego de la
-              configuración.
+              Si una solicitud no recibe respuesta de aprobación o rechazo dentro del plazo,
+              será rechazada automáticamente.
+              El plazo de aprobacion/rechazo de las solicitudes que han sido enviadas previamente
+              al cambio de esta configuración no será alterado.
             </div>
             <div className={styles.settingsActions}>
               <button
@@ -475,18 +481,18 @@ export default function AjustesSection({ setMsg }: Props) {
         ) : (
           <div className={styles.settingsForm}>
             <label className={styles.field}>
-              <span>Plazo máximo de confirmación (días hábiles)</span>
+              <span>Plazo máximo de confirmación (horas laborales)</span>
 
               <input
                 type="number"
                 min={0}
-                max={30}
+                max={270}
                 step={1}
-                value={diasConfirmacion}
+                value={horasConfirmacion}
                 disabled={guardandoConfirmacion}
                 onChange={e => {
                   const valor = e.target.value;
-                  setDiasConfirmacion(valor === "" ? 0 : Number(valor));
+                  setHorasConfirmacion(valor === "" ? 0 : Number(valor));
                 }}
                 className={styles.input}
               />
@@ -494,20 +500,21 @@ export default function AjustesSection({ setMsg }: Props) {
 
             <div className={styles.settingsNote}>
               <strong>Importante:</strong>{" "}
-              Si el cliente no confirma ni reabre dentro del plazo, la solución
-              se confirmará automáticamente. El tiempo se cuenta en días
-              hábiles.
+              Si el cliente no confirma ni reabre dentro del plazo, la solicitud
+              será confirmada automáticamente como solucionada.
+              El tiempo se cuenta únicamente durante los horarios laborales configurados.
+              Si estableces el valor en 0, la solución se confirma inmediatamente.
             </div>
             <div className={styles.settingsActions}>
               <button
                 type="button"
                 className={styles.btnSecondary}
                 disabled={
-                  diasConfirmacion === diasOriginales ||
+                  horasConfirmacion === horasConfirmacionOriginales ||
                   guardandoConfirmacion ||
                   cargandoConfig
                 }
-                onClick={() => setDiasConfirmacion(diasOriginales)}
+                onClick={() => setHorasConfirmacion(horasConfirmacionOriginales)}
               >
                 Descartar
               </button>
@@ -516,7 +523,7 @@ export default function AjustesSection({ setMsg }: Props) {
                 type="button"
                 className={styles.btnPrimary}
                 disabled={
-                  diasConfirmacion === diasOriginales ||
+                  horasConfirmacion === horasConfirmacionOriginales ||
                   guardandoConfirmacion ||
                   cargandoConfig
                 }

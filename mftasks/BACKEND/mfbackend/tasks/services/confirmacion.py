@@ -1,10 +1,15 @@
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
 from ..models import ConfiguracionAprobacion, Subtarea, Tarea, TareaLog
 from .logs import registrar_log
 from .notificaciones import notificar_tarea
-from .tiempo_laboral import sumar_dias_habiles
+from .tiempo_laboral import (
+    sumar_dias_habiles,
+    sumar_tiempo_laboral,
+)
 
 
 MAX_REAPERTURAS_CLIENTE = 2
@@ -21,13 +26,14 @@ def _ahora():
 
 def programar_confirmacion(tarea: Tarea) -> Tarea:
     """
-    Programa la confirmación del cliente.
-    Si la configuración es 0 días, confirma automáticamente.
+    Programa la confirmación del cliente utilizando horas laborales.
+    Si la configuración es 0 horas, confirma automáticamente.
     """
     ahora = _ahora()
-    dias_habiles = ConfiguracionAprobacion.obtener().dias_habiles_confirmacion
+    horas = ConfiguracionAprobacion.obtener().horas_confirmacion
 
-    if dias_habiles == 0:
+    # Si el plazo es 0, confirmar inmediatamente.
+    if horas == 0:
         tarea.confirmacion_cliente = Tarea.ConfirmacionCliente.CONFIRMADA
         tarea.fecha_confirmacion_cliente = ahora
         tarea.fecha_limite_confirmacion = None
@@ -44,11 +50,14 @@ def programar_confirmacion(tarea: Tarea) -> Tarea:
 
         return tarea
 
+    # Programar el plazo en horas laborales.
     tarea.confirmacion_cliente = Tarea.ConfirmacionCliente.PENDIENTE
-    tarea.fecha_limite_confirmacion = sumar_dias_habiles(
+
+    tarea.fecha_limite_confirmacion = sumar_tiempo_laboral(
         tarea.fecha_solucion or ahora,
-        dias_habiles,
+        timedelta(hours=horas),
     )
+
     tarea.fecha_confirmacion_cliente = None
 
     tarea.save(
@@ -60,7 +69,6 @@ def programar_confirmacion(tarea: Tarea) -> Tarea:
     )
 
     return tarea
-
 
 def puede_confirmar_solucion(tarea: Tarea, usuario) -> bool:
     if tarea is None or usuario is None or not getattr(usuario, "is_authenticated", False):

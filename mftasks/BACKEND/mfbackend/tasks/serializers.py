@@ -269,9 +269,16 @@ class TaskSerializer(serializers.ModelSerializer):
         if obj.fecha_limite_aprobacion:
             return obj.fecha_limite_aprobacion
 
-        # Solicitudes antiguas: usar el plazo configurado actualmente.
+        # Solicitudes antiguas sin fecha límite:
+        # calcular usando el horario laboral configurado.
+        from .services.tiempo_laboral import sumar_tiempo_laboral
+
         horas = ConfiguracionAprobacion.obtener().horas_limite
-        return obj.fecha_creacion + timedelta(hours=horas)
+
+        return sumar_tiempo_laboral(
+            obj.fecha_creacion,
+            timedelta(hours=horas),
+        )
 
     def get_puedo_aprobar(self, obj):
         request = self.context.get("request")
@@ -565,7 +572,7 @@ class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "horas_limite",
-            "dias_habiles_confirmacion",
+            "horas_confirmacion",
             "hora_alerta_diaria",
         ]
         read_only_fields = ["id"]
@@ -578,10 +585,11 @@ class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
 
         return value
 
-    def validate_dias_habiles_confirmacion(self, value):
-        if not 0 <= value <= 30:
+    def validate_horas_confirmacion(self, value):
+        if not 0 <= value <= 270:
             raise serializers.ValidationError(
-                "El plazo debe estar entre 0(desactivado) y 30 días hábiles."
+                "El plazo debe estar entre 0 y 270 horas laborales. "
+                "Utiliza 0 para desactivar el plazo."
             )
 
         return value

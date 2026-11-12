@@ -343,7 +343,7 @@ export default function TareaDetalle({
                 <tr><td>Equipo</td><td>{tarea.equipo_nombre || "-"}</td></tr>
                 <tr><td>Prioridad</td><td><PrioridadBadge prioridad={tarea.prioridad} compact /></td></tr>
                 <tr><td>Fecha solicitud</td><td>{formatearFecha(tarea.fecha_creacion)}</td></tr>
-                {tarea.fecha_inicio && <tr><td>Inicio</td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>}
+                {tarea.fecha_inicio && <tr><td>Fecha de inicio aprox.</td><td>{formatearFecha(tarea.fecha_inicio)}</td></tr>}
                 {tarea.estado == "SOLUCIONADO" ? (
                   <tr><td>Fecha de solución</td><td>{formatearFecha(tarea.fecha_solucion)}</td></tr>
                 ) : (

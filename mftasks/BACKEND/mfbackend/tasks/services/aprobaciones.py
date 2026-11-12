@@ -5,14 +5,21 @@ from django.utils import timezone
 
 
 def obtener_fecha_limite_aprobacion(tarea):
+    # Si ya tiene fecha límite, respetar la fecha existente.
     if tarea.fecha_limite_aprobacion:
         return tarea.fecha_limite_aprobacion
 
-    # Compatibilidad con solicitudes antiguas: plazo configurado actualmente.
+    # Solicitudes antiguas sin fecha límite:
+    # calcular el vencimiento usando horas laborales.
     from tasks.models import ConfiguracionAprobacion
+    from tasks.services.tiempo_laboral import sumar_tiempo_laboral
 
     horas = ConfiguracionAprobacion.obtener().horas_limite
-    return tarea.fecha_creacion + timedelta(hours=horas)
+
+    return sumar_tiempo_laboral(
+        tarea.fecha_creacion,
+        timedelta(hours=horas),
+    )
 
 
 def aprobacion_vencida(tarea):

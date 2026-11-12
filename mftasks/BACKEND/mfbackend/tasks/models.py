@@ -247,10 +247,13 @@ class Tarea(models.Model):
             and not self.fecha_limite_aprobacion
         ):
 
+            from .services.tiempo_laboral import sumar_tiempo_laboral
+
             horas = ConfiguracionAprobacion.obtener().horas_limite
 
-            self.fecha_limite_aprobacion = (
-                timezone.now() + timedelta(hours=horas)
+            self.fecha_limite_aprobacion = sumar_tiempo_laboral(
+                timezone.now(),
+                timedelta(hours=horas),
             )
 
         super().save(*args, **kwargs)
@@ -632,13 +635,14 @@ class ConfiguracionAprobacion(models.Model):
         verbose_name="Horas límite de aprobación",
     )
 
-    dias_habiles_confirmacion = models.PositiveSmallIntegerField(
-        default=5,
+    horas_confirmacion = models.PositiveSmallIntegerField(
+        default=45,
         validators=[
             MinValueValidator(0),
-            MaxValueValidator(30),
+            MaxValueValidator(270),
         ],
-        verbose_name="Días hábiles para confirmación del cliente",
+        verbose_name="Horas laborales para confirmación del cliente",
+        help_text="Configura 0 para confirmar automáticamente la solución.",
     )
 
     hora_alerta_diaria = models.TimeField(
@@ -658,6 +662,9 @@ class ConfiguracionAprobacion(models.Model):
     def obtener(cls):
         config, _ = cls.objects.get_or_create(
             pk=1,
-            defaults={"horas_limite": 72},
+            defaults={
+                "horas_limite": 72,
+                "horas_confirmacion": 45,
+            },
         )
         return config
