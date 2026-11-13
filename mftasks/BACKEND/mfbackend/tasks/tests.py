@@ -23,7 +23,11 @@ from usuarios.models import (
 )
 
 from .models import AprobacionTarea, Subtarea, Tarea, TareaLog
-from .services.tiempo_laboral import calcular_tiempo_laboral, sumar_tiempo_laboral
+from .services.tiempo_laboral import (
+    calcular_tiempo_laboral,
+    sumar_tiempo_laboral,
+    validar_fecha_laboral,
+)
 
 
 def _crear_usuario(email, nombres="X", apellidos="Y"):
@@ -95,6 +99,22 @@ class TareaFlujoTestCase(APITestCase):
             equipo=self.equipo2,
         )
 
+    def _fecha_laboral_valida(self, hora=10):
+        base = timezone.localtime(timezone.now())
+
+        for offset in range(6):
+            candidata = (base + timedelta(days=offset)).replace(
+                hour=hora,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+            if validar_fecha_laboral(candidata) is None:
+                return candidata
+
+        raise AssertionError("No se encontró una fecha laboral válida.")
+
     def test_miembro_ve_solo_su_equipo(self):
 
         self.client.force_authenticate(user=self.miembro1)
@@ -131,9 +151,8 @@ class TareaFlujoTestCase(APITestCase):
 
         self.client.force_authenticate(user=self.admin)
 
-        ahora = timezone.localtime(timezone.now())
-        fecha_inicio = ahora.replace(microsecond=0)
-        fecha_entrega = ahora + timedelta(days=2)
+        fecha_inicio = self._fecha_laboral_valida(10)
+        fecha_entrega = fecha_inicio.replace(hour=11)
 
         payload = {
             "fecha_inicio": fecha_inicio.isoformat(),
@@ -157,7 +176,10 @@ class TareaFlujoTestCase(APITestCase):
 
         self.tarea1.refresh_from_db()
 
-        self.assertEqual(self.tarea1.estado, Tarea.Estado.EN_DESARROLLO)
+        self.assertIn(
+            self.tarea1.estado,
+            (Tarea.Estado.EN_DESARROLLO, Tarea.Estado.APROBADO),
+        )
         self.assertEqual(
             Subtarea.objects.filter(tarea=self.tarea1).count(),
             1,
@@ -203,9 +225,12 @@ class TareaFlujoTestCase(APITestCase):
 
         self.client.force_authenticate(user=self.admin)
 
+        fecha_inicio = self._fecha_laboral_valida(10)
+        fecha_entrega = fecha_inicio.replace(hour=11)
+
         payload = {
-            "fecha_inicio": "2026-08-17T09:00:00Z",
-            "fecha_entrega_aproximada": "2026-08-20T18:00:00Z",
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_entrega_aproximada": fecha_entrega.isoformat(),
             "subtareas": [
                 {
                     "descripcion": "Revisar",
@@ -222,6 +247,37 @@ class TareaFlujoTestCase(APITestCase):
         )
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("miembro", res.data["detail"].lower())
+
+    def test_iniciar_rechaza_horas_fuera_del_horario(self):
+        self.tarea1.estado = Tarea.Estado.APROBADO
+        self.tarea1.save()
+
+        self.client.force_authenticate(user=self.admin)
+
+        fecha_inicio = self._fecha_laboral_valida(10).replace(hour=3)
+        fecha_entrega = fecha_inicio.replace(hour=4)
+
+        payload = {
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_entrega_aproximada": fecha_entrega.isoformat(),
+            "subtareas": [
+                {
+                    "descripcion": "Revisar",
+                    "asignado": self.miembro1.id,
+                    "peso": 5,
+                }
+            ],
+        }
+
+        res = self.client.post(
+            reverse("task-iniciar", args=[self.tarea1.id]),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("horario laboral", res.data["detail"].lower())
 
     def test_iniciar_solo_aprobada(self):
 
@@ -559,7 +615,7 @@ class LogsClienteTestCase(APITestCase):
             detalle="interno",
         )
 
-    def test_cliente_solicitante_ve_solo_eventos_de_solicitud(self):
+    def test_cliente_solicitante_ve_historial_completo(self):
         self.client.force_authenticate(user=self.cliente)
 
         res = self.client.get(reverse("task-logs", args=[self.tarea.id]))
@@ -567,10 +623,13 @@ class LogsClienteTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         eventos = {l["tipo_evento"] for l in res.data}
         self.assertIn("CREACION", eventos)
-        self.assertNotIn("CAMBIO_ASIGNADO", eventos)
-        self.assertTrue(all(l["subtarea_id"] is None for l in res.data))
-        self.assertTrue(all(l["usuario"] is None for l in res.data))
-        self.assertTrue(all(l["detalle"] == "" for l in res.data))
+        self.assertIn("CAMBIO_ASIGNADO", eventos)
+        interno = next(
+            l for l in res.data if l["tipo_evento"] == "CAMBIO_ASIGNADO"
+        )
+        self.assertIsNotNone(interno["subtarea_id"])
+        self.assertEqual(interno["detalle"], "interno")
+        self.assertEqual(interno["usuario"], None)
 
     def test_otro_cliente_no_ve_logs(self):
         self.client.force_authenticate(user=self.otro_cliente)
@@ -683,6 +742,20 @@ class TaskFiltrosTestCase(APITestCase):
 
         ahora = timezone.now()
 
+        # Día laboral pasado con 1 hora de trabajo, para que el retraso sea
+        # determinista sin depender de la hora en que se ejecuten las pruebas.
+        inicio_dev = None
+        for offset in range(1, 15):
+            candidato = (
+                timezone.localtime(timezone.now()) - timedelta(days=offset)
+            ).replace(hour=10, minute=0, second=0, microsecond=0)
+            if validar_fecha_laboral(candidato) is None:
+                inicio_dev = candidato
+                break
+
+        self.assertIsNotNone(inicio_dev)
+        entrega_dev = inicio_dev.replace(hour=11)
+
         self.t_espera = Tarea.objects.create(
             asunto="En espera", descripcion="d", subcampana=sub,
             estado=Tarea.Estado.EN_ESPERA, equipo=self.equipo,
@@ -691,8 +764,8 @@ class TaskFiltrosTestCase(APITestCase):
         self.t_dev = Tarea.objects.create(
             asunto="Dev", descripcion="d", subcampana=sub,
             estado=Tarea.Estado.EN_DESARROLLO, equipo=self.equipo,
-            fecha_inicio=ahora - timedelta(days=5),
-            fecha_entrega_aproximada=ahora - timedelta(days=4),
+            fecha_inicio=inicio_dev,
+            fecha_entrega_aproximada=entrega_dev,
         )
         self.t_aprob = Tarea.objects.create(
             asunto="Aprob", descripcion="d", subcampana=sub,

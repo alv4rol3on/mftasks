@@ -12,7 +12,7 @@ from .services.confirmacion import (
     confirmar_automaticamente,
     programar_confirmacion,
 )
-from .services.tiempo_laboral import sumar_dias_habiles
+from .services.tiempo_laboral import sumar_tiempo_laboral
 
 
 class ClienteAccionesTestCase(APITestCase):
@@ -508,7 +508,7 @@ class ConfirmacionPlazoConfigurableTestCase(APITestCase):
             lider=self.lider,
         )
         config = ConfiguracionAprobacion.obtener()
-        config.dias_habiles_confirmacion = 3
+        config.horas_confirmacion = 45
         config.save()
         self.tarea = Tarea.objects.create(
             asunto="Solicitud plazo",
@@ -519,14 +519,120 @@ class ConfirmacionPlazoConfigurableTestCase(APITestCase):
             fecha_solucion=timezone.localtime(timezone.now()),
         )
 
-    def test_programar_confirmacion_usa_dias_configurados(self):
+    def test_programar_confirmacion_usa_horas_laborales(self):
         programar_confirmacion(self.tarea)
 
         self.tarea.refresh_from_db()
-        esperado = sumar_dias_habiles(self.tarea.fecha_solucion, 3)
+        esperado = sumar_tiempo_laboral(
+            self.tarea.fecha_solucion,
+            timedelta(hours=45),
+        )
 
         self.assertEqual(
             self.tarea.confirmacion_cliente,
             Tarea.ConfirmacionCliente.PENDIENTE,
         )
         self.assertEqual(self.tarea.fecha_limite_confirmacion, esperado)
+
+class RecalculoPlazosConfiguracionTestCase(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="admin-plazos@test.com",
+            nombres="Admin",
+            apellidos="Plazos",
+            password="segura-123",
+            tipo_usuario="ADMINISTRADOR",
+        )
+        self.lider = User.objects.create_user(
+            email="lider-recalculo@test.com",
+            nombres="Lider",
+            apellidos="Recalculo",
+            password="segura-123",
+        )
+        self.equipo = Equipo.objects.create(
+            nombre="Equipo Recalculo",
+            lider=self.lider,
+        )
+
+        config = ConfiguracionAprobacion.obtener()
+        config.horas_limite = 72
+        config.horas_confirmacion = 45
+        config.save()
+
+        self.tarea_espera = Tarea.objects.create(
+            asunto="Pendiente aprobacion",
+            descripcion="d",
+            equipo=self.equipo,
+            estado=Tarea.Estado.EN_ESPERA,
+        )
+        self.tarea_confirmacion = Tarea.objects.create(
+            asunto="Pendiente confirmacion",
+            descripcion="d",
+            equipo=self.equipo,
+            estado=Tarea.Estado.SOLUCIONADO,
+            fecha_solucion=timezone.localtime(timezone.now()),
+            confirmacion_cliente=Tarea.ConfirmacionCliente.PENDIENTE,
+        )
+        self.tarea_cerrada = Tarea.objects.create(
+            asunto="Cerrada",
+            descripcion="d",
+            equipo=self.equipo,
+            estado=Tarea.Estado.CANCELADO,
+        )
+        Tarea.objects.filter(pk=self.tarea_cerrada.pk).update(
+            fecha_limite_aprobacion=timezone.now() + timedelta(days=30),
+            fecha_limite_confirmacion=timezone.now() + timedelta(days=30),
+        )
+
+        self.client.force_authenticate(user=self.admin)
+
+    def test_guardar_configuracion_recalcula_solo_pendientes(self):
+        res = self.client.patch(
+            "/api/tasks/configuracion-aprobacion/1/",
+            {"horas_limite": 2, "horas_confirmacion": 3},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.tarea_espera.refresh_from_db()
+        self.tarea_confirmacion.refresh_from_db()
+        self.tarea_cerrada.refresh_from_db()
+
+        self.assertEqual(
+            self.tarea_espera.fecha_limite_aprobacion,
+            sumar_tiempo_laboral(
+                self.tarea_espera.fecha_creacion,
+                timedelta(hours=2),
+            ),
+        )
+        self.assertEqual(
+            self.tarea_confirmacion.fecha_limite_confirmacion,
+            sumar_tiempo_laboral(
+                self.tarea_confirmacion.fecha_solucion,
+                timedelta(hours=3),
+            ),
+        )
+        self.assertGreater(
+            self.tarea_cerrada.fecha_limite_aprobacion,
+            timezone.now() + timedelta(days=20),
+        )
+        self.assertGreater(
+            self.tarea_cerrada.fecha_limite_confirmacion,
+            timezone.now() + timedelta(days=20),
+        )
+
+    def test_horas_confirmacion_cero_confirma_pendientes(self):
+        res = self.client.patch(
+            "/api/tasks/configuracion-aprobacion/1/",
+            {"horas_confirmacion": 0},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.tarea_confirmacion.refresh_from_db()
+        self.assertEqual(
+            self.tarea_confirmacion.confirmacion_cliente,
+            Tarea.ConfirmacionCliente.CONFIRMADA,
+        )
+        self.assertIsNotNone(self.tarea_confirmacion.fecha_confirmacion_cliente)
+        self.assertIsNone(self.tarea_confirmacion.fecha_limite_confirmacion)

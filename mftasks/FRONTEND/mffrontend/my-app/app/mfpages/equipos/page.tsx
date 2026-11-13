@@ -825,7 +825,7 @@ export default function EquiposPage() {
             const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
             const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";
             const liderNombre = equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "—";
-            const totalActivos = equipo.miembros.filter((m) => m.estado === "ACTIVO").length;
+            const totalMiembros = equipo.miembros_count ?? equipo.miembros.length;
             const totalIndisponibles = equipo.miembros.filter((m) => m.disponibilidad?.estado === "INDISPONIBLE").length;
             const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
             const liderActivo = liderMiembro?.estado === "ACTIVO";
@@ -865,7 +865,7 @@ export default function EquiposPage() {
                     </div>
                     <div className={styles.cardMeta}>
                       <span>Líder: <strong>{liderNombre}</strong></span>
-                      <span>Miembros: {equipo.miembros.length}</span>
+                      <span>Miembros: {totalMiembros}</span>
                       {!esClientePuro && miRolLabel !== "—" && (
 
                         <span>Tu rol: <strong>{miRolLabel}</strong></span>
@@ -946,7 +946,7 @@ export default function EquiposPage() {
                   <div className={styles.expand}>
                     {/* Fila l?der */}
                     <div className={styles.expandToolbar}>
-                      <h4 className={styles.expandToolbarTitle}>Integrantes — {equipo.miembros.length} miembros</h4>
+                      <h4 className={styles.expandToolbarTitle}>Integrantes — {totalMiembros} miembros</h4>
                       <div className={styles.expandToolbarActions}>
                         {soyLider && (
                           <button

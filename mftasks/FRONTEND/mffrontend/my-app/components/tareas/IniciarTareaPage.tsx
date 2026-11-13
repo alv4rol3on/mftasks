@@ -108,10 +108,6 @@ export default function IniciarTareaPage({
 
     return (
         <div className={detailStyles.page}>
-            <button type="button" className={detailStyles.backLink} onClick={volverAlDetalle}>
-                ← Volver al detalle
-            </button>
-
             <header className={detailStyles.detailHeader}>
                 <div className={detailStyles.headerMain}>
                     <div className={detailStyles.headerTopline}>

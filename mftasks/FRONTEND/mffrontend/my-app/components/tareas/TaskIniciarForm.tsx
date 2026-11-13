@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import {
+    fechaHoraEnHorario,
+    horasValidasParaFecha,
+    obtenerHorariosLaborales,
+    type HorarioLaboral,
+} from "@/lib/horariosLaborales";
 import { EquipoInfo, EquipoMiembro, EquipoMiembroDetallado, Task } from "@/lib/types";
 import styles from "./TaskIniciarForm.module.css";
 
@@ -34,8 +40,10 @@ type Props = {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-const aDatetimeLocal = (d: Date) =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const aFechaInput = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+const combinarFechaHora = (fecha: string, hora: string) => `${fecha}T${hora}`;
 
 let contadorFila = 1;
 
@@ -54,8 +62,12 @@ export default function TaskIniciarForm({
     onSubmit,
 }: Props) {
     const [miembros, setMiembros] = useState<EquipoMiembro[]>([]);
-    const [fechaInicio, setFechaInicio] = useState("");
-    const [fechaEntrega, setFechaEntrega] = useState("");
+    const [horarios, setHorarios] = useState<HorarioLaboral[]>([]);
+    const [cargandoHorarios, setCargandoHorarios] = useState(true);
+    const [fechaInicioDia, setFechaInicioDia] = useState("");
+    const [horaInicio, setHoraInicio] = useState("");
+    const [fechaEntregaDia, setFechaEntregaDia] = useState("");
+    const [horaEntrega, setHoraEntrega] = useState("");
     const [subtareas, setSubtareas] = useState<SubtareaForm[]>(() => [crearFila()]);
     const [error, setError] = useState<string | null>(null);
     const [enviando, setEnviando] = useState(false);
@@ -90,23 +102,114 @@ export default function TaskIniciarForm({
             .catch((e: Error) => setError(e.message));
     }, [tarea.equipo]);
 
-    const limitesInicio = useMemo(() => {
-        const hoy = new Date();
-        const min = new Date(hoy);
-        min.setHours(0, 0, 0, 0);
-        const max = new Date(hoy);
-        max.setDate(max.getDate() + 5);
-        max.setHours(23, 59, 0, 0);
-        return { min: aDatetimeLocal(min), max: aDatetimeLocal(max) };
+    useEffect(() => {
+        obtenerHorariosLaborales()
+            .then(setHorarios)
+            .catch((e: Error) =>
+                setError(`No se pudo cargar el horario laboral: ${e.message}`)
+            )
+            .finally(() => setCargandoHorarios(false));
     }, []);
 
-    const minEntrega = useMemo(() => {
-        if (!fechaInicio) return undefined;
-        const d = new Date(fechaInicio);
-        if (isNaN(d.getTime())) return undefined;
-        d.setMinutes(d.getMinutes() + 1);
-        return aDatetimeLocal(d);
-    }, [fechaInicio]);
+    const limitesInicio = useMemo(() => {
+        const hoy = new Date();
+        const max = new Date(hoy);
+        max.setDate(max.getDate() + 5);
+        return { min: aFechaInput(hoy), max: aFechaInput(max) };
+    }, []);
+
+    const fechaInicio = useMemo(
+        () =>
+            fechaInicioDia && horaInicio
+                ? combinarFechaHora(fechaInicioDia, horaInicio)
+                : "",
+        [fechaInicioDia, horaInicio]
+    );
+
+    const fechaEntrega = useMemo(
+        () =>
+            fechaEntregaDia && horaEntrega
+                ? combinarFechaHora(fechaEntregaDia, horaEntrega)
+                : "",
+        [fechaEntregaDia, horaEntrega]
+    );
+
+    const horasInicioDisponibles = useMemo(
+        () =>
+            fechaInicioDia
+                ? horasValidasParaFecha(horarios, fechaInicioDia, false)
+                : [],
+        [horarios, fechaInicioDia]
+    );
+
+    const horasEntregaDisponibles = useMemo(() => {
+        if (!fechaEntregaDia) return [];
+
+        const horas = horasValidasParaFecha(horarios, fechaEntregaDia, true);
+
+        if (fechaEntregaDia === fechaInicioDia && horaInicio) {
+            return horas.filter((hora) => hora > horaInicio);
+        }
+
+        return horas;
+    }, [horarios, fechaEntregaDia, fechaInicioDia, horaInicio]);
+
+    const seleccionarFechaInicio = (fecha: string) => {
+        setFechaInicioDia(fecha);
+
+        const opciones = horasValidasParaFecha(horarios, fecha, false);
+        const nuevaHora = opciones.includes(horaInicio)
+            ? horaInicio
+            : opciones[0] ?? "";
+
+        setHoraInicio(nuevaHora);
+
+        if (fechaEntregaDia && fechaEntregaDia < fecha) {
+            setFechaEntregaDia("");
+            setHoraEntrega("");
+        } else if (
+            fechaEntregaDia === fecha &&
+            horaEntrega &&
+            nuevaHora &&
+            horaEntrega <= nuevaHora
+        ) {
+            const opciones = horasValidasParaFecha(horarios, fecha, true).filter(
+                (hora) => hora > nuevaHora
+            );
+            setHoraEntrega(opciones[0] ?? "");
+        }
+    };
+
+    const seleccionarFechaEntrega = (fecha: string) => {
+        setFechaEntregaDia(fecha);
+
+        let opciones = horasValidasParaFecha(horarios, fecha, true);
+
+        if (fecha === fechaInicioDia && horaInicio) {
+            opciones = opciones.filter((hora) => hora > horaInicio);
+        }
+
+        setHoraEntrega(
+            opciones.includes(horaEntrega) ? horaEntrega : opciones[0] ?? ""
+        );
+    };
+
+    const seleccionarHoraInicio = (hora: string) => {
+        setHoraInicio(hora);
+
+        if (
+            fechaEntregaDia === fechaInicioDia &&
+            horaEntrega &&
+            horaEntrega <= hora
+        ) {
+            const opciones = horasValidasParaFecha(
+                horarios,
+                fechaEntregaDia,
+                true
+            ).filter((h) => h > hora);
+            setHoraEntrega(opciones[0] ?? "");
+        }
+    };
 
     const actualizar = (index: number, campo: keyof SubtareaForm, valor: string | number) => {
         setSubtareas((prev) =>
@@ -133,8 +236,35 @@ export default function TaskIniciarForm({
             return;
         }
 
-        if (fechaInicio < limitesInicio.min || fechaInicio > limitesInicio.max) {
+        if (cargandoHorarios) {
+            setError("Espera a que se cargue el horario laboral.");
+            return;
+        }
+
+        if (horarios.length === 0) {
+            setError("No se pudo cargar el horario laboral configurado.");
+            return;
+        }
+
+        if (
+            fechaInicioDia < limitesInicio.min ||
+            fechaInicioDia > limitesInicio.max
+        ) {
             setError("La fecha de inicio debe estar entre hoy y 5 días después.");
+            return;
+        }
+
+        if (!fechaHoraEnHorario(horarios, fechaInicioDia, horaInicio)) {
+            setError(
+                "La hora de inicio debe estar dentro del horario laboral del día seleccionado."
+            );
+            return;
+        }
+
+        if (!fechaHoraEnHorario(horarios, fechaEntregaDia, horaEntrega, true)) {
+            setError(
+                "La hora de entrega debe estar dentro del horario laboral del día seleccionado."
+            );
             return;
         }
 
@@ -226,35 +356,93 @@ export default function TaskIniciarForm({
                 <div className={styles.datesRow}>
                     <label className={styles.field}>
                         <span>Fecha de inicio</span>
-                        <input
-                            type="datetime-local"
-                            value={fechaInicio}
-                            min={limitesInicio.min}
-                            max={limitesInicio.max}
-                            onChange={(e) => {
-                                const v = e.target.value;
-                                setFechaInicio(v);
-                                if (fechaEntrega && v && fechaEntrega <= v) {
-                                    setFechaEntrega("");
+                        <div className={styles.dateTimeFields}>
+                            <input
+                                type="date"
+                                value={fechaInicioDia}
+                                min={limitesInicio.min}
+                                max={limitesInicio.max}
+                                onChange={(e) =>
+                                    seleccionarFechaInicio(e.target.value)
                                 }
-                            }}
-                            className={styles.input}
-                            disabled={ocupado}
-                        />
-                        <small>Entre hoy y el {limitesInicio.max.slice(0, 10)}.</small>
+                                className={styles.input}
+                                disabled={ocupado}
+                            />
+                            <select
+                                value={horaInicio}
+                                onChange={(e) =>
+                                    seleccionarHoraInicio(e.target.value)
+                                }
+                                className={styles.input}
+                                disabled={
+                                    ocupado ||
+                                    !fechaInicioDia ||
+                                    horasInicioDisponibles.length === 0
+                                }
+                                aria-label="Hora de inicio"
+                            >
+                                <option value="">Hora</option>
+                                {horasInicioDisponibles.map((hora) => (
+                                    <option key={hora} value={hora}>
+                                        {hora}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <small>
+                            Entre hoy y el {limitesInicio.max}. Solo horas del
+                            horario laboral.
+                        </small>
+                        {fechaInicioDia &&
+                            horarios.length > 0 &&
+                            horasInicioDisponibles.length === 0 && (
+                                <small>El día seleccionado no es laborable.</small>
+                            )}
                     </label>
 
                     <label className={styles.field}>
                         <span>Fecha de entrega aproximada</span>
-                        <input
-                            type="datetime-local"
-                            value={fechaEntrega}
-                            min={minEntrega}
-                            onChange={(e) => setFechaEntrega(e.target.value)}
-                            className={styles.input}
-                            disabled={ocupado}
-                        />
-                        <small>Debe ser posterior a la fecha de inicio.</small>
+                        <div className={styles.dateTimeFields}>
+                            <input
+                                type="date"
+                                value={fechaEntregaDia}
+                                min={fechaInicioDia || limitesInicio.min}
+                                onChange={(e) =>
+                                    seleccionarFechaEntrega(e.target.value)
+                                }
+                                className={styles.input}
+                                disabled={ocupado}
+                            />
+                            <select
+                                value={horaEntrega}
+                                onChange={(e) =>
+                                    setHoraEntrega(e.target.value)
+                                }
+                                className={styles.input}
+                                disabled={
+                                    ocupado ||
+                                    !fechaEntregaDia ||
+                                    horasEntregaDisponibles.length === 0
+                                }
+                                aria-label="Hora de entrega"
+                            >
+                                <option value="">Hora</option>
+                                {horasEntregaDisponibles.map((hora) => (
+                                    <option key={hora} value={hora}>
+                                        {hora}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <small>
+                            Debe ser posterior al inicio y dentro del horario
+                            laboral.
+                        </small>
+                        {fechaEntregaDia &&
+                            horarios.length > 0 &&
+                            horasEntregaDisponibles.length === 0 && (
+                                <small>El día seleccionado no es laborable.</small>
+                            )}
                     </label>
                 </div>
             </section>

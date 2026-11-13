@@ -544,7 +544,16 @@ def calcular_tiempo_planificado_efectivo_tarea(tarea: Tarea) -> timedelta:
 # CALCULAR TIEMPO ÚTIL RESTANTE
 # ============================================================
 
-def esta_en_jornada(fecha: datetime, incluye_sabado: bool = False) -> bool:
+def esta_en_jornada(
+    fecha: datetime,
+    incluye_sabado: bool = False,
+    incluir_fin: bool = False,
+) -> bool:
+    """Indica si el instante cae dentro de la jornada laboral configurada.
+
+    ``incluir_fin`` permite aceptar exactamente la hora de cierre (útil para
+    fechas de entrega, donde 18:00 sigue siendo una hora válida).
+    """
 
     if fecha.tzinfo is None:
         fecha = timezone.make_aware(
@@ -563,7 +572,57 @@ def esta_en_jornada(fecha: datetime, incluye_sabado: bool = False) -> bool:
 
     hora_actual = fecha.time().replace(tzinfo=None)
 
+    if incluir_fin:
+        return hora_inicio <= hora_actual <= hora_fin
+
     return hora_inicio <= hora_actual < hora_fin
+
+
+def obtener_jornada_fecha(fecha: datetime):
+    """Retorna (hora_inicio, hora_fin) de la jornada para la fecha dada."""
+    if fecha.tzinfo is None:
+        fecha = timezone.make_aware(
+            fecha,
+            timezone.get_current_timezone()
+        )
+
+    fecha = timezone.localtime(fecha)
+    activo, hora_inicio, hora_fin = obtener_horarios_laborales()[fecha.weekday()]
+
+    if not activo:
+        return None
+
+    return hora_inicio, hora_fin
+
+
+def validar_fecha_laboral(
+    fecha: datetime,
+    incluir_fin: bool = False,
+) -> Optional[str]:
+    """Valida que la fecha/hora esté dentro de la jornada configurada.
+
+    Retorna None si es válida o un mensaje de error legible.
+    """
+    jornada = obtener_jornada_fecha(fecha)
+
+    if jornada is None:
+        return "El día seleccionado no es laborable."
+
+    hora_inicio, hora_fin = jornada
+    hora_actual = timezone.localtime(fecha).time().replace(tzinfo=None)
+
+    if incluir_fin:
+        valida = hora_inicio <= hora_actual <= hora_fin
+    else:
+        valida = hora_inicio <= hora_actual < hora_fin
+
+    if not valida:
+        return (
+            "La hora debe estar dentro del horario laboral "
+            f"({hora_inicio.strftime('%H:%M')} - {hora_fin.strftime('%H:%M')})."
+        )
+
+    return None
 
 
 def calcular_tiempo_restante_tarea(

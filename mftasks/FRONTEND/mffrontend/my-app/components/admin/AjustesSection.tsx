@@ -424,8 +424,8 @@ export default function AjustesSection({ setMsg }: Props) {
               <strong>Importante:</strong>{" "}
               Si una solicitud no recibe respuesta de aprobación o rechazo dentro del plazo,
               será rechazada automáticamente.
-              El plazo de aprobacion/rechazo de las solicitudes que han sido enviadas previamente
-              al cambio de esta configuración no será alterado.
+              El plazo se cuenta únicamente durante el horario laboral configurado.
+              Al guardar, se recalcularán las solicitudes pendientes; las cerradas no se alteran.
             </div>
             <div className={styles.settingsActions}>
               <button
@@ -468,7 +468,7 @@ export default function AjustesSection({ setMsg }: Props) {
             </h3>
 
             <p className={styles.settingsDescription}>
-              Define cuántos días hábiles tiene el cliente para confirmar o
+              Define cuántas horas laborales tiene el cliente para confirmar o
               reabrir una solución.
             </p>
           </div>
@@ -503,6 +503,7 @@ export default function AjustesSection({ setMsg }: Props) {
               Si el cliente no confirma ni reabre dentro del plazo, la solicitud
               será confirmada automáticamente como solucionada.
               El tiempo se cuenta únicamente durante los horarios laborales configurados.
+              Al guardar, se recalcularán las soluciones pendientes de confirmación.
               Si estableces el valor en 0, la solución se confirma inmediatamente.
             </div>
             <div className={styles.settingsActions}>

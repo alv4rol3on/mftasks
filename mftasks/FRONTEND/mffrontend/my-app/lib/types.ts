@@ -289,6 +289,7 @@ export interface EquipoInfo {
     activo: boolean;
     fecha_creacion?: string;
     miembros: EquipoMiembroDetallado[];
+    miembros_count?: number;
     puedo_gestionar?: boolean;
     mi_rol_en_equipo?: string | null;
     mi_estado?: string | null;

@@ -401,6 +401,8 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     miembros = serializers.SerializerMethodField()
 
+    miembros_count = serializers.SerializerMethodField()
+
     puedo_gestionar = serializers.SerializerMethodField()
 
     mi_rol_en_equipo = serializers.SerializerMethodField()
@@ -429,6 +431,7 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             "activo",
             "fecha_creacion",
             "miembros",
+            "miembros_count",
             "puedo_gestionar",
             "mi_rol_en_equipo",
             "mi_estado",
@@ -489,6 +492,12 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             many=True,
             context=self.context,
         ).data
+
+    def get_miembros_count(self, obj):
+        """Cantidad de miembros activos, visible incluso para clientes."""
+        return obj.miembros.filter(
+            estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+        ).count()
 
     def get_puedo_gestionar(self, obj):
         request = self.context.get("request")

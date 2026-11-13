@@ -864,6 +864,22 @@ class TaskViewSet(viewsets.ModelViewSet):
         if timezone.is_naive(fecha_entrega):
             fecha_entrega = timezone.make_aware(fecha_entrega, tz)
 
+        from .services.tiempo_laboral import validar_fecha_laboral
+
+        error_inicio = validar_fecha_laboral(fecha_inicio)
+        if error_inicio:
+            return Response(
+                {"detail": f"Fecha de inicio inválida. {error_inicio}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        error_entrega = validar_fecha_laboral(fecha_entrega, incluir_fin=True)
+        if error_entrega:
+            return Response(
+                {"detail": f"Fecha de entrega inválida. {error_entrega}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         ahora = timezone.localtime(timezone.now())
         inicio_min = timezone.make_aware(
             datetime.combine(ahora.date(), time.min), tz
@@ -1529,22 +1545,14 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # El cliente solo ve el historial de la solicitud, sin eventos internos
-        # de subtareas ni datos del personal.
-        es_cliente_historial = (
-            es_cliente(request.user)
-            and not es_administrador(request.user)
-        )
-
+        # Todos los usuarios autorizados (incluido el cliente solicitante)
+        # ven el mismo historial completo de la solicitud.
         qs = (
             TareaLog.objects
             .filter(tarea=tarea)
             .select_related("usuario", "subtarea")
             .order_by("-fecha", "-id")
         )
-
-        if es_cliente_historial:
-            qs = qs.filter(subtarea__isnull=True)
 
         # Filtro opcional por subtarea.
         subtarea_id = request.query_params.get("subtarea")
@@ -1565,30 +1573,18 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "estado_anterior": l.estado_anterior,
                 "estado_nuevo": l.estado_nuevo,
                 "fecha": l.fecha.isoformat() if l.fecha else None,
-                "detalle": "" if es_cliente_historial else l.detalle,
+                "detalle": l.detalle,
                 "usuario": (
-                    None
-                    if es_cliente_historial
-                    else (
-                        f"{l.usuario.nombres} {l.usuario.apellidos}"
-                        if l.usuario else None
-                    )
+                    f"{l.usuario.nombres} {l.usuario.apellidos}"
+                    if l.usuario else None
                 ),
-                "usuario_id": (
-                    None if es_cliente_historial else l.usuario_id
-                ),
-                "subtarea_id": (
-                    None if es_cliente_historial else l.subtarea_id
-                ),
+                "usuario_id": l.usuario_id,
+                "subtarea_id": l.subtarea_id,
                 "subtarea_codigo": (
-                    None
-                    if es_cliente_historial
-                    else (l.subtarea.codigo if l.subtarea else None)
+                    l.subtarea.codigo if l.subtarea else None
                 ),
                 "subtarea_descripcion": (
-                    None
-                    if es_cliente_historial
-                    else (l.subtarea.descripcion if l.subtarea else None)
+                    l.subtarea.descripcion if l.subtarea else None
                 ),
             }
             for l in logs
@@ -3025,7 +3021,14 @@ class HorarioLaboralViewSet(
 
     queryset = HorarioLaboral.objects.all().order_by("dia")
     serializer_class = HorarioLaboralSerializer
-    permission_classes = [IsAuthenticatedActivo, EsAdministrador]
+
+    def get_permissions(self):
+        permisos = [IsAuthenticatedActivo()]
+
+        if self.action in ("update", "partial_update"):
+            permisos.append(EsAdministrador())
+
+        return permisos
 
     def perform_update(self, serializer):
         serializer.save()
@@ -3048,3 +3051,11 @@ class ConfiguracionAprobacionViewSet(
         obj = ConfiguracionAprobacion.obtener()
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            serializer.save()
+
+            from .services.plazos import recalcular_plazos_pendientes
+
+            recalcular_plazos_pendientes()

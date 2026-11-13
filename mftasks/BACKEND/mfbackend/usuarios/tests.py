@@ -267,6 +267,22 @@ class EquipoVisibilidadTestCase(APITestCase):
         ids = {e["id"] for e in data}
         self.assertEqual(ids, {self.equipo_a.id, self.equipo_b.id})
 
+    def test_cliente_ve_conteo_de_miembros_sin_detalle(self):
+        cliente = User.objects.create_user(
+            email="cliente-count@empresa.com",
+            nombres="Cliente",
+            apellidos="Count",
+            password="x",
+            tipo_usuario="CLIENTE",
+        )
+        self.client.force_authenticate(user=cliente)
+
+        res = self.client.get(reverse("equipo-detail", args=[self.equipo_a.id]))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["miembros"], [])
+        self.assertEqual(res.data["miembros_count"], 2)
+
 
 class EquipoTipoTestCase(APITestCase):
 

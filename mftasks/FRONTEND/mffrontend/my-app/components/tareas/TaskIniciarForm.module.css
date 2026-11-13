@@ -54,6 +54,12 @@
     line-height: 1.4;
 }
 
+.dateTimeFields {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 8px;
+}
+
 .input {
     width: 100%;
     min-width: 0;
