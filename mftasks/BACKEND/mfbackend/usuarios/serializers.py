@@ -395,9 +395,27 @@ class EquipoMiembroDetailSerializer(DatosPersonalesAdminMixin, serializers.Model
             return None
         return DisponibilidadUsuarioSerializer(disponibilidad).data
 
+class EquipoMiembroClienteSerializer(serializers.ModelSerializer):
+    usuario = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EquipoMiembro
+        fields = [
+            "id",
+            "usuario",
+            "rol_en_equipo",
+            "estado",
+        ]
+
+    def get_usuario(self, obj):
+        return {
+            "nombres": obj.usuario.nombres,
+            "apellidos": obj.usuario.apellidos,
+        }
+
 class EquipoDetailSerializer(serializers.ModelSerializer):
 
-    lider = UserSerializer(read_only=True)
+    lider = serializers.SerializerMethodField()
 
     miembros = serializers.SerializerMethodField()
 
@@ -456,6 +474,25 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
         return nombre
 
+    def get_lider(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        if user and user.is_authenticated:
+            from .permissions import es_administrador, es_cliente
+
+            if es_cliente(user) and not es_administrador(user):
+                return None
+
+        if obj.lider:
+            return UserSerializer(
+                obj.lider,
+                context=self.context,
+            ).data
+
+        return None
+
+
     def get_miembros(self, obj):
         request = self.context.get("request")
         qs = obj.miembros.select_related("usuario", "usuario__disponibilidad").all()
@@ -468,7 +505,15 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             # Los clientes no deben ver datos del personal interno
             # (email, cargo, disponibilidad) al elegir un equipo.
             if es_cliente(user) and not es_administrador(user):
-                return []
+                qs = qs.filter(
+                    estado=EquipoMiembro.EstadoMiembro.ACTIVO
+                )
+
+                return EquipoMiembroClienteSerializer(
+                    qs,
+                    many=True,
+                    context=self.context,
+                ).data
 
         if user and not user.is_authenticated:
             qs = qs.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO)
@@ -584,8 +629,7 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
         from .jerarquia import puede_ser_lider
         if not puede_ser_lider(usuario):
             raise serializers.ValidationError(
-                "El usuario debe tener un rol de la jerarquía "
-                "(GERENTE, SUBGERENTE, JEFE o GTR) para ser líder."
+                "El usuario debe tener un rol de la jerarquía con el permiso de <Puede liderar equipos> para ser líder."
             )
 
         return usuario

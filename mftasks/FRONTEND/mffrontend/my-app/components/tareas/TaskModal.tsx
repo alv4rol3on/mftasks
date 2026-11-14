@@ -315,22 +315,39 @@ export default function TaskModal({
     // opciones asignables (miembros ACTIVO + lider)
     const opcionesAsignables = useMemo(() => {
         const map = new Map<number, string>();
+
         if (liderInfo) {
-            const lider = miembros.find((m) => m.id_usuario === liderInfo.id);
+            const lider = miembros.find(
+                (m) => m.id_usuario === liderInfo.id
+            );
+
             if (!lider || lider.disponibilidad?.estado !== "INDISPONIBLE") {
-                map.set(liderInfo.id, `${liderInfo.nombres} ${liderInfo.apellidos} (L��der)`);
+                map.set(
+                    liderInfo.id,
+                    `${liderInfo.nombres} ${liderInfo.apellidos} (Líder)`
+                );
             }
         }
-        miembros.forEach(m => {
+
+        miembros.forEach((m) => {
+            const idUsuario = m.id_usuario;
+
             if (
+                typeof idUsuario === "number" &&
                 m.estado === "ACTIVO" &&
                 m.disponibilidad?.estado !== "INDISPONIBLE"
             ) {
-                map.set(m.usuario.id, `${m.usuario.nombres} ${m.usuario.apellidos}`);
+                const nombres = m.nombres ?? m.usuario?.nombres ?? "";
+                const apellidos = m.apellidos ?? m.usuario?.apellidos ?? "";
+
+                map.set(idUsuario, `${nombres} ${apellidos}`.trim());
             }
         });
-        // también incluir miembros aunque no estén en lista pero ya asignados (fallback)
-        return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre }));
+
+        return Array.from(map.entries()).map(([id, nombre]) => ({
+            id,
+            nombre,
+        }));
     }, [miembros, liderInfo]);
 
     if (!tarea) return null;

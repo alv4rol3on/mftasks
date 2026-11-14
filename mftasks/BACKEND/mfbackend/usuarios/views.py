@@ -356,6 +356,12 @@ class UserViewSet(ModelViewSet):
         from django.db.models import Exists, OuterRef
         from tasks.models import Subtarea, Tarea
 
+        user = self.request.user
+
+        # Los clientes no pueden consultar el directorio de usuarios.
+        if es_cliente(user) and not es_administrador(user):
+            return User.objects.none()
+
         base = User.objects.all()
 
         if self.action in ("list", "retrieve"):

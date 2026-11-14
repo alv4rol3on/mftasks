@@ -1,5 +1,4 @@
-- arreglar logica de ajuste de tiempos de aprobacion y confirmación, ambos deben ser en horas y respetar al horario laboral
-- arreglar el iniciar tarea:
-    - retroceso post-iniciar tarea
-    - arreglar seleccion de horas
+arreglar la relacion de roles de usuarios tipo colaborador, no pueden estar declarados fijamente en el backend ya que esto rompe con logica a posterior cuando se intente crear roles
+de mismo peso o similares; gtr, miembro, subgerente, gerente, etc no pueden ser valores fijos en ninguna parte del codigo si se supone los roles de los usuarios TIPO COLABORADOR son 
+creados manualmente desde la interfaz de administracion, pueden cambiar de nombre y lugar dentro de la jerarquia 
 zcQJcdC52ik123

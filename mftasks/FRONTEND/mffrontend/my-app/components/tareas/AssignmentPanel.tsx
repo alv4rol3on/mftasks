@@ -96,7 +96,7 @@ export default function AssignmentPanel({
             liderInfo &&
             miembros.some(
                 (m) =>
-                    m.usuario.id === liderInfo.id &&
+                    m.id_usuario === liderInfo.id &&
                     m.estado === "ACTIVO" &&
                     m.disponibilidad?.estado === "DISPONIBLE"
             )
@@ -108,14 +108,17 @@ export default function AssignmentPanel({
         }
 
         miembros.forEach((m) => {
+            const idUsuario = m.id_usuario;
+
             if (
+                typeof idUsuario === "number" &&
                 m.estado === "ACTIVO" &&
                 m.disponibilidad?.estado === "DISPONIBLE"
             ) {
-                map.set(
-                    m.usuario.id,
-                    `${m.usuario.nombres} ${m.usuario.apellidos}`
-                );
+                const nombres = m.nombres ?? m.usuario?.nombres ?? "";
+                const apellidos = m.apellidos ?? m.usuario?.apellidos ?? "";
+
+                map.set(idUsuario, `${nombres} ${apellidos}`.trim());
             }
         });
 

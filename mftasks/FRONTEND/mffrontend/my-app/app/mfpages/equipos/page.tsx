@@ -84,6 +84,22 @@ export default function EquiposPage() {
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
   const esAdmin = roles.includes("administrador");
   const esClientePuro = roles.includes("cliente") && !esAdmin && !roles.includes("miembro") && !roles.includes("asignador");
+
+  const nombreMiembro = (m: EquipoMiembroDetallado) =>
+    `${m.nombres ?? m.usuario?.nombres ?? ""} ${m.apellidos ?? m.usuario?.apellidos ?? ""
+      }`.trim();
+  const nombreLider = (equipo: EquipoInfo) => {
+    if (equipo.lider) {
+      return `${equipo.lider.nombres} ${equipo.lider.apellidos}`;
+    }
+
+    const lider = equipo.miembros.find(
+      (m) => m.rol_en_equipo === "LIDER"
+    );
+
+    return lider ? nombreMiembro(lider) : "—";
+  };
+
   const puedeCrearEquipo = esAdmin;
   const [soloMios, setSoloMios] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
@@ -92,7 +108,9 @@ export default function EquiposPage() {
 
   const esMiEquipo = (equipo: EquipoInfo) =>
     equipo.lider?.id === usuario?.id ||
-    (equipo.miembros ?? []).some((m) => m.id_usuario === usuario?.id);
+    (equipo.miembros ?? []).some(
+      (m) => m.id_usuario === usuario?.id
+    );
 
   const equiposVisibles = equipos
     .filter((e) => !soloMios || esMiEquipo(e))
@@ -105,11 +123,8 @@ export default function EquiposPage() {
 
     const textos = [
       equipo.nombre,
-      equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "",
-      ...(equipo.miembros ?? []).flatMap((m) => [
-        `${m.nombres} ${m.apellidos}`,
-        m.email ?? "",
-      ]),
+      nombreLider(equipo),
+      ...(equipo.miembros ?? []).map((m) => nombreMiembro(m)),
     ];
 
     return textos.some((texto) => normalizarBusqueda(texto).includes(q));
@@ -185,7 +200,9 @@ export default function EquiposPage() {
 
   // Precargar catálogos al montar para el alta de equipos (líderes elegibles).
   useEffect(() => {
-    asegurarCatalogos();
+    if (!esClientePuro) {
+      asegurarCatalogos();
+    }
   }, []);
 
   const mapaRolesNombre = new Map<string, RolInfo>(
@@ -821,65 +838,84 @@ export default function EquiposPage() {
         <>
           <div className={styles.grid}>
             {equiposPaginados.map((equipo) => {
-            const expandido = equipoExpandido === equipo.id;
-            const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
-            const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";
-            const liderNombre = equipo.lider ? `${equipo.lider.nombres} ${equipo.lider.apellidos}` : "—";
-            const totalMiembros = equipo.miembros_count ?? equipo.miembros.length;
-            const totalIndisponibles = equipo.miembros.filter((m) => m.disponibilidad?.estado === "INDISPONIBLE").length;
-            const liderMiembro = equipo.miembros.find((m) => m.id_usuario === equipo.lider?.id);
-            const liderActivo = liderMiembro?.estado === "ACTIVO";
-            const puedoGestionar = Boolean(equipo.puedo_gestionar) && liderActivo;
+              const expandido = equipoExpandido === equipo.id;
+              console.log("Equipo:", equipo.nombre);
+              console.log("Expandido:", expandido);
+              console.log("Miembros recibidos:", equipo.miembros);
+              console.log(
+                "Nombres:",
+                equipo.miembros.map((m) => nombreMiembro(m))
+              );
+              const soyLider = equipo.lider?.id === usuario?.id || (esAdmin && equipo.puedo_gestionar);
+              const miRolLabel = equipo.mi_rol_en_equipo === "LIDER" ? "Líder" : equipo.mi_rol_en_equipo === "SUB_LIDER" ? "Sub-líder" : equipo.mi_rol_en_equipo === "MIEMBRO" ? "Miembro" : esClientePuro ? "" : "—";
+              const liderMiembro = equipo.miembros.find(
+                (m) => m.rol_en_equipo === "LIDER"
+              );
 
-            return (
-              <div key={equipo.id} className={styles.card}>
-                <div
-                  onClick={() => setEquipoExpandido(expandido ? null : equipo.id)}
-                  className={styles.cardHeader}
-                  style={equipo.rol_color ? ({ "--rol-color": equipo.rol_color } as React.CSSProperties) : undefined}
-                >
-                  <div className={styles.cardHeaderLeft}>
-                    <div className={styles.cardTitleRow}>
-                      <h3 className={styles.cardTitle}>{equipo.nombre}</h3>
-                      {!equipo.activo && (
-                        <span
-                          className={styles.badge}
-                          style={{
-                            background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))",
-                            color: "var(--color-danger)",
-                            border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))",
-                          }}
+              const liderNombre = equipo.lider
+                ? `${equipo.lider.nombres} ${equipo.lider.apellidos}`
+                : liderMiembro
+                  ? nombreMiembro(liderMiembro)
+                  : "—";
+
+              const totalMiembros = equipo.miembros_count ?? equipo.miembros.length;
+
+              const totalIndisponibles = equipo.miembros.filter(
+                (m) => m.disponibilidad?.estado === "INDISPONIBLE"
+              ).length;
+
+              const liderActivo = liderMiembro?.estado === "ACTIVO";
+              const puedoGestionar = Boolean(equipo.puedo_gestionar) && liderActivo;
+
+              return (
+                <div key={equipo.id} className={styles.card}>
+                  <div
+                    onClick={() => setEquipoExpandido(expandido ? null : equipo.id)}
+                    className={styles.cardHeader}
+                    style={equipo.rol_color ? ({ "--rol-color": equipo.rol_color } as React.CSSProperties) : undefined}
+                  >
+                    <div className={styles.cardHeaderLeft}>
+                      <div className={styles.cardTitleRow}>
+                        <h3 className={styles.cardTitle}>{equipo.nombre}</h3>
+                        {!equipo.activo && (
+                          <span
+                            className={styles.badge}
+                            style={{
+                              background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))",
+                              color: "var(--color-danger)",
+                              border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))",
+                            }}
+                          >
+                            Inactivo
+                          </span>
+                        )}
+                        {puedoGestionar ? (
+                          <span className={`${styles.badge} ${styles.badgeGestionar}`}>
+                            Puedes gestionar
+                          </span>
+                        ) : equipo.mi_rol_en_equipo === "SUB_LIDER" ? (
+                          <span className={`${styles.badge} ${styles.badgeSubLider}`}>
+                            Eres Sub-líder
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className={styles.cardMeta}>
+                        <span>Líder: <strong>{liderNombre}</strong></span>
+                        <span>Miembros: {totalMiembros}</span>
+                        {!esClientePuro && miRolLabel !== "—" && (
+
+                          <span>Tu rol: <strong>{miRolLabel}</strong></span>
+
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.cardHeaderRight}>
+                      {esAdmin && (
+                        <div
+                          style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Inactivo
-                        </span>
-                      )}
-                      {puedoGestionar ? (
-                        <span className={`${styles.badge} ${styles.badgeGestionar}`}>
-                          Puedes gestionar
-                        </span>
-                      ) : equipo.mi_rol_en_equipo === "SUB_LIDER" ? (
-                        <span className={`${styles.badge} ${styles.badgeSubLider}`}>
-                          Eres Sub-líder
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className={styles.cardMeta}>
-                      <span>Líder: <strong>{liderNombre}</strong></span>
-                      <span>Miembros: {totalMiembros}</span>
-                      {!esClientePuro && miRolLabel !== "—" && (
-
-                        <span>Tu rol: <strong>{miRolLabel}</strong></span>
-
-                      )}
-                    </div>
-                  </div>
-                  <div className={styles.cardHeaderRight}>
-                    {esAdmin && (
-                      <div
-                        style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {/*<button
+                          {/*<button
                           type="button"
                           onClick={() => abrirModalRenombrar(equipo)}
                           disabled={accionEquipo}
@@ -896,187 +932,206 @@ export default function EquiposPage() {
                         >
                           Renombrar
                         </button>*/}
-                        <IconButton
-                          icon="edit"
-                          variant="primary"
-                          disabled={accionEquipo}
-                          title={
-                            esAdmin
-                              ? "Cambiar nombre del equipo"
-                              : "No se puede cambiar nombre del equipo"
-                          }
-                          onClick={() => abrirModalRenombrar(equipo)}
-                        />
-
-                        {equipo.activo ? (
-                          <>
-                            <IconButton
-                              icon="user"
-                              variant="info"
-                              disabled={accionEquipo}
-                              title="Cambiar líder del equipo"
-                              onClick={() => abrirModalCambiarLider(equipo)}
-                            />
-                            <IconButton
-                              icon="trash"
-                              variant="danger"
-                              title="Eliminar equipo"
-                              onClick={() => {
-                                setMensaje(null);
-                                setModalEliminar(equipo);
-                              }}
-                            />
-                          </>
-                        ) : (
-
                           <IconButton
-                            icon="power"
-                            variant="success"
-                            title="Reactivar equipo"
-                            onClick={() => reactivarEquipo(equipo)}
+                            icon="edit"
+                            variant="primary"
+                            disabled={accionEquipo}
+                            title={
+                              esAdmin
+                                ? "Cambiar nombre del equipo"
+                                : "No se puede cambiar nombre del equipo"
+                            }
+                            onClick={() => abrirModalRenombrar(equipo)}
                           />
-                        )}
-                      </div>
-                    )}
-                    <span className={`${styles.cardHeaderArrow} ${expandido ? styles.cardHeaderArrowOpen : ""}`}>▼</span>
-                  </div>
-                </div>
 
-                {expandido && (
-                  <div className={styles.expand}>
-                    {/* Fila l?der */}
-                    <div className={styles.expandToolbar}>
-                      <h4 className={styles.expandToolbarTitle}>Integrantes — {totalMiembros} miembros</h4>
-                      <div className={styles.expandToolbarActions}>
-                        {soyLider && (
-                          <button
-                            onClick={() => abrirModalAgregar(equipo)}
-                            disabled={!!accionando || !liderActivo}
-                            className={styles.btnAgregar}
-                            title={!liderActivo ? "El líder está inactivo" : "Agregar integrante"}
-                          >
-                            + Agregar integrante
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: 12, background: "var(--color-background)", border: `1px solid ${liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" ? "var(--color-waiting)" : "var(--color-border)"}`, borderRadius: 8, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                          {liderNombre} {badgeRol("LIDER")} {liderMiembro && badgeDisponibilidad(liderMiembro)}
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--color-background-2)" }}>{equipo.lider?.email ?? ""} {equipo.lider?.cargo ? `▸ ${equipo.lider.cargo}` : ""}</div>
-                        {liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" && (
-                          <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
-                            {liderMiembro.disponibilidad.motivo ? `Motivo: ${liderMiembro.disponibilidad.motivo}` : ""}
-                            {liderMiembro.disponibilidad.fecha_inicio ? ` ▸ ${liderMiembro.disponibilidad.fecha_inicio}` : ""}
-                            {liderMiembro.disponibilidad.fecha_fin ? ` - ${liderMiembro.disponibilidad.fecha_fin}` : ""}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--color-background)", borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-                        <thead>
-                          <tr style={{ background: "var(--color-surface)", textAlign: "left", fontSize: 12, color: "var(--color-text-secondary)" }}>
-                            <th style={{ padding: "10px 12px", fontWeight: 600 }}>Miembro</th>
-                            <th style={{ padding: "10px 12px", fontWeight: 600 }}>Email</th>
-                            <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").length === 0 ? (
-                            <tr>
-                              <td colSpan={3} style={{ padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
-                                Sin integrantes adicionales (solo líder)
-                              </td>
-                            </tr>
+                          {equipo.activo ? (
+                            <>
+                              <IconButton
+                                icon="user"
+                                variant="info"
+                                disabled={accionEquipo}
+                                title="Cambiar líder del equipo"
+                                onClick={() => abrirModalCambiarLider(equipo)}
+                              />
+                              <IconButton
+                                icon="trash"
+                                variant="danger"
+                                title="Eliminar equipo"
+                                onClick={() => {
+                                  setMensaje(null);
+                                  setModalEliminar(equipo);
+                                }}
+                              />
+                            </>
                           ) : (
-                            equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").map((m) => {
-                              const esYo = m.id_usuario === usuario?.id;
-                              return (
-                                <tr
-                                  key={m.id}
-                                  onClick={() => { if (puedoGestionar) setModalMiembro({ equipo, miembro: m }); }}
-                                  title={puedoGestionar ? "Clic para gestionar al integrante" : undefined}
-                                  style={{
-                                    borderTop: "1px solid var(--color-border)",
-                                    fontSize: 13,
-                                    background: "var(--color-background)",
-                                    opacity: m.estado === "INACTIVO" ? 0.7 : 1,
-                                    cursor: puedoGestionar ? "pointer" : "default"
-                                  }}                                >
-                                  <td style={{ padding: "10px 12px" }}>
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                        fontWeight: 600,
-                                        color: "var(--color-text)",
-                                      }}
-                                    >
-                                      <span
-                                        className={
-                                          m.disponibilidad?.estado === "INDISPONIBLE"
-                                            ? styles.disponibilidadNoDisponible
-                                            : styles.disponibilidadDisponible
-                                        }
-                                        title={
-                                          m.disponibilidad?.estado === "INDISPONIBLE"
-                                            ? "No disponible"
-                                            : "Disponible"
-                                        }
-                                        aria-label={
-                                          m.disponibilidad?.estado === "INDISPONIBLE"
-                                            ? "No disponible"
-                                            : "Disponible"
-                                        }
-                                      />
 
-                                      <span>
-                                        {m.nombres} {m.apellidos}
-                                        {esYo && (
-                                          <span
-                                            style={{
-                                              background: "color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background))",
-                                              color: "var(--color-in-progress)",
-                                              padding: "1px 6px",
-                                              borderRadius: 999,
-                                              fontSize: 11,
-                                              marginLeft: 6,
-                                            }}
-                                          >
-                                            Tú
-                                          </span>
-                                        )}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{m.cargo || "—"}</div>
-                                    {m.disponibilidad?.estado === "INDISPONIBLE" && (
-                                      <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
-                                        {m.disponibilidad.motivo ? `Motivo: ${m.disponibilidad.motivo}` : ""}
-                                        {m.disponibilidad.fecha_inicio ? ` · ${m.disponibilidad.fecha_inicio}` : ""}
-                                        {m.disponibilidad.fecha_fin ? ` → ${m.disponibilidad.fecha_fin}` : ""}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td style={{ padding: "10px 12px", color: "var(--color-text)", fontSize: 12 }}>{m.email}</td>
-                                  <td style={{ padding: "10px 12px" }}>{badgeRol(m.rol_en_equipo)}</td>
-                                </tr>
-                              );
-                            })
+                            <IconButton
+                              icon="power"
+                              variant="success"
+                              title="Reactivar equipo"
+                              onClick={() => reactivarEquipo(equipo)}
+                            />
                           )}
-                        </tbody>
-                      </table>
+                        </div>
+                      )}
+                      <span className={`${styles.cardHeaderArrow} ${expandido ? styles.cardHeaderArrowOpen : ""}`}>▼</span>
                     </div>
                   </div>
-                )}
-              </div>
-            );
+
+                  {expandido && (
+
+                    <div className={styles.expand}>
+                      {/* Fila l?der */}
+                      <div className={styles.expandToolbar}>
+                        <h4 className={styles.expandToolbarTitle}>Integrantes — {totalMiembros} miembros</h4>
+                        <div className={styles.expandToolbarActions}>
+                          {soyLider && (
+                            <button
+                              onClick={() => abrirModalAgregar(equipo)}
+                              disabled={!!accionando || !liderActivo}
+                              className={styles.btnAgregar}
+                              title={!liderActivo ? "El líder está inactivo" : "Agregar integrante"}
+                            >
+                              + Agregar integrante
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          marginBottom: 12,
+                          background: "var(--color-background)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 8,
+                          padding: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "var(--color-text)",
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          {liderNombre}
+                          {badgeRol("LIDER")}
+                          {!esClientePuro && liderMiembro && badgeDisponibilidad(liderMiembro)}
+                        </div>
+
+                        {!esClientePuro && (
+                          <>
+                            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                              {equipo.lider?.email ?? ""}
+                              {equipo.lider?.cargo ? ` ▸ ${equipo.lider.cargo}` : ""}
+                            </div>
+
+                            {liderMiembro?.disponibilidad?.estado === "INDISPONIBLE" && (
+                              <div style={{ fontSize: 11, color: "var(--color-waiting)", marginTop: 4 }}>
+                                {liderMiembro.disponibilidad.motivo ?? ""}
+                                {liderMiembro.disponibilidad.fecha_inicio
+                                  ? ` ▸ ${liderMiembro.disponibilidad.fecha_inicio}`
+                                  : ""}
+                                {liderMiembro.disponibilidad.fecha_fin
+                                  ? ` - ${liderMiembro.disponibilidad.fecha_fin}`
+                                  : ""}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+
+                      <div style={{ overflowX: "auto" }}>
+                        <table
+                          style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            background: "var(--color-background)",
+                            borderRadius: 8,
+                            overflow: "hidden",
+                            border: "1px solid var(--color-border)",
+                          }}
+                        >
+                          <thead>
+                            <tr style={{
+                              background: "var(--color-surface)",
+                              textAlign: "left",
+                              fontSize: 12,
+                              color: "var(--color-text-secondary)"
+                            }}>
+                              <th style={{ padding: "10px 12px", fontWeight: 600 }}>Miembro</th>
+
+                              {!esClientePuro && (
+                                <th style={{ padding: "10px 12px", fontWeight: 600 }}>Email</th>
+                              )}
+
+                              <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").length === 0 ? (
+                              <tr>
+                                <td
+                                  colSpan={esClientePuro ? 2 : 3}
+                                  style={{
+                                    padding: 16,
+                                    textAlign: "center",
+                                    color: "var(--color-text-secondary)",
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  Sin integrantes adicionales (solo líder)
+                                </td>
+                              </tr>
+                            ) : (
+                              equipo.miembros
+                                .filter((m) => m.rol_en_equipo !== "LIDER")
+                                .map((m) => (
+                                  <tr
+                                    key={m.id}
+                                    style={{
+                                      borderTop: "1px solid var(--color-border)",
+                                      fontSize: 13,
+                                      background: "var(--color-background)",
+                                    }}
+                                  >
+                                    <td style={{ padding: "10px 12px" }}>
+                                      <div style={{ fontWeight: 600, color: "var(--color-text)" }}>
+                                        {nombreMiembro(m)}
+                                      </div>
+
+                                      {!esClientePuro && (
+                                        <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                                          {m.cargo || "—"}
+                                        </div>
+                                      )}
+                                    </td>
+
+                                    {!esClientePuro && (
+                                      <td style={{ padding: "10px 12px", fontSize: 12 }}>
+                                        {m.email ?? "—"}
+                                      </td>
+                                    )}
+
+                                    <td style={{ padding: "10px 12px" }}>
+                                      {badgeRol(m.rol_en_equipo)}
+                                    </td>
+                                  </tr>
+                                ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
             })}
           </div>
           <Pagination

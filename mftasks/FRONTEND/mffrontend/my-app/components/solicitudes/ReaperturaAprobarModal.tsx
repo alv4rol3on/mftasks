@@ -128,7 +128,7 @@ export default function ReaperturaAprobarModal({
         const lista = (equipo.miembros ?? [])
           .filter((m) => !m.estado || m.estado === "ACTIVO")
           .map((m) => ({
-            id: m.id_usuario ?? m.usuario?.id ?? m.id,
+            id: m.id_usuario ?? m.id_usuario ?? m.id,
             nombre: `${m.nombres} ${m.apellidos}`.trim(),
           }));
         if (equipo.lider && !lista.some((m) => m.id === equipo.lider!.id)) {

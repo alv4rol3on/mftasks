@@ -51,19 +51,19 @@ export interface Subtarea {
 }
 
 export interface ArchivoTarea {
-  id: number;
-  nombre: string;
-  url: string;
+    id: number;
+    nombre: string;
+    url: string;
 }
 
 export interface AprobacionTarea {
-  id: number;
-  nivel: string;
-  accion: "APROBADO" | "RECHAZADO" | string;
-  usuario: number | null;
-  usuario_nombre: string | null;
-  motivo: string;
-  fecha: string;
+    id: number;
+    nivel: string;
+    accion: "APROBADO" | "RECHAZADO" | string;
+    usuario: number | null;
+    usuario_nombre: string | null;
+    motivo: string;
+    fecha: string;
 }
 
 export interface Task {
@@ -234,25 +234,44 @@ export interface ClienteInfo {
 export interface EquipoMiembro {
     id: number;
     codigo?: string | null;
-    email: string;
+    email?: string;
     nombres: string;
     apellidos: string;
     cargo?: string;
 }
 
+export interface EquipoMiembroCliente {
+    id: number;
+    usuario: {
+        nombres: string;
+        apellidos: string;
+    };
+    rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER";
+    estado: "ACTIVO" | "INACTIVO";
+}
+
 // Detalle enriquecido que devuelve el backend para cada miembro
 export interface EquipoMiembroDetallado {
     id: number;
-    usuario: EquipoMiembro;
-    id_usuario: number;
-    email: string;
-    nombres: string;
-    apellidos: string;
+
+    // Datos del formato que recibe el cliente
+    usuario?: {
+        nombres: string;
+        apellidos: string;
+    };
+
+    // Datos del formato que reciben administradores y líderes
+    id_usuario?: number;
+    email?: string;
+    nombres?: string;
+    apellidos?: string;
     cargo?: string;
+
     rol_en_equipo: "LIDER" | "MIEMBRO" | "SUB_LIDER";
     estado: "ACTIVO" | "INACTIVO";
+
     disponibilidad?: DisponibilidadUsuario | null;
-    fecha_ingreso: string;
+    fecha_ingreso?: string;
 }
 
 export interface UsuarioListItem {
@@ -288,8 +307,7 @@ export interface EquipoInfo {
     rol_integrante_requerido?: "MIEMBRO" | "GTR" | "JEFE" | "SUBGERENTE" | string;
     activo: boolean;
     fecha_creacion?: string;
-    miembros: EquipoMiembroDetallado[];
-    miembros_count?: number;
+    miembros: EquipoMiembroDetallado[]; miembros_count?: number;
     puedo_gestionar?: boolean;
     mi_rol_en_equipo?: string | null;
     mi_estado?: string | null;
