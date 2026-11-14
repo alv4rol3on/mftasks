@@ -9,8 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
 import type { AprobarReaperturaPayload } from "@/lib/services/tareasService";
 import { getUsuarioActual } from "@/lib/auth";
-import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
-import { stripHtml } from "@/lib/richText";
+import { rangoFechasPorDefecto } from "@/lib/fechas";
 import RefreshButton from "@/components/ui/RefreshButton";
 import PageLoader from "@/components/ui/PageLoader";
 
@@ -41,6 +40,12 @@ export default function SolicitudesPage() {
   const [filtroEntidad, setFiltroEntidad] = useState<number | "">("");
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setBusquedaDebounced(busqueda), 350);
+    return () => clearTimeout(t);
+  }, [busqueda]);
 
   // La protección de acceso la resuelve el guard central (redirige a perfil).
   useEffect(() => {
@@ -53,8 +58,29 @@ export default function SolicitudesPage() {
     setCargando(true);
     const params = new URLSearchParams();
     // La bandeja de aprobación (no-admin) muestra solicitudes nuevas y
-    // reaperturas pendientes. El Centro de solicitudes (admin) trae todo.
-    if (!isAdmin) params.set("bandeja", "1");
+    // reaperturas pendientes. El Centro de solicitudes (admin) filtra por
+    // estado y rango de fechas directamente en el servidor.
+    if (!isAdmin) {
+      params.set("bandeja", "1");
+    } else if (filtroEstado === "BANDEJA") {
+      params.set("bandeja", "1");
+    } else if (filtroEstado !== "TODOS") {
+      params.set("estado", filtroEstado);
+    }
+
+    if (isAdmin) {
+      if (desde) params.set("desde", desde);
+      if (hasta) params.set("hasta", hasta);
+      if (desde || hasta) {
+        params.set(
+          "campo_fecha",
+          campoFecha === "entrega" ? "entrega" : "creacion"
+        );
+      }
+    }
+
+    const q = busquedaDebounced.trim();
+    if (q) params.set("search", q);
     if (filtroEntidad) params.set("entidad", String(filtroEntidad));
     if (filtroCampana) params.set("campana", String(filtroCampana));
     if (filtroSubcampana) params.set("subcampana", String(filtroSubcampana));
@@ -66,7 +92,17 @@ export default function SolicitudesPage() {
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setCargando(false));
-  }, [filtroEntidad, filtroCampana, filtroSubcampana, isAdmin]);
+  }, [
+    filtroEntidad,
+    filtroCampana,
+    filtroSubcampana,
+    isAdmin,
+    filtroEstado,
+    campoFecha,
+    desde,
+    hasta,
+    busquedaDebounced,
+  ]);
 
   {/*const aprobar = async (tarea: Task) => {
     setError(null);
@@ -188,46 +224,6 @@ export default function SolicitudesPage() {
     setHasta(r.hasta);
   };
 
-  const tareasFiltradas = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
-
-    return tareas.filter((t) => {
-      const coincideEstado =
-        filtroEstado === "TODOS"
-          ? true
-          : filtroEstado === "BANDEJA"
-            ? t.estado === "EN_ESPERA" || t.estado === "REAPERTURA_PENDIENTE"
-          : filtroEstado === "EN_ESPERA"
-            ? t.estado === "EN_ESPERA"
-            : filtroEstado === "EN_PROCESO"
-              ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
-              : t.estado === filtroEstado;
-      if (!coincideEstado) return false;
-
-      if (isAdmin) {
-        const fecha = campoFecha === "entrega" ? t.fecha_entrega_aproximada : t.fecha_creacion;
-        const fechaIso = fechaEnLima(fecha);
-        if (!fechaIso) {
-          if (desde || hasta) return false;
-        } else {
-          if (desde && fechaIso < desde) return false;
-          if (hasta && fechaIso > hasta) return false;
-        }
-      }
-
-      if (!texto) return true;
-      return (
-        (t.ticket ?? "").toLowerCase().includes(texto) ||
-        String(t.asunto ?? "").toLowerCase().includes(texto) ||
-        stripHtml(t.descripcion).toLowerCase().includes(texto) ||
-        String(t.campana_nombre ?? "").toLowerCase().includes(texto) ||
-        String(t.subcampana_nombre ?? "").toLowerCase().includes(texto) ||
-        String(t.solicitante_nombre ?? "").toLowerCase().includes(texto) ||
-        String(t.equipo_nombre ?? "").toLowerCase().includes(texto)
-      );
-    });
-  }, [tareas, filtroEstado, busqueda, campoFecha, desde, hasta, isAdmin]);
-
   const filtrosUI = (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
       <FiltroCampanaSubcampana
@@ -333,10 +329,10 @@ export default function SolicitudesPage() {
       <div className="solicitudes-page">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
           <h2 className="text-lg font-medium" style={{ margin: 0 }}>Centro de solicitudes</h2>
-          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tareasFiltradas.length} de {tareas.length} · Solo lectura</span>
+          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{tareas.length} resultado{tareas.length === 1 ? "" : "s"} · Solo lectura</span>
         </div>
         {filtrosUI}
-        <AdminSolicitudesTable tareas={tareasFiltradas} onReload={cargar} />
+        <AdminSolicitudesTable tareas={tareas} onReload={cargar} />
       </div>
     );
   }
@@ -361,7 +357,7 @@ export default function SolicitudesPage() {
       {filtrosUI}
 
       <TaskTableSolicitudes
-        tareas={tareasFiltradas}
+        tareas={tareas}
         onAprobar={aprobar}
         onRechazar={rechazar}
         onAprobarReapertura={aprobarReapertura}

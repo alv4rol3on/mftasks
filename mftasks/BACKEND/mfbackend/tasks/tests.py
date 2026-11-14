@@ -778,6 +778,15 @@ class TaskFiltrosTestCase(APITestCase):
             fecha_solucion=ahora - timedelta(days=10),
         )
 
+        self.solicitante = _crear_usuario(
+            "solicitante-fil@empresa.com",
+            nombres="Ana",
+            apellidos="Torres",
+        )
+        Tarea.objects.filter(pk=self.t_dev.pk).update(
+            solicitante=self.solicitante
+        )
+
         # fecha_creacion es auto_now_add: forzar valores para probar el filtro.
         Tarea.objects.filter(pk=self.t_dev.pk).update(fecha_creacion=ahora - timedelta(days=20))
         Tarea.objects.filter(pk=self.t_aprob.pk).update(fecha_creacion=ahora - timedelta(days=1))
@@ -793,12 +802,46 @@ class TaskFiltrosTestCase(APITestCase):
         self.assertEqual(self._ids(estado="EN_DESARROLLO"), {self.t_dev.id})
 
     def test_filtra_en_proceso(self):
-        self.assertEqual(self._ids(estado="EN_PROCESO"), {self.t_dev.id, self.t_aprob.id})
+        self.assertEqual(
+            self._ids(estado="EN_PROCESO"),
+            {self.t_dev.id, self.t_aprob.id, self.t_espera.id},
+        )
 
     def test_excluir_espera(self):
         ids = self._ids(excluir_espera="1")
         self.assertNotIn(self.t_espera.id, ids)
         self.assertIn(self.t_dev.id, ids)
+
+    def test_en_proceso_puede_excluir_espera(self):
+        self.assertEqual(
+            self._ids(estado="EN_PROCESO", excluir_espera="1"),
+            {self.t_dev.id, self.t_aprob.id},
+        )
+
+    def test_busqueda_por_campana(self):
+        ids = self._ids(search="C Fil")
+        self.assertIn(self.t_dev.id, ids)
+        self.assertIn(self.t_espera.id, ids)
+
+    def test_busqueda_por_subcampana(self):
+        ids = self._ids(search="S Fil")
+        self.assertIn(self.t_dev.id, ids)
+
+    def test_busqueda_por_solicitante(self):
+        self.assertEqual(self._ids(search="Ana Torres"), {self.t_dev.id})
+        self.assertEqual(self._ids(search="Ana"), {self.t_dev.id})
+
+    def test_busqueda_por_equipo(self):
+        ids = self._ids(search="Equipo Fil")
+        self.assertIn(self.t_dev.id, ids)
+
+    def test_busqueda_respeta_rango_de_fechas(self):
+        desde = (timezone.now() - timedelta(days=2)).date().isoformat()
+        ids = self._ids(search="Dev", campo_fecha="creacion", desde=desde)
+        self.assertNotIn(self.t_dev.id, ids)
+
+        ids = self._ids(search="Aprob", campo_fecha="creacion", desde=desde)
+        self.assertIn(self.t_aprob.id, ids)
 
     def test_filtra_por_fecha_entrega(self):
         desde = (timezone.now() + timedelta(days=5)).date().isoformat()

@@ -7,8 +7,8 @@ import zipfile
 from django.core.files.storage import default_storage
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Q
-from django.db.models.functions import Coalesce
+from django.db.models import Q, Value
+from django.db.models.functions import Coalesce, Concat
 from django.http import FileResponse, HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
@@ -370,10 +370,20 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         search = params.get("search") or params.get("q")
         if search:
-            queryset = queryset.filter(
+            queryset = queryset.annotate(
+                _solicitante_nombre=Concat(
+                    "solicitante__nombres",
+                    Value(" "),
+                    "solicitante__apellidos",
+                )
+            ).filter(
                 Q(ticket__icontains=search)
                 | Q(asunto__icontains=search)
                 | Q(descripcion__icontains=search)
+                | Q(subcampana__nombre__icontains=search)
+                | Q(subcampana__campana__nombre__icontains=search)
+                | Q(_solicitante_nombre__icontains=search)
+                | Q(equipo__nombre__icontains=search)
             )
 
         estado = (params.get("estado") or "").upper()
@@ -384,6 +394,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                         Tarea.Estado.APROBADO,
                         Tarea.Estado.EN_DESARROLLO,
                         Tarea.Estado.STAND_BY,
+                        Tarea.Estado.EN_ESPERA,
                     ]
                 )
             elif estado in Tarea.Estado.values:

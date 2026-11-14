@@ -21,7 +21,7 @@ export type EstadoFiltro =
 
 export type CampoFecha = "solicitud" | "entrega" | "aprobacion";
 
-const ESTADOS_SIN_RANGO_FECHA: ReadonlySet<EstadoFiltro> = new Set(["EN_PROCESO"]);
+const ESTADOS_SIN_RANGO_FECHA: ReadonlySet<EstadoFiltro> = new Set<EstadoFiltro>();
 
 /** Indica si el estado seleccionado ignora el rango de fechas del listado. */
 export function estadoIgnoraRangoFechas(estado: EstadoFiltro | undefined): boolean {
@@ -51,14 +51,12 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   const q = filtros.busqueda?.trim();
   if (q) params.set("search", q);
 
-  // Al buscar, se ignora el filtro de estado y el rango de fechas para que la
-  // búsqueda sea global; los filtros solo aplican cuando no hay texto.
+  // La búsqueda siempre se combina con los filtros activos para no traer
+  // tareas fuera del estado o rango de fechas seleccionado.
   const estado = filtros.estado ?? "TODOS";
-  if (!q && estado !== "TODOS") params.set("estado", estado);
+  if (estado !== "TODOS") params.set("estado", estado);
 
-
-  // Ignorar el rango de fechas al buscar o con estados que no usan fechas.
-  const ignorarFechas = !!q || estadoIgnoraRangoFechas(estado);
+  const ignorarFechas = estadoIgnoraRangoFechas(estado);
 
   if (!ignorarFechas) {
     if (filtros.desde) params.set("desde", filtros.desde);

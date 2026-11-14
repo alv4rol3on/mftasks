@@ -9,8 +9,7 @@ import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
 import TaskDetailClienteModal from "@/components/cliente/TaskDetailClienteModal";
 import ClienteSolicitudesTable from "@/components/solicitudes/ClienteSolicitudesTable";
 import { getUsuarioActual } from "@/lib/auth";
-import { fechaEnLima, rangoFechasPorDefecto } from "@/lib/fechas";
-import { stripHtml } from "@/lib/richText";
+import { rangoFechasPorDefecto } from "@/lib/fechas";
 
 type CampoFecha = "solicitud" | "entrega";
 
@@ -40,9 +39,15 @@ export default function MisSolicitudesPage() {
   const [desde, setDesde] = useState(rangoInicial.desde);
   const [hasta, setHasta] = useState(rangoInicial.hasta);
   const [busqueda, setBusqueda] = useState("");
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
   const [openCrear, setOpenCrear] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const t = setTimeout(() => setBusquedaDebounced(busqueda), 350);
+    return () => clearTimeout(t);
+  }, [busqueda]);
 
   useEffect(() => {
     const user = getUsuarioActual();
@@ -54,7 +59,22 @@ export default function MisSolicitudesPage() {
 
   const cargar = useCallback(async () => {
     try {
-      const data = await apiFetch<Task[]>("/api/tasks/tasks/");
+      const params = new URLSearchParams();
+      if (filtro !== "TODOS") params.set("estado", filtro);
+      if (desde) params.set("desde", desde);
+      if (hasta) params.set("hasta", hasta);
+      if (desde || hasta) {
+        params.set(
+          "campo_fecha",
+          campoFecha === "entrega" ? "entrega" : "creacion"
+        );
+      }
+      const q = busquedaDebounced.trim();
+      if (q) params.set("search", q);
+
+      const data = await apiFetch<Task[]>(
+        `/api/tasks/tasks/?${params.toString()}`
+      );
 
       // ordenar más reciente primero como admin
       const ordenadas = [...data].sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime());
@@ -66,7 +86,7 @@ export default function MisSolicitudesPage() {
     } finally {
       setCargando(false);
     }
-  }, [showToast]);
+  }, [filtro, campoFecha, desde, hasta, busquedaDebounced, showToast]);
 
   useEffect(() => {
     cargar();
@@ -201,37 +221,6 @@ export default function MisSolicitudesPage() {
     [tareas, selectedId]
   );
 
-  const filtradas = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
-
-    return tareas.filter((t) => {
-      const coincideEstado =
-        filtro === "TODOS"
-          ? true
-          : filtro === "EN_PROCESO"
-            ? t.estado === "EN_DESARROLLO" || t.estado === "STAND_BY" || t.estado === "APROBADO" || t.estado === "EN_ESPERA"
-            : t.estado === filtro;
-      if (!coincideEstado) return false;
-
-      const fecha = campoFecha === "entrega" ? t.fecha_entrega_aproximada : t.fecha_creacion;
-      const fechaIso = fechaEnLima(fecha);
-      if (!fechaIso) return false;
-      if (desde && fechaIso < desde) return false;
-      if (hasta && fechaIso > hasta) return false;
-
-      if (!texto) return true;
-      return (
-        (t.ticket ?? "").toLowerCase().includes(texto) ||
-        String(t.asunto ?? "").toLowerCase().includes(texto) ||
-        stripHtml(t.descripcion).toLowerCase().includes(texto) ||
-        String(t.campana_nombre ?? "").toLowerCase().includes(texto) ||
-        String(t.subcampana_nombre ?? "").toLowerCase().includes(texto) ||
-        String(t.solicitante_nombre ?? "").toLowerCase().includes(texto) ||
-        String(t.equipo_nombre ?? "").toLowerCase().includes(texto)
-      );
-    });
-  }, [tareas, filtro, busqueda, campoFecha, desde, hasta]);
-
   if (cargando) {
     return <div>Cargando solicitudes…</div>;
   }
@@ -333,7 +322,7 @@ export default function MisSolicitudesPage() {
         )}
       </div>
 
-      <ClienteSolicitudesTable tareas={filtradas} onSelect={(t) => setSelectedId(t.id)} />
+      <ClienteSolicitudesTable tareas={tareas} onSelect={(t) => setSelectedId(t.id)} />
 
       <CrearSolicitudModal
         open={openCrear}
