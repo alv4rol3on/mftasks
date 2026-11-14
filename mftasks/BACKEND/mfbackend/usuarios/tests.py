@@ -237,6 +237,17 @@ class UsuarioSSOTestCase(APITestCase):
             "jose@empresa.com",
         )
         self.assertIn("Administrador", respuesta.data["roles"])
+        for campo in (
+            "dni",
+            "telefono",
+            "cargo",
+            "descripcion_cargo",
+            "disponibilidad",
+            "is_active",
+            "activo",
+            "bloqueo_estado_rol",
+        ):
+            self.assertNotIn(campo, respuesta.data)
 
 
 class EquipoVisibilidadTestCase(APITestCase):
@@ -280,9 +291,74 @@ class EquipoVisibilidadTestCase(APITestCase):
         res = self.client.get(reverse("equipo-detail", args=[self.equipo_a.id]))
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data["miembros"], [])
         self.assertEqual(res.data["miembros_count"], 2)
+        self.assertTrue(res.data["miembros"])
+        for miembro in res.data["miembros"]:
+            self.assertEqual(
+                set(miembro.keys()),
+                {"id", "usuario", "rol_en_equipo", "estado"},
+            )
 
+    def test_colaborador_no_recibe_campos_personales_no_usados(self):
+        self.client.force_authenticate(user=self.miembro)
+
+        res = self.client.get(reverse("equipo-detail", args=[self.equipo_a.id]))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data["miembros"])
+        for miembro in res.data["miembros"]:
+            for campo in (
+                "dni",
+                "telefono",
+                "descripcion_cargo",
+                "codigo",
+                "fecha_ingreso",
+                "usuario",
+            ):
+                self.assertNotIn(campo, miembro)
+            self.assertIn("email", miembro)
+            self.assertIn("cargo", miembro)
+            self.assertIn("disponibilidad", miembro)
+
+        self.assertIsNotNone(res.data["lider"])
+        for campo in (
+            "dni",
+            "telefono",
+            "descripcion_cargo",
+            "roles",
+            "tipo_usuario",
+            "is_active",
+            "activo",
+            "bloqueo_estado_rol",
+            "puede_liderar",
+        ):
+            self.assertNotIn(campo, res.data["lider"])
+
+
+class DirectorioUsuariosPrivadoTestCase(APITestCase):
+
+    def test_colaborador_no_puede_listar_usuarios(self):
+        colaborador = _crear_usuario("directorio-colab@empresa.com")
+        self.client.force_authenticate(user=colaborador)
+
+        res = self.client.get(reverse("user-list"))
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_lista_usuarios_con_campos_de_administracion(self):
+        admin = _crear_usuario("directorio-admin@empresa.com")
+        admin.tipo_usuario = "ADMINISTRADOR"
+        admin.save(update_fields=["tipo_usuario"])
+        _crear_usuario("directorio-otro@empresa.com")
+
+        self.client.force_authenticate(user=admin)
+        res = self.client.get(reverse("user-list"))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        data = res.data if isinstance(res.data, list) else res.data.get("results", [])
+        self.assertTrue(data)
+        for campo in ("dni", "cargo", "descripcion_cargo", "telefono", "roles"):
+            self.assertIn(campo, data[0])
 
 class EquipoTipoTestCase(APITestCase):
 
@@ -729,6 +805,39 @@ class AgregarMiembroRolesTestCase(APITestCase):
         )
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_candidatos_solo_hijos_directos_y_sin_datos_personales(self):
+        self.client.force_authenticate(user=self.jefe)
+
+        res = self.client.get(
+            reverse("equipo-candidatos", args=[self.equipo.id])
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        ids = {candidato["id"] for candidato in res.data}
+        self.assertIn(self.gtr.id, ids)
+        self.assertNotIn(self.miembro.id, ids)
+        self.assertNotIn(self.jefe.id, ids)
+        for candidato in res.data:
+            for campo in (
+                "dni",
+                "telefono",
+                "cargo",
+                "descripcion_cargo",
+                "disponibilidad",
+            ):
+                self.assertNotIn(campo, candidato)
+            self.assertIn("email", candidato)
+            self.assertIn("roles", candidato)
+
+    def test_candidatos_requiere_lider_o_admin(self):
+        self.client.force_authenticate(user=self.gtr)
+
+        res = self.client.get(
+            reverse("equipo-candidatos", args=[self.equipo.id])
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class JerarquiaDinamicaTestCase(TestCase):

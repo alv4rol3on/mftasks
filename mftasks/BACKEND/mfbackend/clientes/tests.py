@@ -35,3 +35,16 @@ class EntidadApiTestCase(APITestCase):
 
         res = self.client.get(reverse("entidad-list"))
         self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_colaborador_no_puede_listar_entidades(self):
+        colaborador = User.objects.create_user(
+            email="colaborador-entidades@empresa.com",
+            nombres="Colaborador",
+            apellidos="Entidades",
+            password="segura-123",
+        )
+        self.client.force_authenticate(user=colaborador)
+
+        res = self.client.get(reverse("entidad-list"))
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)

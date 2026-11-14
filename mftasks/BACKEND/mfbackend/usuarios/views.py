@@ -50,8 +50,9 @@ from .serializers import (
     EquipoDetailSerializer,
     PreferenciaNotificacionSerializer,
     RolSerializer,
+    UsuarioCandidatoSerializer,
     UserCreateSerializer,
-    UserDetailSerializer,
+    UserMeSerializer,
     UserSerializer,
     EquipoCreateSerializer
 )
@@ -156,7 +157,7 @@ class MicrosoftLoginView(APIView):
             {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "user": UserDetailSerializer(usuario).data,
+                "user": UserMeSerializer(usuario).data,
             },
             status=status.HTTP_200_OK,
         )
@@ -200,7 +201,7 @@ class MeView(APIView):
     def get(self, request):
 
         return Response(
-            UserDetailSerializer(request.user).data,
+            UserMeSerializer(request.user).data,
             status=status.HTTP_200_OK,
         )
 
@@ -350,7 +351,7 @@ class UserViewSet(ModelViewSet):
 
     serializer_class = UserSerializer
 
-    permission_classes = [IsAuthenticatedActivo]
+    permission_classes = [IsAuthenticatedActivo, EsAdministrador]
 
     def get_queryset(self):
         from django.db.models import Exists, OuterRef
@@ -385,15 +386,6 @@ class UserViewSet(ModelViewSet):
             )
 
         return base
-
-    def get_permissions(self):
-
-        permisos = super().get_permissions()
-
-        if self.action in ("create", "update", "partial_update", "destroy"):
-            permisos += [EsAdministrador()]
-
-        return permisos
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
@@ -1002,6 +994,56 @@ class EquipoViewSet(ModelViewSet):
             ).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["get"], url_path="candidatos")
+    def candidatos(self, request, pk=None):
+        """Usuarios colaboradores elegibles para integrar este equipo."""
+        from .models import TipoUsuario
+
+        equipo = self.get_object()
+        if not puede_gestionar_miembros(request.user, equipo):
+            return Response(
+                {"detail": "Solo el líder del equipo puede consultar candidatos."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        roles_requeridos = roles_integrantes_requeridos(equipo)
+        ids_roles = {rol.pk for rol in roles_requeridos}
+        if not ids_roles:
+            return Response([])
+
+        excluidos = set(
+            EquipoMiembro.objects.filter(equipo=equipo).values_list(
+                "usuario_id", flat=True
+            )
+        )
+        if equipo.lider_id:
+            excluidos.add(equipo.lider_id)
+
+        candidatos_qs = (
+            User.objects.filter(
+                tipo_usuario=TipoUsuario.COLABORADOR,
+                is_active=True,
+                roles__rol_id__in=ids_roles,
+            )
+            .exclude(id__in=excluidos)
+            .distinct()
+            .prefetch_related("roles__rol")
+        )
+
+        candidatos = []
+        for usuario in candidatos_qs:
+            rol = rol_efectivo(usuario)
+            if rol is not None and rol.pk in ids_roles:
+                candidatos.append(usuario)
+
+        candidatos.sort(
+            key=lambda usuario: (
+                (usuario.nombres or "").upper(),
+                (usuario.apellidos or "").upper(),
+            )
+        )
+        return Response(UsuarioCandidatoSerializer(candidatos, many=True).data)
 
     @action(
         detail=True,

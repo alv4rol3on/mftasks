@@ -42,6 +42,18 @@ type UsuarioLista = {
   activo?: boolean;
 };
 
+type UsuarioCandidato = {
+  id: number;
+  codigo?: string;
+  email: string;
+  nombres: string;
+  apellidos: string;
+  roles?: string[];
+  tipo_usuario?: TipoUsuario;
+  is_active?: boolean;
+  activo?: boolean;
+};
+
 export default function EquiposPage() {
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -60,7 +72,7 @@ export default function EquiposPage() {
   const [reassignments, setReassignments] = useState<Record<number, number>>({});
   // modal agregar miembro
   const [modalAgregar, setModalAgregar] = useState<EquipoInfo | null>(null);
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; codigo?: string; email: string; nombres: string; apellidos: string; is_active?: boolean; activo?: boolean; roles?: string[]; tipo_usuario?: TipoUsuario }[]>([]);
+  const [usuariosDisponibles, setUsuariosDisponibles] = useState<UsuarioCandidato[]>([]);
   const [agregarUsuarioId, setAgregarUsuarioId] = useState<string>("");
   const [busquedaUsuario, setBusquedaUsuario] = useState<string>("");
   // modal crear equipo
@@ -174,7 +186,7 @@ export default function EquiposPage() {
   const asegurarCatalogos = async () => {
     const pendientes: Promise<unknown>[] = [];
 
-    if (usuariosTodos.length === 0) {
+    if (esAdmin && usuariosTodos.length === 0) {
       pendientes.push(
         apiFetch<UsuarioLista[] | { results: UsuarioLista[] }>("/api/usuarios/usuarios/")
           .then((data) => {
@@ -187,7 +199,7 @@ export default function EquiposPage() {
       );
     }
 
-    if (rolesCatalogo.length === 0) {
+    if (esAdmin && rolesCatalogo.length === 0) {
       pendientes.push(
         apiFetch<RolInfo[] | { results: RolInfo[] }>("/api/usuarios/roles/")
           .then((data) =>
@@ -202,7 +214,7 @@ export default function EquiposPage() {
 
   // Precargar catálogos al montar para el alta de equipos (líderes elegibles).
   useEffect(() => {
-    if (!esClientePuro) {
+    if (esAdmin) {
       asegurarCatalogos();
     }
   }, []);
@@ -412,25 +424,13 @@ export default function EquiposPage() {
     setBusquedaUsuario("");
     setModalAgregar(equipo);
     try {
-      const data = await apiFetch<any>("/api/usuarios/usuarios/");
-      const lista = Array.isArray(data) ? data : (data.results ?? data);
-      // Filtrar los que ya son miembros o líder y exigir un rol hijo directo
-      // del rol del líder, además de ser usuario colaborador.
-      const miembrosIds = new Set(equipo.miembros.map((m) => m.id_usuario));
-      miembrosIds.add(equipo.lider?.id as number);
-      const requeridos = new Set(
-        (equipo.roles_integrantes_requeridos ?? []).map((r) => r.toUpperCase())
+      const data = await apiFetch<
+        UsuarioCandidato[] | { results: UsuarioCandidato[] }
+      >(`/api/usuarios/equipos/${equipo.id}/candidatos/`);
+      const lista = Array.isArray(data) ? data : (data.results ?? []);
+      setUsuariosDisponibles(
+        lista.filter((u) => (u.is_active ?? u.activo) !== false)
       );
-      const disponibles = (lista as any[]).filter(
-        (u) =>
-          !miembrosIds.has(u.id) &&
-          (u.is_active ?? u.activo) !== false &&
-          u.tipo_usuario === "COLABORADOR" &&
-          ((u.roles ?? []) as string[]).some((r) =>
-            requeridos.has(r.toUpperCase())
-          )
-      );
-      setUsuariosDisponibles(disponibles);
     } catch (e) {
       setMensaje(`Error cargando usuarios: ${(e as Error).message}`);
       setUsuariosDisponibles([]);

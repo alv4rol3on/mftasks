@@ -100,34 +100,10 @@ class DisponibilidadUsuarioSerializer(serializers.ModelSerializer):
 
         return attrs
 
-class DatosPersonalesAdminMixin:
-    """
-    DNI y teléfono solo se muestran a administradores.
-    """
-
-    def get_fields(self):
-        fields = super().get_fields()
-
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-
-        es_admin = False
-
-        if user and user.is_authenticated:
-            from .permissions import es_administrador
-            es_admin = es_administrador(user)
-
-        if not es_admin:
-            fields.pop("dni", None)
-            fields.pop("telefono", None)
-
-        return fields
-
-class UserSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
     roles = serializers.SerializerMethodField()
-    puede_liderar = serializers.SerializerMethodField()
     bloqueo_estado_rol = serializers.SerializerMethodField()
 
     class Meta:
@@ -148,17 +124,11 @@ class UserSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
             "activo",
             "tipo_usuario",
             "roles",
-            "puede_liderar",
             "bloqueo_estado_rol",
         ]
 
     def get_roles(self, obj):
         return [r.rol.nombre for r in obj.roles.all()]
-
-    def get_puede_liderar(self, obj):
-        from .jerarquia import puede_ser_lider
-
-        return puede_ser_lider(obj)
 
     def get_bloqueo_estado_rol(self, obj):
         from .restricciones import motivo_bloqueo_estado_rol
@@ -176,6 +146,29 @@ class UserSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
             equipo=equipo,
             proceso=getattr(obj, "_tiene_solicitudes_proceso", None),
         )
+
+class UsuarioCandidatoSerializer(serializers.ModelSerializer):
+    """Datos mínimos de un usuario candidato a integrar un equipo."""
+
+    activo = serializers.BooleanField(source="is_active", read_only=True)
+    roles = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "codigo",
+            "email",
+            "nombres",
+            "apellidos",
+            "tipo_usuario",
+            "roles",
+            "is_active",
+            "activo",
+        ]
+
+    def get_roles(self, obj):
+        return [r.rol.nombre for r in obj.roles.all()]
 
 class UserCreateSerializer(serializers.ModelSerializer):
     roles = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
@@ -300,15 +293,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 continue
         return user
 
-class UserDetailSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
+class UserMeSerializer(serializers.ModelSerializer):
+    """Datos del usuario autenticado usados por la sesión y el perfil."""
 
     roles = serializers.SerializerMethodField()
 
     puede_liderar = serializers.SerializerMethodField()
 
     es_aprobador = serializers.SerializerMethodField()
-
-    disponibilidad = serializers.SerializerMethodField()
 
     class Meta:
 
@@ -320,28 +312,16 @@ class UserDetailSerializer(DatosPersonalesAdminMixin, serializers.ModelSerialize
             "email",
             "nombres",
             "apellidos",
-            "dni",
-            "cargo",
-            "descripcion_cargo",
-            "telefono",
             "tipo_usuario",
             "roles",
             "puede_liderar",
             "es_aprobador",
-            "disponibilidad",
         ]
 
     def get_puede_liderar(self, obj):
         from .jerarquia import puede_ser_lider
 
         return puede_ser_lider(obj)
-
-    def get_disponibilidad(self, obj):
-        try:
-            disponibilidad = obj.disponibilidad
-        except DisponibilidadUsuario.DoesNotExist:
-            return None
-        return DisponibilidadUsuarioSerializer(disponibilidad).data
 
     def get_roles(self, obj):
 
@@ -372,16 +352,12 @@ class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["fecha_actualizacion"]
 
-class EquipoMiembroDetailSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
-    usuario = UserSerializer(read_only=True)
-
-    # campos planos para facilitar consumo en frontend
+class EquipoMiembroDetailSerializer(serializers.ModelSerializer):
+    # Campos planos usados por las pantallas de equipos y asignación.
     id_usuario = serializers.IntegerField(source="usuario.id", read_only=True)
-    codigo = serializers.CharField(source="usuario.codigo", read_only=True)
     email = serializers.CharField(source="usuario.email", read_only=True)
     nombres = serializers.CharField(source="usuario.nombres", read_only=True)
     apellidos = serializers.CharField(source="usuario.apellidos", read_only=True)
-    dni = serializers.CharField(source="usuario.dni")
     cargo = serializers.CharField(source="usuario.cargo", read_only=True)
     disponibilidad = serializers.SerializerMethodField()
 
@@ -389,18 +365,14 @@ class EquipoMiembroDetailSerializer(DatosPersonalesAdminMixin, serializers.Model
         model = EquipoMiembro
         fields = [
             "id",
-            "usuario",
             "id_usuario",
-            "codigo",
             "email",
             "nombres",
             "apellidos",
-            "dni",
             "cargo",
             "rol_en_equipo",
             "estado",
             "disponibilidad",
-            "fecha_ingreso",
         ]
 
     def get_disponibilidad(self, obj):
@@ -427,6 +399,19 @@ class EquipoMiembroClienteSerializer(serializers.ModelSerializer):
             "nombres": obj.usuario.nombres,
             "apellidos": obj.usuario.apellidos,
         }
+
+class EquipoLiderSerializer(serializers.ModelSerializer):
+    """Datos mínimos del líder mostrados en las pantallas de equipos."""
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "nombres",
+            "apellidos",
+            "cargo",
+        ]
 
 class EquipoDetailSerializer(serializers.ModelSerializer):
 
@@ -499,7 +484,7 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
                 return None
 
         if obj.lider:
-            return UserSerializer(
+            return EquipoLiderSerializer(
                 obj.lider,
                 context=self.context,
             ).data
