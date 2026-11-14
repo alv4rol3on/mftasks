@@ -28,7 +28,9 @@ export default function IniciarTareaPage({
         },
     });
     const usuario = getUsuarioActual();
-    const esAdmin = (usuario?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
+    const esAdmin =
+        usuario?.tipo_usuario === "ADMINISTRADOR" ||
+        (usuario?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
     const volverAlDetalle = () => {
         if (tareaId) {
             router.push(`/mfpages/tareas/${rutaTarea}`);

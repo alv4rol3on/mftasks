@@ -222,7 +222,6 @@ class EquipoAdmin(admin.ModelAdmin):
 
     list_display = (
         "nombre",
-        "tipo_equipo",
         "rol_equipo",
         "lider",
         "activo",
@@ -231,7 +230,6 @@ class EquipoAdmin(admin.ModelAdmin):
 
     list_filter = (
         "activo",
-        "tipo_equipo",
         "rol_equipo",
     )
 

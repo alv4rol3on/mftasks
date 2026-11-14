@@ -200,8 +200,8 @@ export interface TareaConPendientes {
     subtareas: { subtarea_id: number; descripcion: string; estado: string; peso: number }[];
 }
 
-export interface ResumenAsignador {
-    tipo: "asignador";
+export interface ResumenGestor {
+    tipo: "gestor";
     por_aprobar?: number;
     pendientes?: number;
     tareas_pendientes?: number;
@@ -300,11 +300,10 @@ export interface EquipoInfo {
     id: number;
     nombre: string;
     lider: EquipoMiembro | null;
-    tipo_equipo?: "GERENTE" | "SUBGERENTE" | "JEFE" | "GTR" | string;
     rol_equipo?: number | null;
     rol_equipo_nombre?: string | null;
     rol_color?: string | null;
-    rol_integrante_requerido?: "MIEMBRO" | "GTR" | "JEFE" | "SUBGERENTE" | string;
+    roles_integrantes_requeridos?: string[];
     activo: boolean;
     fecha_creacion?: string;
     miembros: EquipoMiembroDetallado[]; miembros_count?: number;

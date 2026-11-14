@@ -116,7 +116,9 @@ export default function PerfilPage() {
   }, []);
 
   const roles = usuario?.roles ?? [];
-  const esAdmin = roles.map((r) => r.toLowerCase()).includes("administrador");
+  const esAdmin =
+    usuario?.tipo_usuario === "ADMINISTRADOR" ||
+    roles.map((r) => r.toLowerCase()).includes("administrador");
   const uid = usuario?.id;
 
   const misEquipos = equipos.filter((e) =>
@@ -125,10 +127,10 @@ export default function PerfilPage() {
     (uid != null && (e.miembros ?? []).some((m) => m.id_usuario === uid))
   );
 
-  const esCliente = roles.map((r) => r.toLowerCase()).includes("cliente");
-  const esEquipo = misEquipos.length > 0 || roles.some((r) =>
-    ["miembro", "gtr", "gerente", "subgerente", "jefe"].includes(r.toLowerCase())
-  );
+  const esCliente =
+    usuario?.tipo_usuario === "CLIENTE" ||
+    roles.map((r) => r.toLowerCase()).includes("cliente");
+  const esEquipo = misEquipos.length > 0 || Boolean(usuario?.es_aprobador);
   const prefsSucias =
     prefs != null && prefsGuardadas != null &&
     JSON.stringify(prefs) !== JSON.stringify(prefsGuardadas);

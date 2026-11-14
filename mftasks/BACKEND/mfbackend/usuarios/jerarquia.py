@@ -16,10 +16,6 @@ NOMBRES_ROL = {
     "COMPLETADO": "Completado",
 }
 
-# Nombre de rol de respaldo cuando no hay información jerárquica disponible.
-ROL_INTEGRANTE_DEFECTO = "MIEMBRO"
-
-
 def get_rol(valor):
     """Resuelve un Rol a partir de un nombre, de un Rol o de None."""
     from .models import Rol
@@ -117,25 +113,18 @@ def nivel_efectivo(user):
 def puede_ser_lider(user):
     """True si el usuario puede liderar un equipo.
 
-    Lo determina el tipo de usuario (Administrador) o un rol con
-    `puede_liderar=True`; nunca por nombres codificados.
+    Solo un COLABORADOR cuyo rol efectivo tenga `puede_liderar=True` puede
+    liderar; nunca por nombres codificados. Un administrador gestiona equipos
+    pero no es elegible como líder.
     """
     from .models import TipoUsuario
 
     if not user or not user.is_authenticated:
         return False
-    if getattr(user, "tipo_usuario", None) == TipoUsuario.ADMINISTRADOR:
-        return True
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
-        return True
+    if getattr(user, "tipo_usuario", None) != TipoUsuario.COLABORADOR:
+        return False
     rol = rol_efectivo(user)
     return bool(rol and rol.puede_liderar)
-
-
-def tipo_equipo_para(user):
-    """Compatibilidad: nombre del rol del líder."""
-    rol = rol_efectivo(user)
-    return rol.nombre if rol else "GTR"
 
 
 def _rol_de_equipo(equipo):
@@ -145,11 +134,7 @@ def _rol_de_equipo(equipo):
         return None
     if not isinstance(equipo, Equipo):
         return get_rol(equipo)
-    rol = getattr(equipo, "rol_equipo", None)
-    if rol is None:
-        # Compatibilidad con datos previos a la migración.
-        rol = get_rol(getattr(equipo, "tipo_equipo", None))
-    return rol
+    return getattr(equipo, "rol_equipo", None)
 
 
 def roles_aprobador_de_equipo(equipo):
@@ -169,7 +154,7 @@ def roles_aprobador_para(valor):
     return [r.nombre for r in cadena_aprobacion(get_rol(valor))]
 
 
-def roles_integrante_requeridos(equipo):
+def roles_integrantes_requeridos(equipo):
     """Roles hijos directos del rol del líder (roles cuyo superior es rol_equipo)."""
     from .models import Rol
 
@@ -177,20 +162,6 @@ def roles_integrante_requeridos(equipo):
     if rol is None:
         return []
     return list(Rol.objects.filter(superior=rol, activo=True))
-
-
-def rol_integrante_requerido(valor):
-    """Compatibilidad: nombre del primer rol integrante requerido.
-
-    Acepta un nombre de rol, un objeto Rol o un objeto Equipo.
-    """
-    from .models import Equipo, Rol
-
-    if isinstance(valor, Equipo) or not isinstance(valor, Rol):
-        roles = roles_integrante_requeridos(valor)
-    else:
-        roles = list(Rol.objects.filter(superior=valor, activo=True))
-    return roles[0].nombre if roles else ROL_INTEGRANTE_DEFECTO
 
 
 def nombre_nivel(nivel):

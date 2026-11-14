@@ -291,23 +291,6 @@ class Equipo(models.Model):
         related_name="equipos_liderados"
     )
 
-    class TipoEquipo(models.TextChoices):
-        GERENTE = "GERENTE", "Equipo de Gerente"
-        SUBGERENTE = "SUBGERENTE", "Equipo de Subgerente"
-        JEFE = "JEFE", "Equipo de Jefe"
-        GTR = "GTR", "Equipo GTR"
-
-    tipo_equipo = models.CharField(
-        max_length=20,
-        choices=TipoEquipo.choices,
-        default=TipoEquipo.GTR,
-        db_index=True,
-        help_text=(
-            "[DEPRECADO] Espejo del nombre del rol del líder. "
-            "La fuente de verdad es rol_equipo."
-        ),
-    )
-
     rol_equipo = models.ForeignKey(
         Rol,
         on_delete=models.PROTECT,
@@ -345,7 +328,7 @@ class Equipo(models.Model):
             except Equipo.DoesNotExist:
                 old_lider_id = None
 
-        # rol_equipo (fuente de verdad) y tipo_equipo (espejo) derivados del líder
+        # El rol del equipo se deriva del rol efectivo del líder.
         if self.lider_id:
             try:
                 rol = rol_efectivo(self.lider)
@@ -353,7 +336,6 @@ class Equipo(models.Model):
                 rol = None
             if rol is not None:
                 self.rol_equipo = rol
-                self.tipo_equipo = rol.nombre
 
         with transaction.atomic():
             super().save(*args, **kwargs)

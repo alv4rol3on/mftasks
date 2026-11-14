@@ -28,14 +28,10 @@ export function calcularCaps(
 
   // Un colaborador es un usuario interno (con o sin equipo).
   const isColaborador = tipo ? tipo === "COLABORADOR" : !isAdmin && !isCliente;
-  const isMiembroGlobal = isColaborador || roles.includes("miembro");
-  const isAsignadorLegacy = roles.includes("asignador");
+  const isMiembroGlobal = isColaborador;
   // Aprobador dinámico: lo determina el backend por jerarquía + permiso.
-  // Se conserva el respaldo por nombres para sesiones antiguas en caché.
-  const isAprobador =
-    Boolean(user?.es_aprobador) ||
-    ["gerente", "subgerente", "jefe"].some((r) => roles.includes(r));
-  const isAsignador = isAdmin || isAsignadorLegacy || isAprobador;
+  const isAprobador = Boolean(user?.es_aprobador);
+  const isAsignador = isAdmin || isAprobador;
 
   let isLider = false;
   let isSubLider = false;
@@ -90,7 +86,6 @@ export function calcularCaps(
     }
   } else if (!equipos) {
     if (!isCliente && isMiembroGlobal) isMiembro = true;
-    if (!isCliente && isAsignadorLegacy) isMiembro = true;
   }
 
   const isClientePuro = isCliente && !isAdmin && !isLider && !isSubLider && !isMiembro;

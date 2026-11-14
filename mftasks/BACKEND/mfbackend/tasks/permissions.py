@@ -68,8 +68,7 @@ def es_asignador_del_equipo(user, equipo):
     - Sub-líder activo: su equipo.
     - Miembro: no puede gestionar.
 
-    El rol global (GERENTE, SUBGERENTE, JEFE, GTR, ASIGNADOR)
-    no concede permisos de gestión por sí solo.
+    El rol global del usuario no concede permisos de gestión por sí solo.
     """
 
     if not user or not user.is_authenticated or equipo is None:
@@ -96,7 +95,7 @@ def puede_gestionar_roles_equipo(user, equipo):
     """Solo líder y admin pueden administrar roles/estados (sub-líder no)."""
     if not user or not user.is_authenticated:
         return False
-    if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+    if es_administrador(user):
         return True
     if equipo.lider_id == user.id:
         return True

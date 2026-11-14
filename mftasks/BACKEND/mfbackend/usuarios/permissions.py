@@ -259,7 +259,7 @@ def es_aprobador_organizacional(user):
 
 
 class PuedeCrearEquipo(BasePermission):
-    """Administrador o usuario con rol elegible (no MIEMBRO/CLIENTE)."""
+    """Colaborador con un rol que tenga el permiso de liderar."""
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:

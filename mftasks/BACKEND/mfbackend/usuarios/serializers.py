@@ -127,6 +127,7 @@ class UserSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
     roles = serializers.SerializerMethodField()
+    puede_liderar = serializers.SerializerMethodField()
     bloqueo_estado_rol = serializers.SerializerMethodField()
 
     class Meta:
@@ -147,11 +148,17 @@ class UserSerializer(DatosPersonalesAdminMixin, serializers.ModelSerializer):
             "activo",
             "tipo_usuario",
             "roles",
+            "puede_liderar",
             "bloqueo_estado_rol",
         ]
 
     def get_roles(self, obj):
         return [r.rol.nombre for r in obj.roles.all()]
+
+    def get_puede_liderar(self, obj):
+        from .jerarquia import puede_ser_lider
+
+        return puede_ser_lider(obj)
 
     def get_bloqueo_estado_rol(self, obj):
         from .restricciones import motivo_bloqueo_estado_rol
@@ -297,6 +304,8 @@ class UserDetailSerializer(DatosPersonalesAdminMixin, serializers.ModelSerialize
 
     roles = serializers.SerializerMethodField()
 
+    puede_liderar = serializers.SerializerMethodField()
+
     es_aprobador = serializers.SerializerMethodField()
 
     disponibilidad = serializers.SerializerMethodField()
@@ -317,9 +326,15 @@ class UserDetailSerializer(DatosPersonalesAdminMixin, serializers.ModelSerialize
             "telefono",
             "tipo_usuario",
             "roles",
+            "puede_liderar",
             "es_aprobador",
             "disponibilidad",
         ]
+
+    def get_puede_liderar(self, obj):
+        from .jerarquia import puede_ser_lider
+
+        return puede_ser_lider(obj)
 
     def get_disponibilidad(self, obj):
         try:
@@ -427,7 +442,7 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     mi_estado = serializers.SerializerMethodField()
 
-    rol_integrante_requerido = serializers.SerializerMethodField()
+    roles_integrantes_requeridos = serializers.SerializerMethodField()
 
     rol_equipo = serializers.PrimaryKeyRelatedField(read_only=True)
 
@@ -441,11 +456,10 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             "id",
             "nombre",
             "lider",
-            "tipo_equipo",
             "rol_equipo",
             "rol_equipo_nombre",
             "rol_color",
-            "rol_integrante_requerido",
+            "roles_integrantes_requeridos",
             "activo",
             "fecha_creacion",
             "miembros",
@@ -575,9 +589,10 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
                 return EquipoMiembro.EstadoMiembro.ACTIVO
             return None
 
-    def get_rol_integrante_requerido(self, obj):
-        from .jerarquia import rol_integrante_requerido
-        return rol_integrante_requerido(obj)
+    def get_roles_integrantes_requeridos(self, obj):
+        from .jerarquia import roles_integrantes_requeridos
+
+        return [r.nombre for r in roles_integrantes_requeridos(obj)]
 
     def get_rol_equipo_nombre(self, obj):
         rol = getattr(obj, "rol_equipo", None)
@@ -593,8 +608,8 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipo
-        fields = ["id", "nombre", "lider", "tipo_equipo", "activo", "fecha_creacion"]
-        read_only_fields = ["id", "tipo_equipo", "activo", "fecha_creacion"]
+        fields = ["id", "nombre", "lider", "activo", "fecha_creacion"]
+        read_only_fields = ["id", "activo", "fecha_creacion"]
 
     def validate_nombre(self, value):
         nombre = value.strip()
@@ -629,7 +644,8 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
         from .jerarquia import puede_ser_lider
         if not puede_ser_lider(usuario):
             raise serializers.ValidationError(
-                "El usuario debe tener un rol de la jerarquía con el permiso de <Puede liderar equipos> para ser líder."
+                "El líder debe ser un usuario colaborador con un rol que tenga "
+                "el permiso de <Puede liderar equipos>."
             )
 
         return usuario

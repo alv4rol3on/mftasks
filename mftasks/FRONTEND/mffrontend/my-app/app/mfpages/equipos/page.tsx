@@ -60,7 +60,7 @@ export default function EquiposPage() {
   const [reassignments, setReassignments] = useState<Record<number, number>>({});
   // modal agregar miembro
   const [modalAgregar, setModalAgregar] = useState<EquipoInfo | null>(null);
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; codigo?: string; email: string; nombres: string; apellidos: string; is_active?: boolean; activo?: boolean; roles?: string[] }[]>([]);
+  const [usuariosDisponibles, setUsuariosDisponibles] = useState<{ id: number; codigo?: string; email: string; nombres: string; apellidos: string; is_active?: boolean; activo?: boolean; roles?: string[]; tipo_usuario?: TipoUsuario }[]>([]);
   const [agregarUsuarioId, setAgregarUsuarioId] = useState<string>("");
   const [busquedaUsuario, setBusquedaUsuario] = useState<string>("");
   // modal crear equipo
@@ -82,8 +82,12 @@ export default function EquiposPage() {
 
   const usuario = getUsuarioActual();
   const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
-  const esAdmin = roles.includes("administrador");
-  const esClientePuro = roles.includes("cliente") && !esAdmin && !roles.includes("miembro") && !roles.includes("asignador");
+  const esAdmin =
+    usuario?.tipo_usuario === "ADMINISTRADOR" ||
+    roles.includes("administrador");
+  const esClientePuro =
+    (usuario?.tipo_usuario === "CLIENTE" || roles.includes("cliente")) &&
+    !esAdmin;
 
   const nombreMiembro = (m: EquipoMiembroDetallado) =>
     `${m.nombres ?? m.usuario?.nombres ?? ""} ${m.apellidos ?? m.usuario?.apellidos ?? ""
@@ -102,7 +106,6 @@ export default function EquiposPage() {
 
   const puedeCrearEquipo = esAdmin;
   const [soloMios, setSoloMios] = useState(false);
-  const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
   const [busquedaEquipos, setBusquedaEquipos] = useState("");
   const [paginaEquipos, setPaginaEquipos] = useState(1);
 
@@ -114,8 +117,7 @@ export default function EquiposPage() {
 
   const equiposVisibles = equipos
     .filter((e) => !soloMios || esMiEquipo(e))
-    .filter((e) => mostrarInactivos || e.activo)
-    .filter((e) => filtroTipo === "TODOS" || (e.tipo_equipo ?? "GTR") === filtroTipo);
+    .filter((e) => mostrarInactivos || e.activo);
 
   const equiposFiltrados = equiposVisibles.filter((equipo) => {
     const q = normalizarBusqueda(busquedaEquipos.trim());
@@ -209,10 +211,11 @@ export default function EquiposPage() {
     rolesCatalogo.map((r) => [r.nombre.toLowerCase(), r])
   );
 
-  /** True si el usuario puede liderar un equipo (administrador o rol que lidera). */
+  /** True si el usuario puede liderar un equipo (colaborador con rol que lidera). */
   const puedeLiderar = (u: UsuarioLista) => {
-    if (u.tipo_usuario === "ADMINISTRADOR") return true;
-    if (u.tipo_usuario === "CLIENTE") return false;
+    if (u.tipo_usuario === "ADMINISTRADOR" || u.tipo_usuario === "CLIENTE") {
+      return false;
+    }
     return (u.roles ?? []).some(
       (r) => mapaRolesNombre.get(r.toLowerCase())?.puede_liderar === true
     );
@@ -411,14 +414,21 @@ export default function EquiposPage() {
     try {
       const data = await apiFetch<any>("/api/usuarios/usuarios/");
       const lista = Array.isArray(data) ? data : (data.results ?? data);
-      // filtrar los que ya son miembros o líder, y exigir el rol requerido por el tipo de equipo
+      // Filtrar los que ya son miembros o líder y exigir un rol hijo directo
+      // del rol del líder, además de ser usuario colaborador.
       const miembrosIds = new Set(equipo.miembros.map((m) => m.id_usuario));
       miembrosIds.add(equipo.lider?.id as number);
-      const requerido = (equipo.rol_integrante_requerido ?? "MIEMBRO").toUpperCase();
-      const disponibles = (lista as any[]).filter((u) =>
-        !miembrosIds.has(u.id) &&
-        (u.is_active ?? u.activo) !== false &&
-        ((u.roles ?? []) as string[]).map((r) => r.toUpperCase()).includes(requerido)
+      const requeridos = new Set(
+        (equipo.roles_integrantes_requeridos ?? []).map((r) => r.toUpperCase())
+      );
+      const disponibles = (lista as any[]).filter(
+        (u) =>
+          !miembrosIds.has(u.id) &&
+          (u.is_active ?? u.activo) !== false &&
+          u.tipo_usuario === "COLABORADOR" &&
+          ((u.roles ?? []) as string[]).some((r) =>
+            requeridos.has(r.toUpperCase())
+          )
       );
       setUsuariosDisponibles(disponibles);
     } catch (e) {
@@ -826,11 +836,9 @@ export default function EquiposPage() {
               ? "No se encontraron equipos con esa búsqueda."
               : soloMios
                 ? "No perteneces a ningún equipo aún."
-                : filtroTipo !== "TODOS"
-                  ? "No hay equipos de ese tipo."
-                  : esClientePuro
-                    ? "No hay equipos activos disponibles por el momento."
-                    : "No hay equipos disponibles."}
+                : esClientePuro
+                  ? "No hay equipos activos disponibles por el momento."
+                  : "No hay equipos disponibles."}
           </p>
           {!esClientePuro && !soloMios && <p style={{ color: "var(--color-text-secondary)", fontSize: 12, margin: "8px 0 0" }}>Contacta a tu administrador para ser asignado a un equipo.</p>}
         </div>
@@ -1589,7 +1597,7 @@ export default function EquiposPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Crear equipo</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-              Selecciona un líder elegible (colaborador con rol que puede liderar, o administrador).
+              Selecciona un líder elegible (usuario colaborador con rol que puede liderar).
             </p>
 
             <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
@@ -1621,7 +1629,6 @@ export default function EquiposPage() {
                   >
                     <option value="todos">Todos los tipos</option>
                     <option value="COLABORADOR">Colaborador</option>
-                    <option value="ADMINISTRADOR">Administrador</option>
                   </select>
 
                   <select

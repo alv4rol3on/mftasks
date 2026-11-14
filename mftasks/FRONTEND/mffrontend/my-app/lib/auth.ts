@@ -14,6 +14,7 @@ export interface DatosUsuario {
     cargo?: string;
     tipo_usuario?: TipoUsuario;
     roles?: string[];
+    puede_liderar?: boolean;
     es_aprobador?: boolean;
     disponibilidad?: {
         estado: "DISPONIBLE" | "INDISPONIBLE";
@@ -135,15 +136,7 @@ export function esColaborador(): boolean {
 }
 
 export function esAsignador(): boolean {
-    // Fase 1: asignador ahora es lider por equipo, no rol global ASIGNADOR (compat)
-    const usuario = getUsuarioActual();
-    if (!usuario) return false;
-    const roles = rolesLower(usuario.roles);
-    if (roles.includes("administrador")) return true;
-    // compat: viejo ASIGNADOR todavía considerado asignador
-    if (roles.includes("asignador")) return true;
-    // miembro con lider se detecta vía equipos en Sidebar, aquí solo fallback
-    return roles.includes("miembro");
+    return esAdmin();
 }
 
 export function esMiembro(): boolean {
@@ -151,16 +144,11 @@ export function esMiembro(): boolean {
     return esColaborador();
 }
 
-/** Roles que pueden ser líderes de un equipo (todos menos MIEMBRO/CLIENTE). */
-export const ROLES_LIDER = ["GERENTE", "SUBGERENTE", "JEFE", "GTR"] as const;
-
-/** True si el usuario puede liderar/crear un equipo. */
+/** True si el usuario puede liderar un equipo según el backend. */
 export function esLiderElegible(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
-    if (esAdmin()) return true;
-    const roles = rolesLower(usuario.roles);
-    return ROLES_LIDER.some((r) => roles.includes(r.toLowerCase()));
+    return usuario.puede_liderar === true;
 }
 
 export function isAutenticado(): boolean {

@@ -168,9 +168,9 @@ class SubCampanaViewSet(ModelViewSet):
             qs = qs.filter(campana_id=campana_id)
         if not user or not user.is_authenticated:
             return SubCampana.objects.none()
-        if user.roles.filter(rol__nombre__iexact="Administrador").exists():
+        if es_administrador(user):
             return qs
-        if user.roles.filter(rol__nombre__iexact="CLIENTE").exists():
+        if es_cliente(user):
             # permiso puntual solo a subcampana activa y campaña activa
             permisos_sub = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False, subcampana__activo=True, subcampana__campana__activo=True).values_list("subcampana_id", flat=True)
             return qs.filter(id__in=permisos_sub, activo=True, campana__activo=True)

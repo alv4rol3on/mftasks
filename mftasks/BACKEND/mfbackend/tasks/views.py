@@ -1421,15 +1421,13 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "tareas_con_pendientes": detalle,
             })
 
-        es_asignador = False
-        if user.roles.filter(rol__nombre__iexact="ASIGNADOR").exists():
-            es_asignador = True
+        es_gestor = False
         if Equipo.objects.filter(lider=user).exists():
-            es_asignador = True
+            es_gestor = True
         if EquipoMiembro.objects.filter(usuario=user, rol_en_equipo=EquipoMiembro.RolEnEquipo.SUB_LIDER, estado=EquipoMiembro.EstadoMiembro.ACTIVO).exists():
-            es_asignador = True
+            es_gestor = True
 
-        if es_asignador:
+        if es_gestor:
             pendientes = Subtarea.objects.filter(
                 asignado=user,
                 estado__in=[Subtarea.Estado.EN_ESPERA, Subtarea.Estado.EN_DESARROLLO],
@@ -1442,7 +1440,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             ).distinct().count()
             detalle = self._tareas_con_pendientes(user)
             return Response({
-                "tipo": "asignador",
+                "tipo": "gestor",
                 "por_aprobar": _por_aprobar(user),
                 "pendientes": pendientes,
                 "tareas_pendientes": tareas_pendientes,

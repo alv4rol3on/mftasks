@@ -36,7 +36,7 @@ from .models import (
 from .jerarquia import (
     puede_ser_lider,
     rol_efectivo,
-    roles_integrante_requeridos,
+    roles_integrantes_requeridos,
 )
 from .permissions import (
     EsAdministrador,
@@ -938,18 +938,45 @@ class EquipoViewSet(ModelViewSet):
             return Response({"detail": "El líder ya pertenece al equipo."}, status=status.HTTP_400_BAD_REQUEST)
         if not user_obj.is_active:
             return Response({"detail": "No se puede agregar un usuario inactivo del sistema."}, status=status.HTTP_400_BAD_REQUEST)
-        # El rol del integrante debe ser un hijo directo del rol del líder
-        # (se acepta cualquiera de los roles subordinados directos).
-        roles_requeridos = roles_integrante_requeridos(equipo)
-        nombres_requeridos = {(r.nombre or "").upper() for r in roles_requeridos}
-        roles_usuario = {
-            (r or "").upper()
-            for r in user_obj.roles.values_list("rol__nombre", flat=True)
-        }
-        if not (nombres_requeridos & roles_usuario):
-            etiqueta = ", ".join(
-                sorted(r.nombre for r in roles_requeridos)
-            ) or "MIEMBRO"
+        from .models import TipoUsuario
+
+        if user_obj.tipo_usuario != TipoUsuario.COLABORADOR:
+            return Response(
+                {
+                    "detail": (
+                        "Solo usuarios colaboradores pueden ser integrantes "
+                        "de un equipo."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if equipo.rol_equipo_id is None:
+            return Response(
+                {
+                    "detail": (
+                        "El equipo no tiene un rol de líder definido. "
+                        "Asigne primero un líder válido."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # El rol del integrante debe ser un hijo directo del rol del líder.
+        roles_requeridos = roles_integrantes_requeridos(equipo)
+        if not roles_requeridos:
+            return Response(
+                {
+                    "detail": (
+                        "El rol del líder no tiene roles subordinados directos. "
+                        "Ajuste la jerarquía antes de agregar integrantes."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        rol_usuario = rol_efectivo(user_obj)
+        if rol_usuario is None or rol_usuario.pk not in {
+            r.pk for r in roles_requeridos
+        }:
+            etiqueta = ", ".join(sorted(r.nombre for r in roles_requeridos))
             return Response(
                 {
                     "detail": (

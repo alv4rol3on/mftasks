@@ -304,9 +304,10 @@ export default function TaskModal({
         return local.toISOString().slice(0, 16);
     })();
 
-    // determinar si usuario puede ver historial: miembros del equipo (no cliente puro)
+    // Determinar si el usuario puede ver historial: los clientes no lo ven.
     const roles = (usuario?.roles ?? []).map((r: string) => r.toLowerCase());
-    const esClientePuro = roles.includes("cliente") && !roles.includes("miembro") && !roles.includes("gtr") && !roles.includes("sub_lider") && !roles.includes("administrador");
+    const esClientePuro =
+        usuario?.tipo_usuario === "CLIENTE" || roles.includes("cliente");
     const puedeVerHistorial = !esClientePuro;
     const puedeVerAsignaciones = !soloLectura && !!tarea?.puedo_operar;
     const solicitudNoEmpieza = tarea?.estado === "APROBADO" || tarea?.estado === "EN_ESPERA"
