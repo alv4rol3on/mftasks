@@ -33,8 +33,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [descripcion, setDescripcion] = useState("");
   const [tipoSolicitud, setTipoSolicitud] = useState("");
   const [detalleTipoSolicitud, setDetalleTipoSolicitud] = useState("");
-  const [prioridad, setPrioridad] = useState("MEDIA");
-  const [entidadId, setEntidadId] = useState<number | "">("");
+  const [prioridad, setPrioridad] = useState(""); const [entidadId, setEntidadId] = useState<number | "">("");
   const [campanaId, setCampanaId] = useState<number | "">("");
   const [subcampanaId, setSubcampanaId] = useState<number | "">("");
   const [equipoId, setEquipoId] = useState<number | "">("");
@@ -43,6 +42,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [intentoEnviar, setIntentoEnviar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<{ ticket: string | null; asunto: string } | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
@@ -68,7 +68,10 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setIntentoEnviar(false);
+      return;
+    }
     apiFetch<CampanaInfo[]>("/api/campanas/campanas/")
       .then((data) => {
         const arr: CampanaInfo[] = Array.isArray(data) ? data : (data as any).results ?? [];
@@ -127,6 +130,18 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
   const totalBytes = archivos.reduce((acc, f) => acc + f.size, 0);
 
+  const mensajeCampo = (
+    mostrar: boolean,
+    tipo: "texto" | "select" = "texto"
+  ) =>
+    intentoEnviar && mostrar ? (
+      <small style={{ color: "var(--color-danger)", fontSize: 12, marginBottom: -5 }}>
+        {tipo === "select"
+          ? "Seleccione una opción válida"
+          : "Falta completar este campo"}
+      </small>
+    ) : null;
+
   const agregarArchivos = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const resultado = [...archivos];
@@ -158,7 +173,9 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   };
 
   const enviar = async () => {
-    if (
+    setIntentoEnviar(true);
+
+    const faltanCampos =
       !asunto.trim() ||
       !tieneContenido(descripcion) ||
       entidadId === "" ||
@@ -166,17 +183,9 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       subcampanaId === "" ||
       equipoId === "" ||
       !tipoSolicitud ||
-      (tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim())
-    ) {
-      setError(
-        tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim()
-          ? "Especifica el detalle del tipo de solicitud."
-          : !tipoSolicitud
-            ? "--Elige el tipo de solicitud.--"
-            : "Completa asunto, descripción, entidad, campaña, subcampaña y equipo."
-      );
-      return;
-    }
+      (tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim());
+
+    if (faltanCampos) return;
 
     setEnviando(true);
     setError(null);
@@ -208,12 +217,13 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       setDescripcion("");
       setTipoSolicitud("");
       setDetalleTipoSolicitud("");
-      setPrioridad("MEDIA");
+      setPrioridad("");
       setEntidadId("");
       setCampanaId("");
       setSubcampanaId("");
       setEquipoId("");
       setArchivos([]);
+      setIntentoEnviar(false);
 
       onCreated();
       setCreada({ ticket: res?.ticket ?? null, asunto: asuntoEnviado });
@@ -228,8 +238,8 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.modalOverlay}>
+      <div className={styles.modal}>
         <div className={styles.modalHeader}>
 
           <div>
@@ -240,124 +250,162 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
         <div className={styles.iniciarBody}>
 
           <div className={styles.crearGrid}>
-            <select
-              value={entidadId}
-              onChange={(e) => {
-                setEntidadId(e.target.value ? Number(e.target.value) : "");
-                setCampanaId("");
-                setSubcampanaId("");
-                setEquipoId("");
-                setEquipos([]);
-              }}
-              className={styles.inputField}
-            >
-              <option value="">Seleccionar Entidad</option>
-              {entidades.map((entidad) => (
-                <option key={entidad.id} value={entidad.id}>{entidad.nombre}</option>
-              ))}
-            </select>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+              {mensajeCampo(entidadId === "", "select")}
+              <select
+                value={entidadId}
+                onChange={(e) => {
+                  setEntidadId(e.target.value ? Number(e.target.value) : "");
+                  setCampanaId("");
+                  setSubcampanaId("");
+                  setEquipoId("");
+                  setEquipos([]);
+                }}
+                className={styles.inputField}
+              >
+                <option value="">Seleccionar Entidad</option>
+                {entidades.map((entidad) => (
+                  <option key={entidad.id} value={entidad.id}>{entidad.nombre}</option>
+                ))}
+              </select>            </div>
 
-            <select
-              value={campanaId}
-              onChange={(e) => {
-                setCampanaId(e.target.value ? Number(e.target.value) : "");
-                setSubcampanaId("");
-                setEquipoId("");
-                setEquipos([]);
-              }}
-              className={styles.inputField}
-              disabled={!entidadId}
-            >
-              <option value="">{entidadId ? "Seleccionar Campaña" : "--Elige entidad primero--"}</option>
-              {campanasFiltradas.map((c) => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
-              ))}
-            </select>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+              {mensajeCampo(campanaId === "", "select")}
+              <select
+                value={campanaId}
+                onChange={(e) => {
+                  setCampanaId(e.target.value ? Number(e.target.value) : "");
+                  setSubcampanaId("");
+                  setEquipoId("");
+                  setEquipos([]);
+                }}
+                className={styles.inputField}
+                disabled={!entidadId}
+              >
+                <option value="">{entidadId ? "Seleccionar Campaña" : "--Elige entidad primero--"}</option>
+                {campanasFiltradas.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
+              </select>            </div>
 
-            <select
-              value={subcampanaId}
-              onChange={(e) => {
-                setSubcampanaId(e.target.value ? Number(e.target.value) : "");
-                setEquipoId("");
-                if (!e.target.value) setEquipos([]);
-              }}
-              className={styles.inputField}
-              disabled={!campanaId}
-            >
-              <option value="">{campanaId ? "Seleccionar Subcampaña" : "--Elige campaña primero--"}</option>
-              {subcampanas.map((s) => (
-                <option key={s.id} value={s.id}>{s.nombre}</option>
-              ))}
-            </select>
-
-
-            <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!subcampanaId}>
-              <option value="">{subcampanaId ? "Selecciona Equipo" : "--Elige subcampaña primero--"}</option>
-              {equipos.map((e) => (
-                <option key={e.id} value={e.id}>{e.nombre}</option>
-              ))}
-            </select>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+              {mensajeCampo(subcampanaId === "", "select")}
+              <select
+                value={subcampanaId}
+                onChange={(e) => {
+                  setSubcampanaId(e.target.value ? Number(e.target.value) : "");
+                  setEquipoId("");
+                  if (!e.target.value) setEquipos([]);
+                }}
+                className={styles.inputField}
+                disabled={!campanaId}
+              >
+                <option value="">{campanaId ? "Seleccionar Subcampaña" : "--Elige campaña primero--"}</option>
+                {subcampanas.map((s) => (
+                  <option key={s.id} value={s.id}>{s.nombre}</option>
+                ))}
+              </select>            </div>
 
 
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+              {mensajeCampo(equipoId === "", "select")}
+              <select value={equipoId} onChange={(e) => setEquipoId(e.target.value ? Number(e.target.value) : "")} className={styles.inputField} disabled={!subcampanaId}>
+                <option value="">{subcampanaId ? "Selecciona Equipo" : "--Elige subcampaña primero--"}</option>
+                {equipos.map((e) => (
+                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                ))}
+              </select>            </div>
 
-            <select
-              id="tipoSolicitud"
-              value={tipoSolicitud}
-              onChange={(e) => {
-                const nuevoTipo = e.target.value;
-                setTipoSolicitud(nuevoTipo);
 
-                if (nuevoTipo !== "OTROS") {
-                  setDetalleTipoSolicitud("");
-                }
-              }}
-              className={styles.inputField}
-            >
-              <option value="">--Elige el tipo de solicitud--</option>
-              <option value="NUEVA_FUNCIONALIDAD">Nueva funcionalidad</option>
-              <option value="REPORTE">Creación de reporte</option>
-              <option value="CORRECCION_ERROR">Corrección de error</option>
-              <option value="CREACION_BI">Creación de BI</option>
-              <option value="OTROS">Otros</option>
-            </select>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+              {mensajeCampo(!tipoSolicitud, "select")}
+              <select
+                id="tipoSolicitud"
+                value={tipoSolicitud}
+                onChange={(e) => {
+                  const nuevoTipo = e.target.value;
+                  setTipoSolicitud(nuevoTipo);
+
+                  if (nuevoTipo !== "OTROS") {
+                    setDetalleTipoSolicitud("");
+                  }
+                }}
+                className={styles.inputField}
+              >
+                <option value="">--Elige el tipo de solicitud--</option>
+                <option value="NUEVA_FUNCIONALIDAD">Nueva funcionalidad</option>
+                <option value="REPORTE">Creación de reporte</option>
+                <option value="CORRECCION_ERROR">Corrección de error</option>
+                <option value="CREACION_BI">Creación de BI</option>
+                <option value="OTROS">Otros</option>
+              </select>            </div>
 
 
             {tipoSolicitud === "OTROS" && (
-              <input
-                id="detalleTipoSolicitud"
-                value={detalleTipoSolicitud}
-                onChange={(e) => setDetalleTipoSolicitud(e.target.value)}
-                className={styles.inputField}
-                maxLength={70}
-                placeholder="Describe el tipo de solicitud"
-                required
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+                {mensajeCampo(!detalleTipoSolicitud.trim())}
+                <input
+                  id="detalleTipoSolicitud"
+                  value={detalleTipoSolicitud}
+                  onChange={(e) => setDetalleTipoSolicitud(e.target.value)}
+                  className={styles.inputField}
+                  maxLength={70}
+                  placeholder="Describe el tipo de solicitud"
+                  required
+                />
+              </div>
             )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+              {mensajeCampo(!prioridad, "select")}
+              <select
+                aria-label="Prioridad propuesta"
+                value={prioridad}
+                onChange={(e) => setPrioridad(e.target.value)}
+                className={styles.inputField}
+                title="Prioridad propuesta por el cliente; el líder puede ajustarla"
+              >
+                <option value="">--Elige el nivel de prioridad--</option>
+                <option value="BAJA">Prioridad: Baja</option>
+                <option value="MEDIA">Prioridad: Media</option>
+                <option value="ALTA">Prioridad: Alta</option>
+                <option value="URGENTE">Prioridad: Urgente</option>
+              </select>
+            </div>
 
-            <select
-              aria-label="Prioridad propuesta"
-              value={prioridad}
-              onChange={(e) => setPrioridad(e.target.value)}
-              className={styles.inputField}
-              title="Prioridad propuesta por el cliente; el líder puede ajustarla"
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+              {mensajeCampo(!asunto.trim())}
+              <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 5,
+                minWidth: 0,
+                width: "100%",
+                gridColumn: "1 / -1",
+              }}
             >
-              <option value="BAJA">Prioridad: Baja</option>
-              <option value="MEDIA">Prioridad: Media</option>
-              <option value="ALTA">Prioridad: Alta</option>
-              <option value="URGENTE">Prioridad: Urgente</option>
-            </select>
+              {mensajeCampo(!tieneContenido(descripcion))}
 
-            <input value={asunto} onChange={(e) => setAsunto(e.target.value)} className={styles.inputField} placeholder="Escribir asunto" />
-
-            <RichTextEditor
-              value={descripcion}
-              onChange={setDescripcion}
-              placeholder="Detalla la solicitud"
-              disabled={enviando}
-            />
+              <RichTextEditor
+                value={descripcion}
+                onChange={setDescripcion}
+                placeholder="Detalla la solicitud"
+                disabled={enviando}
+              />
+            </div>
 
 
-            <div className={styles.fileField}>
+            <div
+              className={styles.fileField}
+              style={{
+                gridColumn: "1 / -1",
+                width: "100%",
+              }}
+            >
               <label>Archivos adjuntos (opcional) — máx. 10 MB en total</label>
 
               <div
