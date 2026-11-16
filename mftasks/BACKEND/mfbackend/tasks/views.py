@@ -4,6 +4,7 @@ import os
 import uuid
 import zipfile
 
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.cache import cache
 from django.db import transaction
@@ -211,6 +212,30 @@ def _parsear_fecha(valor):
         return valor
 
     return parse_datetime(valor)
+
+
+def _cuota_imagenes_usuario(usuario):
+    """Devuelve (cantidad, bytes) de imágenes de descripción del usuario."""
+    directorio = os.path.join(
+        settings.MEDIA_ROOT, "descripciones", str(usuario.id)
+    )
+
+    if not os.path.isdir(directorio):
+        return 0, 0
+
+    cantidad = 0
+    total = 0
+
+    for entrada in os.scandir(directorio):
+        try:
+            if not entrada.is_file(follow_symlinks=False):
+                continue
+            cantidad += 1
+            total += entrada.stat(follow_symlinks=False).st_size
+        except OSError:
+            continue
+
+    return cantidad, total
 
 
 def _recalcular_progreso_tarea(tarea):
@@ -651,7 +676,33 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        nombre = f"descripciones/{uuid.uuid4().hex}.{extension}"
+        cantidad_actual, bytes_actuales = _cuota_imagenes_usuario(request.user)
+        max_imagenes = getattr(
+            settings, "DESCRIPCION_MAX_IMAGENES_POR_USUARIO", 100
+        )
+        max_bytes = getattr(
+            settings, "DESCRIPCION_MAX_BYTES_POR_USUARIO", 100 * 1024 * 1024
+        )
+
+        if (
+            cantidad_actual >= max_imagenes
+            or bytes_actuales + imagen.size > max_bytes
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "Has alcanzado el límite de almacenamiento de "
+                        "imágenes. Elimina imágenes anteriores o contacta "
+                        "al administrador."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nombre = (
+            f"descripciones/{request.user.id}/"
+            f"{uuid.uuid4().hex}.{extension}"
+        )
         guardado = default_storage.save(nombre, imagen)
 
         return Response(
@@ -668,19 +719,28 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         tarea = self.get_object()
 
-        if tarea.estado != Tarea.Estado.EN_ESPERA:
-            if aprobacion_vencida(tarea):
-                rechazar_solicitud_vencida(tarea.id)
+        if not tarea.activo or tarea.estado != Tarea.Estado.EN_ESPERA:
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden resolver solicitudes activas en espera."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-                return Response(
-                    {
-                        "detail": (
-                            "El plazo de aprobación ha vencido. "
-                            "La solicitud fue rechazada automáticamente."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        if aprobacion_vencida(tarea):
+            rechazar_solicitud_vencida(tarea.id)
+
+            return Response(
+                {
+                    "detail": (
+                        "El plazo de aprobación ha vencido. "
+                        "La solicitud fue rechazada automáticamente."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         paso_actual = tarea.paso_aprobacion
 
@@ -754,19 +814,28 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         tarea = self.get_object()
 
-        if tarea.estado != Tarea.Estado.EN_ESPERA:
-            if aprobacion_vencida(tarea):
-                rechazar_solicitud_vencida(tarea.id)
+        if not tarea.activo or tarea.estado != Tarea.Estado.EN_ESPERA:
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden resolver solicitudes activas en espera."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-                return Response(
-                    {
-                        "detail": (
-                            "El plazo de aprobación ha vencido. "
-                            "La solicitud fue rechazada automáticamente."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        if aprobacion_vencida(tarea):
+            rechazar_solicitud_vencida(tarea.id)
+
+            return Response(
+                {
+                    "detail": (
+                        "El plazo de aprobación ha vencido. "
+                        "La solicitud fue rechazada automáticamente."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         paso_actual = tarea.paso_aprobacion
 
@@ -836,6 +905,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     def iniciar(self, request, pk=None):
 
         tarea = self.get_object()
+
+        if not tarea.activo:
+            return Response(
+                {"detail": "La solicitud está inactiva y no puede iniciarse."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if tarea.estado != Tarea.Estado.APROBADO:
             return Response(
@@ -1125,6 +1200,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     def triage(self, request, pk=None):
         tarea = self.get_object()
 
+        if not tarea.activo:
+            return Response(
+                {"detail": "No se puede modificar el triage de una solicitud inactiva."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if tarea.estado in (
             Tarea.Estado.SOLUCIONADO,
             Tarea.Estado.RECHAZADO,
@@ -1224,6 +1305,21 @@ class TaskViewSet(viewsets.ModelViewSet):
     def agregar_subtarea(self, request, pk=None):
 
         tarea = self.get_object()
+
+        if not tarea.activo or tarea.estado not in (
+            Tarea.Estado.APROBADO,
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden agregar subtareas a solicitudes "
+                        "aprobadas, en desarrollo o en pausa."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         descripcion = (request.data.get("descripcion") or "").strip()
         asignado_id = request.data.get("asignado")
@@ -2002,6 +2098,20 @@ class TaskViewSet(viewsets.ModelViewSet):
     def empezar_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
 
+        if not tarea.activo or tarea.estado not in (
+            Tarea.Estado.APROBADO,
+            Tarea.Estado.EN_DESARROLLO,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "La solicitud debe estar aprobada o en desarrollo "
+                        "para iniciar subtareas."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         subtarea = get_object_or_404(
             Subtarea,
             id=subtarea_id,
@@ -2082,10 +2192,12 @@ class TaskViewSet(viewsets.ModelViewSet):
                 detalle="Subtarea iniciada",
             )
 
-            # Si tarea estaba APROBADO/EN_ESPERA y subtarea inicia antes de fecha_inicio programada, promover a EN_DESARROLLO inmediato
-            if tarea.estado in [Tarea.Estado.APROBADO, Tarea.Estado.EN_ESPERA]:
+            # Si tarea estaba APROBADO y la subtarea inicia antes de la fecha
+            # programada, promover a EN_DESARROLLO inmediato. EN_ESPERA nunca
+            # llega aquí: el guard superior exige aprobación previa.
+            if tarea.estado == Tarea.Estado.APROBADO:
                 tarea_actualizada = Tarea.objects.select_for_update().get(pk=tarea.pk)
-                if tarea_actualizada.estado in [Tarea.Estado.APROBADO, Tarea.Estado.EN_ESPERA]:
+                if tarea_actualizada.estado == Tarea.Estado.APROBADO:
                     # calcular extra para log
                     try:
                         from .services.tiempo_laboral import calcular_tiempo_extra_tarea, formatear_extra_debug
@@ -2132,6 +2244,21 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def completar_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
+
+        if not tarea.activo or tarea.estado not in (
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden completar subtareas de solicitudes "
+                        "en desarrollo o en pausa."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
 
         # Administrador no puede completar subtareas (según requerimiento base)
@@ -2270,6 +2397,11 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def reasignar_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
+        if not tarea.activo:
+            return Response(
+                {"detail": "No se puede reasignar una subtarea de una solicitud inactiva."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
         if not subtarea.activo:
             return Response({"detail": "No se puede reasignar una subtarea inactivada. Reactívala primero."}, status=status.HTTP_400_BAD_REQUEST)
@@ -2341,6 +2473,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def renombrar_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
+
+        if not tarea.activo:
+            return Response(
+                {"detail": "No se puede renombrar una subtarea de una solicitud inactiva."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         subtarea = get_object_or_404(
             Subtarea,
@@ -2425,6 +2563,22 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def inactivar_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
+
+        if not tarea.activo or tarea.estado not in (
+            Tarea.Estado.APROBADO,
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden inactivar subtareas de solicitudes "
+                        "abiertas."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
         if not subtarea.activo:
             return Response({"detail": "La subtarea ya está inactivada."}, status=status.HTTP_400_BAD_REQUEST)
@@ -2518,6 +2672,21 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def reactivar_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
+
+        if not tarea.activo or tarea.estado in (
+            Tarea.Estado.CANCELADO,
+            Tarea.Estado.RECHAZADO,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "No se puede reactivar una subtarea de una solicitud "
+                        "cancelada o rechazada."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
         if subtarea.activo:
             return Response({"detail": "La subtarea ya está activa."}, status=status.HTTP_400_BAD_REQUEST)
@@ -2555,6 +2724,22 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def standby_subtarea(self, request, pk=None, subtarea_id=None):
         tarea = self.get_object()
+
+        if not tarea.activo or tarea.estado not in (
+            Tarea.Estado.APROBADO,
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden pausar subtareas de solicitudes "
+                        "abiertas."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         subtarea = get_object_or_404(Subtarea, id=subtarea_id, tarea=tarea)
         # solo miembro/lider del equipo puede poner standby (tu r3)
         is_member = (
@@ -2660,6 +2845,21 @@ class TaskViewSet(viewsets.ModelViewSet):
     def reanudar_subtarea(self, request, pk=None, subtarea_id=None):
 
         tarea = self.get_object()
+
+        if not tarea.activo or tarea.estado not in (
+            Tarea.Estado.APROBADO,
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "Solo se pueden reanudar subtareas de solicitudes "
+                        "abiertas."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         subtarea = get_object_or_404(
             Subtarea,

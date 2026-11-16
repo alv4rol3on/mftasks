@@ -50,6 +50,7 @@ const TasksWebSocketContext =
     createContext<TasksWebSocketContextType | null>(null);
 
 const RECONEXION_MS = 3000;
+const WS_AUTH_PROTOCOL = "access_token";
 
 /**
  * Base del WebSocket apuntando directo al backend (daphne), igual que el REST.
@@ -141,11 +142,10 @@ export function TasksWebSocketProvider({
             return;
         }
 
-        const url =
-            `${base}/ws/tareas/${taskId}/` +
-            `?token=${encodeURIComponent(token)}`;
+        const url = `${base}/ws/tareas/${taskId}/`;
 
-        const ws = new WebSocket(url);
+        // El token viaja como subprotocolo, nunca en la URL.
+        const ws = new WebSocket(url, [WS_AUTH_PROTOCOL, token]);
 
         ws.onopen = () => {
             falloGlobal.current = false;

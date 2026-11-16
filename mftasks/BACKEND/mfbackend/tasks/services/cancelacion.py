@@ -48,12 +48,16 @@ def cancelar_tarea(tarea, usuario, motivo, solo_antes_de_iniciar=False):
 
         actual.estado = Tarea.Estado.CANCELADO
         actual.activo = False
+        actual.paso_aprobacion = Tarea.PasoAprobacion.COMPLETADO
+        actual.fecha_limite_aprobacion = None
         actual.fecha_inactivacion = ahora
         actual.inactivada_por = usuario
         actual.motivo_cancelacion = motivo
         actual.save(update_fields=[
             "estado",
             "activo",
+            "paso_aprobacion",
+            "fecha_limite_aprobacion",
             "fecha_inactivacion",
             "inactivada_por",
             "motivo_cancelacion",

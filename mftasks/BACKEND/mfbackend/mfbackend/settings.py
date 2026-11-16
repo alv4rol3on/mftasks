@@ -144,6 +144,18 @@ DATABASES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+# Cuota de imágenes de descripción por usuario (evita llenar el disco).
+DESCRIPCION_MAX_IMAGENES_POR_USUARIO = int(
+    os.environ.get("DESCRIPCION_MAX_IMAGENES_POR_USUARIO", "100") or 100
+)
+DESCRIPCION_MAX_BYTES_POR_USUARIO = int(
+    os.environ.get(
+        "DESCRIPCION_MAX_BYTES_POR_USUARIO",
+        str(100 * 1024 * 1024),
+    )
+    or (100 * 1024 * 1024)
+)
+
 # URL pública del backend para enlaces e imágenes absolutas en correos.
 MF_BACKEND_URL = os.environ.get("MF_BACKEND_URL", "")
 

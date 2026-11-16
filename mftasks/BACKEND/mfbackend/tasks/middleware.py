@@ -1,5 +1,3 @@
-from urllib.parse import parse_qs
-
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.exceptions import TokenError
@@ -25,18 +23,29 @@ def _usuario_desde_token(token):
 
 
 class JwtAuthMiddleware:
-    """Autentica el websocket con el access token JWT enviado como ?token=."""
+    """Autentica el websocket con el token enviado como subprotocolo.
+
+    El cliente abre el socket con:
+        new WebSocket(url, ["access_token", "<jwt>"])
+
+    Así el token no viaja en la URL ni queda registrado en los logs de
+    acceso del proxy.
+    """
+
+    SUBPROTOCOLO = "access_token"
 
     def __init__(self, inner):
         self.inner = inner
 
     async def __call__(self, scope, receive, send):
         token = None
-        query_string = scope.get("query_string", b"")
+        subprotocolos = scope.get("subprotocols") or []
 
-        if query_string:
-            params = parse_qs(query_string.decode())
-            token = params.get("token", [None])[0]
+        if (
+            len(subprotocolos) >= 2
+            and subprotocolos[0] == self.SUBPROTOCOLO
+        ):
+            token = subprotocolos[1]
 
         if token:
             scope["user"] = await _usuario_desde_token(token)

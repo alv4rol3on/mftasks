@@ -44,11 +44,14 @@ class TareaConsumerTests(TransactionTestCase):
 
     def _conectar(self, token):
         path = f"/ws/tareas/{self.tarea.id}/"
-        if token:
-            path += f"?token={token}"
+        subprotocols = ["access_token", token] if token else None
 
         async def run():
-            communicator = WebsocketCommunicator(application, path)
+            communicator = WebsocketCommunicator(
+                application,
+                path,
+                subprotocols=subprotocols,
+            )
             connected, _ = await communicator.connect()
             if not connected:
                 return False, None
@@ -75,12 +78,29 @@ class TareaConsumerTests(TransactionTestCase):
 
         self.assertFalse(conectado)
 
+    def test_token_en_query_string_no_autentica(self):
+        token = self._token(self.lider)
+
+        async def run():
+            communicator = WebsocketCommunicator(
+                application,
+                f"/ws/tareas/{self.tarea.id}/?token={token}",
+            )
+            connected, _ = await communicator.connect()
+            if connected:
+                await communicator.disconnect()
+            return connected
+
+        self.assertFalse(async_to_sync(run)())
+
     def test_recibe_evento_de_tarea(self):
         token = self._token(self.lider)
 
         async def run():
             communicator = WebsocketCommunicator(
-                application, f"/ws/tareas/{self.tarea.id}/?token={token}"
+                application,
+                f"/ws/tareas/{self.tarea.id}/",
+                subprotocols=["access_token", token],
             )
             connected, _ = await communicator.connect()
             self.assertTrue(connected)

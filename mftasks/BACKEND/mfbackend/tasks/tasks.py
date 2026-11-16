@@ -6,8 +6,6 @@ import resend
 from django.conf import settings
 from django.template.loader import render_to_string
 
-resend.api_key = os.environ["RESEND_API_KEY"]
-
 logger = logging.getLogger(__name__)
 
 
@@ -115,8 +113,28 @@ def enviar_notificacion_email(evento, destinatarios, contexto):
         contexto,
     )
 
+    api_key = (
+        os.environ.get("RESEND_API_KEY")
+        or (settings.ANYMAIL or {}).get("RESEND_API_KEY")
+        or ""
+    ).strip()
+
+    if not api_key:
+        logger.warning(
+            "RESEND_API_KEY no configurada; notificación %s omitida.",
+            evento,
+        )
+
+        return {
+            "enviado": False,
+            "motivo": "SIN_CONFIGURACION",
+            "evento": evento,
+        }
+
+    resend.api_key = api_key
+
     try:
-        respuesta = resend.Emails.send({
+        resend.Emails.send({
             "from": settings.DEFAULT_FROM_EMAIL,
             "to": destinatarios_validos,
             "subject": asunto,
@@ -124,11 +142,14 @@ def enviar_notificacion_email(evento, destinatarios, contexto):
             "text": contenido_texto,
         })
 
-        enviados = 1
-
     except Exception:
         logger.exception("Error al enviar la notificación %s", evento)
-        raise
+
+        return {
+            "enviado": False,
+            "motivo": "ERROR_ENVIO",
+            "evento": evento,
+        }
 
     logger.info(
         "Notificación enviada. evento=%s destinatarios=%s",
@@ -137,8 +158,8 @@ def enviar_notificacion_email(evento, destinatarios, contexto):
     )
 
     return {
-        "enviado": enviados > 0,
-        "procesados": enviados,
+        "enviado": True,
+        "procesados": 1,
         "evento": evento,
         "destinatarios": destinatarios_validos,
     }

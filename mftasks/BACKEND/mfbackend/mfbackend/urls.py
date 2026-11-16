@@ -15,6 +15,9 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+import os
+import posixpath
+
 from django.contrib import admin
 from django.http import Http404
 from django.urls import include, path
@@ -37,10 +40,29 @@ def servir_descripcion(request, path):
     Los adjuntos de tareas se descargan por el endpoint autenticado
     de la API, nunca por /media.
     """
-    if not path.startswith("descripciones/"):
+    # Normalizar antes de decidir el confinamiento: evita que un path como
+    # "descripciones/../tareas/x" pase el prefijo y escape a MEDIA_ROOT.
+    normalizado = posixpath.normpath(path.replace("\\", "/"))
+
+    if (
+        "\x00" in normalizado
+        or normalizado == ".."
+        or normalizado.startswith("../")
+        or posixpath.isabs(normalizado)
+        or not normalizado.startswith("descripciones/")
+    ):
         raise Http404()
 
-    return static_serve(request, path, document_root=settings.MEDIA_ROOT)
+    relativo = normalizado[len("descripciones/"):]
+
+    if not relativo:
+        raise Http404()
+
+    return static_serve(
+        request,
+        relativo,
+        document_root=os.path.join(settings.MEDIA_ROOT, "descripciones"),
+    )
 
 
 urlpatterns += [

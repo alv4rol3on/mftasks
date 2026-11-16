@@ -25,7 +25,15 @@ class TareaConsumer(AsyncJsonWebsocketConsumer):
             self.channel_name,
         )
 
-        await self.accept()
+        subprotocolos = self.scope.get("subprotocols") or []
+        subprotocolo = (
+            "access_token"
+            if len(subprotocolos) >= 2
+            and subprotocolos[0] == "access_token"
+            else None
+        )
+
+        await self.accept(subprotocol=subprotocolo)
 
         await self.send_json({
             "type": "CONEXION_ESTABLECIDA",
