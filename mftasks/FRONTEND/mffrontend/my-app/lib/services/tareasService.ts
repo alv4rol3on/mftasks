@@ -9,28 +9,28 @@ interface IniciarPayload {
 }
 
 export type EstadoFiltro =
-  | "TODOS"
-  | "EN_PROCESO"
+  | "EN_ESPERA"
   | "APROBADO"
   | "EN_DESARROLLO"
   | "STAND_BY"
   | "SOLUCIONADO"
   | "RECHAZADO"
   | "FUERA_DE_TIEMPO"
-  | "CANCELADO";
+  | "CANCELADO"
+  | "REAPERTURA_PENDIENTE";
 
 export type CampoFecha = "solicitud" | "entrega" | "aprobacion";
 
 const ESTADOS_SIN_RANGO_FECHA: ReadonlySet<EstadoFiltro> = new Set<EstadoFiltro>();
 
-/** Indica si el estado seleccionado ignora el rango de fechas del listado. */
-export function estadoIgnoraRangoFechas(estado: EstadoFiltro | undefined): boolean {
-  return estado ? ESTADOS_SIN_RANGO_FECHA.has(estado) : false;
+/** Indica si alguno de los estados seleccionados ignora el rango de fechas. */
+export function estadoIgnoraRangoFechas(estados: EstadoFiltro[] | undefined): boolean {
+  return (estados ?? []).some((estado) => ESTADOS_SIN_RANGO_FECHA.has(estado));
 }
 
 export interface FiltrosTareas {
   busqueda?: string;
-  estado?: EstadoFiltro;
+  estado?: EstadoFiltro[];
   campoFecha?: CampoFecha;
   desde?: string; // yyyy-mm-dd (día en America/Lima)
   hasta?: string; // yyyy-mm-dd (día en America/Lima)
@@ -52,11 +52,11 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   if (q) params.set("search", q);
 
   // La búsqueda siempre se combina con los filtros activos para no traer
-  // tareas fuera del estado o rango de fechas seleccionado.
-  const estado = filtros.estado ?? "TODOS";
-  if (estado !== "TODOS") params.set("estado", estado);
+  // tareas fuera de los estados o del rango de fechas seleccionado.
+  const estados = [...new Set(filtros.estado ?? [])];
+  estados.forEach((estado) => params.append("estado", estado));
 
-  const ignorarFechas = estadoIgnoraRangoFechas(estado);
+  const ignorarFechas = estadoIgnoraRangoFechas(estados);
 
   if (!ignorarFechas) {
     if (filtros.desde) params.set("desde", filtros.desde);
@@ -82,7 +82,7 @@ export async function fetchTareas(filtros: FiltrosTareas = {}): Promise<Task[]> 
   if (filtros.prioridad) params.set("prioridad", filtros.prioridad);
 
   // Regla de antigüedad: solo cuando no hay búsqueda ni filtros (replica el comportamiento previo).
-  const hayFiltro = estado !== "TODOS" || !!filtros.desde || !!filtros.hasta || !!filtros.entidad || !!filtros.campana || !!filtros.subcampana || !!filtros.prioridad;
+  const hayFiltro = estados.length > 0 || !!filtros.desde || !!filtros.hasta || !!filtros.entidad || !!filtros.campana || !!filtros.subcampana || !!filtros.prioridad;
   if (!q && !hayFiltro) params.set("solo_recientes", "1");
 
   return apiFetch<Task[]>(`/api/tasks/tasks/?${params.toString()}`);

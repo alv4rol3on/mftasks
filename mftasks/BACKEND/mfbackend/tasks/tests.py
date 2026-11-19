@@ -801,22 +801,33 @@ class TaskFiltrosTestCase(APITestCase):
     def test_filtra_por_estado(self):
         self.assertEqual(self._ids(estado="EN_DESARROLLO"), {self.t_dev.id})
 
-    def test_filtra_en_proceso(self):
+    def test_filtra_multiples_estados(self):
         self.assertEqual(
-            self._ids(estado="EN_PROCESO"),
+            self._ids(
+                estado=["APROBADO", "EN_DESARROLLO", "EN_ESPERA"],
+            ),
             {self.t_dev.id, self.t_aprob.id, self.t_espera.id},
+        )
+
+    def test_multiples_estados_separados_por_coma(self):
+        self.assertEqual(
+            self._ids(estado="APROBADO,EN_DESARROLLO"),
+            {self.t_dev.id, self.t_aprob.id},
+        )
+
+    def test_multiples_estados_puede_excluir_espera(self):
+        self.assertEqual(
+            self._ids(
+                estado=["APROBADO", "EN_DESARROLLO", "EN_ESPERA"],
+                excluir_espera="1",
+            ),
+            {self.t_dev.id, self.t_aprob.id},
         )
 
     def test_excluir_espera(self):
         ids = self._ids(excluir_espera="1")
         self.assertNotIn(self.t_espera.id, ids)
         self.assertIn(self.t_dev.id, ids)
-
-    def test_en_proceso_puede_excluir_espera(self):
-        self.assertEqual(
-            self._ids(estado="EN_PROCESO", excluir_espera="1"),
-            {self.t_dev.id, self.t_aprob.id},
-        )
 
     def test_busqueda_por_campana(self):
         ids = self._ids(search="C Fil")
@@ -862,6 +873,18 @@ class TaskFiltrosTestCase(APITestCase):
 
     def test_filtra_fuera_de_tiempo(self):
         self.assertEqual(self._ids(estado="FUERA_DE_TIEMPO"), {self.t_dev.id})
+
+    def test_fuera_de_tiempo_combinado_con_estado(self):
+        self.assertEqual(
+            self._ids(estado=["APROBADO", "FUERA_DE_TIEMPO"]),
+            {self.t_dev.id, self.t_aprob.id},
+        )
+
+    def test_estado_invalido_se_ignora(self):
+        self.assertEqual(
+            self._ids(estado="NO_EXISTE"),
+            {self.t_dev.id, self.t_aprob.id, self.t_espera.id, self.t_sol.id},
+        )
 
 
 _MEDIA_TMP = tempfile.mkdtemp()
@@ -1487,7 +1510,10 @@ class AprobacionPorEquipoTestCase(APITestCase):
         self.client.force_authenticate(user=self.jefe)
         res = self.client.get(
             reverse("task-list"),
-            {"estado": "EN_PROCESO", "excluir_espera": "1"},
+            {
+                "estado": ["APROBADO", "EN_DESARROLLO"],
+                "excluir_espera": "1",
+            },
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn(tarea.id, {t["id"] for t in res.data})

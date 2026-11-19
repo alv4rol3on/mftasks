@@ -411,19 +411,25 @@ class TaskViewSet(viewsets.ModelViewSet):
                 | Q(equipo__nombre__icontains=search)
             )
 
-        estado = (params.get("estado") or "").upper()
-        if estado and estado not in ("TODOS", "FUERA_DE_TIEMPO"):
-            if estado == "EN_PROCESO":
-                queryset = queryset.filter(
-                    estado__in=[
-                        Tarea.Estado.APROBADO,
-                        Tarea.Estado.EN_DESARROLLO,
-                        Tarea.Estado.STAND_BY,
-                        Tarea.Estado.EN_ESPERA,
-                    ]
-                )
-            elif estado in Tarea.Estado.values:
-                queryset = queryset.filter(estado=estado)
+        # Estados: multi-selección. Se aceptan parámetros repetidos
+        # (?estado=A&estado=B) y valores separados por coma (?estado=A,B).
+        estados_param = []
+        for valor in params.getlist("estado"):
+            estados_param.extend(valor.split(","))
+
+        estados = {
+            valor.strip().upper()
+            for valor in estados_param
+            if valor and valor.strip()
+        }
+        estados.discard("TODOS")
+
+        incluir_fuera_de_tiempo = "FUERA_DE_TIEMPO" in estados
+        estados.discard("FUERA_DE_TIEMPO")
+
+        estados_validos = [
+            valor for valor in estados if valor in Tarea.Estado.values
+        ]
 
         prioridad = (params.get("prioridad") or "").upper()
         if prioridad and prioridad in Tarea.Prioridad.values:
@@ -480,10 +486,38 @@ class TaskViewSet(viewsets.ModelViewSet):
                 _fecha_ref=Coalesce("fecha_solucion", "fecha_creacion")
             ).exclude(Q(estado=Tarea.Estado.SOLUCIONADO) & Q(_fecha_ref__lt=limite))
 
-        # FUERA_DE_TIEMPO es derivado (jornada + standby + logs): post-filtro en memoria.
-        if estado == "FUERA_DE_TIEMPO" and self.action == "list":
-            from .services.tiempo_laboral import esta_fuera_de_tiempo_tarea
-            return [t for t in queryset if esta_fuera_de_tiempo_tarea(t)]
+        # Estados (OR). FUERA_DE_TIEMPO es derivado (jornada + standby + logs),
+        # por eso se resuelve al final, después de los demás filtros.
+        estados_en_curso = (
+            Tarea.Estado.APROBADO,
+            Tarea.Estado.EN_DESARROLLO,
+            Tarea.Estado.STAND_BY,
+        )
+
+        # Si ya se seleccionaron todos los estados que pueden estar fuera de
+        # tiempo, el filtro derivado no aporta nada y se evita el cálculo.
+        if incluir_fuera_de_tiempo and set(estados_en_curso).issubset(
+            estados_validos
+        ):
+            incluir_fuera_de_tiempo = False
+
+        if estados_validos or incluir_fuera_de_tiempo:
+            if incluir_fuera_de_tiempo and self.action == "list":
+                from .services.tiempo_laboral import esta_fuera_de_tiempo_tarea
+
+                ids_fuera_de_tiempo = [
+                    t.pk
+                    for t in queryset.filter(estado__in=estados_en_curso)
+                    if esta_fuera_de_tiempo_tarea(t)
+                ]
+
+                condicion = Q(pk__in=ids_fuera_de_tiempo)
+                if estados_validos:
+                    condicion |= Q(estado__in=estados_validos)
+
+                queryset = queryset.filter(condicion).distinct()
+            elif estados_validos:
+                queryset = queryset.filter(estado__in=estados_validos)
 
         return queryset
 

@@ -8,18 +8,18 @@ import { useToast } from "@/components/ui/Toast";
 import CrearSolicitudModal from "@/components/cliente/CrearSolicitudModal";
 import TaskDetailClienteModal from "@/components/cliente/TaskDetailClienteModal";
 import ClienteSolicitudesTable from "@/components/solicitudes/ClienteSolicitudesTable";
+import MultiSelectCheckbox from "@/components/ui/MultiSelectCheckbox";
 import { getUsuarioActual } from "@/lib/auth";
 import { rangoFechasPorDefecto } from "@/lib/fechas";
+import {
+  ESTADOS_SOLICITUD_POR_DEFECTO,
+  OPCIONES_ESTADO_SOLICITUD,
+  estadosIguales,
+  normalizarEstados,
+} from "@/lib/estadosTarea";
+import type { EstadoFiltro } from "@/lib/services/tareasService";
 
 type CampoFecha = "solicitud" | "entrega";
-
-const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO", "CANCELADO"] as const;
-
-function etiquetaEstado(estado: string): string {
-  if (estado === "TODOS") return "Todos los estados";
-  if (estado === "EN_PROCESO") return "EN PROCESO";
-  return estado.replace(/_/g, " ");
-}
 
 export default function MisSolicitudesPage() {
   const router = useRouter();
@@ -33,7 +33,9 @@ export default function MisSolicitudesPage() {
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<string>("EN_PROCESO");
+  const [filtro, setFiltro] = useState<EstadoFiltro[]>(
+    ESTADOS_SOLICITUD_POR_DEFECTO
+  );
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
   const [desde, setDesde] = useState(rangoInicial.desde);
@@ -60,7 +62,9 @@ export default function MisSolicitudesPage() {
   const cargar = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (filtro !== "TODOS") params.set("estado", filtro);
+      normalizarEstados(filtro, OPCIONES_ESTADO_SOLICITUD).forEach(
+        (estado) => params.append("estado", estado)
+      );
       if (desde) params.set("desde", desde);
       if (hasta) params.set("hasta", hasta);
       if (desde || hasta) {
@@ -191,25 +195,18 @@ export default function MisSolicitudesPage() {
 
   const rangoDefecto = rangoFechasPorDefecto();
   const hayFiltros =
-    filtro !== "TODOS" ||
+    !estadosIguales(filtro, ESTADOS_SOLICITUD_POR_DEFECTO) ||
     !!busqueda ||
     desde !== rangoDefecto.desde ||
     hasta !== rangoDefecto.hasta;
 
-  const aplicarRangoPorDefecto = () => {
-    const r = rangoFechasPorDefecto();
-    setDesde(r.desde);
-    setHasta(r.hasta);
-  };
-
-  const handleEstadoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFiltro(e.target.value);
-    aplicarRangoPorDefecto();
+  const handleEstadoChange = (seleccion: EstadoFiltro[]) => {
+    setFiltro(normalizarEstados(seleccion, OPCIONES_ESTADO_SOLICITUD));
   };
 
   const limpiarFiltros = () => {
     const r = rangoFechasPorDefecto();
-    setFiltro("TODOS");
+    setFiltro(ESTADOS_SOLICITUD_POR_DEFECTO);
     setCampoFecha("solicitud");
     setDesde(r.desde);
     setHasta(r.hasta);
@@ -268,15 +265,15 @@ export default function MisSolicitudesPage() {
 
       {/* FILTROS patron admin */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-        <select
+        <MultiSelectCheckbox
+          options={OPCIONES_ESTADO_SOLICITUD}
           value={filtro}
-          onChange={handleEstadoChange}
-          style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "var(--color-background)", color: "var(--color-text)" }}
-        >
-          {ESTADOS.map((s) => (
-            <option key={s} value={s}>{etiquetaEstado(s)}</option>
-          ))}
-        </select>
+          onChange={(seleccion) =>
+            handleEstadoChange(seleccion as EstadoFiltro[])
+          }
+          textPrefix="Estado"
+          buttonStyle={{ minWidth: 160 }}
+        />
         <select
           value={campoFecha}
           onChange={(e) => setCampoFecha(e.target.value as CampoFecha)}

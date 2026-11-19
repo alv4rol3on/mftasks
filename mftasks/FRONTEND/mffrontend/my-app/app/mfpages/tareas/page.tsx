@@ -7,6 +7,12 @@ import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { rangoFechasPorDefecto } from "./utils/tareasFilters";
 import { estadoIgnoraRangoFechas } from "@/lib/services/tareasService";
+import {
+  ESTADOS_TAREA_POR_DEFECTO,
+  OPCIONES_ESTADO_TAREA,
+  estadosIguales,
+  normalizarEstados,
+} from "@/lib/estadosTarea";
 import type { CampoFecha, EstadoFiltro, FiltrosTareas } from "@/lib/services/tareasService";
 import styles from "./Tareas.module.css";
 
@@ -14,7 +20,7 @@ const FILTROS_STORAGE_KEY = "mftasks:tareas:filtros";
 
 type FiltrosGuardados = {
   busqueda: string;
-  estado: EstadoFiltro;
+  estado: EstadoFiltro[];
   campoFecha: CampoFecha;
   desde: string;
   hasta: string;
@@ -27,7 +33,9 @@ type FiltrosGuardados = {
 export default function TareasPage() {
   const { eventos, subtareaEventos, observarTarea, dejarDeObservarTarea, wsDisponible } = useTasksWebSocket();
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro>("EN_PROCESO");
+  const [filtroEstado, setFiltroEstado] = useState<EstadoFiltro[]>(
+    ESTADOS_TAREA_POR_DEFECTO
+  );
   const [campoFecha, setCampoFecha] = useState<CampoFecha>("solicitud");
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
   const [desde, setDesde] = useState(rangoInicial.desde);
@@ -60,7 +68,29 @@ export default function TareasPage() {
       const guardados = JSON.parse(raw) as Partial<FiltrosGuardados>;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (typeof guardados.busqueda === "string") setBusqueda(guardados.busqueda);
-      if (guardados.estado) setFiltroEstado(guardados.estado);
+      const estadoGuardado: unknown = guardados.estado;
+      if (Array.isArray(estadoGuardado)) {
+        setFiltroEstado(
+          normalizarEstados(
+            estadoGuardado as EstadoFiltro[],
+            OPCIONES_ESTADO_TAREA
+          )
+        );
+      } else if (typeof estadoGuardado === "string") {
+        if (
+          estadoGuardado === "EN_PROCESO" ||
+          estadoGuardado === "TODOS"
+        ) {
+          setFiltroEstado(ESTADOS_TAREA_POR_DEFECTO);
+        } else {
+          setFiltroEstado(
+            normalizarEstados(
+              [estadoGuardado as EstadoFiltro],
+              OPCIONES_ESTADO_TAREA
+            )
+          );
+        }
+      }
       if (guardados.campoFecha) setCampoFecha(guardados.campoFecha);
       if (typeof guardados.desde === "string") setDesde(guardados.desde);
       if (typeof guardados.hasta === "string") setHasta(guardados.hasta);
@@ -127,7 +157,7 @@ export default function TareasPage() {
   const rangoDefecto = rangoFechasPorDefecto();
   const usaRangoFechas = !estadoIgnoraRangoFechas(filtroEstado);
   const hayFiltros =
-    filtroEstado !== "TODOS" ||
+    !estadosIguales(filtroEstado, ESTADOS_TAREA_POR_DEFECTO) ||
     !!busqueda ||
     (usaRangoFechas && (desde !== rangoDefecto.desde || hasta !== rangoDefecto.hasta)) ||
     filtroEntidad !== "" ||
@@ -137,7 +167,7 @@ export default function TareasPage() {
 
   const limpiarFiltros = () => {
     const r = rangoFechasPorDefecto();
-    setFiltroEstado("EN_PROCESO");
+    setFiltroEstado(ESTADOS_TAREA_POR_DEFECTO);
     setCampoFecha("solicitud");
     setDesde(r.desde);
     setHasta(r.hasta);
@@ -146,18 +176,11 @@ export default function TareasPage() {
     setFiltroCampana("");
     setFiltroSubcampana("");
     setFiltroPrioridad("");
-    cargar({ busqueda: "", estado: "EN_PROCESO", campoFecha: "solicitud", desde: r.desde, hasta: r.hasta, entidad: "", campana: "", subcampana: "", prioridad: "" });
+    cargar({ busqueda: "", estado: ESTADOS_TAREA_POR_DEFECTO, campoFecha: "solicitud", desde: r.desde, hasta: r.hasta, entidad: "", campana: "", subcampana: "", prioridad: "" });
   };
 
-  const aplicarRangoPorDefecto = () => {
-    const r = rangoFechasPorDefecto();
-    setDesde(r.desde);
-    setHasta(r.hasta);
-  };
-
-  const handleEstadoChange = (estado: EstadoFiltro) => {
-    setFiltroEstado(estado);
-    aplicarRangoPorDefecto();
+  const handleEstadoChange = (estado: EstadoFiltro[]) => {
+    setFiltroEstado(normalizarEstados(estado, OPCIONES_ESTADO_TAREA));
   };
 
   useEffect(() => {

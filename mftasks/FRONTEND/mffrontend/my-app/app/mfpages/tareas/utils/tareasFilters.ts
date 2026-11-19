@@ -1,14 +1,6 @@
-import type { EstadoFiltro } from "@/lib/services/tareasService";
-
 export { rangoFechasPorDefecto } from "@/lib/fechas";
 
-export const ESTADOS_TAREA: { value: EstadoFiltro; label: string }[] = [
-  { value: "EN_PROCESO", label: "EN PROCESO" },
-  { value: "APROBADO", label: "APROBADO" },
-  { value: "EN_DESARROLLO", label: "EN DESARROLLO" },
-  { value: "STAND_BY", label: "STAND BY" },
-  { value: "FUERA_DE_TIEMPO", label: "FUERA DE TIEMPO" },
-  { value: "SOLUCIONADO", label: "SOLUCIONADO" },
-  { value: "RECHAZADO", label: "RECHAZADO" },
-  { value: "CANCELADO", label: "CANCELADO" }
-];
+export {
+  ESTADOS_TAREA_POR_DEFECTO,
+  OPCIONES_ESTADO_TAREA as ESTADOS_TAREA,
+} from "@/lib/estadosTarea";

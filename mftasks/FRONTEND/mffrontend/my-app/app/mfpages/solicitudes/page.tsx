@@ -5,9 +5,20 @@ import { useRouter } from "next/navigation";
 import TaskTableSolicitudes from "@/components/solicitudes/TaskTableSolicitudes";
 import AdminSolicitudesTable from "@/components/solicitudes/AdminSolicitudesTable";
 import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
+import MultiSelectCheckbox from "@/components/ui/MultiSelectCheckbox";
+import {
+  ESTADOS_SOLICITUD_POR_DEFECTO,
+  ESTADOS_SOLICITUD_TODOS,
+  OPCIONES_ESTADO_SOLICITUD,
+  estadosIguales,
+  normalizarEstados,
+} from "@/lib/estadosTarea";
 import { apiFetch } from "@/lib/api";
 import { Task } from "@/lib/types";
-import type { AprobarReaperturaPayload } from "@/lib/services/tareasService";
+import type {
+  AprobarReaperturaPayload,
+  EstadoFiltro,
+} from "@/lib/services/tareasService";
 import { getUsuarioActual } from "@/lib/auth";
 import { rangoFechasPorDefecto } from "@/lib/fechas";
 import RefreshButton from "@/components/ui/RefreshButton";
@@ -23,15 +34,12 @@ export default function SolicitudesPage() {
   const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
   const isAdmin = rolesLower.includes("administrador");
 
-  const ESTADOS = ["TODOS", "EN_PROCESO", "EN_ESPERA", "APROBADO", "EN_DESARROLLO", "STAND_BY", "SOLUCIONADO", "RECHAZADO", "CANCELADO"] as const;
-  const etiquetaEstado = (estado: string) => {
-    if (estado === "TODOS") return "Todos los estados";
-    if (estado === "EN_PROCESO") return "EN PROCESO";
-    return estado.replace(/_/g, " ");
-  };
-
   // filtros
-  const [filtroEstado, setFiltroEstado] = useState<string>(isAdmin ? "TODOS" : "BANDEJA");
+  const estadoPorDefecto = isAdmin
+    ? ESTADOS_SOLICITUD_TODOS
+    : ESTADOS_SOLICITUD_POR_DEFECTO;
+  const [filtroEstado, setFiltroEstado] =
+    useState<EstadoFiltro[]>(estadoPorDefecto);
   const [busqueda, setBusqueda] = useState("");
   const [campoFecha, setCampoFecha] = useState<"solicitud" | "entrega">("solicitud");
   const rangoInicial = useMemo(() => rangoFechasPorDefecto(), []);
@@ -62,10 +70,10 @@ export default function SolicitudesPage() {
     // estado y rango de fechas directamente en el servidor.
     if (!isAdmin) {
       params.set("bandeja", "1");
-    } else if (filtroEstado === "BANDEJA") {
-      params.set("bandeja", "1");
-    } else if (filtroEstado !== "TODOS") {
-      params.set("estado", filtroEstado);
+    } else {
+      normalizarEstados(filtroEstado, OPCIONES_ESTADO_SOLICITUD).forEach(
+        (estado) => params.append("estado", estado)
+      );
     }
 
     if (isAdmin) {
@@ -199,10 +207,8 @@ export default function SolicitudesPage() {
     cargar();
   }, [cargar]);
 
-  const estadoPorDefecto = isAdmin ? "TODOS" : "BANDEJA";
-
   const hayFiltros =
-    filtroEstado !== estadoPorDefecto ||
+    !estadosIguales(filtroEstado, estadoPorDefecto) ||
     Boolean(busqueda) ||
     (isAdmin &&
       (campoFecha !== "solicitud" ||
@@ -237,19 +243,20 @@ export default function SolicitudesPage() {
         }}
       />
       {isAdmin && (
-        <select
+        <MultiSelectCheckbox
+          options={OPCIONES_ESTADO_SOLICITUD}
           value={filtroEstado}
-          onChange={(e) => setFiltroEstado(e.target.value)}
-          style={{
-            border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 12px", fontSize: 13, minWidth: 160, background: "var(--color-select)",
-            color: "var(--color-text)",
-            colorScheme: "light dark"
-          }}
-        >
-          {ESTADOS.map((s) => (
-            <option key={s} value={s}>{etiquetaEstado(s)}</option>
-          ))}
-        </select>
+          onChange={(seleccion) =>
+            setFiltroEstado(
+              normalizarEstados(
+                seleccion as EstadoFiltro[],
+                OPCIONES_ESTADO_SOLICITUD
+              )
+            )
+          }
+          textPrefix="Estado"
+          buttonStyle={{ minWidth: 160 }}
+        />
       )}
       {isAdmin && (
         <>

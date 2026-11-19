@@ -1,6 +1,7 @@
 "use client";
 
 import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
+import MultiSelectCheckbox from "@/components/ui/MultiSelectCheckbox";
 import { ESTADOS_TAREA } from "@/app/mfpages/tareas/utils/tareasFilters";
 import { estadoIgnoraRangoFechas } from "@/lib/services/tareasService";
 import type { CampoFecha, EstadoFiltro } from "@/lib/services/tareasService";
@@ -12,8 +13,8 @@ type Props = {
     campanaId: number | "";
     subcampanaId: number | "";
     onCampanaChange: (next: { campanaId: number | ""; subcampanaId: number | "" }) => void;
-    estado: EstadoFiltro;
-    onEstadoChange: (estado: EstadoFiltro) => void;
+    estado: EstadoFiltro[];
+    onEstadoChange: (estado: EstadoFiltro[]) => void;
     prioridad: string;
     onPrioridadChange: (prioridad: string) => void;
     campoFecha: CampoFecha;
@@ -87,19 +88,17 @@ export default function TaskFilters({
                 </div>
             </div>
 
-            <label className={`${styles.field} ${styles.shortField}`}>
+            <div className={`${styles.field} ${styles.shortField}`}>
                 <span className={styles.label}>Estado</span>
-                <select
+                <MultiSelectCheckbox
+                    options={ESTADOS_TAREA}
                     value={estado}
-                    onChange={(e) => onEstadoChange(e.target.value as EstadoFiltro)}
+                    onChange={(seleccion) =>
+                        onEstadoChange(seleccion as EstadoFiltro[])
+                    }
                     className={styles.control}
-                    title="Filtrar por estado"
-                >
-                    {ESTADOS_TAREA.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                </select>
-            </label>
+                />
+            </div>
 
             <label className={`${styles.field} ${styles.shortField}`}>
                 <span className={styles.label}>Prioridad</span>
