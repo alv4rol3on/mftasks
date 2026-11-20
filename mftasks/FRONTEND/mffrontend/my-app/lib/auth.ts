@@ -91,8 +91,6 @@ export function limpiarSesionLocal(): void {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("user");
-    localStorage.removeItem("tema");
-    document.documentElement.dataset.theme = "light";
     limpiarEpochSesion();
     limpiarPersistenciaCliente();
     notificarCierreSesion();

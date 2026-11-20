@@ -15,7 +15,8 @@ import {
   limpiarSesionLocal,
   obtenerDatosMe,
 } from "../lib/auth";
-import { alCerrarSesion, marcarSsoRequiereInteraccion } from "../lib/persistencia";
+import { marcarSsoRequiereInteraccion } from "../lib/persistencia";
+import { aplicarTema, guardarTema, leerTema, type Tema } from "../lib/tema";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -73,7 +74,7 @@ export default function DashboardLayout({
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState<string | null>(null);
 
-  const [tema, setTema] = useState<"light" | "dark">("light");
+  const [tema, setTema] = useState<Tema>("light");
 
   useEffect(() => {
     const titulo = tituloParaRuta(pathname);
@@ -87,28 +88,18 @@ export default function DashboardLayout({
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const temaGuardado = localStorage.getItem("tema");
-    const temaInicial = temaGuardado === "dark" ? "dark" : "light";
+    const temaInicial = leerTema();
 
-    document.documentElement.dataset.theme = temaInicial;
+    aplicarTema(temaInicial);
     setTema(temaInicial);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  useEffect(
-    () =>
-      alCerrarSesion(() => {
-        document.documentElement.dataset.theme = "light";
-        setTema("light");
-      }),
-    []
-  );
-
   const alternarTema = () => {
     const nuevoTema = tema === "dark" ? "light" : "dark";
 
-    document.documentElement.dataset.theme = nuevoTema;
-    localStorage.setItem("tema", nuevoTema);
+    aplicarTema(nuevoTema);
+    guardarTema(nuevoTema);
     setTema(nuevoTema);
   };
 

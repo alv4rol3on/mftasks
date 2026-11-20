@@ -3,6 +3,7 @@ import AuthProvider from "./providers/MsalProviders";
 import { ToastProvider } from "@/components/ui/Toast";
 import VmErrorFilter from "@/components/ui/VmErrorFilter";
 import { TasksWebSocketProvider } from "./providers/TasksWebSocketProvider";
+import { SCRIPT_TEMA } from "@/lib/tema";
 
 export const metadata = {
     title: "MF Tasks",
@@ -15,7 +16,12 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="es">
+        <html lang="es" suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }}
+                />
+            </head>
             <body>
                 <VmErrorFilter />
 
