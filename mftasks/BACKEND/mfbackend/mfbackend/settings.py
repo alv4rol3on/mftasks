@@ -210,9 +210,16 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+# La sesión de Django solo se usa para el admin. En equipos compartidos debe
+# morir al cerrar el navegador y tener una vida máxima acotada.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = int(
+    os.environ.get("DJANGO_SESSION_COOKIE_AGE", "28800") or 28800
+)
+
 SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
-SESSION_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", False)
-CSRF_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", False)
+SESSION_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", not DEBUG)
 
 SECURE_HSTS_SECONDS = int(
     os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0") or 0

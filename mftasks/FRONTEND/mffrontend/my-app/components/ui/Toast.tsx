@@ -1,5 +1,12 @@
 "use client";
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { alCerrarSesion } from "@/lib/persistencia";
 
 type ToastType = "success" | "error" | "info";
 
@@ -25,6 +32,8 @@ let idCounter = 0;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  useEffect(() => alCerrarSesion(() => setToasts([])), []);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
     const id = ++idCounter;

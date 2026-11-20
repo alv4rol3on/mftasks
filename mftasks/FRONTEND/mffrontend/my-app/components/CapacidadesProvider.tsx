@@ -37,8 +37,9 @@ export default function CapacidadesProvider({
   const [equipos, setEquipos] = useState<EquipoInfo[] | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  // La sesión vive en localStorage; se evalúa en cada render.
-  const autenticado = Boolean(getUsuarioActual());
+  // La sesión vive en localStorage; este layout se remonta al iniciar sesión.
+  const usuario = useMemo(() => getUsuarioActual(), []);
+  const autenticado = Boolean(usuario);
 
   useEffect(() => {
     if (!getUsuarioActual()) return;
@@ -61,8 +62,8 @@ export default function CapacidadesProvider({
   }, [pathname]);
 
   const caps = useMemo(
-    () => calcularCaps(getUsuarioActual(), equipos),
-    [equipos]
+    () => calcularCaps(usuario, equipos),
+    [usuario, equipos]
   );
 
   const valor = useMemo(

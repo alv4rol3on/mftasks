@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TaskTableEnDesarrollo from "@/components/tareas/TaskTableEnDesarrollo";
 import TaskFilters from "@/components/tareas/TaskFilters";
 import { useTasksWebSocket } from "@/app/providers/TasksWebSocketProvider";
 import { useTareas } from "./hooks/useTareas";
 import { rangoFechasPorDefecto } from "./utils/tareasFilters";
 import { estadoIgnoraRangoFechas } from "@/lib/services/tareasService";
+import { getUsuarioActual } from "@/lib/auth";
+import {
+  clavePersistencia,
+  guardarJson,
+  leerJson,
+  limpiarPersistenciaLegacy,
+} from "@/lib/persistencia";
 import {
   ESTADOS_TAREA_POR_DEFECTO,
   OPCIONES_ESTADO_TAREA,
@@ -16,9 +23,10 @@ import {
 import type { CampoFecha, EstadoFiltro, FiltrosTareas } from "@/lib/services/tareasService";
 import styles from "./Tareas.module.css";
 
-const FILTROS_STORAGE_KEY = "mftasks:tareas:filtros";
-
 type FiltrosGuardados = {
+  version: 2;
+  usuarioId: number | null;
+  rangoPersonalizado: boolean;
   busqueda: string;
   estado: EstadoFiltro[];
   campoFecha: CampoFecha;
@@ -44,87 +52,104 @@ export default function TareasPage() {
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
-  const primeraPersistencia = useRef(true);
+  const [hidratado, setHidratado] = useState(false);
+  const usuarioId = useMemo(() => getUsuarioActual()?.id ?? null, []);
+  const claveFiltros = useMemo(
+    () => clavePersistencia("tareas:filtros", usuarioId),
+    [usuarioId]
+  );
 
   const filtros = useMemo<FiltrosTareas>(
     () => ({ busqueda, estado: filtroEstado, campoFecha, desde, hasta, entidad: filtroEntidad, campana: filtroCampana, subcampana: filtroSubcampana, prioridad: filtroPrioridad }),
     [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana, filtroPrioridad]
   );
-  const { tareas, cargando, error, cargar, setTareas } = useTareas(filtros);
+  const { tareas, cargando, error, cargar, setTareas } = useTareas(
+    filtros,
+    hidratado
+  );
 
   useEffect(() => {
-    if (wsDisponible) return;
+    if (!hidratado || wsDisponible) return;
     const intervalo = setInterval(() => {
       void cargar();
     }, 30000);
     return () => clearInterval(intervalo);
-  }, [wsDisponible, cargar]);
+  }, [hidratado, wsDisponible, cargar]);
 
-  // Restaura los filtros al volver del detalle de una solicitud.
+  // Restaura los filtros del usuario actual al montar o cambiar de cuenta.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(FILTROS_STORAGE_KEY);
-      if (!raw) return;
-      const guardados = JSON.parse(raw) as Partial<FiltrosGuardados>;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHidratado(false);
+    limpiarPersistenciaLegacy();
+
+    const r = rangoFechasPorDefecto();
+    setBusqueda("");
+    setFiltroEstado(ESTADOS_TAREA_POR_DEFECTO);
+    setCampoFecha("solicitud");
+    setDesde(r.desde);
+    setHasta(r.hasta);
+    setFiltroEntidad("");
+    setFiltroCampana("");
+    setFiltroSubcampana("");
+    setFiltroPrioridad("");
+
+    const guardados = leerJson<Partial<FiltrosGuardados>>(claveFiltros);
+
+    if (
+      guardados &&
+      guardados.version === 2 &&
+      guardados.usuarioId === usuarioId
+    ) {
       if (typeof guardados.busqueda === "string") setBusqueda(guardados.busqueda);
-      const estadoGuardado: unknown = guardados.estado;
-      if (Array.isArray(estadoGuardado)) {
+
+      if (Array.isArray(guardados.estado)) {
         setFiltroEstado(
-          normalizarEstados(
-            estadoGuardado as EstadoFiltro[],
-            OPCIONES_ESTADO_TAREA
-          )
+          normalizarEstados(guardados.estado, OPCIONES_ESTADO_TAREA)
         );
-      } else if (typeof estadoGuardado === "string") {
-        if (
-          estadoGuardado === "EN_PROCESO" ||
-          estadoGuardado === "TODOS"
-        ) {
-          setFiltroEstado(ESTADOS_TAREA_POR_DEFECTO);
-        } else {
-          setFiltroEstado(
-            normalizarEstados(
-              [estadoGuardado as EstadoFiltro],
-              OPCIONES_ESTADO_TAREA
-            )
-          );
-        }
       }
+
       if (guardados.campoFecha) setCampoFecha(guardados.campoFecha);
-      if (typeof guardados.desde === "string") setDesde(guardados.desde);
-      if (typeof guardados.hasta === "string") setHasta(guardados.hasta);
+
+      // Las fechas solo se restauran si el usuario las personalizó; si no,
+      // se usa el rango móvil actual (ayer/hoy cambian con el tiempo).
+      if (guardados.rangoPersonalizado === true) {
+        if (typeof guardados.desde === "string") setDesde(guardados.desde);
+        if (typeof guardados.hasta === "string") setHasta(guardados.hasta);
+      }
+
       if (typeof guardados.entidad === "number" || guardados.entidad === "") setFiltroEntidad(guardados.entidad);
       if (typeof guardados.campana === "number" || guardados.campana === "") setFiltroCampana(guardados.campana);
       if (typeof guardados.subcampana === "number" || guardados.subcampana === "") setFiltroSubcampana(guardados.subcampana);
       if (typeof guardados.prioridad === "string") setFiltroPrioridad(guardados.prioridad);
-    } catch {
-      // Si el almacenamiento no está disponible, se usan los filtros por defecto.
     }
-  }, []);
+
+    setHidratado(true);
+  }, [claveFiltros, usuarioId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (primeraPersistencia.current) {
-      primeraPersistencia.current = false;
-      return;
-    }
-    try {
-      const guardados: FiltrosGuardados = {
-        busqueda,
-        estado: filtroEstado,
-        campoFecha,
-        desde,
-        hasta,
-        entidad: filtroEntidad,
-        campana: filtroCampana,
-        subcampana: filtroSubcampana,
-        prioridad: filtroPrioridad,
-      };
-      sessionStorage.setItem(FILTROS_STORAGE_KEY, JSON.stringify(guardados));
-    } catch {
-      // Sin persistencia si sessionStorage no está disponible.
-    }
-  }, [busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana, filtroPrioridad]);
+    if (!hidratado) return;
+
+    const r = rangoFechasPorDefecto();
+    const rangoPersonalizado = desde !== r.desde || hasta !== r.hasta;
+
+    const guardados: FiltrosGuardados = {
+      version: 2,
+      usuarioId,
+      rangoPersonalizado,
+      busqueda,
+      estado: filtroEstado,
+      campoFecha,
+      desde,
+      hasta,
+      entidad: filtroEntidad,
+      campana: filtroCampana,
+      subcampana: filtroSubcampana,
+      prioridad: filtroPrioridad,
+    };
+
+    guardarJson(claveFiltros, guardados);
+  }, [hidratado, claveFiltros, usuarioId, busqueda, filtroEstado, campoFecha, desde, hasta, filtroEntidad, filtroCampana, filtroSubcampana, filtroPrioridad]);
 
   const idsTareas = useMemo(
     () =>

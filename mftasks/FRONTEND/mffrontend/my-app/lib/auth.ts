@@ -2,6 +2,15 @@
 
 import { AccountInfo, IPublicClientApplication } from "@azure/msal-browser";
 import { apiBaseUrl, loginRequest } from "./authConfig";
+import {
+    iniciarEpochSesion,
+    limpiarEpochSesion,
+    limpiarPersistenciaCliente,
+    limpiarSsoRequiereInteraccion,
+    marcarSsoRequiereInteraccion,
+    notificarCierreSesion,
+    obtenerEpochSesion,
+} from "./persistencia";
 
 export type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
 
@@ -82,6 +91,11 @@ export function limpiarSesionLocal(): void {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("user");
+    localStorage.removeItem("tema");
+    document.documentElement.dataset.theme = "light";
+    limpiarEpochSesion();
+    limpiarPersistenciaCliente();
+    notificarCierreSesion();
 }
 
 function guardarTokens(access: string, refresh: string): void {
@@ -152,13 +166,15 @@ export function esLiderElegible(): boolean {
 }
 
 export function isAutenticado(): boolean {
-    return Boolean(obtenerAccessToken());
+    return sesionActiva();
 }
 
 export async function intercambiarToken(
     instance: IPublicClientApplication,
     cuenta: AccountInfo
 ): Promise<DatosUsuario> {
+    const epoch = iniciarEpochSesion();
+
     const respuesta = await instance.acquireTokenSilent({
         ...loginRequest,
         account: cuenta,
@@ -186,34 +202,90 @@ export async function intercambiarToken(
         );
     }
 
+    // Otra pestaña pudo cerrar la sesión mientras se resolvía el intercambio.
+    if (obtenerEpochSesion() !== epoch) {
+        throw new ErrorDeSesion(
+            "La sesión se cerró en otra pestaña. Vuelve a iniciar sesión."
+        );
+    }
+
+    const anterior = getUsuarioActual();
+
+    if (anterior && anterior.id !== data.user.id) {
+        limpiarPersistenciaCliente();
+    }
+
     guardarTokens(data.access, data.refresh);
     localStorage.setItem("user", JSON.stringify(data.user));
+    limpiarSsoRequiereInteraccion();
 
     return data.user as DatosUsuario;
 }
 
-export async function obtenerDatosMe(): Promise<DatosUsuario> {
+export async function obtenerDatosMe(
+    forceRefresh = false
+): Promise<DatosUsuario> {
     const guardado = localStorage.getItem("user");
+    let cache: DatosUsuario | null = null;
 
     if (guardado) {
-        return JSON.parse(guardado) as DatosUsuario;
+        try {
+            cache = JSON.parse(guardado) as DatosUsuario;
+        } catch {
+            cache = null;
+        }
     }
 
-    const res = await fetch(`${apiBaseUrl}/api/usuarios/auth/me/`, {
-        headers: {
-            Authorization: `Bearer ${obtenerAccessToken() ?? ""}`,
-        },
-    });
-
-    if (!res.ok) {
-        throw new ErrorDeSesion("No se pudo obtener los datos del usuario.");
+    if (cache && !forceRefresh) {
+        return cache;
     }
 
-    const usuario = (await res.json()) as DatosUsuario;
+    try {
+        const pedirMe = () =>
+            fetch(`${apiBaseUrl}/api/usuarios/auth/me/`, {
+                headers: {
+                    Authorization: `Bearer ${obtenerAccessToken() ?? ""}`,
+                },
+            });
 
-    localStorage.setItem("user", JSON.stringify(usuario));
+        let res = await pedirMe();
 
-    return usuario;
+        if (
+            (res.status === 401 || res.status === 403) &&
+            obtenerAccessToken()
+        ) {
+            // El access token pudo expirar; intentar renovarlo antes de
+            // declarar la sesión inválida.
+            const { refrescarTokens } = await import("./api");
+
+            if (await refrescarTokens()) {
+                res = await pedirMe();
+            }
+        }
+
+        if (res.status === 401 || res.status === 403) {
+            throw new ErrorDeSesion(
+                "No se pudo validar la sesión del usuario."
+            );
+        }
+
+        if (!res.ok) {
+            throw new Error("No se pudo obtener los datos del usuario.");
+        }
+
+        const usuario = (await res.json()) as DatosUsuario;
+
+        localStorage.setItem("user", JSON.stringify(usuario));
+
+        return usuario;
+    } catch (e) {
+        // Ante fallos de red o del servidor, conservar la identidad cacheada.
+        if (!(e instanceof ErrorDeSesion) && cache) {
+            return cache;
+        }
+
+        throw e;
+    }
 }
 
 export async function cerrarSesion(
@@ -238,6 +310,7 @@ export async function cerrarSesion(
     }
 
     limpiarSesionLocal();
+    marcarSsoRequiereInteraccion();
 
     await instance.logoutRedirect({
         postLogoutRedirectUri: window.location.origin,

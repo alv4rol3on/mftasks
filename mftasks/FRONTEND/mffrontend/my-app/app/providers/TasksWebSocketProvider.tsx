@@ -13,6 +13,7 @@ import {
 import { obtenerAccessToken } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/authConfig";
 import { refrescarTokens } from "@/lib/api";
+import { alCerrarSesion } from "@/lib/persistencia";
 
 export type TaskWebSocketEvent = {
     type: string;
@@ -106,7 +107,6 @@ export function TasksWebSocketProvider({
 
     const [subtareaEventos, setSubtareaEventos] =
         useState<Record<number, SubtaskWebSocketEvent>>({});
-
     const marcarNoDisponible = useCallback((codigo?: number, motivo?: string) => {
         if (falloGlobal.current) return;
 
@@ -119,12 +119,41 @@ export function TasksWebSocketProvider({
                 codigo ? `código ${codigo}` : "",
                 motivo ? `motivo: ${motivo}` : "",
             ].filter(Boolean).join(", ");
+
             console.info(
                 "WebSocket no disponible; se usará actualización periódica." +
                 (detalle ? ` (${detalle})` : "")
             );
         }
     }, []);
+
+    const resetearSesion = useCallback(() => {
+        deseados.current.clear();
+
+        Object.values(reconexiones.current).forEach((timer) =>
+            clearTimeout(timer)
+        );
+        reconexiones.current = {};
+
+        Object.values(sockets.current).forEach((ws) => {
+            try {
+                ws.close(1000, "Sesión cerrada");
+            } catch {
+                // El socket pudo haberse cerrado ya.
+            }
+        });
+        sockets.current = {};
+
+        refreshIntentado.current.clear();
+        falloGlobal.current = false;
+        avisoMostrado.current = false;
+
+        setEventos({});
+        setSubtareaEventos({});
+        setWsDisponible(true);
+    }, []);
+
+    useEffect(() => alCerrarSesion(resetearSesion), [resetearSesion]);
 
     const abrirSocket = useCallback((taskId: number) => {
         if (typeof window === "undefined") return;
@@ -211,7 +240,10 @@ export function TasksWebSocketProvider({
 
             if (!deseados.current.has(taskId)) return;
 
-            if (event.code === 4403 && !refreshIntentado.current.has(taskId)) {
+            if (
+                (event.code === 4403 || event.code === 4401) &&
+                !refreshIntentado.current.has(taskId)
+            ) {
                 refreshIntentado.current.add(taskId);
                 void refrescarTokens().then((renovado) => {
                     if (renovado && deseados.current.has(taskId)) {

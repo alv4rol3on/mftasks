@@ -13,13 +13,14 @@ def _usuario_desde_token(token):
     try:
         validated = AccessToken(token)
         usuario = User.objects.get(id=validated["user_id"])
+        exp = validated["exp"]
     except (TokenError, KeyError, User.DoesNotExist):
-        return AnonymousUser()
+        return AnonymousUser(), None
 
     if not usuario.is_active:
-        return AnonymousUser()
+        return AnonymousUser(), None
 
-    return usuario
+    return usuario, exp
 
 
 class JwtAuthMiddleware:
@@ -48,8 +49,9 @@ class JwtAuthMiddleware:
             token = subprotocolos[1]
 
         if token:
-            scope["user"] = await _usuario_desde_token(token)
+            scope["user"], scope["token_exp"] = await _usuario_desde_token(token)
         else:
             scope["user"] = AnonymousUser()
+            scope["token_exp"] = None
 
         return await self.inner(scope, receive, send)

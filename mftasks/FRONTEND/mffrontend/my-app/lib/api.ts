@@ -35,8 +35,6 @@ export async function apiFetch<T>(
 ): Promise<T> {
     const headers = new Headers(options.headers);
 
-    const esFormData = options.body instanceof FormData;
-
     if (
         options.body &&
         !(options.body instanceof FormData) &&
@@ -51,11 +49,11 @@ export async function apiFetch<T>(
         headers.set("Authorization", `Bearer ${token}`);
     }
 
-    const isContador = path.includes("/contador") || path.includes("/contadores");
+    const cache = options.cache ?? "no-store";
     let res = await fetch(`${apiBaseUrl}${path}`, {
         ...options,
         headers,
-        cache: isContador ? "no-store" : (options as any).cache,
+        cache,
     } as RequestInit);
 
     if (res.status === 401 && token) {
@@ -70,7 +68,7 @@ export async function apiFetch<T>(
             res = await fetch(`${apiBaseUrl}${path}`, {
                 ...options,
                 headers,
-                cache: path.includes("/contador") || path.includes("/contadores") ? "no-store" : (options as any).cache,
+                cache,
             } as RequestInit);
         }
     }
@@ -86,8 +84,9 @@ export async function apiFetch<T>(
             } else if (data && typeof data === "object") {
                 // DRF validation errors como {subcampana: [...]}
                 const firstKey = Object.keys(data)[0];
-                if (firstKey && Array.isArray((data as any)[firstKey])) {
-                    mensaje = `${firstKey}: ${(data as any)[firstKey][0]}`;
+                const valores = data as Record<string, unknown>;
+                if (firstKey && Array.isArray(valores[firstKey])) {
+                    mensaje = `${firstKey}: ${valores[firstKey][0]}`;
                 }
             }
         } catch {

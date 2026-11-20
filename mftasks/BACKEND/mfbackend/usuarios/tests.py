@@ -1321,3 +1321,39 @@ class LogoutBlacklistTestCase(APITestCase):
             format="json",
         )
         self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_logout_rechaza_refresh_de_otro_usuario(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        usuario = _crear_usuario("logout-a@empresa.com")
+        otro = _crear_usuario("logout-b@empresa.com")
+        refresh_ajeno = str(RefreshToken.for_user(otro))
+
+        self.client.force_authenticate(user=usuario)
+        respuesta = self.client.post(
+            reverse("logout"),
+            {"refresh": refresh_ajeno},
+            format="json",
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_logout_es_idempotente(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        usuario = _crear_usuario("logout-idempotente@empresa.com")
+        refresh = str(RefreshToken.for_user(usuario))
+
+        self.client.force_authenticate(user=usuario)
+        primera = self.client.post(
+            reverse("logout"),
+            {"refresh": refresh},
+            format="json",
+        )
+        segunda = self.client.post(
+            reverse("logout"),
+            {"refresh": refresh},
+            format="json",
+        )
+
+        self.assertEqual(primera.status_code, status.HTTP_205_RESET_CONTENT)
+        self.assertEqual(segunda.status_code, status.HTTP_205_RESET_CONTENT)

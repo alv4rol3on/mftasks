@@ -39,6 +39,65 @@ export default function AuthProvider({
         initializeMsal();
     }, []);
 
+    // Si otra pestaña cierra sesión, esta pestaña también debe olvidar la
+    // cuenta de MSAL y reiniciar todo el estado en memoria.
+    useEffect(() => {
+        if (!msalInstance) return;
+
+        let recargaProgramada: ReturnType<typeof setTimeout> | null = null;
+
+        const reiniciarPestana = () => {
+            if (recargaProgramada) clearTimeout(recargaProgramada);
+
+            recargaProgramada = setTimeout(async () => {
+                recargaProgramada = null;
+
+                if (
+                    localStorage.getItem("access") ||
+                    localStorage.getItem("refresh")
+                ) {
+                    return;
+                }
+
+                try {
+                    await msalInstance.clearCache();
+                } catch {
+                    // Si falla, la recarga igualmente reinicia el estado en memoria.
+                }
+
+                if (window.location.pathname === "/") {
+                    window.location.reload();
+                } else {
+                    window.location.replace("/");
+                }
+            }, 50);
+        };
+
+        const alCambiarStorage = (evento: StorageEvent) => {
+            if (
+                evento.key !== "access" &&
+                evento.key !== "refresh" &&
+                evento.key !== null
+            ) {
+                return;
+            }
+
+            if (
+                !localStorage.getItem("access") &&
+                !localStorage.getItem("refresh")
+            ) {
+                reiniciarPestana();
+            }
+        };
+
+        window.addEventListener("storage", alCambiarStorage);
+
+        return () => {
+            window.removeEventListener("storage", alCambiarStorage);
+            if (recargaProgramada) clearTimeout(recargaProgramada);
+        };
+    }, [msalInstance]);
+
     if (!msalInstance) {
         return null;
     }

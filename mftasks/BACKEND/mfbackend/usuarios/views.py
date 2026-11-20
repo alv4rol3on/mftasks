@@ -180,12 +180,20 @@ class LogoutView(APIView):
             )
 
         try:
-            RefreshToken(refresh).blacklist()
+            token = RefreshToken(refresh)
         except TokenError:
+            # Logout idempotente: un token expirado o ya invalidado no impide
+            # cerrar la sesión del cliente.
+            return Response(status=status.HTTP_205_RESET_CONTENT)
+
+        if str(token.payload.get("user_id")) != str(request.user.id):
             return Response(
-                {"detail": "El token de refresco no es válido o ya expiró."},
+                {"detail": "El token no pertenece al usuario autenticado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        try:
+            token.blacklist()
         except Exception:
             # No bloqueamos el cierre de sesión del cliente por un fallo
             # interno al invalidar el token.

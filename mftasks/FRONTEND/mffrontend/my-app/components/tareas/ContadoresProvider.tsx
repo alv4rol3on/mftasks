@@ -2,6 +2,12 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { getUsuarioActual } from "@/lib/auth";
+import {
+  alCerrarSesion,
+  clavePersistencia,
+  limpiarPersistenciaLegacy,
+} from "@/lib/persistencia";
 import { segundosLaboralesEntre } from "@/lib/tiempoLaboral";
 
 export interface ContadorResponse {
@@ -31,7 +37,6 @@ type Snapshot = { raw: ContadorResponse; serverAhora: Date };
 const ContadoresContext = createContext<Map<number, ContadorResponse | null> | null>(null);
 const POLL_MS = 30000;
 const VIS_DEBOUNCE_MS = 5000;
-const SNAP_STORAGE_KEY = "mftasks-snapMap-v1";
 
 /**
  * Interpola el restante usando solo segundos laborales entre el snapshot y ahora.
@@ -59,10 +64,10 @@ function interpolate(snapshot: Snapshot, now: Date): ContadorResponse {
   return { ...raw, segundos_restantes: 0, con_retraso: true, segundos_retraso: retraso };
 }
 
-function hidratar(): Map<number, Snapshot | null> {
+function hidratar(clave: string): Map<number, Snapshot | null> {
   if (typeof window === "undefined") return new Map();
   try {
-    const raw = sessionStorage.getItem(SNAP_STORAGE_KEY);
+    const raw = sessionStorage.getItem(clave);
     if (!raw) return new Map();
     const parsed: { id: number; raw: ContadorResponse; serverAhora: string }[] = JSON.parse(raw);
     const m = new Map<number, Snapshot | null>();
@@ -73,7 +78,7 @@ function hidratar(): Map<number, Snapshot | null> {
   }
 }
 
-function persistir(snapMap: Map<number, Snapshot | null>) {
+function persistir(clave: string, snapMap: Map<number, Snapshot | null>) {
   try {
     const arr = Array.from(snapMap.entries())
       .filter(([, v]) => v !== null)
@@ -81,7 +86,7 @@ function persistir(snapMap: Map<number, Snapshot | null>) {
         const snap = v as Snapshot;
         return { id, raw: snap.raw, serverAhora: snap.serverAhora.toISOString() };
       });
-    sessionStorage.setItem(SNAP_STORAGE_KEY, JSON.stringify(arr));
+    sessionStorage.setItem(clave, JSON.stringify(arr));
   } catch {
     // sessionStorage puede no estar disponible
   }
@@ -103,12 +108,28 @@ export function ContadoresProvider({
   children: React.ReactNode;
 }) {
   // Snapshot autoritativo del servidor (persistido para sobrevivir remounts/cambio de pestaña)
-  const [snapMap, setSnapMap] = useState<Map<number, Snapshot | null>>(() => hidratar());
+  const usuarioId = useMemo(() => getUsuarioActual()?.id ?? null, []);
+  const claveSnapshots = useMemo(
+    () => clavePersistencia("contadores", usuarioId),
+    [usuarioId]
+  );
+  const [snapMap, setSnapMap] = useState<Map<number, Snapshot | null>>(
+    () => new Map()
+  );
+  const [hidratado, setHidratado] = useState(false);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const idsRef = useRef<number[]>(ids);
   const snapMapRef = useRef<Map<number, Snapshot | null>>(snapMap);
   const lastFetchRef = useRef<number>(0);
   const primeraRefreshRef = useRef<boolean>(true);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    limpiarPersistenciaLegacy();
+    setSnapMap(hidratar(claveSnapshots));
+    setHidratado(true);
+  }, [claveSnapshots]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     idsRef.current = ids;
@@ -116,8 +137,17 @@ export function ContadoresProvider({
 
   useEffect(() => {
     snapMapRef.current = snapMap;
-    persistir(snapMap);
-  }, [snapMap]);
+    if (hidratado) persistir(claveSnapshots, snapMap);
+  }, [snapMap, claveSnapshots, hidratado]);
+
+  useEffect(
+    () =>
+      alCerrarSesion(() => {
+        setHidratado(false);
+        setSnapMap(new Map());
+      }),
+    []
+  );
 
   const cargarBatch = useCallback(async () => {
     if (idsRef.current.length === 0) {
@@ -156,6 +186,8 @@ export function ContadoresProvider({
   }, []);
 
   useEffect(() => {
+    if (!hidratado) return;
+
     let cancelled = false;
     let poll: ReturnType<typeof setInterval> | null = null;
 
@@ -188,17 +220,18 @@ export function ContadoresProvider({
       if (poll) clearInterval(poll);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [ids, cargarBatch]);
+  }, [ids, cargarBatch, hidratado]);
 
   // Refresco inmediato cuando cambian los datos (pausar/reanudar/completar, etc.)
   useEffect(() => {
+    if (!hidratado) return;
     if (primeraRefreshRef.current) {
       primeraRefreshRef.current = false;
       return;
     }
     lastFetchRef.current = 0;
     void cargarBatch();
-  }, [refreshKey, cargarBatch]);
+  }, [refreshKey, cargarBatch, hidratado]);
 
   // Tick por segundo: la interpolación se congela fuera de jornada laboral.
   useEffect(() => {

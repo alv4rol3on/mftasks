@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
@@ -40,6 +43,20 @@ class TareaConsumer(AsyncJsonWebsocketConsumer):
             "tarea_id": self.tarea_id,
         })
 
+        exp = self.scope.get("token_exp")
+
+        if exp:
+            self._expira = asyncio.create_task(
+                self._cerrar_al_expirar(float(exp) - time.time())
+            )
+
+    async def _cerrar_al_expirar(self, restante):
+        try:
+            await asyncio.sleep(max(0, restante))
+            await self.close(code=4401)
+        except asyncio.CancelledError:
+            pass
+
     @database_sync_to_async
     def _puede_observar(self, usuario):
         from .models import Tarea
@@ -54,6 +71,11 @@ class TareaConsumer(AsyncJsonWebsocketConsumer):
         return puede_observar_tarea(usuario, tarea)
 
     async def disconnect(self, close_code):
+
+        tarea_expiracion = getattr(self, "_expira", None)
+
+        if tarea_expiracion:
+            tarea_expiracion.cancel()
 
         group_name = getattr(self, "group_name", None)
 

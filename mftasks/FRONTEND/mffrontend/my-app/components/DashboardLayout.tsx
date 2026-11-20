@@ -9,9 +9,13 @@ import GuardRuta from "./GuardRuta";
 import "../components/DashboardLayout.css";
 import {
   cerrarSesion,
+  ErrorDeSesion,
+  getUsuarioActual,
   isAutenticado,
+  limpiarSesionLocal,
   obtenerDatosMe,
 } from "../lib/auth";
+import { alCerrarSesion, marcarSsoRequiereInteraccion } from "../lib/persistencia";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -81,6 +85,7 @@ export default function DashboardLayout({
 
 
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const temaGuardado = localStorage.getItem("tema");
     const temaInicial = temaGuardado === "dark" ? "dark" : "light";
@@ -88,6 +93,16 @@ export default function DashboardLayout({
     document.documentElement.dataset.theme = temaInicial;
     setTema(temaInicial);
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(
+    () =>
+      alCerrarSesion(() => {
+        document.documentElement.dataset.theme = "light";
+        setTema("light");
+      }),
+    []
+  );
 
   const alternarTema = () => {
     const nuevoTema = tema === "dark" ? "light" : "dark";
@@ -104,14 +119,35 @@ export default function DashboardLayout({
       return;
     }
 
-    obtenerDatosMe()
+    let cancelado = false;
+
+    obtenerDatosMe(true)
       .then((usuario) => {
+        if (cancelado) return;
         setNombre(`${usuario.nombres} ${usuario.apellidos}`);
         setCodigo(usuario.codigo ?? null);
       })
-      .catch(() => {
-        router.replace("/");
+      .catch((e) => {
+        if (cancelado) return;
+
+        if (e instanceof ErrorDeSesion) {
+          marcarSsoRequiereInteraccion();
+          limpiarSesionLocal();
+          router.replace("/");
+          return;
+        }
+
+        // Error de red/servidor: conservar la identidad cacheada.
+        const usuario = getUsuarioActual();
+        if (!usuario) return;
+
+        setNombre(`${usuario.nombres} ${usuario.apellidos}`);
+        setCodigo(usuario.codigo ?? null);
       });
+
+    return () => {
+      cancelado = true;
+    };
   }, [router]);
 
   const handleLogout = async () => {

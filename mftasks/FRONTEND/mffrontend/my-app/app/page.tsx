@@ -11,6 +11,11 @@ import {
     limpiarSesionLocal,
     ErrorDeSesion,
 } from "@/lib/auth";
+import {
+    limpiarSsoRequiereInteraccion,
+    marcarSsoRequiereInteraccion,
+    ssoRequiereInteraccion,
+} from "@/lib/persistencia";
 import Spinner from "@/components/ui/Spinner";
 import styles from "./Login.module.css";
 
@@ -41,6 +46,15 @@ export default function Home() {
             return;
         }
 
+        // Si había tokens pero ya no son válidos, no reutilizar la cuenta
+        // MSAL del usuario anterior sin interacción.
+        if (
+            localStorage.getItem("access") ||
+            localStorage.getItem("refresh")
+        ) {
+            marcarSsoRequiereInteraccion();
+        }
+
         limpiarSesionLocal();
     }, [router, verificandoSesion]);
 
@@ -48,10 +62,16 @@ export default function Home() {
         if (verificandoSesion) return;
         if (inProgress !== InteractionStatus.None) return;
 
+        // Tras un logout o una sesión expirada, exigir un clic explícito
+        // para no reautenticar automáticamente al usuario anterior.
+        if (ssoRequiereInteraccion()) return;
+
         const cuenta =
             instance.getActiveAccount() ??
-            (accounts.length > 0 ? accounts[0] : null);
+            (accounts.length === 1 ? accounts[0] : null);
 
+        // Con varias cuentas en caché no se elige una automáticamente:
+        // en un equipo compartido podría iniciar sesión el usuario anterior.
         if (!cuenta) return;
 
         instance.setActiveAccount(cuenta);
@@ -89,6 +109,7 @@ export default function Home() {
         if (inProgress !== InteractionStatus.None) return;
 
         setError(null);
+        limpiarSsoRequiereInteraccion();
         if (otroCorreo) instance.setActiveAccount(null);
         instance.loginRedirect(
             otroCorreo

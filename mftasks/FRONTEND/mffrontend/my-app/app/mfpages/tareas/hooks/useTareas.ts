@@ -6,7 +6,10 @@ import { fetchTareas, type FiltrosTareas } from "@/lib/services/tareasService";
 
 const DEBOUNCE_MS = 350;
 
-export function useTareas(filtros: FiltrosTareas = {}) {
+export function useTareas(
+  filtros: FiltrosTareas = {},
+  enabled = true
+) {
   const [tareas, setTareas] = useState<Task[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,9 +49,15 @@ export function useTareas(filtros: FiltrosTareas = {}) {
     [debouncedFiltros]
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    cargar();
-  }, [cargar]);
+    if (!enabled) return;
+    // Esperar a que el debounce alcance los filtros actuales para no
+    // disparar una petición con el estado anterior (p. ej. antes de hidratar).
+    if (debouncedKey !== filtrosKey) return;
+    void cargar();
+  }, [cargar, enabled, debouncedKey, filtrosKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return { tareas, cargando, error, cargar, setTareas, setError };
 }
