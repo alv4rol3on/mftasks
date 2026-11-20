@@ -16,7 +16,13 @@ import {
   obtenerDatosMe,
 } from "../lib/auth";
 import { marcarSsoRequiereInteraccion } from "../lib/persistencia";
-import { aplicarTema, guardarTema, leerTema, type Tema } from "../lib/tema";
+import {
+  aplicarTema,
+  guardarTema,
+  guardarTemaUsuario,
+  leerTemaUsuario,
+  type Tema,
+} from "../lib/tema";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -88,16 +94,20 @@ export default function DashboardLayout({
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const temaInicial = leerTema();
+    const usuarioId = getUsuarioActual()?.id ?? null;
+    const temaInicial = leerTemaUsuario(usuarioId);
 
     aplicarTema(temaInicial);
+    guardarTema(temaInicial);
     setTema(temaInicial);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const alternarTema = () => {
     const nuevoTema = tema === "dark" ? "light" : "dark";
+    const usuarioId = getUsuarioActual()?.id ?? null;
 
+    guardarTemaUsuario(usuarioId, nuevoTema);
     aplicarTema(nuevoTema);
     guardarTema(nuevoTema);
     setTema(nuevoTema);

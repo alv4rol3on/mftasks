@@ -11,6 +11,7 @@ import {
     notificarCierreSesion,
     obtenerEpochSesion,
 } from "./persistencia";
+import { aplicarTemaUsuario } from "./tema";
 
 export type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
 
@@ -215,6 +216,7 @@ export async function intercambiarToken(
 
     guardarTokens(data.access, data.refresh);
     localStorage.setItem("user", JSON.stringify(data.user));
+    aplicarTemaUsuario(data.user.id);
     limpiarSsoRequiereInteraccion();
 
     return data.user as DatosUsuario;
