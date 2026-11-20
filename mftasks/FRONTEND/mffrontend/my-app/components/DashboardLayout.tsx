@@ -18,7 +18,6 @@ import {
 import { marcarSsoRequiereInteraccion } from "../lib/persistencia";
 import {
   aplicarTema,
-  guardarTema,
   guardarTemaUsuario,
   leerTemaUsuario,
   type Tema,
@@ -98,7 +97,6 @@ export default function DashboardLayout({
     const temaInicial = leerTemaUsuario(usuarioId);
 
     aplicarTema(temaInicial);
-    guardarTema(temaInicial);
     setTema(temaInicial);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -109,7 +107,6 @@ export default function DashboardLayout({
 
     guardarTemaUsuario(usuarioId, nuevoTema);
     aplicarTema(nuevoTema);
-    guardarTema(nuevoTema);
     setTema(nuevoTema);
   };
 

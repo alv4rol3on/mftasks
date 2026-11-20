@@ -16,6 +16,7 @@ import {
     marcarSsoRequiereInteraccion,
     ssoRequiereInteraccion,
 } from "@/lib/persistencia";
+import { aplicarTema } from "@/lib/tema";
 import Spinner from "@/components/ui/Spinner";
 import styles from "./Login.module.css";
 
@@ -36,6 +37,9 @@ export default function Home() {
 
     useEffect(() => {
         document.title = "Iniciar sesión · MF Tasks";
+        // El login conserva siempre su apariencia original, incluso cuando
+        // se llega por navegación cliente desde una ruta en modo oscuro.
+        aplicarTema("light");
     }, []);
 
     // Si ya existe una sesión vigente, nunca se muestra el login ni se

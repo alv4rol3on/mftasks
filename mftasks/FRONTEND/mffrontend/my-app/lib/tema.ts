@@ -6,16 +6,6 @@ export function claveTemaUsuario(usuarioId: number | null): string {
     return `${CLAVE_TEMA}:u${usuarioId ?? "anon"}`;
 }
 
-export function leerTema(): Tema {
-    if (typeof window === "undefined") return "light";
-
-    try {
-        return localStorage.getItem(CLAVE_TEMA) === "dark" ? "dark" : "light";
-    } catch {
-        return "light";
-    }
-}
-
 export function leerTemaUsuario(usuarioId: number | null): Tema {
     if (typeof window === "undefined") return "light";
 
@@ -46,40 +36,48 @@ export function aplicarTema(tema: Tema): void {
     document.documentElement.dataset.theme = tema;
 }
 
-export function guardarTema(tema: Tema): void {
-    if (typeof window === "undefined") return;
-
-    try {
-        localStorage.setItem(CLAVE_TEMA, tema);
-    } catch {
-        // Sin persistencia si localStorage no está disponible.
-    }
-}
-
-/**
- * Aplica el tema propio del usuario y sincroniza la clave global que usa el
- * script previo al paint (pantalla de login y recargas).
- */
+/** Aplica el tema propio del usuario actual. */
 export function aplicarTemaUsuario(usuarioId: number | null): Tema {
     const tema = leerTemaUsuario(usuarioId);
 
     aplicarTema(tema);
-    guardarTema(tema);
 
     return tema;
 }
 
 /**
- * Se inyecta antes del primer paint para evitar el destello de tema claro
- * al cargar el login o cualquier ruta tras un logout.
+ * Se inyecta antes del primer paint. La pantalla de login siempre queda clara;
+ * las rutas internas arrancan con el tema del usuario autenticado para evitar
+ * el destello de tema claro al recargar.
  */
 export const SCRIPT_TEMA = `
 (function () {
-    try {
-        var tema = localStorage.getItem("tema");
-        document.documentElement.dataset.theme = tema === "dark" ? "dark" : "light";
-    } catch (e) {
+    function aplicarClaro() {
         document.documentElement.dataset.theme = "light";
+    }
+
+    try {
+        var ruta = window.location.pathname.replace(/\\/+$/, "");
+
+        if (!ruta) {
+            aplicarClaro();
+            return;
+        }
+
+        var raw = localStorage.getItem("user");
+
+        if (!raw) {
+            aplicarClaro();
+            return;
+        }
+
+        var usuario = JSON.parse(raw);
+        var tema = localStorage.getItem("tema:u" + usuario.id);
+
+        document.documentElement.dataset.theme =
+            tema === "dark" ? "dark" : "light";
+    } catch (e) {
+        aplicarClaro();
     }
 })();
 `;
