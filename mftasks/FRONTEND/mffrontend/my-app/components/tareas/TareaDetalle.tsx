@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTareaDetalle } from "@/app/mfpages/tareas/hooks/useTareaDetalle";
-import { useTareaAcciones } from "@/app/mfpages/tareas/hooks/useTareaAcciones";
+import { useTareaDetalle } from "@/app/(dashboard)/tareas/hooks/useTareaDetalle";
+import { useTareaAcciones } from "@/app/(dashboard)/tareas/hooks/useTareaAcciones";
 import { getUsuarioActual } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
 import { ContadoresProvider } from "@/components/tareas/ContadoresProvider";
@@ -97,7 +97,7 @@ export default function TareaDetalle({
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
-      router.push("/mfpages/tareas");
+      router.push("/tareas");
     }
   };
 
@@ -323,7 +323,7 @@ export default function TareaDetalle({
                   type="button"
                   className={styles.startButton}
                   onClick={() =>
-                    router.push(`/mfpages/tareas/${rutaTarea}/iniciar`)
+                    router.push(`/tareas/${rutaTarea}/iniciar`)
                   }
                 >
                   Iniciar tarea

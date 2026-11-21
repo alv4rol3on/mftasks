@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTareaDetalle } from "@/app/mfpages/tareas/hooks/useTareaDetalle";
-import { useTareaAcciones } from "@/app/mfpages/tareas/hooks/useTareaAcciones";
+import { useTareaDetalle } from "@/app/(dashboard)/tareas/hooks/useTareaDetalle";
+import { useTareaAcciones } from "@/app/(dashboard)/tareas/hooks/useTareaAcciones";
 import { getUsuarioActual } from "@/lib/auth";
 import { useToast } from "@/components/ui/Toast";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
@@ -33,9 +33,9 @@ export default function IniciarTareaPage({
         (usuario?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
     const volverAlDetalle = () => {
         if (tareaId) {
-            router.push(`/mfpages/tareas/${rutaTarea}`);
+            router.push(`/tareas/${rutaTarea}`);
         } else {
-            router.push("/mfpages/tareas");
+            router.push("/tareas");
         }
     };
 
@@ -45,7 +45,7 @@ export default function IniciarTareaPage({
                 <div className={detailStyles.statePanel}>
                     <strong>Solicitud no válida</strong>
                     <p>La dirección no contiene un identificador de solicitud válido.</p>
-                    <button type="button" className={detailStyles.secondaryButton} onClick={() => router.push("/mfpages/tareas")}>
+                    <button type="button" className={detailStyles.secondaryButton} onClick={() => router.push("/tareas")}>
                         Volver a Tareas en desarrollo
                     </button>
                 </div>
@@ -71,7 +71,7 @@ export default function IniciarTareaPage({
                     <strong>No se pudo abrir la solicitud</strong>
                     <p>{error ?? "La solicitud no existe o no tienes acceso a ella."}</p>
                     <div className={detailStyles.stateActions}>
-                        <button type="button" className={detailStyles.secondaryButton} onClick={() => router.push("/mfpages/tareas")}>
+                        <button type="button" className={detailStyles.secondaryButton} onClick={() => router.push("/tareas")}>
                             Volver
                         </button>
                         <button type="button" className={detailStyles.primaryButton} onClick={() => void cargar()}>
@@ -141,7 +141,7 @@ export default function IniciarTareaPage({
                     onCancel={volverAlDetalle}
                     onSubmit={async (t, payload) => {
                         await acciones.iniciar(t, payload);
-                        router.replace(`/mfpages/tareas/${rutaTarea}`);
+                        router.replace(`/tareas/${rutaTarea}`);
                     }}
                 />
             </div>

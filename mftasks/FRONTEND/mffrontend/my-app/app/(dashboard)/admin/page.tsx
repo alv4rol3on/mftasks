@@ -39,7 +39,7 @@ export default function AdminPage() {
     const usuario = getUsuarioActual();
 
     if (!usuario) {
-      router.push("/mfpages/perfil");
+      router.push("/perfil");
       return;
     }
 
@@ -50,7 +50,7 @@ export default function AdminPage() {
       );
 
     if (!esAdministrador) {
-      router.push("/mfpages/perfil");
+      router.push("/perfil");
       return;
     }
 

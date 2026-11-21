@@ -103,17 +103,17 @@ export function calcularCaps(
 }
 
 /**
- * Rutas protegidas de /mfpages y su predicado de acceso.
+ * Rutas protegidas y su predicado de acceso.
  * El orden no importa: se resuelve por el prefijo más específico.
  */
 export const RUTAS_PROTEGIDAS: { ruta: string; permitido: (c: Caps) => boolean }[] = [
-  { ruta: "/mfpages/perfil", permitido: () => true },
-  { ruta: "/mfpages/equipos", permitido: () => true },
-  { ruta: "/mfpages/admin", permitido: (c) => c.isAdmin },
-  { ruta: "/mfpages/solicitudes", permitido: (c) => c.isAdmin || !c.isClientePuro },
-  { ruta: "/mfpages/tareas", permitido: (c) => c.isAdmin || !c.isClientePuro },
+  { ruta: "/perfil", permitido: () => true },
+  { ruta: "/equipos", permitido: () => true },
+  { ruta: "/admin", permitido: (c) => c.isAdmin },
+  { ruta: "/solicitudes", permitido: (c) => c.isAdmin || !c.isClientePuro },
+  { ruta: "/tareas", permitido: (c) => c.isAdmin || !c.isClientePuro },
   {
-    ruta: "/mfpages/cliente/mis-solicitudes",
+    ruta: "/cliente/mis-solicitudes",
     permitido: (c) => c.isCliente || c.isAdmin,
   },
 ];

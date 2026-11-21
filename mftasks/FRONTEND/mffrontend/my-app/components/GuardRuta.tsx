@@ -7,7 +7,7 @@ import PageLoader from "./ui/PageLoader";
 import { rutaPermitida } from "@/lib/capacidades";
 
 /**
- * Redirige a /mfpages/perfil cuando el usuario autenticado intenta entrar a una
+ * Redirige a /perfil cuando el usuario autenticado intenta entrar a una
  * ruta que no le corresponde. Mientras se resuelven las capacidades no redirige
  * para evitar falsos positivos.
  */
@@ -25,7 +25,7 @@ export default function GuardRuta({
   useEffect(() => {
     if (cargando || !autenticado) return;
     if (!permitido) {
-      router.replace("/mfpages/perfil");
+      router.replace("/perfil");
     }
   }, [cargando, autenticado, permitido, router]);
 

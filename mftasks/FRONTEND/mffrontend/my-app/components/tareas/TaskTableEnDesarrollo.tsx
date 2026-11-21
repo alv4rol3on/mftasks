@@ -194,7 +194,7 @@ export default function TaskTableEnDesarrollo({
   const router = useRouter();
   const abrirTarea = (tarea: Task) => {
     const segmento = crearSegmentoTarea(tarea.asunto, tarea.id);
-    router.push(`/mfpages/tareas/${segmento}`);
+    router.push(`/tareas/${segmento}`);
   };
   const usuario = getUsuarioActual();
   const tienePendienteEnTarea = (tarea: Task) =>

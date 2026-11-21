@@ -2,7 +2,7 @@
 
 import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
 import MultiSelectCheckbox from "@/components/ui/MultiSelectCheckbox";
-import { ESTADOS_TAREA } from "@/app/mfpages/tareas/utils/tareasFilters";
+import { ESTADOS_TAREA } from "@/app/(dashboard)/tareas/utils/tareasFilters";
 import { estadoIgnoraRangoFechas } from "@/lib/services/tareasService";
 import type { CampoFecha, EstadoFiltro } from "@/lib/services/tareasService";
 import styles from "./TaskFilters.module.css";

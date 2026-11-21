@@ -384,7 +384,7 @@ export default function PerfilPage() {
                           {equipo.nombre}
                         </div>
                         <Link
-                          href="/mfpages/equipos"
+                          href="/equipos"
                           className={styles.pendingLink}
                         >
                           Ir a Equipos para asignar sub-líder
@@ -531,7 +531,7 @@ export default function PerfilPage() {
             >
               {equiposSinSublider.length > 0 && (
                 <Link
-                  href="/mfpages/equipos"
+                  href="/equipos"
                   className={styles.pendingLink}
                   onClick={() => setModalPendientesAbierto(false)}
                 >
@@ -612,7 +612,7 @@ export default function PerfilPage() {
                     <div className={styles.pendingMeta}>
                       <span>{subtarea.estado}</span>
                       <Link
-                        href={`/mfpages/tareas/${crearSegmentoTarea(
+                        href={`/tareas/${crearSegmentoTarea(
                           subtarea.tarea_asunto,
                           subtarea.tarea_id
                         )}`}

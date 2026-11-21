@@ -29,38 +29,38 @@ interface DashboardLayoutProps {
 
 function tituloParaRuta(pathname: string): string | null {
   // La página de administración controla su propio título según la pestaña.
-  if (pathname === "/mfpages/admin" || pathname.startsWith("/mfpages/admin/")) {
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     return null;
   }
 
   if (
-    pathname.startsWith("/mfpages/tareas/") &&
+    pathname.startsWith("/tareas/") &&
     pathname.endsWith("/iniciar")
   ) {
     return "Iniciar tarea · MF Tasks";
   }
 
-  if (pathname.startsWith("/mfpages/tareas/")) {
+  if (pathname.startsWith("/tareas/")) {
     return "Detalle de tarea · MF Tasks";
   }
 
-  if (pathname.startsWith("/mfpages/tareas")) {
+  if (pathname.startsWith("/tareas")) {
     return "Tareas en desarrollo · MF Tasks";
   }
 
-  if (pathname.startsWith("/mfpages/solicitudes")) {
+  if (pathname.startsWith("/solicitudes")) {
     return "Solicitudes · MF Tasks";
   }
 
-  if (pathname.startsWith("/mfpages/equipos")) {
+  if (pathname.startsWith("/equipos")) {
     return "Equipos · MF Tasks";
   }
 
-  if (pathname.startsWith("/mfpages/perfil")) {
+  if (pathname.startsWith("/perfil")) {
     return "Perfil · MF Tasks";
   }
 
-  if (pathname.startsWith("/mfpages/cliente/mis-solicitudes")) {
+  if (pathname.startsWith("/cliente/mis-solicitudes")) {
     return "Seguimiento de solicitudes · MF Tasks";
   }
 

@@ -79,7 +79,7 @@ export default function AlertasResumen() {
               <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En desarrollo: {resumen?.en_desarrollo ?? 0}</span>
               <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Rechazadas: {resumen?.rechazadas ?? 0}</span>
             </div>
-            <Link href="/mfpages/cliente/mis-solicitudes" style={{ color: "var(--color-in-progress)", textDecoration: "underline", fontSize: 14 }}>
+            <Link href="/cliente/mis-solicitudes" style={{ color: "var(--color-in-progress)", textDecoration: "underline", fontSize: 14 }}>
               Ver mis solicitudes →
             </Link>
           </div>
@@ -108,7 +108,7 @@ export default function AlertasResumen() {
                 </li>
               ))}
             </ul>
-            <Link href="/mfpages/tareas" style={{ fontSize: 12, color: "var(--color-in-progress)", textDecoration: "underline" }}>Ver tarea →</Link>
+            <Link href="/tareas" style={{ fontSize: 12, color: "var(--color-in-progress)", textDecoration: "underline" }}>Ver tarea →</Link>
           </div>
         ))}
       </div>
@@ -124,7 +124,7 @@ export default function AlertasResumen() {
               <p style={{ color: "var(--color-waiting)", fontWeight: 600 }}>
                 Tienes {porAprobar} {porAprobar === 1 ? "solicitud por aprobar" : "solicitudes por aprobar"}
               </p>
-              <Link href="/mfpages/solicitudes" style={{ color: "var(--color-waiting)", textDecoration: "underline", fontSize: 14 }}>
+              <Link href="/solicitudes" style={{ color: "var(--color-waiting)", textDecoration: "underline", fontSize: 14 }}>
                 Ir a Bandeja de solicitudes →
               </Link>
             </div>

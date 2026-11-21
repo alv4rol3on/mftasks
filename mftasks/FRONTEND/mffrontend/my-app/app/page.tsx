@@ -46,7 +46,7 @@ export default function Home() {
     // permite iniciar sesión de nuevo hasta que el usuario cierre sesión.
     useEffect(() => {
         if (verificandoSesion) {
-            router.replace("/mfpages/perfil");
+            router.replace("/perfil");
             return;
         }
 
@@ -81,7 +81,7 @@ export default function Home() {
         instance.setActiveAccount(cuenta);
 
         if (sesionActiva()) {
-            router.replace("/mfpages/perfil");
+            router.replace("/perfil");
             return;
         }
 
@@ -91,7 +91,7 @@ export default function Home() {
 
             try {
                 await intercambiarToken(instance, cuenta);
-                router.replace("/mfpages/perfil");
+                router.replace("/perfil");
             } catch (e) {
                 setError(
                     e instanceof ErrorDeSesion
@@ -106,7 +106,7 @@ export default function Home() {
 
     const iniciarSesion = (otroCorreo = false) => {
         if (sesionActiva()) {
-            router.replace("/mfpages/perfil");
+            router.replace("/perfil");
             return;
         }
 
