@@ -112,9 +112,10 @@ export const RUTAS_PROTEGIDAS: { ruta: string; permitido: (c: Caps) => boolean }
   { ruta: "/admin", permitido: (c) => c.isAdmin },
   { ruta: "/solicitudes", permitido: (c) => c.isAdmin || !c.isClientePuro },
   { ruta: "/tareas", permitido: (c) => c.isAdmin || !c.isClientePuro },
+  { ruta: "/cliente", permitido: (c) => c.isCliente && !c.isAdmin },
   {
     ruta: "/cliente/mis-solicitudes",
-    permitido: (c) => c.isCliente || c.isAdmin,
+    permitido: (c) => c.isCliente && !c.isAdmin,
   },
 ];
 

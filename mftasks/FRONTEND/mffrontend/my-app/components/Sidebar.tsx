@@ -16,7 +16,7 @@ type MenuItem = {
 const menuAll: MenuItem[] = [
   { nombre: "Perfil", ruta: "/perfil", show: () => true },
   // CLIENTE: ve estado de sus solicitudes
-  { nombre: "Seguimiento de Solicitudes", ruta: "/cliente/mis-solicitudes", show: (c) => c.isCliente },
+  { nombre: "Seguimiento de Solicitudes", ruta: "/cliente/mis-solicitudes", show: (c) => c.isCliente && !c.isAdmin },
   // Para admin: Centro de solicitudes (seguimiento de todos los estados, solo lectura)
   { nombre: "Centro de solicitudes", ruta: "/solicitudes", show: (c) => c.isAdmin },
   { nombre: "Administración general", ruta: "/admin", show: (c) => c.isAdmin },
