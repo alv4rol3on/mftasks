@@ -20,7 +20,6 @@ export default function SuccessModal({
   return (
     <div
       className={styles.overlay}
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={title}

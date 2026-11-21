@@ -1158,7 +1158,6 @@ export default function EquiposPage() {
       {/* Modal de integrante */}
       {modalMiembro && (
         <div
-          onClick={() => setModalMiembro(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
@@ -1242,7 +1241,6 @@ export default function EquiposPage() {
       {/* Modal reasignar pendientes bloqueado */}
       {modalReasignar && (
         <div
-          onClick={() => setModalReasignar(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
@@ -1290,7 +1288,6 @@ export default function EquiposPage() {
       {/* Modal agregar integrante */}
       {modalAgregar && (
         <div
-          onClick={() => setModalAgregar(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 560, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
@@ -1374,7 +1371,6 @@ export default function EquiposPage() {
       {/* Modal renombrar equipo (admin) */}
       {modalRenombrar && (
         <div
-          onClick={() => setModalRenombrar(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 440, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
@@ -1427,7 +1423,6 @@ export default function EquiposPage() {
       {/* Modal cambiar líder (admin) */}
       {modalCambiarLider && (
         <div
-          onClick={() => setModalCambiarLider(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
@@ -1542,7 +1537,6 @@ export default function EquiposPage() {
       {/* Modal eliminar equipo (admin) */}
       {modalEliminar && (
         <div
-          onClick={() => setModalEliminar(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 460, boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
@@ -1591,7 +1585,6 @@ export default function EquiposPage() {
       {/* Modal crear equipo */}
       {modalCrear && (
         <div
-          onClick={() => setModalCrear(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>

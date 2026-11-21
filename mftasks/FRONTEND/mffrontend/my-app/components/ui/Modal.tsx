@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-
 import styles from "./Modal.module.css";
 
 type Props = {
@@ -21,16 +19,8 @@ export default function Modal({
   maxWidth,
   ariaLabel,
 }: Props) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
-    <div className={styles.overlay} onClick={onClose} role="presentation">
+    <div className={styles.overlay} role="presentation">
       <div
         className={styles.modal}
         role="dialog"

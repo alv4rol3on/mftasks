@@ -121,7 +121,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
   );
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
+    <div className={styles.modalOverlay}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <div>

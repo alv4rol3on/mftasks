@@ -272,7 +272,7 @@ export default function TaskModal({
 
     return (
         <>
-            <div className={styles.modalOverlay} onClick={cerrar}>
+            <div className={styles.modalOverlay}>
                 <div
                     className={styles.modal}
                     onClick={(e) => e.stopPropagation()}

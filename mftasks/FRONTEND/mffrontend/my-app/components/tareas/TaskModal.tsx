@@ -386,7 +386,7 @@ export default function TaskModal({
 
     return (
         <>
-            <div className={styles.modalOverlay} onClick={onClose}>
+            <div className={styles.modalOverlay}>
                 <div
                     className={styles.modal}
                     onClick={(e) => e.stopPropagation()}
@@ -766,7 +766,6 @@ export default function TaskModal({
             {reanudarSubId !== null && (
                 <div
                     style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}
-                    onClick={() => { if (!reanudando) setReanudarSubId(null); }}
                 >
                     <div
                         style={{ background: "var(--color-background)", color: "var(--color-text)", borderRadius: 12, padding: 20, width: 440, maxWidth: "92vw", boxShadow: "0 10px 40px rgba(0,0,0,0.25)", border: "1px solid var(--color-border)" }}

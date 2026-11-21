@@ -465,11 +465,6 @@ export default function AssignmentPanel({
                         zIndex: 10000,
                         padding: 20,
                     }}
-                    onMouseDown={(e) => {
-                        if (e.target === e.currentTarget && !renombrando) {
-                            setRenombrarTarget(null);
-                        }
-                    }}
                 >
                     <div
                         style={{

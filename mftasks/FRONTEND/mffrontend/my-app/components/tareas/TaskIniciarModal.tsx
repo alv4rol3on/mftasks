@@ -18,7 +18,7 @@ export default function TaskIniciarModal({
     onSubmit,
 }: TaskIniciarModalProps) {
     return (
-        <div className={styles.modalOverlay} onClick={onClose}>
+        <div className={styles.modalOverlay}>
             <div
                 className={styles.modal}
                 onClick={(e) => e.stopPropagation()}
