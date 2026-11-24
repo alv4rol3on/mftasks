@@ -6,6 +6,7 @@ import RichTextEditor from "@/components/shared/RichTextEditor";
 import SuccessModal from "@/components/shared/SuccessModal";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import { CampanaInfo, EquipoInfo, SubCampanaInfo, Task } from "@/lib/types";
+import { useCatalogos } from "@/components/CatalogosProvider";
 
 const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
 const EXTENSIONES_PERMITIDAS = ["pdf", "doc", "docx", "xls", "xlsx", "txt", "png", "jpg", "jpeg", "zip"];
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function CrearSolicitudModal({ open, onClose, onCreated }: Props) {
+  const { tiposSolicitud, prioridades } = useCatalogos();
   const [asunto, setAsunto] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [tipoSolicitud, setTipoSolicitud] = useState("");
@@ -46,6 +48,13 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
   const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<{ ticket: string | null; asunto: string } | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
+
+  const tipoSeleccionado = useMemo(
+    () => tiposSolicitud.find((tipo) => tipo.codigo === tipoSolicitud),
+    [tiposSolicitud, tipoSolicitud]
+  );
+  const requiereDetalle =
+    tipoSeleccionado?.requiere_detalle ?? tipoSolicitud === "OTROS";
 
   const entidades = useMemo(() => {
     const map = new Map<number, string>();
@@ -183,7 +192,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       subcampanaId === "" ||
       equipoId === "" ||
       !tipoSolicitud ||
-      (tipoSolicitud === "OTROS" && !detalleTipoSolicitud.trim());
+      (requiereDetalle && !detalleTipoSolicitud.trim());
 
     if (faltanCampos) return;
 
@@ -199,7 +208,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       formData.append("prioridad", prioridad);
       formData.append(
         "detalle_tipo_solicitud",
-        tipoSolicitud === "OTROS" ? detalleTipoSolicitud.trim() : ""
+        requiereDetalle ? detalleTipoSolicitud.trim() : ""
       );
       formData.append("subcampana", String(subcampanaId));
       formData.append("equipo", String(equipoId));
@@ -327,22 +336,27 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
                   const nuevoTipo = e.target.value;
                   setTipoSolicitud(nuevoTipo);
 
-                  if (nuevoTipo !== "OTROS") {
+                  const tipo = tiposSolicitud.find(
+                    (opcion) => opcion.codigo === nuevoTipo
+                  );
+                  if (!tipo?.requiere_detalle) {
                     setDetalleTipoSolicitud("");
                   }
                 }}
                 className={styles.inputField}
               >
                 <option value="">--Elige el tipo de solicitud--</option>
-                <option value="NUEVA_FUNCIONALIDAD">Nueva funcionalidad</option>
-                <option value="REPORTE">Creación de reporte</option>
-                <option value="CORRECCION_ERROR">Corrección de error</option>
-                <option value="CREACION_BI">Creación de BI</option>
-                <option value="OTROS">Otros</option>
+                {tiposSolicitud
+                  .filter((opcion) => opcion.activo)
+                  .map((opcion) => (
+                    <option key={opcion.codigo} value={opcion.codigo}>
+                      {opcion.nombre}
+                    </option>
+                  ))}
               </select>            </div>
 
 
-            {tipoSolicitud === "OTROS" && (
+            {requiereDetalle && (
               <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
                 {mensajeCampo(!detalleTipoSolicitud.trim())}
                 <input
@@ -366,10 +380,13 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
                 title="Prioridad propuesta por el cliente; el líder puede ajustarla"
               >
                 <option value="">--Elige el nivel de prioridad--</option>
-                <option value="BAJA">Prioridad: Baja</option>
-                <option value="MEDIA">Prioridad: Media</option>
-                <option value="ALTA">Prioridad: Alta</option>
-                <option value="URGENTE">Prioridad: Urgente</option>
+                {prioridades
+                  .filter((opcion) => opcion.activo)
+                  .map((opcion) => (
+                    <option key={opcion.codigo} value={opcion.codigo}>
+                      Prioridad: {opcion.nombre}
+                    </option>
+                  ))}
               </select>
             </div>
 

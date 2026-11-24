@@ -1,6 +1,8 @@
 "use client";
 
-type Prioridad = "BAJA" | "MEDIA" | "ALTA" | "URGENTE" | string | null | undefined;
+import { useCatalogos } from "@/components/CatalogosProvider";
+
+type Prioridad = string | null | undefined;
 
 const ETIQUETAS: Record<string, string> = {
   BAJA: "Baja",
@@ -39,12 +41,23 @@ export default function PrioridadBadge({
   prioridad: Prioridad;
   compact?: boolean;
 }) {
+  const { nombrePrioridad, colorPrioridad } = useCatalogos();
   const valor = String(prioridad ?? "MEDIA").toUpperCase();
-  const estilo = ESTILOS[valor] ?? ESTILOS.MEDIA;
+  const color = colorPrioridad(valor);
+
+  const estilo = color
+    ? {
+        color,
+        background: `color-mix(in srgb, ${color} 12%, var(--color-background))`,
+        border: `color-mix(in srgb, ${color} 28%, var(--color-background))`,
+      }
+    : ESTILOS[valor] ?? ESTILOS.MEDIA;
+
+  const etiqueta = nombrePrioridad(valor) || ETIQUETAS[valor] || valor;
 
   return (
     <span
-      title={`Prioridad ${ETIQUETAS[valor] ?? valor}`}
+      title={`Prioridad ${etiqueta}`}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -60,7 +73,7 @@ export default function PrioridadBadge({
         lineHeight: 1.4,
       }}
     >
-      {ETIQUETAS[valor] ?? valor}
+      {etiqueta}
     </span>
   );
 }

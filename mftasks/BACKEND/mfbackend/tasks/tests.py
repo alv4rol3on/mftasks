@@ -1815,3 +1815,29 @@ class ContadorEstadosTerminalesTestCase(TestCase):
         self.assertFalse(contador["activo"])
         self.assertTrue(contador["finalizado"])
         self.assertEqual(contador["segundos_restantes"], 0)
+
+
+class CatalogosTareaTestCase(APITestCase):
+
+    def setUp(self):
+        self.user = _crear_usuario("catalogos@empresa.com")
+
+    def test_tipos_solicitud_requiere_autenticacion(self):
+        res = self.client.get("/api/tasks/tipos-solicitud/")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_tipos_solicitud_lista_codigos(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.get("/api/tasks/tipos-solicitud/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        codigos = {item["codigo"] for item in res.data}
+        self.assertTrue({"REPORTE", "OTROS"}.issubset(codigos))
+
+    def test_prioridades_lista_codigos(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.get("/api/tasks/prioridades/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        codigos = {item["codigo"] for item in res.data}
+        self.assertTrue(
+            {"BAJA", "MEDIA", "ALTA", "URGENTE"}.issubset(codigos)
+        )

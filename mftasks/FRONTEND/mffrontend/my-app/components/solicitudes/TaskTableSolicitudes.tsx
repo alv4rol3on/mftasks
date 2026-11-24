@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import TaskModal from "./TaskModal";
-import PrioridadBadge, { PRIORIDAD_ORDEN } from "@/components/tareas/PrioridadBadge";
+import PrioridadBadge from "@/components/tareas/PrioridadBadge";
+import { useCatalogos } from "@/components/CatalogosProvider";
 import TaskStatusBadge from "@/components/tareas/TaskStatusBadge";
 import ApprovalCountdown from "./ApprovalCountdown";
 import styles from "./TasksTableSolicitudes.module.css";
@@ -52,15 +53,16 @@ export default function TaskTableSolicitudes({
   onReload
 }: TaskTableSolicitudesProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const { prioridadOrdenMap } = useCatalogos();
   const ordenadas = useMemo(
     () =>
       [...tareas].sort((a, b) => {
-        const pa = PRIORIDAD_ORDEN[String(a.prioridad ?? "MEDIA")] ?? 0;
-        const pb = PRIORIDAD_ORDEN[String(b.prioridad ?? "MEDIA")] ?? 0;
+        const pa = prioridadOrdenMap[String(a.prioridad ?? "MEDIA")] ?? 0;
+        const pb = prioridadOrdenMap[String(b.prioridad ?? "MEDIA")] ?? 0;
         if (pa !== pb) return pb - pa;
         return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
       }),
-    [tareas]
+    [tareas, prioridadOrdenMap]
   );
 
   const handleAprobar = async (tarea: Task) => {

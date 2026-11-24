@@ -66,10 +66,29 @@ export interface AprobacionTarea {
     fecha: string;
 }
 
+export interface TipoSolicitudCatalogo {
+    codigo: string;
+    nombre: string;
+    descripcion?: string;
+    orden: number;
+    requiere_detalle: boolean;
+    activo: boolean;
+}
+
+export interface PrioridadCatalogo {
+    codigo: string;
+    nombre: string;
+    orden: number;
+    color?: string;
+    activo: boolean;
+}
+
 export interface Task {
     id: number;
     ticket?: string | null;
     asunto: string;
+    tipo_solicitud?: string;
+    detalle_tipo_solicitud?: string;
     descripcion: string;
     cliente: number;
     cliente_nombre: string;
@@ -91,7 +110,7 @@ export interface Task {
     puedo_aprobar?: boolean;
     auto_aprobada?: boolean;
     puede_triar?: boolean;
-    prioridad?: "BAJA" | "MEDIA" | "ALTA" | "URGENTE";
+    prioridad?: string | null;
     puede_cancelar?: boolean;
     puede_agregar_informacion?: boolean;
     puede_confirmar_solucion?: boolean;

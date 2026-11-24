@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { actualizarTriage } from "@/lib/services/tareasService";
+import { useCatalogos } from "@/components/CatalogosProvider";
 import type { Task } from "@/lib/types";
 import styles from "./TareaDetalle.module.css";
 
@@ -10,14 +11,8 @@ type Props = {
   onSaved: () => void | Promise<void>;
 };
 
-const OPCIONES = [
-  { value: "BAJA", label: "Baja" },
-  { value: "MEDIA", label: "Media" },
-  { value: "ALTA", label: "Alta" },
-  { value: "URGENTE", label: "Urgente" },
-];
-
 export default function TriagePanel({ tarea, onSaved }: Props) {
+  const { prioridades } = useCatalogos();
   const [prioridad, setPrioridad] = useState<string>(tarea.prioridad ?? "MEDIA");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,9 +61,13 @@ export default function TriagePanel({ tarea, onSaved }: Props) {
             className={styles.selectField}
             disabled={guardando}
           >
-            {OPCIONES.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
+            {prioridades
+              .filter((opcion) => opcion.activo)
+              .map((opcion) => (
+                <option key={opcion.codigo} value={opcion.codigo}>
+                  {opcion.nombre}
+                </option>
+              ))}
           </select>
         </label>
       </div>

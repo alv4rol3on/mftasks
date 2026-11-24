@@ -47,6 +47,7 @@ from .models import (
     HorarioLaboral,
     ConfiguracionAprobacion,
     Prioridad,
+    TipoSolicitud,
 )
 
 from .permissions import (
@@ -56,7 +57,7 @@ from .permissions import (
     es_aprobador_de_tarea,
     puede_resolver_reapertura,
 )
-from .serializers import SubtareaSerializer, TaskSerializer, HorarioLaboralSerializer, ConfiguracionAprobacionSerializer
+from .serializers import SubtareaSerializer, TaskSerializer, HorarioLaboralSerializer, ConfiguracionAprobacionSerializer, TipoSolicitudSerializer, PrioridadSerializer
 from .services.archivos import (
     guardar_archivos,
     nombre_seguro,
@@ -3304,3 +3305,27 @@ class ConfiguracionAprobacionViewSet(
             from .services.plazos import recalcular_plazos_pendientes
 
             recalcular_plazos_pendientes()
+
+
+class TipoSolicitudViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+
+    queryset = TipoSolicitud.objects.all()
+    serializer_class = TipoSolicitudSerializer
+    permission_classes = [IsAuthenticatedActivo]
+    lookup_field = "codigo"
+
+
+class PrioridadViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+
+    queryset = Prioridad.objects.all()
+    serializer_class = PrioridadSerializer
+    permission_classes = [IsAuthenticatedActivo]
+    lookup_field = "codigo"

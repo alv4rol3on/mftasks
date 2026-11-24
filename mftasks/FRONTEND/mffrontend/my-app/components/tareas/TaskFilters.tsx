@@ -2,6 +2,7 @@
 
 import FiltroCampanaSubcampana from "@/components/filtros/FiltroCampanaSubcampana";
 import MultiSelectCheckbox from "@/components/ui/MultiSelectCheckbox";
+import { useCatalogos } from "@/components/CatalogosProvider";
 import { ESTADOS_TAREA } from "@/app/(dashboard)/tareas/utils/tareasFilters";
 import { estadoIgnoraRangoFechas } from "@/lib/services/tareasService";
 import type { CampoFecha, EstadoFiltro } from "@/lib/services/tareasService";
@@ -64,6 +65,7 @@ export default function TaskFilters({
     onLimpiar,
     hayFiltros,
 }: Props) {
+    const { prioridades } = useCatalogos();
     const fechaDeshabilitada = estadoIgnoraRangoFechas(estado);
     const tituloFecha = fechaDeshabilitada
         ? "Este estado no usa rango de fechas"
@@ -109,10 +111,13 @@ export default function TaskFilters({
                     title="Filtrar por prioridad"
                 >
                     <option value="">Todas</option>
-                    <option value="BAJA">Baja</option>
-                    <option value="MEDIA">Media</option>
-                    <option value="ALTA">Alta</option>
-                    <option value="URGENTE">Urgente</option>
+                    {prioridades
+                        .filter((opcion) => opcion.activo)
+                        .map((opcion) => (
+                            <option key={opcion.codigo} value={opcion.codigo}>
+                                {opcion.nombre}
+                            </option>
+                        ))}
                 </select>
             </label>
 

@@ -7,7 +7,8 @@ import { Task } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
 import TaskCountdown from "./TaskCountdown";
 import TaskStatusBadge from "./TaskStatusBadge";
-import PrioridadBadge, { PRIORIDAD_ORDEN } from "./PrioridadBadge";
+import PrioridadBadge from "./PrioridadBadge";
+import { useCatalogos } from "@/components/CatalogosProvider";
 import Pagination from "../ui/Pagination";
 import { ContadoresProvider, useContador } from "./ContadoresProvider";
 import { crearSegmentoTarea } from "@/lib/tareaUrl";
@@ -192,6 +193,7 @@ export default function TaskTableEnDesarrollo({
   tareas: Task[];
 }) {
   const router = useRouter();
+  const { prioridadOrdenMap } = useCatalogos();
   const abrirTarea = (tarea: Task) => {
     const segmento = crearSegmentoTarea(tarea.asunto, tarea.id);
     router.push(`/tareas/${segmento}`);
@@ -207,12 +209,12 @@ export default function TaskTableEnDesarrollo({
   const tareasOrdenadas = useMemo(
     () =>
       [...tareasVisibles].sort((a, b) => {
-        const prioridadA = PRIORIDAD_ORDEN[String(a.prioridad ?? "MEDIA")] ?? 0;
-        const prioridadB = PRIORIDAD_ORDEN[String(b.prioridad ?? "MEDIA")] ?? 0;
+        const prioridadA = prioridadOrdenMap[String(a.prioridad ?? "MEDIA")] ?? 0;
+        const prioridadB = prioridadOrdenMap[String(b.prioridad ?? "MEDIA")] ?? 0;
         if (prioridadA !== prioridadB) return prioridadB - prioridadA;
         return new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime();
       }),
-    [tareasVisibles]
+    [tareasVisibles, prioridadOrdenMap]
   );
 
   const pageSize = 10;

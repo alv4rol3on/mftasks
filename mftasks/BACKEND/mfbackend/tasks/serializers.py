@@ -16,6 +16,34 @@ from .models import HorarioLaboral
 
 from datetime import timedelta
 
+
+class TipoSolicitudSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = TipoSolicitud
+        fields = [
+            "codigo",
+            "nombre",
+            "descripcion",
+            "orden",
+            "requiere_detalle",
+            "activo",
+        ]
+
+
+class PrioridadSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Prioridad
+        fields = [
+            "codigo",
+            "nombre",
+            "orden",
+            "color",
+            "activo",
+        ]
+
+
 class SubtareaSerializer(serializers.ModelSerializer):
 
     asignado_nombre = serializers.SerializerMethodField()

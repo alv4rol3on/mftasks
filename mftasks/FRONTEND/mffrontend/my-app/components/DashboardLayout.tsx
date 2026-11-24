@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMsal } from "@azure/msal-react";
 import Sidebar from "./Sidebar";
 import CapacidadesProvider from "./CapacidadesProvider";
+import CatalogosProvider from "./CatalogosProvider";
 import GuardRuta from "./GuardRuta";
 import "../components/DashboardLayout.css";
 import {
@@ -155,6 +156,7 @@ export default function DashboardLayout({
 
   return (
     <CapacidadesProvider>
+      <CatalogosProvider>
       <div className={`dashboard-layout ${menuOpen ? "sidebar-open" : ""}`}>
         <Sidebar
           menuOpen={menuOpen}
@@ -217,6 +219,7 @@ export default function DashboardLayout({
           </section>
         </main>
       </div>
+      </CatalogosProvider>
     </CapacidadesProvider>
   );
 }
