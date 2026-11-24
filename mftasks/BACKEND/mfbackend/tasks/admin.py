@@ -1,6 +1,75 @@
 from django.contrib import admin
 from django.core.cache import cache
-from .models import AprobacionTarea, Tarea, ArchivoTarea, Subtarea, TareaLog, HorarioLaboral, ConfiguracionAprobacion
+from .models import (
+    AprobacionTarea,
+    Tarea,
+    ArchivoTarea,
+    Subtarea,
+    TareaLog,
+    HorarioLaboral,
+    ConfiguracionAprobacion,
+    Prioridad,
+    TipoSolicitud,
+)
+
+
+@admin.register(TipoSolicitud)
+class TipoSolicitudAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "codigo",
+        "nombre",
+        "orden",
+        "requiere_detalle",
+        "activo",
+    )
+
+    list_editable = (
+        "orden",
+        "requiere_detalle",
+        "activo",
+    )
+
+    list_filter = (
+        "activo",
+        "requiere_detalle",
+    )
+
+    search_fields = (
+        "codigo",
+        "nombre",
+    )
+
+    ordering = ("orden", "nombre")
+
+
+@admin.register(Prioridad)
+class PrioridadAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "codigo",
+        "nombre",
+        "orden",
+        "color",
+        "activo",
+    )
+
+    list_editable = (
+        "orden",
+        "color",
+        "activo",
+    )
+
+    list_filter = (
+        "activo",
+    )
+
+    search_fields = (
+        "codigo",
+        "nombre",
+    )
+
+    ordering = ("orden",)
 
 
 @admin.register(Tarea)
@@ -9,6 +78,8 @@ class TareaAdmin(admin.ModelAdmin):
     list_display = (
         "ticket",
         "asunto",
+        "tipo_solicitud",
+        "prioridad",
         "estado",
         "paso_aprobacion",
         "equipo",
@@ -18,6 +89,8 @@ class TareaAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
+        "tipo_solicitud",
+        "prioridad",
         "estado",
         "paso_aprobacion",
         "equipo",
@@ -30,12 +103,16 @@ class TareaAdmin(admin.ModelAdmin):
     )
 
     autocomplete_fields = (
+        "tipo_solicitud",
+        "prioridad",
         "equipo",
         "solicitante",
         "aprobador",
     )
 
     list_select_related = (
+        "tipo_solicitud",
+        "prioridad",
         "equipo",
         "solicitante",
         "aprobador",

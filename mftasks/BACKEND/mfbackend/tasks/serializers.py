@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from usuarios.permissions import es_administrador, es_cliente
-from .models import ArchivoTarea, Subtarea, Tarea, ConfiguracionAprobacion
+from .models import ArchivoTarea, Subtarea, Tarea, ConfiguracionAprobacion, Prioridad, TipoSolicitud
 from .permissions import es_asignador_del_equipo, tiene_permiso_subcampana
 from .services.cliente_acciones import (
     puede_agregar_informacion,
@@ -159,6 +159,17 @@ class ArchivoTareaSerializer(serializers.ModelSerializer):
         return f"{obj.subido_por.nombres} {obj.subido_por.apellidos}"
 
 class TaskSerializer(serializers.ModelSerializer):
+
+    tipo_solicitud = serializers.SlugRelatedField(
+        slug_field="codigo",
+        queryset=TipoSolicitud.objects.all(),
+        required=False,
+    )
+    prioridad = serializers.SlugRelatedField(
+        slug_field="codigo",
+        queryset=Prioridad.objects.all(),
+        required=False,
+    )
 
     cliente_nombre = serializers.SerializerMethodField()
     entidad = serializers.SerializerMethodField()
@@ -510,22 +521,28 @@ class TaskSerializer(serializers.ModelSerializer):
                 # Validar el tipo de solicitud y su detalle
         tipo = attrs.get(
             "tipo_solicitud",
-            getattr(self.instance, "tipo_solicitud", Tarea.TipoSolicitud.OTROS),
+            getattr(self.instance, "tipo_solicitud", None),
         )
+        if tipo is None:
+            tipo = TipoSolicitud.objects.filter(codigo="OTROS").first()
 
         detalle = attrs.get(
             "detalle_tipo_solicitud",
             getattr(self.instance, "detalle_tipo_solicitud", ""),
         )
 
-        if tipo == Tarea.TipoSolicitud.OTROS and not detalle.strip():
+        requiere_detalle = bool(
+            tipo is not None and getattr(tipo, "requiere_detalle", False)
+        )
+
+        if requiere_detalle and not (detalle or "").strip():
             raise serializers.ValidationError({
                 "detalle_tipo_solicitud": (
-                    "Debes especificar el detalle cuando el tipo de solicitud es Otros."
+                    "Debes especificar el detalle para este tipo de solicitud."
                 )
             })
 
-        if tipo != Tarea.TipoSolicitud.OTROS:
+        if not requiere_detalle:
             attrs["detalle_tipo_solicitud"] = ""
         
         return attrs

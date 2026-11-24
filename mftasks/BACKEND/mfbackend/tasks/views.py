@@ -46,6 +46,7 @@ from .models import (
     TareaLog,
     HorarioLaboral,
     ConfiguracionAprobacion,
+    Prioridad,
 )
 
 from .permissions import (
@@ -302,6 +303,8 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "subcampana",
                 "subcampana__campana",
                 "subcampana__campana__entidad",
+                "tipo_solicitud",
+                "prioridad",
             )
             .prefetch_related(
                 "subtareas",
@@ -432,8 +435,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         ]
 
         prioridad = (params.get("prioridad") or "").upper()
-        if prioridad and prioridad in Tarea.Prioridad.values:
-            queryset = queryset.filter(prioridad=prioridad)
+        if prioridad and Prioridad.objects.filter(codigo=prioridad).exists():
+            queryset = queryset.filter(prioridad__codigo=prioridad)
 
         if params.get("excluir_espera") in ("1", "true", "yes"):
             queryset = queryset.exclude(
@@ -1253,21 +1256,20 @@ class TaskViewSet(viewsets.ModelViewSet):
         cambios = {}
         cambios_texto = []
 
-        for campo, valores, etiqueta in (
-            ("prioridad", Tarea.Prioridad.values, "Prioridad"),
-        ):
-            if campo not in request.data:
-                continue
-            valor = str(request.data.get(campo) or "").upper()
-            if valor not in valores:
+        if "prioridad" in request.data:
+            valor = str(request.data.get("prioridad") or "").upper()
+            nueva_prioridad = Prioridad.objects.filter(codigo=valor).first()
+            if nueva_prioridad is None:
                 return Response(
-                    {"detail": f"{etiqueta} inválida."},
+                    {"detail": "Prioridad inválida."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            anterior = getattr(tarea, campo)
+            anterior = (
+                tarea.prioridad.codigo if tarea.prioridad_id else None
+            )
             if anterior != valor:
-                cambios[campo] = valor
-                cambios_texto.append(f"{etiqueta}: {anterior} -> {valor}")
+                cambios["prioridad"] = nueva_prioridad
+                cambios_texto.append(f"Prioridad: {anterior} -> {valor}")
 
         if not cambios:
             return Response(

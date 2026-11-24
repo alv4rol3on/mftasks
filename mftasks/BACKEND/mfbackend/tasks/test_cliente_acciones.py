@@ -383,7 +383,7 @@ class ClienteAccionesTestCase(APITestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.tarea.refresh_from_db()
-        self.assertEqual(self.tarea.prioridad, "ALTA")
+        self.assertEqual(self.tarea.prioridad.codigo, "ALTA")
         self.assertTrue(
             TareaLog.objects.filter(
                 tarea=self.tarea,

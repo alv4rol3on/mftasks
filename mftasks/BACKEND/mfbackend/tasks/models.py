@@ -19,6 +19,73 @@ class SecuenciaTicket(models.Model):
         return f"{self.fecha:%Y%m%d}: {self.ultimo}"
 
 
+class TipoSolicitud(models.Model):
+    codigo = models.CharField(max_length=30, unique=True)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+    requiere_detalle = models.BooleanField(
+        default=False,
+        help_text="Si está activo, al elegir este tipo se debe indicar un detalle.",
+    )
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["orden", "nombre"]
+        verbose_name = "Tipo de solicitud"
+        verbose_name_plural = "Tipos de solicitud"
+
+    def __str__(self):
+        return self.nombre
+
+
+class Prioridad(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=50)
+    orden = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Determina la severidad para ordenar las solicitudes.",
+    )
+    color = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        help_text="Color hexadecimal (#RRGGBB) usado para representar la prioridad. Vacío = neutro.",
+    )
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["orden"]
+        verbose_name = "Prioridad"
+        verbose_name_plural = "Prioridades"
+
+    def __str__(self):
+        return self.nombre
+
+
+def default_tipo_solicitud():
+    obj, _ = TipoSolicitud.objects.get_or_create(
+        codigo="OTROS",
+        defaults={
+            "nombre": "Otros",
+            "requiere_detalle": True,
+            "orden": 5,
+        },
+    )
+    return obj.pk
+
+
+def default_prioridad():
+    obj, _ = Prioridad.objects.get_or_create(
+        codigo="MEDIA",
+        defaults={
+            "nombre": "Media",
+            "orden": 2,
+        },
+    )
+    return obj.pk
+
+
 class Tarea(models.Model):
 
     class Estado(models.TextChoices):
@@ -36,28 +103,15 @@ class Tarea(models.Model):
         LIDER = "LIDER", "Revisión del líder"
         COMPLETADO = "COMPLETADO", "Completado"
 
-    class TipoSolicitud(models.TextChoices):
-        NUEVA_FUNCIONALIDAD = "NUEVA_FUNCIONALIDAD", "Nueva funcionalidad"
-        REPORTE = "REPORTE", "Creación de reporte"
-        CORRECCION_ERROR = "CORRECCION_ERROR", "Corrección de error"
-        CREACION_BI = "CREACION_BI", "Creación de BI"
-        OTROS = "OTROS", "Otros"
-
-    class Prioridad(models.TextChoices):
-        BAJA = "BAJA", "Baja"
-        MEDIA = "MEDIA", "Media"
-        ALTA = "ALTA", "Alta"
-        URGENTE = "URGENTE", "Urgente"
-
 
     ticket = models.CharField(max_length=20, unique=True, blank=True, null=True, db_index=True)
 
     asunto = models.CharField(max_length=200)
-    tipo_solicitud = models.CharField(
-        max_length=30,
-        choices=TipoSolicitud.choices,
-        default=TipoSolicitud.OTROS,
-        db_index=True,
+    tipo_solicitud = models.ForeignKey(
+        TipoSolicitud,
+        on_delete=models.PROTECT,
+        related_name="tareas",
+        default=default_tipo_solicitud,
         verbose_name="Tipo de solicitud",
     )
     detalle_tipo_solicitud = models.CharField(
@@ -69,11 +123,11 @@ class Tarea(models.Model):
     )
     descripcion = models.TextField()
 
-    prioridad = models.CharField(
-        max_length=20,
-        choices=Prioridad.choices,
-        default=Prioridad.MEDIA,
-        db_index=True,
+    prioridad = models.ForeignKey(
+        Prioridad,
+        on_delete=models.PROTECT,
+        related_name="tareas",
+        default=default_prioridad,
     )
 
     estado = models.CharField(
