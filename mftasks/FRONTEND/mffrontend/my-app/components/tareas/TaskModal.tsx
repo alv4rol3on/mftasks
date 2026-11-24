@@ -15,6 +15,7 @@ import { useContador } from "./ContadoresProvider";
 import { formatearTiempo } from "@/lib/tiempoLaboral";
 import TaskStateSection from "./TaskModalComponents/TaskStateSection";
 import HistorialTarea from "./HistorialTarea";
+import TaskStatusBadge from "./TaskStatusBadge";
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
     timeZone: "America/Lima",
@@ -504,133 +505,33 @@ export default function TaskModal({
                                             <table className={styles.subtareasTable}>
                                                 <thead>
                                                     <tr>
-                                                        <th>Descripción</th>
+                                                        <th>Subtarea</th>
+                                                        <th>Estado</th>
+                                                        <th>Peso</th>
                                                         <th>Asignado</th>
-                                                        <th>Cambiar Estado</th>
                                                     </tr>
                                                 </thead>
-
                                                 <tbody>
-                                                    {subtareasProgreso.map((subtarea) => {
-                                                        const esMiSubtarea = usuario?.id === subtarea.asignado;
-                                                        const bloqueadorasPendientes = subtarea.bloqueada_por?.filter(b => b.estado !== "SOLUCIONADO") ?? [];
-                                                        const bloqueada = bloqueadorasPendientes.length > 0;
-                                                        const bloqueadaTooltip = bloqueada ? `Bloqueada por: ${bloqueadorasPendientes.map(b => `${b.descripcion} (${b.estado})`).join(", ")}` : "";
-                                                        const puedeEmpezar = esMiSubtarea && subtarea.estado === "EN_ESPERA" && !!onEmpezarTarea && !bloqueada;
-                                                        const puedeCompletar = esMiSubtarea && subtarea.estado === "EN_DESARROLLO" && !!onCompletarSubtarea;
-                                                        return (
-                                                            <tr
-                                                                key={subtarea.id}
-                                                                title={bloqueadaTooltip || subtarea.motivo_standby || ""}
-                                                                className={
-                                                                    subtarea.estado === "EN_ESPERA"
-                                                                        ? styles.estadoEnEspera
-                                                                        : subtarea.estado === "EN_DESARROLLO"
-                                                                            ? styles.estadoEnDesarrollo
-                                                                            : subtarea.estado === "SOLUCIONADO"
-                                                                                ? styles.estadoSolucionado
-                                                                                : subtarea.estado === "STAND_BY"
-                                                                                    ? styles.estadoEnStandBy
-                                                                                    : ""
-                                                                }
-                                                            >
-                                                                <td data-label="Descripción">
-                                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{subtarea.codigo ? <span style={{ background: "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))", color: "var(--color-detail-header)", fontSize: 10, padding: "2px 6px", borderRadius: 6, marginRight: 6 }}>{subtarea.codigo}</span> : null}{subtarea.descripcion} {bloqueada && <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", color: "var(--color-danger)", fontSize: 10, padding: "2px 6px", borderRadius: 6 }}>Bloqueada</span>}</div>
-
-                                                                    {subtarea.estado !== "STAND_BY" ?
-                                                                        <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Inicio: {formatearFecha(subtarea.fecha_inicio)} · Fin: {formatearFecha(subtarea.fecha_fin)}</div>
-                                                                        : <div>{subtarea.motivo_standby && <span style={{ color: "var(--color-waiting)" }}>Motivo de pausa: {subtarea.motivo_standby}</span>}</div>}
-
-                                                                    {subtarea.estado === "SOLUCIONADO" && subtarea.tiempo_tomado_formateado && <div style={{ fontSize: 10, color: "var(--color-done)", fontWeight: 700 }}>Tomado: {subtarea.tiempo_tomado_formateado} ({subtarea.tiempo_tomado_horas}h)</div>}
-                                                                </td>
-                                                                <td data-label="Asignado">{subtarea.asignado_nombre}</td>
-                                                                <td data-label="Cambiar Estado">
-                                                                    {esMiSubtarea && onCambiarEstadoSubtarea ? (
-                                                                        subtarea.estado === "SOLUCIONADO" ? (
-                                                                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", color: "var(--color-done)", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))" }}>✓ Solucionado</span>
-                                                                        ) : subtarea.estado === "STAND_BY" ? (
-                                                                            <button
-                                                                                onClick={() => abrirReanudar(subtarea.id)}
-                                                                                style={{ background: "var(--color-waiting)", color: "black", border: "none", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700 }}
-                                                                                title="Reanudar: continuar la cuenta regresiva o fijar nueva fecha de entrega"
-                                                                            >
-                                                                                REANUDAR
-                                                                            </button>
-                                                                        ) : (
-                                                                            <select
-                                                                                value={subtarea.estado}
-                                                                                onChange={(e) => {
-                                                                                    const nuevo = e.target.value;
-                                                                                    if (bloqueada && nuevo === "EN_DESARROLLO") {
-                                                                                        alert(`Bloqueada por: ${bloqueadorasPendientes.map(b => b.descripcion).join(", ")} - debe solucionarse primero`);
-                                                                                        return;
-                                                                                    }
-                                                                                    if (nuevo === "SOLUCIONADO") {
-                                                                                        const ok = confirm("¿Terminar subtarea? Se bloqueará en Solucionado.");
-                                                                                        if (!ok) return;
-                                                                                    }
-                                                                                    if (nuevo === "STAND_BY") {
-                                                                                        const motivo = prompt("Motivo de pausa (STAND_BY) obligatorio:");
-                                                                                        if (!motivo || !motivo.trim()) return;
-                                                                                        onCambiarEstadoSubtarea(tarea.id, subtarea.id, nuevo, motivo.trim());
-                                                                                    } else {
-                                                                                        onCambiarEstadoSubtarea(tarea.id, subtarea.id, nuevo);
-                                                                                    }
-                                                                                }}
-                                                                                className={styles.estadoSelect}
-                                                                                disabled={bloqueada && subtarea.estado === "EN_ESPERA"}
-                                                                                title={bloqueadaTooltip || "Cambiar estado"}
-                                                                            >
-                                                                                <option value="EN_ESPERA">En espera</option>
-                                                                                <option value="EN_DESARROLLO">En desarrollo</option>
-                                                                                <option value="STAND_BY">Stand-by</option>
-                                                                                <option value="SOLUCIONADO">Solucionado</option>
-                                                                            </select>
-                                                                        )
-                                                                    ) : puedeEmpezar ? (
-                                                                        <button
-                                                                            onClick={() => onEmpezarTarea!(tarea.id, subtarea.id)}
-                                                                            disabled={empezandoId === subtarea.id}
-                                                                            title={bloqueadaTooltip}
-                                                                            style={{
-                                                                                background: bloqueada ? "var(--color-text-secondary)" : "var(--color-in-progress)",
-                                                                                color: "var(--color-on-accent)",
-                                                                                border: "none",
-                                                                                padding: "4px 10px",
-                                                                                borderRadius: 6,
-                                                                                cursor: bloqueada ? "not-allowed" : "pointer",
-                                                                                fontSize: 12,
-                                                                            }}
-                                                                        >
-                                                                            {bloqueada ? "Bloqueada" : empezandoId === subtarea.id ? "Iniciando…" : "Empezar"}
-                                                                        </button>
-                                                                    ) : puedeCompletar ? (
-                                                                        <button
-                                                                            onClick={() => onCompletarSubtarea!(tarea.id, subtarea.id)}
-                                                                            disabled={completandoId === subtarea.id}
-                                                                            style={{
-                                                                                background: "var(--color-done)",
-                                                                                color: "var(--color-on-accent)",
-                                                                                border: "none",
-                                                                                padding: "4px 10px",
-                                                                                borderRadius: 6,
-                                                                                cursor: "pointer",
-                                                                                fontSize: 12,
-                                                                            }}
-                                                                        >
-                                                                            {completandoId === subtarea.id ? "Guardando…" : "Marcar como completado"}
-                                                                        </button>
-                                                                    ) : subtarea.estado === "SOLUCIONADO" ? (
-                                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "color-mix(in srgb, var(--color-done) 12%, var(--color-background))", color: "var(--color-done)", padding: "6px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700, border: "1px solid color-mix(in srgb, var(--color-done) 28%, var(--color-background))" }}>✓ Solucionado</span>
-                                                                    ) : subtarea.estado === "STAND_BY" ? (
-                                                                        <span style={{ color: "var(--color-waiting)", fontSize: 11, fontWeight: 600 }}>Pausada</span>
-                                                                    ) : (
-                                                                        <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>-</span>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        )
-                                                    })}
+                                                    {tarea.subtareas.map((s) => (
+                                                        <tr
+                                                            key={s.id}
+                                                            className={
+                                                                s.estado === "SOLUCIONADO"
+                                                                    ? styles.estadoSolucionado
+                                                                    : s.estado === "EN_DESARROLLO"
+                                                                        ? styles.estadoEnDesarrollo
+                                                                        : s.estado === "STAND_BY"
+                                                                            ? styles.estadoEnStandBy
+                                                                            : styles.estadoEnEspera
+                                                            }
+                                                            title={s.motivo_standby || ""}
+                                                        >
+                                                            <td data-label="Subtarea">{s.descripcion}</td>
+                                                            <td data-label="Estado"><TaskStatusBadge estado={s.estado} compact /></td>
+                                                            <td data-label="Peso">{s.peso}</td>
+                                                            <td data-label="Asignado">{s.asignado_nombre}</td>
+                                                        </tr>
+                                                    ))}
                                                 </tbody>
                                             </table>
                                         </div>

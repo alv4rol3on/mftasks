@@ -77,7 +77,7 @@ export default function ReabrirSubtareaDialog({ subtarea, onClose, onConfirmar }
     >
       <p style={{ margin: 0, fontSize: 13, color: "var(--color-text)" }}>
         La subtarea <strong>{subtarea.codigo ?? `#${subtarea.id}`}</strong> volverá
-        a <strong>En desarrollo</strong> y la solicitud dejará de estar solucionada.
+        a <strong>En desarrollo</strong>.
       </p>
       <label style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>Motivo de reapertura *</span>

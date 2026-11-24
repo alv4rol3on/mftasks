@@ -1668,25 +1668,6 @@ class TaskViewSet(viewsets.ModelViewSet):
     def logs(self, request, pk=None):
         tarea = self.get_object()
 
-        from .permissions import es_miembro_del_equipo
-
-        es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
-        es_solicitante = tarea.solicitante_id == request.user.id
-
-        # Solo pueden consultar el historial:
-        # - Miembros del equipo.
-        # - Solicitantes de la tarea.
-        # - Administradores.
-        if not (
-            es_equipo
-            or es_solicitante
-            or es_administrador(request.user)
-        ):
-            return Response(
-                {"detail": "No tienes permiso para ver el historial."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         # Todos los usuarios autorizados (incluido el cliente solicitante)
         # ven el mismo historial completo de la solicitud.
         qs = (
@@ -1745,21 +1726,6 @@ class TaskViewSet(viewsets.ModelViewSet):
     def archivos_zip(self, request, pk=None):
         tarea = self.get_object()
 
-        from .permissions import es_miembro_del_equipo
-
-        es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
-        es_solicitante = tarea.solicitante_id == request.user.id
-
-        if not (
-            es_equipo
-            or es_solicitante
-            or es_administrador(request.user)
-        ):
-            return Response(
-                {"detail": "No tienes permiso para consultar esta información."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         archivos = list(tarea.archivos.all())
         if not archivos:
             return Response(
@@ -1805,20 +1771,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def descargar_archivo(self, request, pk=None, archivo_id=None):
         """Descarga autenticada de un adjunto, sin exponer /media."""
-        from .permissions import puede_observar_tarea
-
         tarea = self.get_object()
         archivo = get_object_or_404(
             ArchivoTarea,
             id=archivo_id,
             tarea=tarea,
         )
-
-        if not puede_observar_tarea(request.user, tarea):
-            return Response(
-                {"detail": "No tienes permiso para descargar este archivo."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         if not archivo.archivo:
             return Response(
@@ -1882,21 +1840,6 @@ class TaskViewSet(viewsets.ModelViewSet):
     )
     def informacion_cliente(self, request, pk=None):
         tarea = self.get_object()
-
-        from .permissions import es_miembro_del_equipo
-
-        es_equipo = es_miembro_del_equipo(request.user, tarea.equipo)
-        es_solicitante = tarea.solicitante_id == request.user.id
-
-        if not (
-            es_equipo
-            or es_solicitante
-            or es_administrador(request.user)
-        ):
-            return Response(
-                {"detail": "No tienes permiso para consultar esta información."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         logs = (
             TareaLog.objects.filter(

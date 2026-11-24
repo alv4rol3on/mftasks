@@ -352,7 +352,7 @@ export default function CampanasSection({ setMsg }: Props) {
           </button>
         </div>
 
-        {entidades.length > 0 && (
+        {/*{entidades.length > 0 && (
           <div className={styles.entidadesBlock}>
             <div className={styles.entidadesTitle}>Entidades</div>
 
@@ -378,7 +378,7 @@ export default function CampanasSection({ setMsg }: Props) {
               ))}
             </div>
           </div>
-        )}
+        )}*/}
 
         <div className={styles.permisosHeader}>
           <div className={styles.permisosField} style={{ maxWidth: 400 }}>

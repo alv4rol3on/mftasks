@@ -12,7 +12,8 @@ export type IconName =
   | "power"
   | "plus"
   | "check"
-  | "close";
+  | "close"
+  | "settings";
 
 const ICONS: Record<IconName, ReactNode> = {
   edit: (
@@ -67,6 +68,13 @@ const ICONS: Record<IconName, ReactNode> = {
       <path d="M6 6l12 12" />
     </>
   ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M19.07 4.93l-1.42 1.42M6.35 17.65l-1.42 1.42" />
+    </>
+  ),
 };
 
 export type IconButtonVariant =
@@ -92,7 +100,7 @@ export default function IconButton({
   onClick,
   title,
   variant = "neutral",
-  size = 16,
+  size = icon === "settings" ? 18 : 16,
   disabled = false,
   className,
 }: Props) {
@@ -103,7 +111,7 @@ export default function IconButton({
       disabled={disabled}
       title={title}
       aria-label={title}
-      className={`${styles.btn} ${styles[variant]} ${className ?? ""}`}
+      className={`${styles.btn} ${styles[variant]} ${icon === "settings" ? styles.settings : ""} ${className ?? ""}`}
     >
       <svg
         width={size}

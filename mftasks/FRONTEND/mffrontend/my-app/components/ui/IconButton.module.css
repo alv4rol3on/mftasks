@@ -80,3 +80,16 @@
 .warning:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-waiting) 18%, var(--color-background));
 }
+
+/* Botón de configuración: área de clic equilibrada y engranaje centrado */
+.settings {
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  flex: 0 0 34px;
+}
+
+.settings svg {
+  display: block;
+  flex-shrink: 0;
+}

@@ -1079,6 +1079,9 @@ export default function EquiposPage() {
                               )}
 
                               <th style={{ padding: "10px 12px", fontWeight: 600 }}>Rol en equipo</th>
+                              {puedoGestionar && !esClientePuro && (
+                                <th style={{ padding: "10px 12px", fontWeight: 600, textAlign: "center" }}>Acciones</th>
+                              )}
                             </tr>
                           </thead>
 
@@ -1086,7 +1089,7 @@ export default function EquiposPage() {
                             {equipo.miembros.filter((m) => m.rol_en_equipo !== "LIDER").length === 0 ? (
                               <tr>
                                 <td
-                                  colSpan={esClientePuro ? 2 : 3}
+                                  colSpan={(esClientePuro ? 2 : 3) + (puedoGestionar && !esClientePuro ? 1 : 0)}
                                   style={{
                                     padding: 16,
                                     textAlign: "center",
@@ -1130,6 +1133,21 @@ export default function EquiposPage() {
                                     <td style={{ padding: "10px 12px" }}>
                                       {badgeRol(m.rol_en_equipo)}
                                     </td>
+
+                                    {puedoGestionar && !esClientePuro && (
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                                        <IconButton
+                                          icon="settings"
+                                          variant="info"
+                                          title={`Administrar integrante: ${nombreMiembro(m)}`}
+                                          disabled={!!accionando || !liderActivo}
+                                          onClick={() => {
+                                            setMensaje(null);
+                                            setModalMiembro({ equipo, miembro: m });
+                                          }}
+                                        />
+                                      </td>
+                                    )}
                                   </tr>
                                 ))
                             )}
