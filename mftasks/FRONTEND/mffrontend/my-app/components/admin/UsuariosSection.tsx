@@ -387,8 +387,8 @@ export default function UsuariosSection({ setMsg }: Props) {
 
                           <td>
                             <IconButton
-                              icon="edit"
-                              variant="primary"
+                              icon="settings"
+                              variant="info"
                               disabled={esAdmin}
                               title={
                                 esAdmin

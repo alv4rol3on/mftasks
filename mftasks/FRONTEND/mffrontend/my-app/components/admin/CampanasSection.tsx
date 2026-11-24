@@ -623,9 +623,9 @@ export default function CampanasSection({ setMsg }: Props) {
                                 }}
                               >
                                 <IconButton
-                                  icon="edit"
+                                  icon="settings"
                                   size={12}
-                                  variant="primary"
+                                  variant="info"
                                   title={`Editar nombre de la subcampaña ${sub.nombre}`}
                                   onClick={() =>
                                     setEditTarget({

@@ -1,0 +1,1 @@
+opcion para eliminar entidades/campañas/subcampañas dejando rastro de que alguna vez existieron
