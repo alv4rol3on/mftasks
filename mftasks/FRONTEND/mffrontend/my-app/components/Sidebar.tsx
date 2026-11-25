@@ -29,37 +29,42 @@ const menuAll: MenuItem[] = [
 interface SidebarProps {
   menuOpen: boolean;
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  pinned: boolean;
+  setPinned: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function Sidebar({
   menuOpen,
   setMenuOpen,
+  pinned,
+  setPinned,
 }: SidebarProps) {
   const pathname = usePathname();
   const { caps } = useCapacidades();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const visible = pinned || menuOpen;
 
   const menu = useMemo(() => menuAll.filter((m) => m.show(caps)), [caps]);
 
-  // Cierra el drawer al navegar y restaura el foco al botón que lo abrió.
+  // Al navegar se cierra el menú temporal, pero el sidebar fijado permanece visible.
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname, setMenuOpen]);
 
   useEffect(() => {
-    if (menuOpen) {
+    if (menuOpen && !pinned) {
       previousFocusRef.current = document.activeElement as HTMLElement | null;
       requestAnimationFrame(() => closeButtonRef.current?.focus());
     } else if (previousFocusRef.current?.isConnected) {
       previousFocusRef.current.focus();
       previousFocusRef.current = null;
     }
-  }, [menuOpen]);
+  }, [menuOpen, pinned]);
 
-  // Bloquear scroll y permitir cerrar con Escape.
+  // Bloquear scroll y permitir cerrar con Escape solo cuando el menú es temporal.
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen || pinned) return;
 
     const previousBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -73,26 +78,52 @@ export default function Sidebar({
       document.body.style.overflow = previousBodyOverflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [menuOpen, setMenuOpen]);
+  }, [menuOpen, pinned, setMenuOpen]);
+
+  const alternarFijado = () => {
+    setPinned((actual) => !actual);
+    setMenuOpen(false);
+  };
 
   return (
     <>
       <div
-        className={`sidebar-overlay ${menuOpen ? "show" : ""}`}
+        className={`sidebar-overlay ${menuOpen && !pinned ? "show" : ""}`}
         onClick={() => setMenuOpen(false)}
         aria-hidden="true"
       />
 
-      <aside id="sidebar" className={`sidebar ${menuOpen ? "open" : ""}`} aria-hidden={!menuOpen}>
-        <button
-          ref={closeButtonRef}
-          type="button"
-          className="sidebar-close"
-          aria-label="Cerrar menú"
-          onClick={() => setMenuOpen(false)}
-        >
-          ✕
-        </button>
+      <aside
+        id="sidebar"
+        className={`sidebar ${visible ? "open" : ""} ${pinned ? "pinned" : ""}`}
+        aria-hidden={!visible}
+      >
+        <div className="sidebar-toolbar">
+          <button
+            type="button"
+            className={`sidebar-pin ${pinned ? "is-pinned" : ""}`}
+            aria-label={pinned ? "Desfijar barra lateral" : "Fijar barra lateral"}
+            aria-pressed={pinned}
+            title={pinned ? "Desfijar barra lateral" : "Fijar barra lateral"}
+            onClick={alternarFijado}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M16 3 21 8l-3 1-4 4v4l-2 2-2-6-5-5 2-2 5 5 4-4z" />
+              <path d="m5 19 5-5" />
+            </svg>
+          </button>
+
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="sidebar-close"
+            aria-label="Cerrar menú"
+            onClick={() => setMenuOpen(false)}
+          >
+            ✕
+          </button>
+        </div>
+
         <div className="sidebar-logo-container">
           <img src="/mfsac.png" alt="MF SAC" className="sidebar-logo" />
         </div>

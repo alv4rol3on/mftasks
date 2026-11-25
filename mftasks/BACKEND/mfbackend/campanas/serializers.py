@@ -54,8 +54,13 @@ class SubCampanaSerializer(serializers.ModelSerializer):
             "eliminado_por",
             "fecha_creacion",
         ]
-        read_only_fields = ["codigo", "eliminado", "fecha_eliminacion", "eliminado_por"]
-
+        read_only_fields = [
+            "codigo",
+            "eliminado",
+            "fecha_eliminacion",
+            "eliminado_por",
+        ]
+        validators = []
     def validate(self, attrs):
         attrs = super().validate(attrs)
         nombre = attrs.get("nombre", getattr(self.instance, "nombre", ""))
@@ -95,8 +100,14 @@ class CampanaSerializer(serializers.ModelSerializer):
             "fecha_creacion",
             "subcampanas",
         ]
-        read_only_fields = ["codigo", "eliminado", "fecha_eliminacion", "eliminado_por"]
-
+        read_only_fields = [
+            "codigo",
+            "eliminado",
+            "fecha_eliminacion",
+            "eliminado_por",
+        ]
+        validators = []
+        
     def get_subcampanas(self, obj):
         qs = obj.subcampanas.all()
         if not _incluir_eliminados(self.context):

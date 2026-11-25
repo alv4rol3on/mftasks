@@ -290,7 +290,7 @@ export default function RolesSection({ setMsg }: Props) {
       <div className={styles.card}>
         <div className={styles.usersHeader}>
           <h3 className={styles.cardTitle} style={{ margin: 0 }}>
-            Roles ({filas.length} / {(roles.length)-2})
+            Niveles ({filas.length} / {(roles.length) - 2})
           </h3>
 
           <div className={styles.usersFilters}>

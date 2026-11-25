@@ -12,6 +12,7 @@ import CancelarSolicitudModal from "@/components/solicitudes/CancelarSolicitudMo
 import AgregarInformacionModal from "./AgregarInformacionModal";
 import ConfirmarSolucionModal from "./ConfirmarSolucionModal";
 import ReabrirSolicitudModal from "./ReabrirSolicitudModal";
+import { createPortal } from "react-dom";
 
 
 const formatter = new Intl.DateTimeFormat("es-PE", {
@@ -99,7 +100,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
         display: "flex",
         flexWrap: "wrap",
         gap: 8,
-        padding: "0 22px 16px",
+        padding: "12px 22px 16px",
       }}
     >
 
@@ -120,7 +121,7 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
     </div>
   );
 
-  return (
+  return createPortal(
     <div className={styles.modalOverlay}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
@@ -474,6 +475,6 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
           onSaved={refrescar}
         />
       )}
-    </div >
+    </div >, document.body
   );
 }

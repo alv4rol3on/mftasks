@@ -1,6 +1,6 @@
 .dashboard-layout {
     display: flex;
-    width: 100vw;
+    width: 100%;
     height: 100vh;
     height: 100dvh;
     min-height: 100dvh;
@@ -43,26 +43,12 @@
     min-width: 0;
 }
 
-.dashboard-user h1 {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+.dashboard-user h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-user span { font-size: 11px; font-weight: 400; opacity: .9; }
+.dashboard-header h1 { font-size: 20px; margin: 0; }
 
-.dashboard-user span {
-    font-size: 11px;
-    font-weight: 400;
-    opacity: .9;
-}
-
-.dashboard-layout.sidebar-open .dashboard-content {
-    overflow: hidden;
-}
-
-.dashboard-header h1 {
-    font-size: 20px;
-    margin: 0;
-}
+/* El menú temporal cubre el contenido; el fijado reserva espacio mediante flexbox. */
+.dashboard-layout.sidebar-open:not(.sidebar-pinned) .dashboard-content { overflow: hidden; }
 
 .dashboard-logout {
     padding: 6px 12px;
@@ -76,12 +62,7 @@
     border-radius: var(--radius-control);
 }
 .dashboard-logout:hover {
-    padding: 6px 12px;
-    font-size: 14px;
-    font-weight: 500;
     color: white;
-    cursor: pointer;
-    text-decoration: none;
     background-color: var(--color-brand-hover);
     border-color: var(--color-brand-hover);
 }
@@ -98,58 +79,8 @@
 }
 
 @keyframes dashboardPageIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-/* ---------- Tablet ---------- */
-
-@media (max-width: 992px) {
-
-    .dashboard-header {
-        padding: 0 12px;
-    }
-
-    .dashboard-header h1 {
-        font-size: 18px;
-    }
-
-    .dashboard-content {
-        padding: 16px;
-    }
-
-}
-
-/* ---------- Celular ---------- */
-
-@media (max-width: 768px) {
-
-    .dashboard-layout {
-        flex-direction: column;
-    }
-
-    .dashboard-header {
-        height: 56px;
-        padding: 0 15px;
-    }
-
-    .dashboard-header h1 {
-        font-size: 16px;
-    }
-
-    .dashboard-logout {
-        font-size: 13px;
-        padding: 4px 8px;
-    }
-
-    .dashboard-content {
-        padding: 15px;
-    }
-
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .menu-button {
@@ -167,30 +98,9 @@
     line-height: 1;
     cursor: pointer;
 }
-
-.menu-button:hover {
-    background: rgba(255, 255, 255, .14);
-}
-
-.menu-button:focus-visible {
-    outline: 2px solid var(--color-background);
-    outline-offset: 2px;
-}
-
-@media (max-width: 768px) {
-    .menu-button {
-        width: 34px;
-        height: 34px;
-        font-size: 24px;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .dashboard-content {
-        animation: none;
-    }
-}
-
+.dashboard-layout.sidebar-pinned .menu-button { display: none; }
+.menu-button:hover { background: rgba(255, 255, 255, .14); }
+.menu-button:focus-visible { outline: 2px solid var(--color-background); outline-offset: 2px; }
 
 .dashboard-header-actions {
     display: flex;
@@ -214,26 +124,32 @@
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
+.dashboard-theme-toggle:hover { background: rgb(235, 118, 22); }
+.dashboard-theme-toggle:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
 
-.dashboard-theme-toggle:hover {
-    background: rgb(235, 118, 22);
+@media (max-width: 992px) {
+    .dashboard-header { padding: 0 12px; }
+    .dashboard-header h1 { font-size: 18px; }
+    .dashboard-content { padding: 16px; }
 }
 
-.dashboard-theme-toggle:focus-visible {
-    outline: 2px solid #FFFFFF;
-    outline-offset: 2px;
+@media (max-width: 768px) {
+    .dashboard-layout { flex-direction: column; }
+    .dashboard-header { height: 56px; padding: 0 15px; }
+    .dashboard-header h1 { font-size: 16px; }
+    .dashboard-logout { font-size: 13px; padding: 4px 8px; }
+    .dashboard-content { padding: 15px; }
+    .dashboard-layout.sidebar-pinned .menu-button { display: inline-flex; }
+    .menu-button { width: 34px; height: 34px; font-size: 24px; }
+    /* En móvil siempre se conserva el acceso al menú, aunque esté fijado en escritorio. */
 }
 
 @media (max-width: 480px) {
-    .dashboard-header-actions {
-        gap: 5px;
-    }
+    .dashboard-header-actions { gap: 5px; }
+    .dashboard-theme-toggle { padding: 7px; }
+    .dashboard-theme-toggle span { display: none; }
+}
 
-    .dashboard-theme-toggle {
-        padding: 7px;
-    }
-
-    .dashboard-theme-toggle span {
-        display: none;
-    }
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-content { animation: none; }
 }

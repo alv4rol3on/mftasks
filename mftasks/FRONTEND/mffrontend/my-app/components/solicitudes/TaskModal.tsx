@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import styles from "./TaskModalSolicitudes.module.css";
 import { Task } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
@@ -42,6 +43,7 @@ export default function TaskModal({
     onReload
 }: Props) {
     const [seguimiento, setSeguimiento] = useState<EventoSeguimiento[] | null>(null);
+    const [portalReady, setPortalReady] = useState(false);
     const [rechazando, setRechazando] = useState(false);
     const [motivo, setMotivo] = useState("");
     const [aprobandoReapertura, setAprobandoReapertura] = useState(false);
@@ -53,6 +55,10 @@ export default function TaskModal({
         reapertura?: boolean;
     } | null>(null);
 
+
+    useEffect(() => {
+        setPortalReady(true);
+    }, []);
 
     const tareaId = tarea?.id ?? null;
 
@@ -78,7 +84,7 @@ export default function TaskModal({
         };
     }, [tareaId]);
 
-    if (!tarea) return null;
+    if (!tarea || !portalReady) return null;
 
     const esReapertura = tarea.estado === "REAPERTURA_PENDIENTE";
     const puedeOperar =
@@ -203,7 +209,7 @@ export default function TaskModal({
     };
 
     if (respuesta) {
-        return (
+        return createPortal(
             <div className={styles.overlay}>
                 <div className={styles.card}>
 
@@ -266,11 +272,12 @@ export default function TaskModal({
                     </button>
 
                 </div>
-            </div>
+            </div>,
+            document.body
         );
     }
 
-    return (
+    return createPortal(
         <>
             <div className={styles.modalOverlay}>
                 <div
@@ -547,7 +554,8 @@ export default function TaskModal({
                     onSaved={confirmarAprobarReapertura}
                 />
             )}
-        </>
+        </>,
+        document.body
     );
 }
 

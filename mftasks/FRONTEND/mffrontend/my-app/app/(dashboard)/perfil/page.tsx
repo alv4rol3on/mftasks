@@ -253,11 +253,9 @@ export default function PerfilPage() {
               <span className={styles.valueMono}>{usuario?.codigo ?? "—"}</span>
             </div>
             <div className={styles.field}>
-              <span className={styles.label}>Rol</span>
+              <span className={styles.label}>Cargo</span>
               <span className={styles.badges}>
-                {roles.length > 0
-                  ? roles.map((r) => <span key={r} className={styles.badge}>{r}</span>)
-                  : <span className={styles.value}>—</span>}
+                {usuario ? `${usuario.cargo}` : "—"}
               </span>
             </div>
           </div>
@@ -472,7 +470,7 @@ export default function PerfilPage() {
 
             {esCliente && (
               <div className={styles.notifGroup}>
-                <h4 className={styles.notifGroupTitle}>Como cliente</h4>
+                <h4 className={styles.notifGroupTitle}>Notificaciones de mis solicitudes</h4>
                 {CAMPOS_CLIENTE.map((campo) => (
                   <CampoNotificacion
                     key={campo.key}

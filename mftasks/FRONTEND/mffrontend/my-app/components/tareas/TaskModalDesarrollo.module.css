@@ -5,7 +5,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 999;
+    z-index: 1100;
     padding: 16px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -2063,7 +2063,7 @@
   min-width: 0;
   max-width: none;
 }
-/* Barra de pesta�as responsive del detalle de solicitud */
+/* Barra de pesta�as responsive del detalle de solicitud */
 .tabsBar {
     display: flex;
     align-items: center;
@@ -2101,28 +2101,62 @@
     flex: 0 0 auto;
 }
 
+
 @media (max-width: 768px) {
-    .tabsNav {
-        display: none;
-    }
-
-    .tabsSelect {
-        display: block;
-    }
-
     .tabsBar {
+        display: flex;
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
+        width: 100%;
+        gap: 12px;
+        min-width: 0;
     }
 
     .tabsBar .tabsHeader {
-        flex-basis: 100%;
-        flex-wrap: wrap;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-width: 0;
+        flex-basis: auto;
+        margin: 0;
         overflow: visible;
     }
 
-    .tabsDownloadBtn {
+    /* Mantener visibles las tres pestañas */
+    .tabsNav {
+        display: flex;
+        flex-wrap: nowrap;
         width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        gap: 6px;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tabsNav .tabBtn,
+    .tabsNav .tabBtnActive {
+        display: block;
+        flex: 0 0 auto;
+        white-space: nowrap;
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+
+    /* Ocultar únicamente el selector alternativo */
+    .tabsSelect {
+        display: none;
+    }
+
+    /* Botón PDF siempre visible */
+    .tabsDownloadBtn {
+        display: block;
+        width: 100%;
+        flex: 0 0 auto;
+        box-sizing: border-box;
+        text-align: center;
+        white-space: normal !important;
     }
 }
+

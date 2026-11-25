@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import styles from "./Modal.module.css";
 
 type Props = {
@@ -19,7 +20,7 @@ export default function Modal({
   maxWidth,
   ariaLabel,
 }: Props) {
-  return (
+  return createPortal(
     <div className={styles.overlay} role="presentation">
       <div
         className={styles.modal}
@@ -45,6 +46,6 @@ export default function Modal({
 
         {footer && <div className={styles.footer}>{footer}</div>}
       </div>
-    </div>
+    </div>, document.body
   );
 }
