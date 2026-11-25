@@ -10,15 +10,30 @@ class Campana(models.Model):
         related_name="campanas",
     )
     nombre = models.CharField(max_length=100)
-    codigo = models.CharField(max_length=30, unique=True, blank=True)
+    codigo = models.CharField(max_length=30, blank=True)
     activo = models.BooleanField(default=True)
+    eliminado = models.BooleanField(default=False, db_index=True)
+    fecha_eliminacion = models.DateTimeField(null=True, blank=True)
+    eliminado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="campanas_eliminadas",
+    )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
             UniqueConstraint(
                 fields=["entidad", "nombre"],
-                name="uniq_campana_entidad_nombre",
+                condition=Q(eliminado=False),
+                name="uniq_campana_entidad_nombre_activo",
+            ),
+            UniqueConstraint(
+                fields=["codigo"],
+                condition=Q(eliminado=False),
+                name="uniq_campana_codigo_activo",
             ),
         ]
         indexes = [
@@ -36,10 +51,15 @@ class Campana(models.Model):
         if not self.entidad_id:
             from clientes.models import Entidad
 
-            entidad, _ = Entidad.objects.get_or_create(
+            entidad = Entidad.objects.filter(
                 nombre=self.nombre,
-                defaults={"razon_social": self.nombre},
-            )
+                eliminado=False,
+            ).first()
+            if entidad is None:
+                entidad = Entidad.objects.create(
+                    nombre=self.nombre,
+                    razon_social=self.nombre,
+                )
             self.entidad = entidad
 
         if not self.codigo:
@@ -56,12 +76,32 @@ class SubCampana(models.Model):
         related_name="subcampanas",
     )
     nombre = models.CharField(max_length=100)
-    codigo = models.CharField(max_length=40, unique=True, blank=True)
+    codigo = models.CharField(max_length=40, blank=True)
     activo = models.BooleanField(default=True)
+    eliminado = models.BooleanField(default=False, db_index=True)
+    fecha_eliminacion = models.DateTimeField(null=True, blank=True)
+    eliminado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subcampanas_eliminadas",
+    )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("campana", "nombre")
+        constraints = [
+            UniqueConstraint(
+                fields=["campana", "nombre"],
+                condition=Q(eliminado=False),
+                name="uniq_subcampana_campana_nombre_activo",
+            ),
+            UniqueConstraint(
+                fields=["codigo"],
+                condition=Q(eliminado=False),
+                name="uniq_subcampana_codigo_activo",
+            ),
+        ]
         indexes = [
             models.Index(fields=["campana", "activo"]),
         ]

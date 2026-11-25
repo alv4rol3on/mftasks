@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
-import Switch from "@/components/ui/Switch";
 import Pagination from "@/components/ui/Pagination";
 import IconButton from "@/components/ui/IconButton";
 
@@ -12,19 +11,26 @@ import CampanaModal from "./CampanaModal";
 import EditarNombreModal, {
   type TipoNombre,
 } from "./EditarNombreModal";
+import AccionesCatalogoModal, {
+  type AccionCatalogo,
+} from "./AccionesCatalogoModal";
 
 type Subcampana = {
   id: number;
   nombre: string;
   codigo: string;
   activo: boolean;
+  eliminado: boolean;
   campana: number;
+  fecha_eliminacion?: string | null;
 };
 
 type EntidadPerm = {
   id: number;
   nombre: string;
   activo: boolean;
+  eliminado: boolean;
+  fecha_eliminacion?: string | null;
 };
 
 type CampanaPerm = {
@@ -35,11 +41,15 @@ type CampanaPerm = {
   codigo: string;
   subcampanas: Subcampana[];
   activo: boolean;
+  eliminado: boolean;
+  fecha_eliminacion?: string | null;
 };
 
 type Props = {
   setMsg: (msg: string | null) => void;
 };
+
+type FiltroEstado = "activos" | "inactivos" | "eliminados" | "todos";
 
 const PAGE_SIZE_CAMPANAS = 6;
 
@@ -49,17 +59,44 @@ type EditTarget = {
   nombre: string;
 };
 
+type AccionesTarget = {
+  tipo: TipoNombre;
+  id: number;
+  nombre: string;
+  activo: boolean;
+  eliminado: boolean;
+  parentActivo: boolean;
+  parentEliminado: boolean;
+  subcampanasCount: number;
+};
+
+const estadoCoincide = (
+  filtro: FiltroEstado,
+  activo: boolean,
+  eliminado: boolean
+) => {
+  if (filtro === "eliminados") return eliminado;
+  if (filtro === "activos") return !eliminado && activo;
+  if (filtro === "inactivos") return !eliminado && !activo;
+  return true;
+};
+
+const sufijoEstado = (activo: boolean, eliminado: boolean) => {
+  if (eliminado) return " (eliminada)";
+  if (!activo) return " (inactiva)";
+  return "";
+};
+
 export default function CampanasSection({ setMsg }: Props) {
   const [campanas, setCampanas] = useState<CampanaPerm[]>([]);
   const [entidades, setEntidades] = useState<EntidadPerm[]>([]);
-  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [accionEnCurso, setAccionEnCurso] = useState(false);
 
   const [filtroCampana, setFiltroCampana] = useState("");
   const [filtroEntidad, setFiltroEntidad] = useState("");
 
-  const [filtroActivoCampana, setFiltroActivoCampana] = useState<
-    "activos" | "inactivos" | "todos"
-  >("activos");
+  const [filtroActivoCampana, setFiltroActivoCampana] =
+    useState<FiltroEstado>("activos");
 
   const [expandidas, setExpandidas] = useState<Set<number>>(new Set());
 
@@ -68,12 +105,16 @@ export default function CampanasSection({ setMsg }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [accionesTarget, setAccionesTarget] =
+    useState<AccionesTarget | null>(null);
 
   const nombresExistentes = (() => {
     if (!editTarget) return [];
 
     if (editTarget.tipo === "entidad") {
-      return entidades.filter((entidad) => entidad.id !== editTarget.id);
+      return entidades.filter(
+        (entidad) => entidad.id !== editTarget.id && !entidad.eliminado
+      );
     }
 
     if (editTarget.tipo === "campana") {
@@ -85,7 +126,9 @@ export default function CampanasSection({ setMsg }: Props) {
 
       return campanas.filter(
         (item) =>
-          item.entidad === campana.entidad && item.id !== campana.id
+          item.entidad === campana.entidad &&
+          item.id !== campana.id &&
+          !item.eliminado
       );
     }
 
@@ -96,7 +139,7 @@ export default function CampanasSection({ setMsg }: Props) {
 
       if (sub) {
         return campana.subcampanas.filter(
-          (item) => item.id !== sub.id
+          (item) => item.id !== sub.id && !item.eliminado
         );
       }
     }
@@ -112,10 +155,10 @@ export default function CampanasSection({ setMsg }: Props) {
     try {
       const [data, dataEntidades] = await Promise.all([
         apiFetch<CampanaPerm[] | { results: CampanaPerm[] }>(
-          "/api/campanas/campanas/"
+          "/api/campanas/campanas/?incluir_eliminados=1"
         ),
         apiFetch<EntidadPerm[] | { results: EntidadPerm[] }>(
-          "/api/entidades/entidades/"
+          "/api/entidades/entidades/?incluir_eliminados=1"
         ),
       ]);
 
@@ -154,14 +197,6 @@ export default function CampanasSection({ setMsg }: Props) {
     });
   };
 
-  const expandirTodas = () => {
-    setExpandidas(new Set(campanasPaginadas.map(campana => campana.id)));
-  };
-
-  const colapsarTodas = () => {
-    setExpandidas(new Set());
-  };
-
   // --------------------------------------------------
   // FILTROS
   // --------------------------------------------------
@@ -171,11 +206,21 @@ export default function CampanasSection({ setMsg }: Props) {
       return false;
     }
 
-    if (filtroActivoCampana === "activos" && !campana.activo) {
-      return false;
-    }
+    const coincideCampana = estadoCoincide(
+      filtroActivoCampana,
+      campana.activo,
+      campana.eliminado
+    );
+    const coincideSub = campana.subcampanas.some(sub =>
+      estadoCoincide(filtroActivoCampana, sub.activo, sub.eliminado)
+    );
 
-    if (filtroActivoCampana === "inactivos" && campana.activo) {
+    const coincideEstado =
+      filtroActivoCampana === "eliminados"
+        ? coincideCampana || coincideSub
+        : coincideCampana;
+
+    if (!coincideEstado) {
       return false;
     }
 
@@ -211,6 +256,14 @@ export default function CampanasSection({ setMsg }: Props) {
     pageCampanas * PAGE_SIZE_CAMPANAS
   );
 
+  const expandirTodas = () => {
+    setExpandidas(new Set(campanasPaginadas.map(campana => campana.id)));
+  };
+
+  const colapsarTodas = () => {
+    setExpandidas(new Set());
+  };
+
   useEffect(() => {
     setPageCampanas(1);
   }, [filtroCampana, filtroEntidad, filtroActivoCampana]);
@@ -242,92 +295,201 @@ export default function CampanasSection({ setMsg }: Props) {
   }, [filtroActivoCampana]);
 
   // --------------------------------------------------
-  // ACTIVAR / DESACTIVAR CAMPAÑA
+  // ACCIONES
   // --------------------------------------------------
 
-  const toggleActivoCampana = async (campana: CampanaPerm) => {
-    if (
-      !confirm(
-        `${
-          campana.activo ? "Inhabilitar" : "Habilitar"
-        } campaña ${campana.nombre} (${campana.codigo})?${
-          campana.activo
-            ? " Ningún usuario podrá crear tareas con sus subcampañas."
-            : ""
-        }`
-      )
-    ) {
-      return;
-    }
-
-    setTogglingId(campana.id);
-
-    try {
-      await apiFetch(`/api/campanas/campanas/${campana.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ activo: !campana.activo }),
-      });
-
-      setMsg(
-        `Campaña ${campana.codigo} ${
-          !campana.activo ? "habilitada" : "inhabilitada"
-        }`
-      );
-
-      await cargarCampanas();
-    } catch (e) {
-      setMsg(`Error: ${(e as Error).message}`);
-    } finally {
-      setTogglingId(null);
-    }
+  const abrirAcciones = (target: AccionesTarget) => {
+    setAccionesTarget(target);
   };
 
-  // --------------------------------------------------
-  // ACTIVAR / DESACTIVAR SUBCAMPAÑA
-  // --------------------------------------------------
+  const abrirAccionesEntidad = (entidad: EntidadPerm) => {
+    abrirAcciones({
+      tipo: "entidad",
+      id: entidad.id,
+      nombre: entidad.nombre,
+      activo: entidad.activo,
+      eliminado: entidad.eliminado,
+      parentActivo: true,
+      parentEliminado: false,
+      subcampanasCount: 0,
+    });
+  };
 
-  const toggleActivoSubcampana = async (
+  const abrirAccionesCampana = (campana: CampanaPerm) => {
+    const entidad = entidades.find(
+      (item) => item.id === campana.entidad
+    );
+
+    abrirAcciones({
+      tipo: "campana",
+      id: campana.id,
+      nombre: campana.nombre,
+      activo: campana.activo,
+      eliminado: campana.eliminado,
+      parentActivo: entidad
+        ? entidad.activo && !entidad.eliminado
+        : true,
+      parentEliminado: entidad?.eliminado ?? false,
+      subcampanasCount: campana.subcampanas.length,
+    });
+  };
+
+  const abrirAccionesSubcampana = (
     sub: Subcampana,
-    campActiva: boolean
+    campana: CampanaPerm
   ) => {
-    if (!campActiva && !sub.activo) {
-      setMsg("Error: la campaña está inhabilitada; habilítala primero");
+    const entidad = entidades.find(
+      (item) => item.id === campana.entidad
+    );
+    const entidadActiva = entidad
+      ? entidad.activo && !entidad.eliminado
+      : true;
+
+    abrirAcciones({
+      tipo: "subcampana",
+      id: sub.id,
+      nombre: sub.nombre,
+      activo: sub.activo,
+      eliminado: sub.eliminado,
+      parentActivo:
+        campana.activo && !campana.eliminado && entidadActiva,
+      parentEliminado: campana.eliminado || (entidad?.eliminado ?? false),
+      subcampanasCount: 0,
+    });
+  };
+
+  const endpointCatalogo = (tipo: TipoNombre, id: number) => {
+    if (tipo === "entidad") return `/api/entidades/entidades/${id}/`;
+    if (tipo === "campana") return `/api/campanas/campanas/${id}/`;
+    return `/api/campanas/subcampanas/${id}/`;
+  };
+
+  const toggleActivo = async (target: AccionesTarget) => {
+    const accion = target.activo ? "Inhabilitar" : "Habilitar";
+    const aviso =
+      target.tipo === "entidad"
+        ? " Al inhabilitarla, todas sus campañas y subcampañas dejarán de estar disponibles."
+        : target.tipo === "campana"
+          ? " Sus subcampañas no podrán usarse mientras esté inhabilitada."
+          : "";
+
+    if (!confirm(`${accion} ${target.nombre}?${aviso}`)) {
       return;
     }
 
+    setAccionEnCurso(true);
+    try {
+      await apiFetch(endpointCatalogo(target.tipo, target.id), {
+        method: "PATCH",
+        body: JSON.stringify({ activo: !target.activo }),
+      });
+      setMsg(
+        `${target.nombre} ${target.activo ? "inhabilitada" : "habilitada"}`
+      );
+      setAccionesTarget(null);
+      await cargarCampanas();
+    } catch (e) {
+      setMsg(`Error: ${(e as Error).message}`);
+    } finally {
+      setAccionEnCurso(false);
+    }
+  };
+
+  const eliminar = async (target: AccionesTarget) => {
+    const detalleCascada =
+      target.tipo === "entidad"
+        ? " Se eliminarán lógicamente sus campañas y subcampañas."
+        : target.tipo === "campana" && target.subcampanasCount > 0
+          ? ` Se eliminarán lógicamente sus ${target.subcampanasCount} subcampaña(s).`
+          : "";
+
     if (
       !confirm(
-        `${
-          sub.activo ? "Inhabilitar" : "Habilitar"
-        } subcampaña ${sub.nombre} (${sub.codigo})?${
-          sub.activo ? " Ningún usuario podrá crear tareas con ella." : ""
-        }`
+        `Eliminar ${target.nombre}?${detalleCascada} Las solicitudes históricas se conservan.`
       )
     ) {
       return;
     }
 
-    setTogglingId(sub.id);
-
+    setAccionEnCurso(true);
     try {
-      await apiFetch(`/api/campanas/subcampanas/${sub.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ activo: !sub.activo }),
-      });
-
-      setMsg(
-        `Subcampaña ${sub.codigo} ${
-          !sub.activo ? "habilitada" : "inhabilitada"
-        }`
+      const resultado = await apiFetch<{ detalle?: string }>(
+        endpointCatalogo(target.tipo, target.id),
+        { method: "DELETE" }
       );
-
+      setMsg(resultado.detalle ?? `${target.nombre} eliminada`);
+      setAccionesTarget(null);
       await cargarCampanas();
     } catch (e) {
       setMsg(`Error: ${(e as Error).message}`);
     } finally {
-      setTogglingId(null);
+      setAccionEnCurso(false);
     }
   };
+
+  const restaurar = async (target: AccionesTarget) => {
+    setAccionEnCurso(true);
+    try {
+      const resultado = await apiFetch<{ detalle?: string }>(
+        `${endpointCatalogo(target.tipo, target.id)}restaurar/`,
+        { method: "POST" }
+      );
+      setMsg(resultado.detalle ?? `${target.nombre} restaurada`);
+      setAccionesTarget(null);
+      await cargarCampanas();
+    } catch (e) {
+      setMsg(`Error: ${(e as Error).message}`);
+    } finally {
+      setAccionEnCurso(false);
+    }
+  };
+
+  const accionesModal: AccionCatalogo[] = (() => {
+    const target = accionesTarget;
+    if (!target) return [];
+
+    const acciones: AccionCatalogo[] = [
+      {
+        etiqueta: "Editar nombre",
+        disabled: target.eliminado,
+        onClick: () => {
+          setAccionesTarget(null);
+          setEditTarget({
+            tipo: target.tipo,
+            id: target.id,
+            nombre: target.nombre,
+          });
+        },
+      },
+      {
+        etiqueta: target.activo ? "Inhabilitar" : "Habilitar",
+        tono: "warning",
+        disabled: target.eliminado || !target.parentActivo,
+        title: target.eliminado
+          ? "Restaura primero el elemento."
+          : !target.parentActivo
+            ? "Habilita primero la entidad/campaña padre."
+            : undefined,
+        onClick: () => toggleActivo(target),
+      },
+      {
+        etiqueta: "Eliminar",
+        tono: "danger",
+        disabled: target.eliminado,
+        onClick: () => eliminar(target),
+      },
+    ];
+
+    if (target.eliminado) {
+      acciones.push({
+        etiqueta: "Restaurar",
+        tono: "success",
+        onClick: () => restaurar(target),
+      });
+    }
+
+    return acciones;
+  })();
 
   // --------------------------------------------------
   // RENDER
@@ -352,33 +514,35 @@ export default function CampanasSection({ setMsg }: Props) {
           </button>
         </div>
 
-        {/*{entidades.length > 0 && (
+        {entidades.length > 0 && (
           <div className={styles.entidadesBlock}>
             <div className={styles.entidadesTitle}>Entidades</div>
 
             <div className={styles.entidadesList}>
               {entidades.map((entidad) => (
-                <span key={entidad.id} className={styles.entidadChip}>
-                  <span>{entidad.nombre}</span>
+                <span
+                  key={entidad.id}
+                  className={`${styles.entidadChip} ${
+                    entidad.eliminado ? styles.entidadChipEliminada : ""
+                  }`}
+                >
+                  <span>
+                    {entidad.nombre}
+                    {sufijoEstado(entidad.activo, entidad.eliminado)}
+                  </span>
 
                   <IconButton
-                    icon="edit"
-                    size={12}
-                    variant="primary"
-                    title={`Editar nombre de la entidad ${entidad.nombre}`}
-                    onClick={() =>
-                      setEditTarget({
-                        tipo: "entidad",
-                        id: entidad.id,
-                        nombre: entidad.nombre,
-                      })
-                    }
+                    icon="settings"
+                    size={14}
+                    variant={entidad.eliminado ? "neutral" : "primary"}
+                    title={`Acciones de la entidad ${entidad.nombre}`}
+                    onClick={() => abrirAccionesEntidad(entidad)}
                   />
                 </span>
               ))}
             </div>
           </div>
-        )}*/}
+        )}
 
         <div className={styles.permisosHeader}>
           <div className={styles.permisosField} style={{ maxWidth: 400 }}>
@@ -405,6 +569,7 @@ export default function CampanasSection({ setMsg }: Props) {
               {entidades.map((entidad) => (
                 <option key={entidad.id} value={entidad.id}>
                   {entidad.nombre}
+                  {sufijoEstado(entidad.activo, entidad.eliminado)}
                 </option>
               ))}
             </select>
@@ -416,14 +581,13 @@ export default function CampanasSection({ setMsg }: Props) {
             <select
               value={filtroActivoCampana}
               onChange={e =>
-                setFiltroActivoCampana(
-                  e.target.value as "activos" | "inactivos" | "todos"
-                )
+                setFiltroActivoCampana(e.target.value as FiltroEstado)
               }
               className={styles.select}
             >
               <option value="activos">Activas</option>
               <option value="inactivos">Inactivas</option>
+              <option value="eliminados">Eliminadas</option>
               <option value="todos">Todas</option>
             </select>
           </div>
@@ -469,14 +633,28 @@ export default function CampanasSection({ setMsg }: Props) {
                 ? "No hay campañas activas."
                 : filtroActivoCampana === "inactivos"
                   ? "No hay campañas inactivas."
-                  : "No hay campañas que coincidan."}
+                  : filtroActivoCampana === "eliminados"
+                    ? "No hay campañas ni subcampañas eliminadas."
+                    : "No hay campañas que coincidan."}
             </div>
           ) : (
             campanasPaginadas.map(camp => {
               const abierta = expandidas.has(camp.id);
+              const subcampanasVisibles =
+                filtroActivoCampana === "eliminados"
+                  ? camp.subcampanas.filter(sub => sub.eliminado)
+                  : camp.subcampanas.filter(
+                      sub =>
+                        filtroActivoCampana === "todos" || !sub.eliminado
+                    );
 
               return (
-                <div key={camp.id} className={styles.campanaCard}>
+                <div
+                  key={camp.id}
+                  className={`${styles.campanaCard} ${
+                    camp.eliminado ? styles.campanaCardEliminada : ""
+                  }`}
+                >
                   <div
                     role="button"
                     tabIndex={0}
@@ -496,48 +674,11 @@ export default function CampanasSection({ setMsg }: Props) {
                         {camp.entidad_nombre}
                       </span>
 
-                      <span
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        <IconButton
-                          icon="edit"
-                          size={12}
-                          variant="primary"
-                          title={`Editar nombre de la entidad ${camp.entidad_nombre}`}
-                          onClick={() =>
-                            setEditTarget({
-                              tipo: "entidad",
-                              id: camp.entidad,
-                              nombre: camp.entidad_nombre ?? "",
-                            })
-                          }
-                        />
-                      </span>
-
                       <span className={styles.campanaTitleSep}>·</span>
 
                       <span className={styles.campanaTitle}>
                         {camp.nombre}
-                      </span>
-
-                      <span
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        <IconButton
-                          icon="edit"
-                          size={12}
-                          variant="primary"
-                          title={`Editar nombre de la campaña ${camp.nombre}`}
-                          onClick={() =>
-                            setEditTarget({
-                              tipo: "campana",
-                              id: camp.id,
-                              nombre: camp.nombre,
-                            })
-                          }
-                        />
+                        {sufijoEstado(camp.activo, camp.eliminado)}
                       </span>
                     </div>
 
@@ -548,21 +689,18 @@ export default function CampanasSection({ setMsg }: Props) {
                         gap: 8,
                       }}
                     >
-                      <Switch
-                        checked={camp.activo}
-                        loading={togglingId === camp.id}
-                        onChange={() => toggleActivoCampana(camp)}
-                        label={
-                          camp.activo
-                            ? "Inhabilitar campaña"
-                            : "Habilitar campaña"
-                        }
-                        title={
-                          camp.activo
-                            ? "Inhabilitar campaña"
-                            : "Habilitar campaña"
-                        }
-                      />
+                      <span
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <IconButton
+                          icon="settings"
+                          size={14}
+                          variant={camp.eliminado ? "neutral" : "info"}
+                          title={`Acciones de la campaña ${camp.nombre}`}
+                          onClick={() => abrirAccionesCampana(camp)}
+                        />
+                      </span>
 
                       <span className={styles.campanaCount}>
                         {camp.subcampanas.length} sub
@@ -585,18 +723,22 @@ export default function CampanasSection({ setMsg }: Props) {
                   >
                     <div className={styles.campanaBodyInner}>
                       <div className={styles.subcampanasGrid}>
-                        {camp.subcampanas.length === 0 ? (
+                        {subcampanasVisibles.length === 0 ? (
                           <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
                             Sin subcampañas
                           </span>
                         ) : (
-                          camp.subcampanas.map(sub => (
+                          subcampanasVisibles.map(sub => (
                             <div
                               key={sub.id}
                               className={styles.subLabel}
                               style={{
                                 opacity:
-                                  !camp.activo || !sub.activo ? 0.6 : 1,
+                                  sub.eliminado ||
+                                  !camp.activo ||
+                                  !sub.activo
+                                    ? 0.6
+                                    : 1,
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 8,
@@ -606,12 +748,17 @@ export default function CampanasSection({ setMsg }: Props) {
                               <div className={styles.subInfo}>
                                 <div className={styles.subName}>
                                   {sub.nombre}
+                                  {sufijoEstado(sub.activo, sub.eliminado)}
                                 </div>
 
                                 <div className={styles.subCode}>
-                                  {sub.codigo}{" "}
-                                  {!sub.activo && "(inactiva)"}{" "}
-                                  {!camp.activo && "(campaña inactiva)"}
+                                  {sub.codigo}
+                                  {!sub.eliminado &&
+                                    !sub.activo &&
+                                    " (inactiva)"}
+                                  {!sub.eliminado &&
+                                    !camp.activo &&
+                                    " (campaña inactiva)"}
                                 </div>
                               </div>
 
@@ -624,49 +771,11 @@ export default function CampanasSection({ setMsg }: Props) {
                               >
                                 <IconButton
                                   icon="settings"
-                                  size={12}
-                                  variant="info"
-                                  title={`Editar nombre de la subcampaña ${sub.nombre}`}
+                                  size={14}
+                                  variant={sub.eliminado ? "neutral" : "info"}
+                                  title={`Acciones de la subcampaña ${sub.nombre}`}
                                   onClick={() =>
-                                    setEditTarget({
-                                      tipo: "subcampana",
-                                      id: sub.id,
-                                      nombre: sub.nombre,
-                                    })
-                                  }
-                                />
-
-                                {/*<span
-                                  className={`${styles.badgeActive} ${
-                                    sub.activo && camp.activo
-                                      ? styles.badgeActiveOn
-                                      : styles.badgeActiveOff
-                                  }`}
-                                  style={{ fontSize: 10 }}
-                                >
-                                  {sub.activo && camp.activo
-                                    ? "habilitada"
-                                    : "inhabilitada"}
-                                </span>*/}
-
-                                <Switch
-                                  checked={sub.activo}
-                                  loading={togglingId === sub.id}
-                                  disabled={!camp.activo && !sub.activo}
-                                  onChange={() =>
-                                    toggleActivoSubcampana(sub, camp.activo)
-                                  }
-                                  label={
-                                    sub.activo
-                                      ? "Inhabilitar subcampaña"
-                                      : "Habilitar subcampaña"
-                                  }
-                                  title={
-                                    !camp.activo && !sub.activo
-                                      ? "La campaña está inhabilitada; habilítala primero"
-                                      : sub.activo
-                                        ? "Inhabilitar subcampaña"
-                                        : "Habilitar subcampaña"
+                                    abrirAccionesSubcampana(sub, camp)
                                   }
                                 />
                               </div>
@@ -693,8 +802,15 @@ export default function CampanasSection({ setMsg }: Props) {
 
       {modalOpen && (
         <CampanaModal
-          entidades={entidades}
-          campanas={campanas}
+          entidades={entidades.filter((entidad) => !entidad.eliminado)}
+          campanas={campanas
+            .filter((campana) => !campana.eliminado)
+            .map((campana) => ({
+              ...campana,
+              subcampanas: campana.subcampanas.filter(
+                (sub) => !sub.eliminado
+              ),
+            }))}
           onClose={() => setModalOpen(false)}
           onSaved={async (m) => {
             setMsg(m);
@@ -715,6 +831,16 @@ export default function CampanasSection({ setMsg }: Props) {
             setMsg(m);
             await cargarCampanas();
           }}
+        />
+      )}
+
+      {accionesTarget && (
+        <AccionesCatalogoModal
+          titulo={`Acciones · ${accionesTarget.nombre}`}
+          subtitulo="Edita el nombre, cambia su disponibilidad o elimínalo dejando rastro para el historial."
+          acciones={accionesModal}
+          onClose={() => setAccionesTarget(null)}
+          ocupado={accionEnCurso}
         />
       )}
     </div>

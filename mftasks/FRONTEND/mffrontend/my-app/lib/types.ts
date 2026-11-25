@@ -165,6 +165,8 @@ export interface CampanaInfo {
     nombre: string;
     codigo: string;
     activo: boolean;
+    eliminado?: boolean;
+    fecha_eliminacion?: string | null;
     subcampanas?: SubCampanaInfo[];
 }
 
@@ -177,6 +179,8 @@ export interface SubCampanaInfo {
     nombre: string;
     codigo: string;
     activo: boolean;
+    eliminado?: boolean;
+    fecha_eliminacion?: string | null;
 }
 
 export interface CampanaPermitida {
@@ -186,6 +190,7 @@ export interface CampanaPermitida {
     nombre: string;
     codigo: string;
     activo: boolean;
+    eliminado?: boolean;
     subcampanas: SubCampanaInfo[];
 }
 
@@ -198,6 +203,8 @@ export interface EntidadInfo {
     telefono?: string;
     direccion?: string;
     activo: boolean;
+    eliminado?: boolean;
+    fecha_eliminacion?: string | null;
     fecha_creacion?: string;
 }
 

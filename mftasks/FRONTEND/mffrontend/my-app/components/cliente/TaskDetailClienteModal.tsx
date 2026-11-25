@@ -133,44 +133,57 @@ export default function TaskDetailClienteModal({ tarea, onClose, onRefresh }: Pr
         {acciones}
         <div className={styles.modalBody}>
           <div
-            className={styles.tabsHeader}
-            style={{
-              gridColumn: "1 / -1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
+            className={styles.tabsBar}
+            style={{ gridColumn: "1 / -1" }}
           >
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              <button
-                onClick={() => setTab("detalle")}
-                className={tab === "detalle" ? styles.tabBtnActive : styles.tabBtn}
-              >
-                Detalle
-              </button>
+            <div className={styles.tabsHeader}>
+              <div className={styles.tabsNav}>
+                <button
+                  onClick={() => setTab("detalle")}
+                  className={tab === "detalle" ? styles.tabBtnActive : styles.tabBtn}
+                >
+                  Detalle
+                </button>
 
-              <button
-                onClick={() => setTab("historial")}
-                className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}
-              >
-                Historial
-              </button>
+                <button
+                  onClick={() => setTab("historial")}
+                  className={tab === "historial" ? styles.tabBtnActive : styles.tabBtn}
+                >
+                  Historial
+                </button>
 
-              <button
-                onClick={() => setTab("informacion")}
-                className={tab === "informacion" ? styles.tabBtnActive : styles.tabBtn}
+                <button
+                  onClick={() => setTab("informacion")}
+                  className={tab === "informacion" ? styles.tabBtnActive : styles.tabBtn}
+                >
+                  Archivos adicionales
+                </button>
+              </div>
+
+              <select
+                className={styles.tabsSelect}
+                value={tab}
+                onChange={(e) =>
+                  setTab(
+                    e.target.value as
+                      | "detalle"
+                      | "historial"
+                      | "informacion"
+                  )
+                }
+                aria-label="Sección de la solicitud"
               >
-                Archivos adicionales
-              </button>
+                <option value="detalle">Detalle / Progreso</option>
+                <option value="historial">Historial</option>
+                <option value="informacion">Archivos adicionales</option>
+              </select>
             </div>
 
             <button
               type="button"
               onClick={() => void descargarConstancia()}
               disabled={descargando}
-              className={styles.tabBtn}
+              className={`${styles.tabBtn} ${styles.tabsDownloadBtn}`}
               style={{
                 whiteSpace: "nowrap",
                 opacity: descargando ? 0.6 : 1,

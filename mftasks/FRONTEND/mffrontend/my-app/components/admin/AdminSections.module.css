@@ -1009,3 +1009,85 @@
   color: var(--color-text-secondary);
   margin: 0 2px;
 }
+
+/* Acciones de catálogo (entidades, campañas y subcampañas) */
+.entidadChipEliminada,
+.campanaCardEliminada {
+  opacity: .68;
+}
+
+.entidadChipEliminada {
+  border-style: dashed;
+}
+
+.accionesModal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accionesSubtitulo {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.accionesLista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.accionBtn {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--color-text);
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, opacity .15s;
+}
+
+.accionBtn:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+.accionBtn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.accionBtnDanger {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 32%, var(--color-background));
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-background));
+}
+
+.accionBtnDanger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 14%, var(--color-background));
+}
+
+.accionBtnSuccess {
+  color: var(--color-done);
+  border-color: color-mix(in srgb, var(--color-done) 32%, var(--color-background));
+  background: color-mix(in srgb, var(--color-done) 10%, var(--color-background));
+}
+
+.accionBtnSuccess:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-done) 16%, var(--color-background));
+}
+
+.accionBtnWarning {
+  color: var(--color-waiting);
+  border-color: color-mix(in srgb, var(--color-waiting) 32%, var(--color-background));
+  background: color-mix(in srgb, var(--color-waiting) 10%, var(--color-background));
+}
+
+.accionBtnWarning:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-waiting) 16%, var(--color-background));
+}

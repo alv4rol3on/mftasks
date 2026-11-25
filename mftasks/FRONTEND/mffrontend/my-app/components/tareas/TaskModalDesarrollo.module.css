@@ -2063,3 +2063,66 @@
   min-width: 0;
   max-width: none;
 }
+/* Barra de pestañas responsive del detalle de solicitud */
+.tabsBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tabsBar .tabsHeader {
+    flex: 1 1 320px;
+    min-width: 0;
+    margin-top: 0;
+}
+
+.tabsNav {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.tabsSelect {
+    display: none;
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-background);
+    color: var(--color-text);
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.tabsDownloadBtn {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+    .tabsNav {
+        display: none;
+    }
+
+    .tabsSelect {
+        display: block;
+    }
+
+    .tabsBar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .tabsBar .tabsHeader {
+        flex-basis: 100%;
+        flex-wrap: wrap;
+        overflow: visible;
+    }
+
+    .tabsDownloadBtn {
+        width: 100%;
+    }
+}

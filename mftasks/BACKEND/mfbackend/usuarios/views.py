@@ -576,7 +576,11 @@ class EquipoViewSet(ModelViewSet):
             PermisoCampana.objects.filter(
                 subcampana_id=subcampana_id,
                 subcampana__activo=True,
+                subcampana__eliminado=False,
                 subcampana__campana__activo=True,
+                subcampana__campana__eliminado=False,
+                subcampana__campana__entidad__activo=True,
+                subcampana__campana__entidad__eliminado=False,
             ).values_list("usuario_id", flat=True)
         )
         # Los administradores tienen bypass de permisos.

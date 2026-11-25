@@ -25,6 +25,14 @@ def _existe_nombre(qs, nombre, exclude_pk=None):
     return False
 
 
+def _incluir_eliminados(context):
+    request = context.get("request")
+    if request is None:
+        return False
+    valor = str(request.query_params.get("incluir_eliminados", "")).lower()
+    return valor in ("1", "true", "yes", "si")
+
+
 class SubCampanaSerializer(serializers.ModelSerializer):
     campana_nombre = serializers.CharField(source="campana.nombre", read_only=True)
     entidad = serializers.IntegerField(source="campana.entidad_id", read_only=True)
@@ -41,27 +49,36 @@ class SubCampanaSerializer(serializers.ModelSerializer):
             "nombre",
             "codigo",
             "activo",
+            "eliminado",
+            "fecha_eliminacion",
+            "eliminado_por",
             "fecha_creacion",
         ]
-        read_only_fields = ["codigo"]
+        read_only_fields = ["codigo", "eliminado", "fecha_eliminacion", "eliminado_por"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         nombre = attrs.get("nombre", getattr(self.instance, "nombre", ""))
         campana = attrs.get("campana", getattr(self.instance, "campana", None))
         if campana and nombre:
-            qs = SubCampana.objects.filter(campana=campana)
+            qs = SubCampana.objects.filter(campana=campana, eliminado=False)
             exclude_pk = self.instance.pk if self.instance is not None else None
             if _existe_nombre(qs, nombre, exclude_pk):
                 raise serializers.ValidationError({
                     "nombre": "Ya existe una subcampaña con ese nombre en esta campaña."
                 })
+        if (self.instance is None or "campana" in attrs) and campana and (
+            campana.eliminado or not campana.activo
+        ):
+            raise serializers.ValidationError({
+                "campana": "La campaña está inhabilitada o eliminada."
+            })
         return attrs
 
 
 class CampanaSerializer(serializers.ModelSerializer):
     entidad_nombre = serializers.CharField(source="entidad.nombre", read_only=True)
-    subcampanas = SubCampanaSerializer(many=True, read_only=True)
+    subcampanas = serializers.SerializerMethodField()
 
     class Meta:
         model = Campana
@@ -72,17 +89,32 @@ class CampanaSerializer(serializers.ModelSerializer):
             "nombre",
             "codigo",
             "activo",
+            "eliminado",
+            "fecha_eliminacion",
+            "eliminado_por",
             "fecha_creacion",
             "subcampanas",
         ]
-        read_only_fields = ["codigo"]
+        read_only_fields = ["codigo", "eliminado", "fecha_eliminacion", "eliminado_por"]
+
+    def get_subcampanas(self, obj):
+        qs = obj.subcampanas.all()
+        if not _incluir_eliminados(self.context):
+            qs = qs.filter(eliminado=False)
+        return SubCampanaSerializer(qs, many=True, context=self.context).data
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         entidad = attrs.get("entidad", getattr(self.instance, "entidad", None))
         nombre = attrs.get("nombre", getattr(self.instance, "nombre", ""))
+        if (self.instance is None or "entidad" in attrs) and entidad and (
+            entidad.eliminado or not entidad.activo
+        ):
+            raise serializers.ValidationError({
+                "entidad": "La entidad está inhabilitada o eliminada."
+            })
         if entidad and nombre:
-            qs = Campana.objects.filter(entidad=entidad)
+            qs = Campana.objects.filter(entidad=entidad, eliminado=False)
             exclude_pk = self.instance.pk if self.instance is not None else None
             if _existe_nombre(qs, nombre, exclude_pk):
                 raise serializers.ValidationError({
@@ -113,11 +145,23 @@ class PermisoCampanaSerializer(serializers.ModelSerializer):
         subcampana = attrs.get("subcampana")
         from usuarios.models import User
         usuario = attrs.get("usuario")
-        # Bloquear permisos a entidades inhabilitadas
-        if campana is not None and not campana.activo:
+        # Bloquear permisos a entidades inhabilitadas o eliminadas
+        if campana is not None and (
+            not campana.activo
+            or campana.eliminado
+            or not campana.entidad.activo
+            or campana.entidad.eliminado
+        ):
             raise serializers.ValidationError({"campana": "La campaña está inhabilitada por Administración."})
         if subcampana is not None:
-            if not subcampana.activo or not subcampana.campana.activo:
+            if (
+                not subcampana.activo
+                or subcampana.eliminado
+                or not subcampana.campana.activo
+                or subcampana.campana.eliminado
+                or not subcampana.campana.entidad.activo
+                or subcampana.campana.entidad.eliminado
+            ):
                 raise serializers.ValidationError({"subcampana": "La campaña/subcampaña está inhabilitada por Administración."})
         # Si usuario es CLIENTE, solo permitir permiso puntual a subcampana
         if usuario:

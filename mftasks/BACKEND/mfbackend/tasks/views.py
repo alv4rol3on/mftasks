@@ -349,7 +349,11 @@ class TaskViewSet(viewsets.ModelViewSet):
                 PermisoCampana.objects.filter(
                     usuario=user,
                     subcampana__activo=True,
+                    subcampana__eliminado=False,
                     subcampana__campana__activo=True,
+                    subcampana__campana__eliminado=False,
+                    subcampana__campana__entidad__activo=True,
+                    subcampana__campana__entidad__eliminado=False,
                 ).values_list("subcampana_id", flat=True)
             )
 
@@ -1497,7 +1501,11 @@ class TaskViewSet(viewsets.ModelViewSet):
                     PermisoCampana.objects.filter(
                         usuario=usuario,
                         subcampana__activo=True,
+                        subcampana__eliminado=False,
                         subcampana__campana__activo=True,
+                        subcampana__campana__eliminado=False,
+                        subcampana__campana__entidad__activo=True,
+                        subcampana__campana__entidad__eliminado=False,
                     ).values_list("subcampana_id", flat=True)
                 )
 

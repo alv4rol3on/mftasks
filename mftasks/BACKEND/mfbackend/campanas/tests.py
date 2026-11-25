@@ -135,3 +135,100 @@ class CampanaJerarquiaTestCase(APITestCase):
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class BorradoLogicoTestCase(APITestCase):
+
+    def setUp(self):
+        self.admin = _crear_usuario("admin-borrado@empresa.com", tipo="ADMINISTRADOR")
+        self.entidad = Entidad.objects.create(nombre="Entidad Soft")
+        self.campana = Campana.objects.create(
+            entidad=self.entidad,
+            nombre="Campana Soft",
+        )
+        self.sub = SubCampana.objects.create(
+            campana=self.campana,
+            nombre="Sub Soft",
+        )
+        self.client.force_authenticate(user=self.admin)
+
+    def test_eliminar_campana_es_logico_y_en_cascada(self):
+        res = self.client.delete(
+            reverse("campana-detail", args=[self.campana.id])
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        self.campana.refresh_from_db()
+        self.sub.refresh_from_db()
+        self.assertTrue(self.campana.eliminado)
+        self.assertFalse(self.campana.activo)
+        self.assertTrue(self.sub.eliminado)
+        self.assertFalse(self.sub.activo)
+        self.assertTrue(Campana.objects.filter(pk=self.campana.pk).exists())
+        self.assertTrue(SubCampana.objects.filter(pk=self.sub.pk).exists())
+
+    def test_lista_excluye_eliminados_por_defecto(self):
+        self.client.delete(reverse("campana-detail", args=[self.campana.id]))
+
+        res = self.client.get(reverse("campana-list"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertNotIn(self.campana.id, [c["id"] for c in res.data])
+
+        res = self.client.get(
+            reverse("campana-list"),
+            {"incluir_eliminados": "1"},
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(self.campana.id, [c["id"] for c in res.data])
+
+    def test_restaurar_campana_restaura_subcampanas(self):
+        self.client.delete(reverse("campana-detail", args=[self.campana.id]))
+        res = self.client.post(
+            reverse("campana-restaurar", args=[self.campana.id])
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        self.campana.refresh_from_db()
+        self.sub.refresh_from_db()
+        self.assertFalse(self.campana.eliminado)
+        self.assertFalse(self.campana.activo)
+        self.assertFalse(self.sub.eliminado)
+        self.assertFalse(self.sub.activo)
+
+    def test_permite_reutilizar_nombre_tras_eliminar(self):
+        self.client.delete(reverse("campana-detail", args=[self.campana.id]))
+
+        res = self.client.post(
+            reverse("campana-list"),
+            {"entidad": self.entidad.id, "nombre": "Campana Soft"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        self.assertNotEqual(res.data["id"], self.campana.id)
+
+    def test_eliminar_entidad_elimina_campanas_y_subcampanas(self):
+        res = self.client.delete(
+            reverse("entidad-detail", args=[self.entidad.id])
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        self.entidad.refresh_from_db()
+        self.campana.refresh_from_db()
+        self.sub.refresh_from_db()
+        self.assertTrue(self.entidad.eliminado)
+        self.assertTrue(self.campana.eliminado)
+        self.assertTrue(self.sub.eliminado)
+
+    def test_restaurar_entidad_restaura_descendientes(self):
+        self.client.delete(reverse("entidad-detail", args=[self.entidad.id]))
+        res = self.client.post(
+            reverse("entidad-restaurar", args=[self.entidad.id])
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+
+        self.entidad.refresh_from_db()
+        self.campana.refresh_from_db()
+        self.sub.refresh_from_db()
+        self.assertFalse(self.entidad.eliminado)
+        self.assertFalse(self.campana.eliminado)
+        self.assertFalse(self.sub.eliminado)

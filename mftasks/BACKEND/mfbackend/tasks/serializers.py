@@ -486,17 +486,33 @@ class TaskSerializer(serializers.ModelSerializer):
             subcampana_obj = None
             try:
                 if isinstance(subcampana, int):
-                    subcampana_obj = SubCampana.objects.select_related("campana").get(id=subcampana)
+                    subcampana_obj = SubCampana.objects.select_related(
+                        "campana",
+                        "campana__entidad",
+                    ).get(id=subcampana)
                 elif hasattr(subcampana, "campana"):
                     subcampana_obj = subcampana
                 else:
-                    subcampana_obj = SubCampana.objects.select_related("campana").get(id=int(subcampana))
+                    subcampana_obj = SubCampana.objects.select_related(
+                        "campana",
+                        "campana__entidad",
+                    ).get(id=int(subcampana))
             except Exception:
                 subcampana_obj = None
-            # Bloqueo universal: si campaña/subcampaña inhabilitada, nadie puede crear (incluye Admin)
+            # Bloqueo universal: si entidad/campaña/subcampaña está inhabilitada
+            # o eliminada, nadie puede crear (incluye Admin)
             if subcampana_obj:
-                if not subcampana_obj.activo or not subcampana_obj.campana.activo:
-                    raise serializers.ValidationError({"subcampana": "La campaña/subcampaña está inhabilitada por Administración y no está disponible para crear tareas."})
+                campana_obj = subcampana_obj.campana
+                entidad_obj = campana_obj.entidad
+                if (
+                    not subcampana_obj.activo
+                    or subcampana_obj.eliminado
+                    or not campana_obj.activo
+                    or campana_obj.eliminado
+                    or not entidad_obj.activo
+                    or entidad_obj.eliminado
+                ):
+                    raise serializers.ValidationError({"subcampana": "La entidad/campaña/subcampaña está inhabilitada o eliminada y no está disponible para crear tareas."})
 
             # Bloqueo universal: ningún equipo inactivo puede recibir nuevas tareas.
             equipo_obj = attrs.get("equipo")

@@ -1,3 +1,5 @@
+from django.db.models import Q
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -12,6 +14,17 @@ from usuarios.models import Equipo, EquipoMiembro
 
 from .models import Campana, SubCampana, PermisoCampana
 from .serializers import CampanaSerializer, SubCampanaSerializer, PermisoCampanaSerializer
+from .services import (
+    eliminar_campana,
+    eliminar_subcampana,
+    restaurar_campana,
+    restaurar_subcampana,
+)
+
+
+def _incluir_eliminados(request):
+    valor = str(request.query_params.get("incluir_eliminados", "")).lower()
+    return valor in ("1", "true", "yes", "si")
 
 
 def _serializar_subcampana(sub):
@@ -34,9 +47,36 @@ class CampanaViewSet(ModelViewSet):
 
     def get_permissions(self):
         perms = super().get_permissions()
-        if self.action in ("create", "update", "partial_update", "destroy"):
+        if self.action in (
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "restaurar",
+        ):
             perms += [EsAdministrador()]
         return perms
+
+    def destroy(self, request, *args, **kwargs):
+        campana = self.get_object()
+        resultado = eliminar_campana(campana, request.user)
+        return Response(resultado, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="restaurar")
+    def restaurar(self, request, pk=None):
+        campana = self.get_object()
+        if not campana.eliminado:
+            return Response(
+                {"detail": "La campaña no está eliminada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        resultado = restaurar_campana(campana)
+        codigo = (
+            status.HTTP_200_OK
+            if resultado["restaurados"]
+            else status.HTTP_400_BAD_REQUEST
+        )
+        return Response(resultado, status=codigo)
 
     @action(detail=False, methods=["get"], url_path="mis-permisos")
     def mis_permisos(self, request):
@@ -69,12 +109,17 @@ class CampanaViewSet(ModelViewSet):
 
         if es_administrador(user):
             for campana in (
-                Campana.objects.filter(activo=True)
+                Campana.objects.filter(
+                    activo=True,
+                    eliminado=False,
+                    entidad__activo=True,
+                    entidad__eliminado=False,
+                )
                 .select_related("entidad")
                 .prefetch_related("subcampanas")
             ):
                 for sub in campana.subcampanas.all():
-                    if sub.activo:
+                    if sub.activo and not sub.eliminado:
                         _agregar_subcampana(campana, sub)
         else:
             # Permisos propios + los del líder de cada equipo al que pertenece.
@@ -105,14 +150,30 @@ class CampanaViewSet(ModelViewSet):
             for permiso in permisos:
                 sub = permiso.subcampana
                 if sub is not None:
-                    if not sub.activo or not sub.campana.activo:
+                    if (
+                        not sub.activo
+                        or sub.eliminado
+                        or not sub.campana.activo
+                        or sub.campana.eliminado
+                        or not sub.campana.entidad.activo
+                        or sub.campana.entidad.eliminado
+                    ):
                         continue
                     _agregar_subcampana(sub.campana, sub)
                     continue
                 campana = permiso.campana
-                if campana is None or not campana.activo:
+                if (
+                    campana is None
+                    or not campana.activo
+                    or campana.eliminado
+                    or not campana.entidad.activo
+                    or campana.entidad.eliminado
+                ):
                     continue
-                for sub_campana in campana.subcampanas.filter(activo=True):
+                for sub_campana in campana.subcampanas.filter(
+                    activo=True,
+                    eliminado=False,
+                ):
                     _agregar_subcampana(campana, sub_campana)
 
         resultado = []
@@ -134,16 +195,32 @@ class CampanaViewSet(ModelViewSet):
         if not user or not user.is_authenticated:
             return Campana.objects.none()
         if es_administrador(user):
-            return qs
+            if _incluir_eliminados(self.request) or self.action == "restaurar":
+                return qs
+            return qs.filter(eliminado=False)
+        qs = qs.filter(eliminado=False, entidad__eliminado=False)
         # cliente ve solo campañas activas donde tiene permiso puntual a subcampana activa
         if es_cliente(user):
-            campana_ids = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False, subcampana__activo=True, subcampana__campana__activo=True).values_list("subcampana__campana_id", flat=True)
+            campana_ids = PermisoCampana.objects.filter(
+                usuario=user,
+                subcampana__isnull=False,
+                subcampana__activo=True,
+                subcampana__eliminado=False,
+                subcampana__campana__activo=True,
+                subcampana__campana__eliminado=False,
+                subcampana__campana__entidad__activo=True,
+                subcampana__campana__entidad__eliminado=False,
+            ).values_list("subcampana__campana_id", flat=True)
             campana_ids = set(campana_ids)
             if campana_ids:
-                return qs.filter(id__in=campana_ids, activo=True)
+                return qs.filter(
+                    id__in=campana_ids,
+                    activo=True,
+                    entidad__activo=True,
+                )
             return qs.none()
         # miembro/lider/otro: ve todas activas
-        return qs.filter(activo=True)
+        return qs.filter(activo=True, entidad__activo=True)
 
 
 class SubCampanaViewSet(ModelViewSet):
@@ -153,28 +230,84 @@ class SubCampanaViewSet(ModelViewSet):
 
     def get_permissions(self):
         perms = super().get_permissions()
-        if self.action in ("create", "update", "partial_update", "destroy"):
+        if self.action in (
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "restaurar",
+        ):
             perms += [EsAdministrador()]
         return perms
+
+    def destroy(self, request, *args, **kwargs):
+        subcampana = self.get_object()
+        resultado = eliminar_subcampana(subcampana, request.user)
+        return Response(resultado, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="restaurar")
+    def restaurar(self, request, pk=None):
+        subcampana = self.get_object()
+        if not subcampana.eliminado:
+            return Response(
+                {"detail": "La subcampaña no está eliminada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        resultado = restaurar_subcampana(subcampana)
+        codigo = (
+            status.HTTP_200_OK
+            if resultado["restaurados"]
+            else status.HTTP_400_BAD_REQUEST
+        )
+        return Response(resultado, status=codigo)
 
     def get_queryset(self):
         user = self.request.user
         qs = SubCampana.objects.all().select_related("campana", "campana__entidad")
-        campana_id = self.request.query_params.get("campana_id") or self.request.query_params.get("campana")
-        entidad_id = self.request.query_params.get("entidad_id") or self.request.query_params.get("entidad")
-        if entidad_id:
-            qs = qs.filter(campana__entidad_id=entidad_id)
-        if campana_id:
-            qs = qs.filter(campana_id=campana_id)
         if not user or not user.is_authenticated:
             return SubCampana.objects.none()
         if es_administrador(user):
-            return qs
+            if _incluir_eliminados(self.request) or self.action == "restaurar":
+                incluir = qs
+            else:
+                incluir = qs.filter(eliminado=False)
+        else:
+            incluir = qs.filter(
+                eliminado=False,
+                campana__eliminado=False,
+                campana__entidad__eliminado=False,
+            )
+        campana_id = self.request.query_params.get("campana_id") or self.request.query_params.get("campana")
+        entidad_id = self.request.query_params.get("entidad_id") or self.request.query_params.get("entidad")
+        if entidad_id:
+            incluir = incluir.filter(campana__entidad_id=entidad_id)
+        if campana_id:
+            incluir = incluir.filter(campana_id=campana_id)
+        if es_administrador(user):
+            return incluir
         if es_cliente(user):
             # permiso puntual solo a subcampana activa y campaña activa
-            permisos_sub = PermisoCampana.objects.filter(usuario=user, subcampana__isnull=False, subcampana__activo=True, subcampana__campana__activo=True).values_list("subcampana_id", flat=True)
-            return qs.filter(id__in=permisos_sub, activo=True, campana__activo=True)
-        return qs.filter(activo=True, campana__activo=True)
+            permisos_sub = PermisoCampana.objects.filter(
+                usuario=user,
+                subcampana__isnull=False,
+                subcampana__activo=True,
+                subcampana__eliminado=False,
+                subcampana__campana__activo=True,
+                subcampana__campana__eliminado=False,
+                subcampana__campana__entidad__activo=True,
+                subcampana__campana__entidad__eliminado=False,
+            ).values_list("subcampana_id", flat=True)
+            return incluir.filter(
+                id__in=permisos_sub,
+                activo=True,
+                campana__activo=True,
+                campana__entidad__activo=True,
+            )
+        return incluir.filter(
+            activo=True,
+            campana__activo=True,
+            campana__entidad__activo=True,
+        )
 
 
 class PermisoCampanaViewSet(ModelViewSet):
@@ -190,7 +323,19 @@ class PermisoCampanaViewSet(ModelViewSet):
     permission_classes = [IsAuthenticatedActivo, EsAdministrador]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(
+            Q(
+                campana__isnull=False,
+                campana__eliminado=False,
+                campana__entidad__eliminado=False,
+            )
+            | Q(
+                subcampana__isnull=False,
+                subcampana__eliminado=False,
+                subcampana__campana__eliminado=False,
+                subcampana__campana__entidad__eliminado=False,
+            )
+        )
         usuario_id = self.request.query_params.get("usuario") or self.request.query_params.get("usuario_id")
         subcampana_id = self.request.query_params.get("subcampana") or self.request.query_params.get("subcampana_id")
         campana_id = self.request.query_params.get("campana") or self.request.query_params.get("campana_id")

@@ -132,7 +132,16 @@ def tiene_permiso_subcampana(user, subcampana):
     """Verifica permiso puntual a subcampaña para cliente. Admin respeta activo."""
     if not user or not user.is_authenticated or subcampana is None:
         return False
-    if not subcampana.activo or not subcampana.campana.activo:
+    campana = subcampana.campana
+    entidad = campana.entidad
+    if (
+        not subcampana.activo
+        or subcampana.eliminado
+        or not campana.activo
+        or campana.eliminado
+        or not entidad.activo
+        or entidad.eliminado
+    ):
         return False
     if es_administrador(user):
         return True
