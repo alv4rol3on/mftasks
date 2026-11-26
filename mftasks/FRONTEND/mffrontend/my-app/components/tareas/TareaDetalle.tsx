@@ -77,9 +77,7 @@ export default function TareaDetalle({
     asunto: string;
   } | null>(null);
   const usuario = getUsuarioActual();
-  const esAdmin =
-    usuario?.tipo_usuario === "ADMINISTRADOR" ||
-    (usuario?.roles ?? []).map((r) => r.toLowerCase()).includes("administrador");
+  const esAdmin = usuario?.tipo_usuario === "ADMINISTRADOR";
   const soloLectura = esAdmin;
 
   const acciones = useTareaAcciones({

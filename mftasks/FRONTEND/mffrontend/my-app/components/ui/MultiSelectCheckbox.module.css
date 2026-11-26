@@ -42,7 +42,7 @@
 }
 
 .dropdown {
-    z-index: 1000;
+    z-index: 1200;
     overflow-y: auto;
     min-width: 220px;
     padding: 6px;

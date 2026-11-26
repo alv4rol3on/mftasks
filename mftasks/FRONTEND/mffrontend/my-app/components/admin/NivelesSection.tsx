@@ -4,27 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
 
-import type { RolInfo } from "@/lib/types";
+import type { NivelInfo } from "@/lib/types";
 
 import styles from "./AdminSections.module.css";
-import RolModal from "./RolModal";
+import NivelModal from "./NivelModal";
 import IconButton from "@/components/ui/IconButton";
-
-type Usuario = {
-  id: number;
-  email: string;
-  nombres: string;
-  apellidos: string;
-  roles?: string[];
-};
 
 type Props = {
   setMsg: (msg: string | null) => void;
 };
 
 /** Cadena de un rol: el propio rol y sus superiores directos, en orden. */
-function cadenaDe(rol: RolInfo, mapa: Map<number, RolInfo>): RolInfo[] {
-  const cadena: RolInfo[] = [rol];
+function cadenaDe(rol: NivelInfo, mapa: Map<number, NivelInfo>): NivelInfo[] {
+  const cadena: NivelInfo[] = [rol];
   const vistos = new Set<number>([rol.id]);
   let actual = rol.superior;
   while (actual != null && !vistos.has(actual)) {
@@ -39,10 +31,10 @@ function cadenaDe(rol: RolInfo, mapa: Map<number, RolInfo>): RolInfo[] {
 
 /** Roles ordenados por profundidad (árbol), con su nivel para indentar. */
 function ordenarPorArbol(
-  roles: RolInfo[]
-): { rol: RolInfo; depth: number }[] {
+  roles: NivelInfo[]
+): { rol: NivelInfo; depth: number }[] {
   const mapa = new Map(roles.map((r) => [r.id, r]));
-  const hijos = new Map<number | null, RolInfo[]>();
+  const hijos = new Map<number | null, NivelInfo[]>();
 
   for (const r of roles) {
     const key =
@@ -52,7 +44,7 @@ function ordenarPorArbol(
     hijos.set(key, lista);
   }
 
-  const resultado: { rol: RolInfo; depth: number }[] = [];
+  const resultado: { rol: NivelInfo; depth: number }[] = [];
   const visitados = new Set<number>();
 
   const recorrer = (parentId: number | null, depth: number) => {
@@ -79,9 +71,8 @@ function ordenarPorArbol(
   return resultado;
 }
 
-export default function RolesSection({ setMsg }: Props) {
-  const [roles, setRoles] = useState<RolInfo[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+export default function NivelesSection({ setMsg }: Props) {
+  const [roles, setRoles] = useState<NivelInfo[]>([]);
   const [cargando, setCargando] = useState(false);
 
   const [filtro, setFiltro] = useState("");
@@ -90,7 +81,7 @@ export default function RolesSection({ setMsg }: Props) {
   >("activos");
 
   const [rolModalOpen, setRolModalOpen] = useState(false);
-  const [rolEditando, setRolEditando] = useState<RolInfo | null>(null);
+  const [rolEditando, setRolEditando] = useState<NivelInfo | null>(null);
 
   // --------------------------------------------------
   // CARGA
@@ -99,32 +90,20 @@ export default function RolesSection({ setMsg }: Props) {
   const cargarRoles = async () => {
     setCargando(true);
     try {
-      const data = await apiFetch<RolInfo[] | { results: RolInfo[] }>(
-        "/api/usuarios/roles/"
+      const data = await apiFetch<NivelInfo[] | { results: NivelInfo[] }>(
+        "/api/usuarios/niveles/"
       );
       setRoles(Array.isArray(data) ? data : data.results ?? []);
     } catch (e) {
       setRoles([]);
-      setMsg(`Error cargando roles: ${(e as Error).message}`);
+      setMsg(`Error cargando niveles: ${(e as Error).message}`);
     } finally {
       setCargando(false);
     }
   };
 
-  const cargarUsuarios = async () => {
-    try {
-      const data = await apiFetch<Usuario[] | { results: Usuario[] }>(
-        "/api/usuarios/usuarios/"
-      );
-      setUsuarios(Array.isArray(data) ? data : data.results ?? []);
-    } catch {
-      setUsuarios([]);
-    }
-  };
-
   useEffect(() => {
     cargarRoles();
-    cargarUsuarios();
   }, []);
 
   // --------------------------------------------------
@@ -136,19 +115,8 @@ export default function RolesSection({ setMsg }: Props) {
     [roles]
   );
 
-  const conteoPorRol = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const u of usuarios) {
-      for (const r of u.roles ?? []) {
-        const k = r.toLowerCase();
-        m.set(k, (m.get(k) ?? 0) + 1);
-      }
-    }
-    return m;
-  }, [usuarios]);
-
-  const contarUsuarios = (rol: RolInfo) =>
-    rol.usuarios_count ?? conteoPorRol.get(rol.nombre.toLowerCase()) ?? 0;
+  const contarUsuarios = (nivel: NivelInfo) =>
+    nivel.usuarios_count ?? 0;
 
   const arbol = useMemo(() => ordenarPorArbol(roles), [roles]);
 
@@ -157,16 +125,6 @@ export default function RolesSection({ setMsg }: Props) {
     const q = filtro.toLowerCase().trim();
 
     return arbol.filter(({ rol }) => {
-      // Roles protegidos: no mostrar en la tabla editable.
-      const nombreRol = rol.nombre.trim().toUpperCase();
-
-      if (
-        nombreRol === "ADMINISTRADOR" ||
-        nombreRol === "CLIENTE"
-      ) {
-        return false;
-      }
-
       if (filtroActivo === "activos" && !rol.activo) return false;
       if (filtroActivo === "inactivos" && rol.activo) return false;
 
@@ -226,27 +184,27 @@ export default function RolesSection({ setMsg }: Props) {
     setRolModalOpen(true);
   };
 
-  const abrirEdicion = (rol: RolInfo) => {
+  const abrirEdicion = (rol: NivelInfo) => {
     setRolEditando(rol);
     setRolModalOpen(true);
   };
 
-  const eliminar = async (rol: RolInfo) => {
+  const eliminar = async (rol: NivelInfo) => {
     const cantidad = contarUsuarios(rol);
     if (cantidad > 0) {
-      setMsg(`Hay ${cantidad} usuario(s) con este rol.`);
+      setMsg("Hay usuarios con este nivel");
       return;
     }
     if (
       !confirm(
-        `¿Eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer.`
+        `¿Eliminar el nivel "${rol.nombre}"? Esta acción no se puede deshacer.`
       )
     ) {
       return;
     }
     try {
-      await apiFetch(`/api/usuarios/roles/${rol.id}/`, { method: "DELETE" });
-      setMsg(`Rol "${rol.nombre}" eliminado.`);
+      await apiFetch(`/api/usuarios/niveles/${rol.id}/`, { method: "DELETE" });
+      setMsg("Nivel eliminado");
       if (rolEditando?.id === rol.id) setRolModalOpen(false);
       await cargarRoles();
     } catch (e) {
@@ -254,23 +212,23 @@ export default function RolesSection({ setMsg }: Props) {
     }
   };
 
-  const alternarActivo = async (rol: RolInfo) => {
+  const alternarActivo = async (rol: NivelInfo) => {
     if (rol.activo) {
       const cantidad = contarUsuarios(rol);
       if (cantidad > 0) {
-        setMsg(`Hay ${cantidad} usuario(s) con este rol.`);
+        setMsg("Hay usuarios con este nivel");
         return;
       }
     }
     try {
-      await apiFetch(`/api/usuarios/roles/${rol.id}/`, {
+      await apiFetch(`/api/usuarios/niveles/${rol.id}/`, {
         method: "PATCH",
         body: JSON.stringify({ activo: !rol.activo }),
       });
       setMsg(
         rol.activo
-          ? `Rol "${rol.nombre}" inactivado.`
-          : `Rol "${rol.nombre}" reactivado.`
+          ? "Nivel inhabilitado"
+          : "Nivel habilitado"
       );
       if (rolEditando?.id === rol.id) setRolModalOpen(false);
       await cargarRoles();
@@ -290,7 +248,7 @@ export default function RolesSection({ setMsg }: Props) {
       <div className={styles.card}>
         <div className={styles.usersHeader}>
           <h3 className={styles.cardTitle} style={{ margin: 0 }}>
-            Niveles ({filas.length} / {(roles.length) - 2})
+            Niveles ({filas.length} / {roles.length})
           </h3>
 
           <div className={styles.usersFilters}>
@@ -310,7 +268,7 @@ export default function RolesSection({ setMsg }: Props) {
             </select>
 
             <input
-              placeholder="Buscar rol o descripción..."
+              placeholder="Buscar nivel o descripción..."
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
               className={styles.searchInput}
@@ -321,7 +279,7 @@ export default function RolesSection({ setMsg }: Props) {
               className={styles.btnPrimary}
               onClick={abrirCreacion}
             >
-              + Crear rol
+              + Crear nivel
             </button>
           </div>
         </div>
@@ -333,7 +291,7 @@ export default function RolesSection({ setMsg }: Props) {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Rol</th>
+                  <th>Nivel</th>
                   <th>Aprobador directo</th>
                   {/*<th>Cadena de aprobación</th>*/}
                   <th>Lidera</th>
@@ -354,7 +312,7 @@ export default function RolesSection({ setMsg }: Props) {
                         color: "var(--color-text-secondary)",
                       }}
                     >
-                      No hay roles que coincidan.
+                      No hay niveles que coincidan.
                     </td>
                   </tr>
                 ) : (
@@ -460,28 +418,28 @@ export default function RolesSection({ setMsg }: Props) {
                             <IconButton
                               icon="edit"
                               variant="primary"
-                              title="Editar rol"
+                              title="Editar nivel"
                               onClick={() => abrirEdicion(rol)}
                             />
                             {rol.activo ? (
                               <IconButton
                                 icon="ban"
                                 variant="warning"
-                                title="Inactivar rol"
+                                title="Inactivar nivel"
                                 onClick={() => alternarActivo(rol)}
                               />
                             ) : (
                               <IconButton
                                 icon="power"
                                 variant="success"
-                                title="Reactivar rol"
+                                title="Reactivar nivel"
                                 onClick={() => alternarActivo(rol)}
                               />
                             )}
                             <IconButton
                               icon="trash"
                               variant="danger"
-                              title="Eliminar rol (solo si no está en uso)"
+                              title="Eliminar nivel (solo si no está en uso)"
                               onClick={() => eliminar(rol)}
                             />
                           </div>
@@ -497,9 +455,9 @@ export default function RolesSection({ setMsg }: Props) {
       </div>
 
       {rolModalOpen && (
-        <RolModal
+        <NivelModal
           key={rolEditando?.id ?? "nuevo"}
-          rol={rolEditando}
+          nivel={rolEditando}
           opcionesSuperior={opcionesSuperior}
           onClose={() => setRolModalOpen(false)}
           onSaved={async (m) => {

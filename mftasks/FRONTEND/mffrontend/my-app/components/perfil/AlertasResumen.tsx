@@ -79,7 +79,7 @@ export default function AlertasResumen() {
               <span style={{ background: "color-mix(in srgb, var(--color-in-progress) 12%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>En desarrollo: {resumen?.en_desarrollo ?? 0}</span>
               <span style={{ background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>Rechazadas: {resumen?.rechazadas ?? 0}</span>
             </div>
-            <Link href="/cliente/mis-solicitudes" style={{ color: "var(--color-in-progress)", textDecoration: "underline", fontSize: 14 }}>
+            <Link href="/mis-solicitudes" style={{ color: "var(--color-in-progress)", textDecoration: "underline", fontSize: 14 }}>
               Ver mis solicitudes →
             </Link>
           </div>

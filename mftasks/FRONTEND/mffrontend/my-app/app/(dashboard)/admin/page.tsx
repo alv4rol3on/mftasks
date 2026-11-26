@@ -1,10 +1,11 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getUsuarioActual } from "@/lib/auth";
+import { useToast } from "@/components/ui/Toast";
 
 
 import styles from "./Admin.module.css";
@@ -12,24 +13,47 @@ import UsuariosSection from "@/components/admin/UsuariosSection";
 import CampanasSection from "@/components/admin/CampanasSection";
 import PermisosSection from "@/components/admin/PermisosSection";
 import AjustesSection from "@/components/admin/AjustesSection";
-import RolesSection from "@/components/admin/RolesSection";
+import NivelesSection from "@/components/admin/NivelesSection";
 
-type Tab = "usuarios" | "roles" | "permisos" | "campanas" | "ajustes";
+type Tab = "usuarios" | "niveles" | "permisos" | "campanas" | "ajustes";
 
 const TAB_TITULOS: Record<Tab, string> = {
   usuarios: "Usuarios",
-  roles: "Roles",
+  niveles: "Niveles",
   permisos: "Permisos",
   campanas: "Campañas",
-  ajustes: "Ajustes de tiempos",
+  ajustes: "Ajustes",
 };
 
 export default function AdminPage() {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [tab, setTab] = useState<Tab>("usuarios");
-  const [msg, setMsg] = useState<string | null>(null);
   const [esAdmin, setEsAdmin] = useState<boolean | null>(null);
+
+  const setMsg = useCallback(
+    (message: string | null) => {
+      if (!message) return;
+
+      const texto = message.toLowerCase();
+      const esError =
+        texto.startsWith("error") ||
+        texto.includes("no se pudo") ||
+        texto.includes("no se puede") ||
+        texto.includes("no puedes") ||
+        texto.includes("inválid") ||
+        texto.includes("invalid") ||
+        texto.includes("obligatori") ||
+        texto.includes(" debe ") ||
+        texto.startsWith("debes ");
+      const esInfo =
+        texto.startsWith("hay ") || texto.startsWith("no hay");
+
+      showToast(message, esError ? "error" : esInfo ? "info" : "success");
+    },
+    [showToast]
+  );
 
   useEffect(() => {
     document.title = `${TAB_TITULOS[tab]} · Administración general · MF Tasks`;
@@ -43,11 +67,7 @@ export default function AdminPage() {
       return;
     }
 
-    const esAdministrador =
-      usuario.tipo_usuario === "ADMINISTRADOR" ||
-      usuario.roles?.some(
-        (rol: string) => rol.toLowerCase() === "administrador"
-      );
+    const esAdministrador = usuario.tipo_usuario === "ADMINISTRADOR";
 
     if (!esAdministrador) {
       router.push("/perfil");
@@ -73,12 +93,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {msg && (
-        <div className={styles.message}>
-          {msg}
-        </div>
-      )}
-
       <div className={styles.tabs}>
         <button
           type="button"
@@ -91,11 +105,11 @@ export default function AdminPage() {
 
         <button
           type="button"
-          onClick={() => setTab("roles")}
-          className={`${styles.tabBtn} ${tab === "roles" ? styles.tabBtnActive : ""
+          onClick={() => setTab("niveles")}
+          className={`${styles.tabBtn} ${tab === "niveles" ? styles.tabBtnActive : ""
             }`}
         >
-          Roles
+          Niveles
         </button>
 
         <button
@@ -122,7 +136,7 @@ export default function AdminPage() {
           className={`${styles.tabBtn} ${tab === "ajustes" ? styles.tabBtnActive : ""
             }`}
         >
-          Ajustes de tiempos
+          Ajustes
         </button>
       </div>
 
@@ -131,8 +145,8 @@ export default function AdminPage() {
           <UsuariosSection setMsg={setMsg} />
         )}
 
-        {tab === "roles" && (
-          <RolesSection setMsg={setMsg} />
+        {tab === "niveles" && (
+          <NivelesSection setMsg={setMsg} />
         )}
 
         {tab === "campanas" && (

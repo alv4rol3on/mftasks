@@ -3,15 +3,15 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .models import (
     User,
-    Rol,
-    UserRol,
+    Nivel,
+    UserNivel,
     Equipo,
     EquipoMiembro,
     PreferenciaNotificacion,
 )
 
-class UserRolInline(admin.TabularInline):
-    model = UserRol
+class UserNivelInline(admin.TabularInline):
+    model = UserNivel
     extra = 1
 
 class EquipoMiembroInline(admin.TabularInline):
@@ -77,12 +77,14 @@ class UserAdmin(BaseUserAdmin):
         "dni",
         "cargo",
         "tipo_usuario",
+        "puede_crear_solicitudes",
         "is_active",
         "is_staff",
     )
 
     inlines = (
         PreferenciaNotificacionInline,
+        UserNivelInline,
     )
 
     list_filter = (
@@ -124,6 +126,7 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "tipo_usuario",
+                    "puede_crear_solicitudes",
                     "is_active",
                     "is_staff",
                     "is_superuser",
@@ -156,6 +159,8 @@ class UserAdmin(BaseUserAdmin):
                     "apellidos",
                     "dni",
                     "cargo",
+                    "tipo_usuario",
+                    "puede_crear_solicitudes",
                     "password1",
                     "password2",
                     "is_staff",
@@ -165,18 +170,15 @@ class UserAdmin(BaseUserAdmin):
         ),
     )
 
-    inlines = [
-        UserRolInline,
-    ]
 
-
-@admin.register(Rol)
-class RolAdmin(admin.ModelAdmin):
+@admin.register(Nivel)
+class NivelAdmin(admin.ModelAdmin):
 
     list_display = (
         "nombre",
         "superior",
         "puede_liderar",
+        "es_sistema",
         "color",
         "activo",
     )
@@ -184,9 +186,14 @@ class RolAdmin(admin.ModelAdmin):
     list_filter = (
         "activo",
         "puede_liderar",
+        "es_sistema",
     )
 
     search_fields = (
+        "nombre",
+    )
+
+    readonly_fields = (
         "nombre",
     )
 
@@ -198,22 +205,34 @@ class RolAdmin(admin.ModelAdmin):
         "superior",
     )
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        from .jerarquia import renumerar_niveles
 
-@admin.register(UserRol)
-class UserRolAdmin(admin.ModelAdmin):
+        renumerar_niveles()
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        from .jerarquia import renumerar_niveles
+
+        renumerar_niveles()
+
+
+@admin.register(UserNivel)
+class UserNivelAdmin(admin.ModelAdmin):
 
     list_display = (
         "usuario",
-        "rol",
+        "nivel",
     )
 
     list_filter = (
-        "rol",
+        "nivel",
     )
 
     autocomplete_fields = (
         "usuario",
-        "rol",
+        "nivel",
     )
 
 
@@ -222,7 +241,7 @@ class EquipoAdmin(admin.ModelAdmin):
 
     list_display = (
         "nombre",
-        "rol_equipo",
+        "nivel",
         "lider",
         "activo",
         "fecha_creacion",
@@ -230,7 +249,7 @@ class EquipoAdmin(admin.ModelAdmin):
 
     list_filter = (
         "activo",
-        "rol_equipo",
+        "nivel",
     )
 
     search_fields = (
@@ -242,12 +261,12 @@ class EquipoAdmin(admin.ModelAdmin):
 
     autocomplete_fields = (
         "lider",
-        "rol_equipo",
+        "nivel",
     )
 
     list_select_related = (
         "lider",
-        "rol_equipo",
+        "nivel",
     )
 
     inlines = [

@@ -41,8 +41,8 @@ function tituloParaRuta(pathname: string): string | null {
   if (pathname.startsWith("/solicitudes")) return "Solicitudes · MF Tasks";
   if (pathname.startsWith("/equipos")) return "Equipos · MF Tasks";
   if (pathname.startsWith("/perfil")) return "Perfil · MF Tasks";
-  if (pathname.startsWith("/cliente/mis-solicitudes")) {
-    return "Seguimiento de solicitudes · MF Tasks";
+  if (pathname.startsWith("/mis-solicitudes")) {
+    return "Mis solicitudes · MF Tasks";
   }
   return "MF Tasks";
 }

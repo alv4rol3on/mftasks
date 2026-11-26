@@ -15,14 +15,14 @@ type MenuItem = {
 
 const menuAll: MenuItem[] = [
   { nombre: "Perfil", ruta: "/perfil", show: () => true },
-  // CLIENTE: ve estado de sus solicitudes
-  { nombre: "Seguimiento de Solicitudes", ruta: "/cliente/mis-solicitudes", show: (c) => c.isCliente && !c.isAdmin },
+  // Colaboradores con permiso de solicitar: crean y siguen sus solicitudes.
+  { nombre: "Mis solicitudes", ruta: "/mis-solicitudes", show: (c) => c.puedeCrearSolicitudes && !c.isAdmin },
   // Para admin: Centro de solicitudes (seguimiento de todos los estados, solo lectura)
   { nombre: "Centro de solicitudes", ruta: "/solicitudes", show: (c) => c.isAdmin },
   { nombre: "Administración general", ruta: "/admin", show: (c) => c.isAdmin },
   // Personal interno no-admin
-  { nombre: "Bandeja de solicitudes", ruta: "/solicitudes", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
-  { nombre: "Tareas en desarrollo", ruta: "/tareas", show: (c) => !c.isAdmin && !c.isClientePuro && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Bandeja de solicitudes", ruta: "/solicitudes", show: (c) => !c.isAdmin && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
+  { nombre: "Tareas en desarrollo", ruta: "/tareas", show: (c) => !c.isAdmin && (c.isAsignador || c.isLider || c.isSubLider || c.isMiembro) },
   { nombre: "Equipos", ruta: "/equipos", show: () => true },
 ];
 

@@ -18,7 +18,7 @@ type Usuario = {
   apellidos: string;
   cargo?: string;
   is_active: boolean;
-  roles?: string[];
+  tipo_usuario?: "COLABORADOR" | "ADMINISTRADOR";
 };
 
 type Subcampana = {
@@ -384,9 +384,7 @@ export default function PermisosSection({ setMsg }: Props) {
           }
         );
 
-        setMsg(
-          `Permiso otorgado para subcampaña ${subcampanaId}`
-        );
+        setMsg("Permiso otorgado");
       } else {
         const perm = permisos.find(
           (p) =>
@@ -407,9 +405,7 @@ export default function PermisosSection({ setMsg }: Props) {
           }
         );
 
-        setMsg(
-          `Permiso revocado para subcampaña ${subcampanaId}`
-        );
+        setMsg("Permiso revocado");
       }
 
       await cargarPermisos(usuarioId);

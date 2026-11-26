@@ -1,3 +1,7 @@
-- reestructurar jerarquía, dividirlo por grupos y dentro de los mismos grupos tener niveles(ejemplo 1 menor nivel, 7 máximo nivel)
-- conversión total de roles, pasa a llamarse NIVELES y solo mantendrá la jerarquía de roles y sus opciones por nivel
-- se asigna un nivel a la hora de crear usuario y se le puede editar luego, 
+- conversión total de roles, pasa a llamarse NIVELES pero mantendrá todo lo que tenia ROLES antes, solo que esta vez ya no se le puede poner nombre, si creo un nivel quedará
+como "NIVEL [numero]" segun su posicion que lo coloque en la jerarquia
+- el tipo de usuario CLIENTE ya no existe, pero se reutilizará la pestaña de mis-solicitudes como un permiso otorgable a los usuarios tipo colaborador 
+- como mis-solicitudes ahora será un permiso para crear solicitudes y una pestaña para ver mis solicitudes creadas, el usuario tipo colaborador que genere solicitudes
+no deberia de elegir su propio equipo
+- algo pasa en PERFIL y es que no se esta cargando su cargo
+- tambien se deberia poder asignar un nivel a la hora de crear usuario y se le puede editar luego, 

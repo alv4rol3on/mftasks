@@ -7,11 +7,11 @@ import EditarUsuarioModal from "./EditarUsuarioModal";
 import CrearUsuarioModal from "./CrearUsuarioModal";
 import IconButton from "@/components/ui/IconButton";
 
-import type { RolInfo } from "@/lib/types";
+import type { NivelInfo } from "@/lib/types";
 
 import styles from "./AdminSections.module.css";
 
-type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+type TipoUsuario = "COLABORADOR" | "ADMINISTRADOR";
 
 type Usuario = {
   id: number;
@@ -24,16 +24,17 @@ type Usuario = {
   telefono?: string;
   is_active: boolean;
   tipo_usuario?: TipoUsuario;
-  roles?: string[];
+  nivel?: number | null;
+  nivel_nombre?: string | null;
+  puede_crear_solicitudes?: boolean;
   dni: string;
-  bloqueo_estado_rol?: string | null;
+  bloqueo_estado_nivel?: string | null;
 };
 
 const PAGE_SIZE_USUARIOS = 10;
 
 const TIPOS_USUARIO: { value: TipoUsuario; label: string }[] = [
   { value: "COLABORADOR", label: "Colaborador" },
-  { value: "CLIENTE", label: "Cliente" },
   { value: "ADMINISTRADOR", label: "Administrador" },
 ];
 
@@ -44,23 +45,19 @@ type Props = {
 export default function UsuariosSection({ setMsg }: Props) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(false);
-  const [roles, setRoles] = useState<RolInfo[]>([]);
+  const [niveles, setNiveles] = useState<NivelInfo[]>([]);
 
   const [filtro, setFiltro] = useState("");
   const [filtroUsuarioTipo, setFiltroUsuarioTipo] = useState<string>("todos");
-  const [filtroRol, setFiltroRol] = useState<string>("todos");
+  const [filtroNivel, setFiltroNivel] = useState<string>("todos");
 
   const [pageUsuarios, setPageUsuarios] = useState(1);
   const [editando, setEditando] = useState<Usuario | null>(null);
   const [crearOpen, setCrearOpen] = useState(false);
 
-  // Roles jerárquicos asignables a colaboradores (activos, sin los de sistema).
-  const rolesJerarquicos = roles
-    .filter(
-      (r) =>
-        r.activo &&
-        !["cliente", "administrador"].includes(r.nombre.toLowerCase())
-    )
+  // Niveles asignables a colaboradores (activos y no de sistema).
+  const nivelesJerarquicos = niveles
+    .filter((n) => n.activo && !n.es_sistema)
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   // --------------------------------------------------
@@ -81,26 +78,26 @@ export default function UsuariosSection({ setMsg }: Props) {
 
       setUsuarios(arr);
     } catch (e) {
-      setMsg((e as Error).message);
+      setMsg(`Error al cargar usuarios: ${(e as Error).message}`);
     } finally {
       setCargando(false);
     }
   };
 
-  const cargarRoles = async () => {
+  const cargarNiveles = async () => {
     try {
-      const data = await apiFetch<RolInfo[] | { results: RolInfo[] }>(
-        "/api/usuarios/roles/"
+      const data = await apiFetch<NivelInfo[] | { results: NivelInfo[] }>(
+        "/api/usuarios/niveles/"
       );
-      setRoles(Array.isArray(data) ? data : data.results ?? []);
+      setNiveles(Array.isArray(data) ? data : data.results ?? []);
     } catch {
-      setRoles([]);
+      setNiveles([]);
     }
   };
 
   useEffect(() => {
     cargarUsuarios();
-    cargarRoles();
+    cargarNiveles();
   }, []);
 
   // --------------------------------------------------
@@ -108,10 +105,7 @@ export default function UsuariosSection({ setMsg }: Props) {
   // --------------------------------------------------
 
   const esUsuarioAdmin = (u: Usuario) =>
-    u.tipo_usuario === "ADMINISTRADOR" ||
-    (u.roles ?? [])
-      .map((r) => r.toLowerCase())
-      .includes("administrador");
+    u.tipo_usuario === "ADMINISTRADOR";
 
   // --------------------------------------------------
   // FILTROS
@@ -139,9 +133,10 @@ export default function UsuariosSection({ setMsg }: Props) {
       return false;
     }
 
-    if (filtroRol !== "todos") {
-      const rolesLow = (u.roles ?? []).map(r => r.toLowerCase());
-      if (!rolesLow.includes(filtroRol.toLowerCase())) return false;
+    if (filtroNivel !== "todos") {
+      if ((u.nivel_nombre ?? "").toLowerCase() !== filtroNivel.toLowerCase()) {
+        return false;
+      }
     }
 
     return true;
@@ -169,7 +164,7 @@ export default function UsuariosSection({ setMsg }: Props) {
 
   useEffect(() => {
     setPageUsuarios(1);
-  }, [filtro, filtroUsuarioTipo, filtroRol]);
+  }, [filtro, filtroUsuarioTipo, filtroNivel]);
 
   useEffect(() => {
     if (pageUsuarios > totalPagesUsuarios) {
@@ -224,9 +219,9 @@ export default function UsuariosSection({ setMsg }: Props) {
             </select>
 
             <select
-              value={filtroRol}
+              value={filtroNivel}
               onChange={e =>
-                setFiltroRol(e.target.value)
+                setFiltroNivel(e.target.value)
               }
               className={styles.select}
               style={{
@@ -236,11 +231,11 @@ export default function UsuariosSection({ setMsg }: Props) {
               }}
             >
               <option value="todos">
-                Todos los roles
+                Todos los niveles
               </option>
-              {rolesJerarquicos.map((r) => (
-                <option key={r.id} value={r.nombre}>
-                  {r.nombre}
+              {nivelesJerarquicos.map((nivel) => (
+                <option key={nivel.id} value={nivel.nombre}>
+                  {nivel.nombre}
                 </option>
               ))}
             </select>
@@ -284,7 +279,8 @@ export default function UsuariosSection({ setMsg }: Props) {
                     <th>Codigo</th>
                     <th>Nombre</th>
                     <th>Email</th>
-                    <th>Rol</th>
+                    <th>Nivel</th>
+                    <th>Solicitudes</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -297,7 +293,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                   {usuariosPaginados.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         style={{
                           textAlign: "center",
                           padding: 16,
@@ -311,21 +307,7 @@ export default function UsuariosSection({ setMsg }: Props) {
                     usuariosPaginados.map(u => {
                       const esAdmin = esUsuarioAdmin(u);
 
-                      const tipo: TipoUsuario =
-                        u.tipo_usuario ??
-                        (esAdmin ? "ADMINISTRADOR" : "COLABORADOR");
-
-                      const rolActual = (u.roles ?? [])[0] ?? "";
-
                       const badgeAdmin = {
-                        background: "var(--color-badge)",
-                        color: "var(--color-on-accent)",
-                        padding: "2px 6px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                      } as const;
-
-                      const badgeCliente = {
                         background: "var(--color-badge)",
                         color: "var(--color-on-accent)",
                         padding: "2px 6px",
@@ -372,16 +354,22 @@ export default function UsuariosSection({ setMsg }: Props) {
                           </td>
 
                           <td>
-                            {esAdmin || tipo === "ADMINISTRADOR" ? (
-                              <span style={badgeAdmin}>
-                                ADMINISTRADOR
-                              </span>
-                            ) : tipo === "CLIENTE" ? (
-                              <span style={badgeCliente}>
-                                CLIENTE
-                              </span>
+                            {esAdmin ? (
+                              <span style={badgeAdmin}>ADMINISTRADOR</span>
                             ) : (
-                              <span style={badgeColab}>{rolActual || "-"}</span>
+                              <span style={badgeColab}>
+                                {u.nivel_nombre || "-"}
+                              </span>
+                            )}
+                          </td>
+
+                          <td>
+                            {esAdmin || u.puede_crear_solicitudes ? (
+                              <span style={badgeColab}>Sí</span>
+                            ) : (
+                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                                No
+                              </span>
                             )}
                           </td>
 
@@ -427,7 +415,7 @@ export default function UsuariosSection({ setMsg }: Props) {
         <EditarUsuarioModal
           key={editando.id}
           usuario={editando}
-          rolesJerarquicos={rolesJerarquicos}
+          nivelesJerarquicos={nivelesJerarquicos}
           onClose={() => setEditando(null)}
           onSaved={async (m) => {
             setMsg(m);
@@ -438,7 +426,7 @@ export default function UsuariosSection({ setMsg }: Props) {
 
       {crearOpen && (
         <CrearUsuarioModal
-          rolesJerarquicos={rolesJerarquicos}
+          nivelesJerarquicos={nivelesJerarquicos}
           onClose={() => setCrearOpen(false)}
           onSaved={async (m) => {
             setMsg(m);

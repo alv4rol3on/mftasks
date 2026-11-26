@@ -29,27 +29,28 @@ from .models import (
     DisponibilidadUsuario,
     Equipo,
     EquipoMiembro,
+    Nivel,
     PreferenciaNotificacion,
-    Rol,
     User,
 )
 from .jerarquia import (
+    nivel_efectivo,
+    niveles_integrantes_requeridos,
     puede_ser_lider,
-    rol_efectivo,
-    roles_integrantes_requeridos,
+    renumerar_niveles,
 )
 from .permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
     es_administrador,
-    es_cliente,
+    es_equipo_propio,
     puede_gestionar_miembros,
 )
 from .serializers import (
     DisponibilidadUsuarioSerializer,
     EquipoDetailSerializer,
+    NivelSerializer,
     PreferenciaNotificacionSerializer,
-    RolSerializer,
     UsuarioCandidatoSerializer,
     UserCreateSerializer,
     UserMeSerializer,
@@ -365,12 +366,6 @@ class UserViewSet(ModelViewSet):
         from django.db.models import Exists, OuterRef
         from tasks.models import Subtarea, Tarea
 
-        user = self.request.user
-
-        # Los clientes no pueden consultar el directorio de usuarios.
-        if es_cliente(user) and not es_administrador(user):
-            return User.objects.none()
-
         base = User.objects.all()
 
         if self.action in ("list", "retrieve"):
@@ -414,52 +409,14 @@ class UserViewSet(ModelViewSet):
 
     @transaction.atomic
     def perform_update(self, serializer):
-        roles = serializer.validated_data.pop("roles", None)
-        tipo_usuario_explicito = serializer.validated_data.get("tipo_usuario")
-
         serializer.save()
 
-        if roles is not None:
-            from .models import Rol, TipoUsuario, UserRol
 
-            user = serializer.instance
+class NivelViewSet(ModelViewSet):
 
-            UserRol.objects.filter(
-                usuario=user
-            ).exclude(
-                rol__nombre__iexact="Administrador"
-            ).delete()
+    queryset = Nivel.objects.filter(es_sistema=False).select_related("superior")
 
-            for rname in roles:
-                rol_obj = Rol.objects.get(nombre__iexact=rname)
-                UserRol.objects.get_or_create(
-                    usuario=user,
-                    rol=rol_obj
-                )
-
-            if not tipo_usuario_explicito:
-                nombres = {
-                    (ur.rol.nombre or "").lower()
-                    for ur in user.roles.select_related("rol")
-                }
-
-                if "administrador" in nombres:
-                    nuevo = TipoUsuario.ADMINISTRADOR
-                elif "cliente" in nombres:
-                    nuevo = TipoUsuario.CLIENTE
-                else:
-                    nuevo = TipoUsuario.COLABORADOR
-
-                if user.tipo_usuario != nuevo:
-                    user.tipo_usuario = nuevo
-                    user.save(update_fields=["tipo_usuario"])
-
-
-class RolViewSet(ModelViewSet):
-
-    queryset = Rol.objects.all()
-
-    serializer_class = RolSerializer
+    serializer_class = NivelSerializer
 
     permission_classes = [IsAuthenticatedActivo]
 
@@ -472,14 +429,26 @@ class RolViewSet(ModelViewSet):
 
         return permisos
 
+    def perform_create(self, serializer):
+        nivel = serializer.save()
+        renumerar_niveles()
+        nivel.refresh_from_db()
+        serializer.instance = nivel
+
+    def perform_update(self, serializer):
+        nivel = serializer.save()
+        renumerar_niveles()
+        nivel.refresh_from_db()
+        serializer.instance = nivel
+
     def update(self, request, *args, **kwargs):
-        # No se puede inactivar un rol que aún tiene usuarios asignados.
+        # No se puede inactivar un nivel que aún tiene usuarios asignados.
         if request.data.get("activo") is False:
-            rol = self.get_object()
-            cantidad = rol.usuarios.count()
+            nivel = self.get_object()
+            cantidad = nivel.usuarios.count()
             if cantidad:
                 return Response(
-                    {"detail": f"Hay {cantidad} usuario(s) con este rol."},
+                    {"detail": f"Hay {cantidad} usuario(s) con este nivel."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         return super().update(request, *args, **kwargs)
@@ -491,21 +460,23 @@ class RolViewSet(ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         from django.db.models import ProtectedError
 
-        rol = self.get_object()
-        cantidad = rol.usuarios.count()
+        nivel = self.get_object()
+        cantidad = nivel.usuarios.count()
         if cantidad:
             return Response(
-                {"detail": f"Hay {cantidad} usuario(s) con este rol."},
+                {"detail": f"Hay {cantidad} usuario(s) con este nivel."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            return super().destroy(request, *args, **kwargs)
+            respuesta = super().destroy(request, *args, **kwargs)
+            renumerar_niveles()
+            return respuesta
         except ProtectedError:
             return Response(
                 {
                     "detail": (
-                        "El rol está en uso (como superior, en equipos o como "
+                        "El nivel está en uso (como superior, en equipos o como "
                         "aprobador). Desactívelo o reasigne sus dependencias."
                     )
                 },
@@ -544,7 +515,7 @@ class EquipoViewSet(ModelViewSet):
 
         base = (
             Equipo.objects
-            .select_related("lider")
+            .select_related("lider", "nivel")
             .prefetch_related("miembros__usuario")
         )
 
@@ -556,14 +527,28 @@ class EquipoViewSet(ModelViewSet):
         if subcampana_id:
             base = self._filtrar_por_permiso_lider(base, subcampana_id)
 
+        # Un solicitante no puede elegir sus propios equipos como destino.
+        excluir_propios = self.request.query_params.get("excluir_propios") in (
+            "1",
+            "true",
+            "yes",
+        )
+        if excluir_propios and not es_administrador(user):
+            propios_ids = set(
+                Equipo.objects.filter(lider=user).values_list("id", flat=True)
+            )
+            propios_ids |= set(
+                EquipoMiembro.objects.filter(
+                    usuario=user,
+                    estado=EquipoMiembro.EstadoMiembro.ACTIVO,
+                ).values_list("equipo_id", flat=True)
+            )
+            base = base.exclude(id__in=propios_ids)
+
         # Administrador ve todos (incluye inactivos para poder reactivarlos)
         if es_administrador(user):
             return base
-        # CLIENTE nunca es miembro de equipo: solo ve equipos activos para elegir
-        # destino al solicitar (no ve miembros)
-        if es_cliente(user):
-            return base.filter(activo=True)
-        # Usuarios internos: solo equipos activos.
+        # Colaboradores: solo equipos activos.
         return base.filter(activo=True)
 
     @staticmethod
@@ -631,7 +616,7 @@ class EquipoViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="cambiar-lider")
     def cambiar_lider(self, request, pk=None):
-        """Cambia el líder del equipo por otro usuario con el mismo rol."""
+        """Cambia el líder del equipo por otro usuario con el mismo nivel."""
         equipo = self.get_object()
 
         if not es_administrador(request.user):
@@ -695,20 +680,20 @@ class EquipoViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        rol_candidato = rol_efectivo(candidato)
+        nivel_candidato = nivel_efectivo(candidato)
         if (
-            equipo.rol_equipo_id is None
-            or rol_candidato is None
-            or rol_candidato.pk != equipo.rol_equipo_id
+            equipo.nivel_id is None
+            or nivel_candidato is None
+            or nivel_candidato.pk != equipo.nivel_id
         ):
-            nombre_rol = (
-                equipo.rol_equipo.nombre if equipo.rol_equipo_id else "—"
+            nombre_nivel = (
+                equipo.nivel.nombre if equipo.nivel_id else "—"
             )
             return Response(
                 {
                     "detail": (
-                        "El nuevo líder debe tener el mismo rol que el líder "
-                        f"actual ({nombre_rol})."
+                        "El nuevo líder debe tener el mismo nivel que el líder "
+                        f"actual ({nombre_nivel})."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -954,37 +939,38 @@ class EquipoViewSet(ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if equipo.rol_equipo_id is None:
+        if equipo.nivel_id is None:
             return Response(
                 {
                     "detail": (
-                        "El equipo no tiene un rol de líder definido. "
+                        "El equipo no tiene un nivel de líder definido. "
                         "Asigne primero un líder válido."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # El rol del integrante debe ser un hijo directo del rol del líder.
-        roles_requeridos = roles_integrantes_requeridos(equipo)
-        if not roles_requeridos:
+        # Los niveles admitidos dependen de la configuración global de alcance.
+        niveles_requeridos = niveles_integrantes_requeridos(equipo)
+        if not niveles_requeridos:
             return Response(
                 {
                     "detail": (
-                        "El rol del líder no tiene roles subordinados directos. "
-                        "Ajuste la jerarquía antes de agregar integrantes."
+                        "El nivel del líder no tiene niveles inferiores "
+                        "disponibles según la configuración actual. "
+                        "Ajuste la jerarquía o el alcance de integrantes."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        rol_usuario = rol_efectivo(user_obj)
-        if rol_usuario is None or rol_usuario.pk not in {
-            r.pk for r in roles_requeridos
+        nivel_usuario = nivel_efectivo(user_obj)
+        if nivel_usuario is None or nivel_usuario.pk not in {
+            n.pk for n in niveles_requeridos
         }:
-            etiqueta = ", ".join(sorted(r.nombre for r in roles_requeridos))
+            etiqueta = ", ".join(sorted(n.nombre for n in niveles_requeridos))
             return Response(
                 {
                     "detail": (
-                        f"Este equipo solo admite integrantes con rol: {etiqueta}."
+                        f"Este equipo solo admite integrantes con nivel: {etiqueta}."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -1019,9 +1005,9 @@ class EquipoViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        roles_requeridos = roles_integrantes_requeridos(equipo)
-        ids_roles = {rol.pk for rol in roles_requeridos}
-        if not ids_roles:
+        niveles_requeridos = niveles_integrantes_requeridos(equipo)
+        ids_niveles = {nivel.pk for nivel in niveles_requeridos}
+        if not ids_niveles:
             return Response([])
 
         excluidos = set(
@@ -1036,17 +1022,17 @@ class EquipoViewSet(ModelViewSet):
             User.objects.filter(
                 tipo_usuario=TipoUsuario.COLABORADOR,
                 is_active=True,
-                roles__rol_id__in=ids_roles,
+                niveles__nivel_id__in=ids_niveles,
             )
             .exclude(id__in=excluidos)
             .distinct()
-            .prefetch_related("roles__rol")
+            .prefetch_related("niveles__nivel")
         )
 
         candidatos = []
         for usuario in candidatos_qs:
-            rol = rol_efectivo(usuario)
-            if rol is not None and rol.pk in ids_roles:
+            nivel = nivel_efectivo(usuario)
+            if nivel is not None and nivel.pk in ids_niveles:
                 candidatos.append(usuario)
 
         candidatos.sort(

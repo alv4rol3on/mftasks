@@ -94,9 +94,7 @@ export default function EditarNombreModal({
         body: JSON.stringify({ nombre: nombreLimpio }),
       });
 
-      await onSaved(
-        `Nombre de ${etiqueta} actualizado a "${nombreLimpio}".`
-      );
+      await onSaved(`${etiqueta} actualizada`);
       onClose();
     } catch (e) {
       setError((e as Error).message);

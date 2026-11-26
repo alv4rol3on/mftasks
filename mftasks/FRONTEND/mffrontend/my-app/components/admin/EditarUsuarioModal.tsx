@@ -8,7 +8,7 @@ import Switch from "@/components/ui/Switch";
 
 import styles from "./AdminSections.module.css";
 
-type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+type TipoUsuario = "COLABORADOR" | "ADMINISTRADOR";
 
 export type UsuarioEditable = {
   id: number;
@@ -22,15 +22,17 @@ export type UsuarioEditable = {
   telefono?: string;
   is_active: boolean;
   tipo_usuario?: TipoUsuario;
-  roles?: string[];
-  bloqueo_estado_rol?: string | null;
+  nivel?: number | null;
+  nivel_nombre?: string | null;
+  puede_crear_solicitudes?: boolean;
+  bloqueo_estado_nivel?: string | null;
 };
 
-export type RolJerarquico = { id: number; nombre: string };
+export type NivelJerarquico = { id: number; nombre: string };
 
 type Props = {
   usuario: UsuarioEditable;
-  rolesJerarquicos: RolJerarquico[];
+  nivelesJerarquicos: NivelJerarquico[];
   onClose: () => void;
   onSaved: (msg: string) => void | Promise<void>;
 };
@@ -44,35 +46,34 @@ type FormState = {
   descripcion_cargo: string;
   telefono: string;
   tipo_usuario: TipoUsuario;
-  rol: string;
+  nivel: string;
+  puede_crear_solicitudes: boolean;
   is_active: boolean;
 };
 
 const TIPOS_USUARIO: { value: TipoUsuario; label: string }[] = [
   { value: "COLABORADOR", label: "Colaborador" },
-  { value: "CLIENTE", label: "Cliente" },
   { value: "ADMINISTRADOR", label: "Administrador" },
 ];
 
 export default function EditarUsuarioModal({
   usuario,
-  rolesJerarquicos,
+  nivelesJerarquicos,
   onClose,
   onSaved,
 }: Props) {
-  const esAdmin =
-    usuario.tipo_usuario === "ADMINISTRADOR" ||
-    (usuario.roles ?? []).some((r) => r.toLowerCase() === "administrador");
+  const esAdmin = usuario.tipo_usuario === "ADMINISTRADOR";
 
-  const tipoInicial: TipoUsuario =
-    usuario.tipo_usuario ?? (esAdmin ? "ADMINISTRADOR" : "COLABORADOR");
+  const tipoInicial: TipoUsuario = esAdmin ? "ADMINISTRADOR" : "COLABORADOR";
 
-  const rolActual = (usuario.roles ?? [])[0] ?? "";
-  const rolEnLista = rolesJerarquicos.some(
-    (r) => r.nombre.toLowerCase() === rolActual.toLowerCase()
-  );
+  const nivelActual =
+    usuario.nivel ??
+    nivelesJerarquicos.find(
+      (n) => n.nombre.toLowerCase() === (usuario.nivel_nombre ?? "").toLowerCase()
+    )?.id ??
+    "";
 
-  const bloqueo = usuario.bloqueo_estado_rol ?? null;
+  const bloqueo = usuario.bloqueo_estado_nivel ?? null;
 
   const [form, setForm] = useState<FormState>({
     nombres: usuario.nombres ?? "",
@@ -83,7 +84,8 @@ export default function EditarUsuarioModal({
     descripcion_cargo: usuario.descripcion_cargo ?? "",
     telefono: usuario.telefono ?? "",
     tipo_usuario: tipoInicial,
-    rol: rolEnLista ? rolActual : rolesJerarquicos[0]?.nombre ?? "",
+    nivel: nivelActual === "" ? "" : String(nivelActual),
+    puede_crear_solicitudes: usuario.puede_crear_solicitudes ?? false,
     is_active: usuario.is_active,
   });
   const [guardando, setGuardando] = useState(false);
@@ -114,25 +116,25 @@ export default function EditarUsuarioModal({
       telefono: form.telefono.trim(),
     };
 
-    // Estado/rol/tipo solo se envían si no hay bloqueo.
+    // Estado/nivel/tipo solo se envían si no hay bloqueo.
     if (!bloqueo) {
-      let roles: string[];
-      if (form.tipo_usuario === "CLIENTE") {
-        roles = ["Cliente"];
-      } else if (form.tipo_usuario === "ADMINISTRADOR") {
-        roles = ["Administrador"];
-      } else {
-        const rolAsignado = form.rol || rolesJerarquicos[0]?.nombre;
-        if (!rolAsignado) {
+      let nivel: number | undefined;
+      if (form.tipo_usuario === "COLABORADOR") {
+        const nivelAsignado = form.nivel;
+        if (!nivelAsignado) {
           setError(
-            "No hay roles jerárquicos disponibles. Cree uno en la pestaña Roles."
+            "Selecciona un nivel. Si no hay niveles disponibles, créalo en la pestaña Niveles."
           );
           return;
         }
-        roles = [rolAsignado];
+        nivel = Number(nivelAsignado);
       }
       payload.tipo_usuario = form.tipo_usuario;
-      payload.roles = roles;
+      payload.nivel = nivel;
+      payload.puede_crear_solicitudes =
+        form.tipo_usuario === "COLABORADOR"
+          ? form.puede_crear_solicitudes
+          : false;
       payload.is_active = form.is_active;
     }
 
@@ -145,7 +147,7 @@ export default function EditarUsuarioModal({
         body: JSON.stringify(payload),
       });
 
-      await onSaved(`Usuario ${form.email.trim()} actualizado`);
+      await onSaved("Usuario actualizado");
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -267,7 +269,8 @@ export default function EditarUsuarioModal({
             setForm({
               ...form,
               tipo_usuario: e.target.value as TipoUsuario,
-              rol: "",
+              nivel: "",
+              puede_crear_solicitudes: false,
             })
           }
         >
@@ -281,19 +284,34 @@ export default function EditarUsuarioModal({
         {form.tipo_usuario === "COLABORADOR" && (
           <select
             className={styles.select}
-            value={form.rol}
+            value={form.nivel}
             disabled={Boolean(bloqueo)}
             title={bloqueo ?? undefined}
-            onChange={(e) => setForm({ ...form, rol: e.target.value })}
+            onChange={(e) => setForm({ ...form, nivel: e.target.value })}
           >
-            <option value="">Selecciona un rol *</option>
+            <option value="">Selecciona un nivel *</option>
 
-            {rolesJerarquicos.map((r) => (
-              <option key={r.id} value={r.nombre}>
-                {r.nombre}
+            {nivelesJerarquicos.map((nivel) => (
+              <option key={nivel.id} value={nivel.id}>
+                {nivel.nombre}
               </option>
             ))}
           </select>
+        )}
+
+        {form.tipo_usuario === "COLABORADOR" && (
+          <label className={styles.field} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={form.puede_crear_solicitudes}
+              disabled={Boolean(bloqueo)}
+              onChange={(e) =>
+                setForm({ ...form, puede_crear_solicitudes: e.target.checked })
+              }
+              style={{ width: 16, height: 16 }}
+            />
+            <span>Puede crear solicitudes (Mis solicitudes)</span>
+          </label>
         )}
 
         <div className={styles.field}>

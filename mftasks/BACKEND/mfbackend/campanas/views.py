@@ -8,7 +8,6 @@ from usuarios.permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
     es_administrador,
-    es_cliente,
 )
 from usuarios.models import Equipo, EquipoMiembro
 
@@ -199,27 +198,8 @@ class CampanaViewSet(ModelViewSet):
                 return qs
             return qs.filter(eliminado=False)
         qs = qs.filter(eliminado=False, entidad__eliminado=False)
-        # cliente ve solo campañas activas donde tiene permiso puntual a subcampana activa
-        if es_cliente(user):
-            campana_ids = PermisoCampana.objects.filter(
-                usuario=user,
-                subcampana__isnull=False,
-                subcampana__activo=True,
-                subcampana__eliminado=False,
-                subcampana__campana__activo=True,
-                subcampana__campana__eliminado=False,
-                subcampana__campana__entidad__activo=True,
-                subcampana__campana__entidad__eliminado=False,
-            ).values_list("subcampana__campana_id", flat=True)
-            campana_ids = set(campana_ids)
-            if campana_ids:
-                return qs.filter(
-                    id__in=campana_ids,
-                    activo=True,
-                    entidad__activo=True,
-                )
-            return qs.none()
-        # miembro/lider/otro: ve todas activas
+        # Colaboradores ven todas las campañas activas; el formulario de
+        # solicitudes usa /mis-permisos para limitar las que pueden usar.
         return qs.filter(activo=True, entidad__activo=True)
 
 
@@ -285,24 +265,6 @@ class SubCampanaViewSet(ModelViewSet):
             incluir = incluir.filter(campana_id=campana_id)
         if es_administrador(user):
             return incluir
-        if es_cliente(user):
-            # permiso puntual solo a subcampana activa y campaña activa
-            permisos_sub = PermisoCampana.objects.filter(
-                usuario=user,
-                subcampana__isnull=False,
-                subcampana__activo=True,
-                subcampana__eliminado=False,
-                subcampana__campana__activo=True,
-                subcampana__campana__eliminado=False,
-                subcampana__campana__entidad__activo=True,
-                subcampana__campana__entidad__eliminado=False,
-            ).values_list("subcampana_id", flat=True)
-            return incluir.filter(
-                id__in=permisos_sub,
-                activo=True,
-                campana__activo=True,
-                campana__entidad__activo=True,
-            )
         return incluir.filter(
             activo=True,
             campana__activo=True,

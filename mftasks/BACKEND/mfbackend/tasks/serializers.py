@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from usuarios.permissions import es_administrador, es_cliente
+from usuarios.permissions import (
+    es_administrador,
+    es_equipo_propio,
+    puede_crear_solicitudes,
+)
 from .models import ArchivoTarea, Subtarea, Tarea, ConfiguracionAprobacion, Prioridad, TipoSolicitud
 from .permissions import es_asignador_del_equipo, tiene_permiso_subcampana
 from .services.cliente_acciones import (
@@ -330,9 +334,9 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def get_auto_aprobada(self, obj):
         equipo = getattr(obj, "equipo", None)
-        rol_equipo = getattr(equipo, "rol_equipo", None)
+        nivel_equipo = getattr(equipo, "nivel", None)
         return bool(
-            rol_equipo is not None and getattr(rol_equipo, "auto_aprobar", False)
+            nivel_equipo is not None and getattr(nivel_equipo, "auto_aprobar", False)
         )
 
     def get_subtareas(self, obj):
@@ -526,29 +530,32 @@ class TaskSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "equipo": "No se pueden crear solicitudes para un equipo inactivo."
                 })
-            
-            if subcampana_obj and request and es_cliente(request.user) and not es_administrador(request.user):
+
+            if (
+                request
+                and request.user
+                and request.user.is_authenticated
+                and not es_administrador(request.user)
+                and es_equipo_propio(request.user, equipo_obj)
+            ):
+                raise serializers.ValidationError({
+                    "equipo": (
+                        "No puedes crear una solicitud para tu propio equipo. "
+                        "Selecciona otro equipo."
+                    )
+                })
+
+            if (
+                subcampana_obj
+                and request
+                and puede_crear_solicitudes(request.user)
+                and not es_administrador(request.user)
+            ):
                 if not tiene_permiso_subcampana(request.user, subcampana_obj):
                     raise serializers.ValidationError({"subcampana": f"No tienes permiso para {subcampana_obj.codigo}."})
                 # El líder del equipo destino debe tener permiso a la subcampaña.
-                equipo = attrs.get("equipo") or self.initial_data.get("equipo")
-                equipo_obj = None
-                if equipo is not None:
-                    try:
-                        if hasattr(equipo, "lider_id"):
-                            equipo_obj = equipo
-                        else:
-                            from usuarios.models import Equipo
-                            equipo_obj = (
-                                Equipo.objects
-                                .select_related("lider")
-                                .get(id=int(equipo))
-                            )
-                    except Exception:
-                        equipo_obj = None
                 if (
-                    equipo_obj is not None
-                    and equipo_obj.lider is not None
+                    equipo_obj.lider is not None
                     and not tiene_permiso_subcampana(equipo_obj.lider, subcampana_obj)
                 ):
                     raise serializers.ValidationError(
@@ -635,6 +642,7 @@ class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
             "horas_limite",
             "horas_confirmacion",
             "hora_alerta_diaria",
+            "alcance_integrantes",
         ]
         read_only_fields = ["id"]
 

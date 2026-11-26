@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import styles from "@/components/cliente/SolicitudGenerada.module.css";
 
 type Props = {
@@ -17,7 +18,7 @@ export default function SuccessModal({
   buttonLabel = "Aceptar",
   onClose,
 }: Props) {
-  return (
+  return createPortal(
     <div
       className={styles.overlay}
       role="dialog"
@@ -37,6 +38,7 @@ export default function SuccessModal({
           {buttonLabel}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

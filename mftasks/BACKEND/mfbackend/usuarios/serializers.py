@@ -1,35 +1,37 @@
 from rest_framework import serializers
 from .models import *
 
-class RolSerializer(serializers.ModelSerializer):
+class NivelSerializer(serializers.ModelSerializer):
 
     usuarios_count = serializers.SerializerMethodField()
 
     class Meta:
-        model = Rol
-        fields = "__all__"
+        model = Nivel
+        fields = [
+            "id",
+            "nombre",
+            "descripcion",
+            "superior",
+            "puede_liderar",
+            "auto_aprobar",
+            "color",
+            "activo",
+            "es_sistema",
+            "usuarios_count",
+        ]
+        read_only_fields = ["nombre", "es_sistema"]
 
     def get_usuarios_count(self, obj):
         return obj.usuarios.count()
 
     def validate(self, attrs):
-        nombre = attrs.get("nombre", getattr(self.instance, "nombre", None))
-        if nombre:
-            existentes = Rol.objects.filter(nombre__iexact=nombre.strip())
-            if self.instance:
-                existentes = existentes.exclude(pk=self.instance.pk)
-            if existentes.exists():
-                raise serializers.ValidationError(
-                    {"nombre": "Ya existe un rol con ese nombre."}
-                )
-
         superior = attrs.get(
             "superior",
             getattr(self.instance, "superior", None),
         )
         if self.instance and superior is not None and superior.pk == self.instance.pk:
             raise serializers.ValidationError(
-                {"superior": "Un rol no puede ser su propio superior."}
+                {"superior": "Un nivel no puede ser su propio superior."}
             )
         # Detectar ciclos recorriendo la cadena de superiores.
         visitados = set()
@@ -103,8 +105,10 @@ class DisponibilidadUsuarioSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     # compat: frontend aún usa activo, exponer alias
     activo = serializers.BooleanField(source="is_active", read_only=True)
-    roles = serializers.SerializerMethodField()
-    bloqueo_estado_rol = serializers.SerializerMethodField()
+    nivel = serializers.SerializerMethodField()
+    nivel_nombre = serializers.SerializerMethodField()
+    nivel_color = serializers.SerializerMethodField()
+    bloqueo_estado_nivel = serializers.SerializerMethodField()
 
     class Meta:
 
@@ -123,15 +127,33 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "activo",
             "tipo_usuario",
-            "roles",
-            "bloqueo_estado_rol",
+            "puede_crear_solicitudes",
+            "nivel",
+            "nivel_nombre",
+            "nivel_color",
+            "bloqueo_estado_nivel",
         ]
 
-    def get_roles(self, obj):
-        return [r.rol.nombre for r in obj.roles.all()]
+    def get_nivel(self, obj):
+        from .jerarquia import nivel_efectivo
 
-    def get_bloqueo_estado_rol(self, obj):
-        from .restricciones import motivo_bloqueo_estado_rol
+        nivel = nivel_efectivo(obj)
+        return nivel.id if nivel else None
+
+    def get_nivel_nombre(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+        return nivel.nombre if nivel else None
+
+    def get_nivel_color(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+        return (nivel.color or None) if nivel else None
+
+    def get_bloqueo_estado_nivel(self, obj):
+        from .restricciones import motivo_bloqueo_estado_nivel
 
         equipo = None
         if hasattr(obj, "_es_miembro") or hasattr(obj, "_es_lider"):
@@ -140,7 +162,7 @@ class UserSerializer(serializers.ModelSerializer):
                 or getattr(obj, "_es_lider", False)
             )
 
-        return motivo_bloqueo_estado_rol(
+        return motivo_bloqueo_estado_nivel(
             obj,
             pendientes=getattr(obj, "_tiene_pendientes", None),
             equipo=equipo,
@@ -151,7 +173,8 @@ class UsuarioCandidatoSerializer(serializers.ModelSerializer):
     """Datos mínimos de un usuario candidato a integrar un equipo."""
 
     activo = serializers.BooleanField(source="is_active", read_only=True)
-    roles = serializers.SerializerMethodField()
+    nivel = serializers.SerializerMethodField()
+    nivel_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -162,16 +185,31 @@ class UsuarioCandidatoSerializer(serializers.ModelSerializer):
             "nombres",
             "apellidos",
             "tipo_usuario",
-            "roles",
+            "nivel",
+            "nivel_nombre",
             "is_active",
             "activo",
         ]
 
-    def get_roles(self, obj):
-        return [r.rol.nombre for r in obj.roles.all()]
+    def get_nivel(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+        return nivel.id if nivel else None
+
+    def get_nivel_nombre(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+        return nivel.nombre if nivel else None
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    roles = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
+    nivel = serializers.PrimaryKeyRelatedField(
+        queryset=Nivel.objects.filter(es_sistema=False),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     equipo_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     permisos_campana = serializers.ListField(child=serializers.DictField(), write_only=True, required=False)
@@ -180,33 +218,63 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "nombres", "apellidos", "dni", "cargo", "descripcion_cargo", "telefono", "is_active", "activo", "tipo_usuario", "password", "roles", "equipo_id", "permisos_campana"]
+        fields = [
+            "id",
+            "email",
+            "nombres",
+            "apellidos",
+            "dni",
+            "cargo",
+            "descripcion_cargo",
+            "telefono",
+            "is_active",
+            "activo",
+            "tipo_usuario",
+            "puede_crear_solicitudes",
+            "password",
+            "nivel",
+            "equipo_id",
+            "permisos_campana",
+        ]
         read_only_fields = ["id"]
 
-    def validate_roles(self, value):
-        """Valida que cada rol indicado exista (la lista es dinámica)."""
-        from .models import Rol
-
-        normalized = [v.strip() for v in value if v and v.strip()]
-        inexistentes = []
-        for rname in normalized:
-            if not Rol.objects.filter(nombre__iexact=rname).exists():
-                inexistentes.append(rname)
-        if inexistentes:
-            raise serializers.ValidationError(
-                "Roles no encontrados: "
-                + ", ".join(inexistentes)
-                + ". Créelos primero desde la administración de roles."
-            )
-        return normalized
-
     def validate(self, attrs):
-        # Solo aplica en actualización: restringe cambios de estado/rol según
+        from .models import TipoUsuario
+
+        tipo = attrs.get(
+            "tipo_usuario",
+            getattr(self.instance, "tipo_usuario", TipoUsuario.COLABORADOR),
+        )
+        if tipo not in (
+            TipoUsuario.COLABORADOR,
+            TipoUsuario.ADMINISTRADOR,
+        ):
+            raise serializers.ValidationError(
+                {"tipo_usuario": "Tipo de usuario inválido."}
+            )
+
+        if tipo == TipoUsuario.COLABORADOR:
+            nivel = attrs.get("nivel")
+            if self.instance is None and nivel is None:
+                raise serializers.ValidationError(
+                    {"nivel": "Selecciona un nivel para el colaborador."}
+                )
+            if self.instance is not None and nivel is None:
+                from .jerarquia import nivel_efectivo
+
+                actual = nivel_efectivo(self.instance)
+                if actual is None or actual.es_sistema:
+                    raise serializers.ValidationError(
+                        {"nivel": "Selecciona un nivel para el colaborador."}
+                    )
+
+        # Solo aplica en actualización: restringe cambios de estado/nivel según
         # las reglas de negocio (subtareas pendientes, equipo, solicitudes).
         if self.instance is None:
             return attrs
 
-        from .restricciones import motivo_bloqueo_estado_rol
+        from .jerarquia import nivel_efectivo
+        from .restricciones import motivo_bloqueo_estado_nivel
 
         cambia = False
 
@@ -219,84 +287,122 @@ class UserCreateSerializer(serializers.ModelSerializer):
             and attrs["tipo_usuario"] != self.instance.tipo_usuario
         ):
             cambia = True
-        if "roles" in attrs:
-            actuales = {
-                (ur.rol.nombre or "").lower()
-                for ur in self.instance.roles.select_related("rol")
-            }
-            nuevos = {(r or "").lower() for r in attrs["roles"]}
-            if actuales != nuevos:
+        if "nivel" in attrs:
+            actual = nivel_efectivo(self.instance)
+            nuevo = attrs["nivel"]
+            if (actual.pk if actual else None) != (
+                nuevo.pk if nuevo else None
+            ):
                 cambia = True
+        if (
+            "puede_crear_solicitudes" in attrs
+            and attrs["puede_crear_solicitudes"]
+            != self.instance.puede_crear_solicitudes
+        ):
+            cambia = True
 
         if cambia:
-            motivo = motivo_bloqueo_estado_rol(self.instance)
+            motivo = motivo_bloqueo_estado_nivel(self.instance)
             if motivo:
                 raise serializers.ValidationError({"detail": motivo})
 
         return attrs
 
-    def _tipo_usuario_para_roles(self, roles):
-        from .models import TipoUsuario
-
-        nombres = {r.lower() for r in roles}
-        if "administrador" in nombres:
-            return TipoUsuario.ADMINISTRADOR
-        if "cliente" in nombres:
-            return TipoUsuario.CLIENTE
-        return TipoUsuario.COLABORADOR
+    def _nivel_sistema(self):
+        return Nivel.objects.filter(es_sistema=True).first()
 
     def create(self, validated_data):
-        roles = validated_data.pop("roles", [])
+        from .models import TipoUsuario, UserNivel, Equipo, EquipoMiembro
+        from campanas.models import PermisoCampana
+
+        nivel = validated_data.pop("nivel", None)
         password = validated_data.pop("password", None)
         equipo_id = validated_data.pop("equipo_id", None)
         permisos = validated_data.pop("permisos_campana", [])
-        # tipo_usuario derivado de los roles si no se indica explícitamente
-        if not validated_data.get("tipo_usuario"):
-            validated_data["tipo_usuario"] = self._tipo_usuario_para_roles(roles)
+        tipo = validated_data.get("tipo_usuario") or TipoUsuario.COLABORADOR
+        validated_data["tipo_usuario"] = tipo
+
+        if tipo == TipoUsuario.ADMINISTRADOR:
+            validated_data["puede_crear_solicitudes"] = False
+            nivel = self._nivel_sistema()
+
         # compat activo -> is_active
         if "activo" in validated_data:
             activo_val = validated_data.pop("activo")
             if "is_active" not in validated_data:
                 validated_data["is_active"] = activo_val
-        # is_active ya viene en validated_data si se envía, default True
         if "is_active" not in validated_data:
             validated_data["is_active"] = True
+
         user = User(**validated_data)
         if password:
             user.set_password(password)
         else:
             user.set_unusable_password()
         user.save()
-        from .models import Rol, UserRol, Equipo, EquipoMiembro
-        from campanas.models import PermisoCampana
-        for rname in roles:
-            rol_obj = Rol.objects.filter(nombre__iexact=rname).first()
-            if rol_obj is None:
-                # validate_roles ya garantiza existencia; salvaguarda defensiva.
-                continue
-            UserRol.objects.get_or_create(usuario=user, rol=rol_obj)
-        # CLIENTE nunca pertenece a equipo aunque venga equipo_id
-        es_cliente = any(r.lower() == "cliente" for r in roles)
-        if equipo_id and not es_cliente:
+
+        UserNivel.objects.filter(usuario=user).delete()
+        if nivel is not None:
+            UserNivel.objects.create(usuario=user, nivel=nivel)
+
+        if equipo_id and tipo == TipoUsuario.COLABORADOR:
             try:
                 equipo = Equipo.objects.get(id=equipo_id)
-                EquipoMiembro.objects.get_or_create(equipo=equipo, usuario=user, defaults={"rol_en_equipo": EquipoMiembro.RolEnEquipo.MIEMBRO, "estado": EquipoMiembro.EstadoMiembro.ACTIVO})
+                EquipoMiembro.objects.get_or_create(
+                    equipo=equipo,
+                    usuario=user,
+                    defaults={
+                        "rol_en_equipo": EquipoMiembro.RolEnEquipo.MIEMBRO,
+                        "estado": EquipoMiembro.EstadoMiembro.ACTIVO,
+                    },
+                )
             except Equipo.DoesNotExist:
                 pass
+
         for perm in permisos:
             subcampana_id = perm.get("subcampana_id") or perm.get("subcampana")
-            # permiso puntual solo a subcampana; campana_id se ignora para CLIENTE (requisito)
             try:
                 if subcampana_id:
-                    PermisoCampana.objects.get_or_create(usuario=user, subcampana_id=int(subcampana_id))
+                    PermisoCampana.objects.get_or_create(
+                        usuario=user,
+                        subcampana_id=int(subcampana_id),
+                    )
             except Exception:
                 continue
+        return user
+
+    def update(self, instance, validated_data):
+        from .models import TipoUsuario, UserNivel
+        from .jerarquia import nivel_efectivo
+
+        nivel = validated_data.pop("nivel", None)
+        tipo = validated_data.get("tipo_usuario", instance.tipo_usuario)
+
+        if tipo == TipoUsuario.ADMINISTRADOR:
+            validated_data["puede_crear_solicitudes"] = False
+            if nivel is None:
+                nivel = self._nivel_sistema()
+        elif tipo == TipoUsuario.COLABORADOR and nivel is None:
+            actual = nivel_efectivo(instance)
+            if actual is not None and actual.es_sistema:
+                raise serializers.ValidationError(
+                    {"nivel": "Selecciona un nivel para el colaborador."}
+                )
+
+        user = super().update(instance, validated_data)
+
+        if nivel is not None:
+            UserNivel.objects.filter(usuario=user).delete()
+            UserNivel.objects.create(usuario=user, nivel=nivel)
+
         return user
 
 class UserMeSerializer(serializers.ModelSerializer):
     """Datos del usuario autenticado usados por la sesión y el perfil."""
 
-    roles = serializers.SerializerMethodField()
+    nivel = serializers.SerializerMethodField()
+    nivel_nombre = serializers.SerializerMethodField()
+    nivel_color = serializers.SerializerMethodField()
 
     puede_liderar = serializers.SerializerMethodField()
 
@@ -312,23 +418,38 @@ class UserMeSerializer(serializers.ModelSerializer):
             "email",
             "nombres",
             "apellidos",
+            "cargo",
             "tipo_usuario",
-            "roles",
+            "puede_crear_solicitudes",
+            "nivel",
+            "nivel_nombre",
+            "nivel_color",
             "puede_liderar",
             "es_aprobador",
         ]
+
+    def get_nivel(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+        return nivel.id if nivel else None
+
+    def get_nivel_nombre(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+        return nivel.nombre if nivel else None
+
+    def get_nivel_color(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+        return (nivel.color or None) if nivel else None
 
     def get_puede_liderar(self, obj):
         from .jerarquia import puede_ser_lider
 
         return puede_ser_lider(obj)
-
-    def get_roles(self, obj):
-
-        return [
-            r.rol.nombre
-            for r in obj.roles.all()
-        ]
 
     def get_es_aprobador(self, obj):
         from .permissions import es_aprobador_organizacional
@@ -427,13 +548,13 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
 
     mi_estado = serializers.SerializerMethodField()
 
-    roles_integrantes_requeridos = serializers.SerializerMethodField()
+    niveles_integrantes_requeridos = serializers.SerializerMethodField()
 
-    rol_equipo = serializers.PrimaryKeyRelatedField(read_only=True)
+    nivel = serializers.PrimaryKeyRelatedField(read_only=True)
 
-    rol_equipo_nombre = serializers.SerializerMethodField()
+    nivel_nombre = serializers.SerializerMethodField()
 
-    rol_color = serializers.SerializerMethodField()
+    nivel_color = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipo
@@ -441,10 +562,10 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             "id",
             "nombre",
             "lider",
-            "rol_equipo",
-            "rol_equipo_nombre",
-            "rol_color",
-            "roles_integrantes_requeridos",
+            "nivel",
+            "nivel_nombre",
+            "nivel_color",
+            "niveles_integrantes_requeridos",
             "activo",
             "fecha_creacion",
             "miembros",
@@ -474,15 +595,6 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
         return nombre
 
     def get_lider(self, obj):
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-
-        if user and user.is_authenticated:
-            from .permissions import es_administrador, es_cliente
-
-            if es_cliente(user) and not es_administrador(user):
-                return None
-
         if obj.lider:
             return EquipoLiderSerializer(
                 obj.lider,
@@ -495,37 +607,18 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
     def get_miembros(self, obj):
         request = self.context.get("request")
         qs = obj.miembros.select_related("usuario", "usuario__disponibilidad").all()
-        # Para cliente o usuario sin permiso de gestión, ocultar inactivos
         user = getattr(request, "user", None) if request else None
-
-        if user and user.is_authenticated:
-            from .permissions import es_administrador, es_cliente
-
-            # Los clientes no deben ver datos del personal interno
-            # (email, cargo, disponibilidad) al elegir un equipo.
-            if es_cliente(user) and not es_administrador(user):
-                qs = qs.filter(
-                    estado=EquipoMiembro.EstadoMiembro.ACTIVO
-                )
-
-                return EquipoMiembroClienteSerializer(
-                    qs,
-                    many=True,
-                    context=self.context,
-                ).data
 
         if user and not user.is_authenticated:
             qs = qs.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO)
         elif user:
             from .permissions import puede_gestionar_miembros
-            # si no puede gestionar y no es miembro activo del equipo, ocultar inactivos
+            # Si no puede gestionar y no es miembro activo del equipo,
+            # ocultar los inactivos.
             try:
                 if not puede_gestionar_miembros(user, obj):
-                    # miembros ven activos (la disponibilidad es independiente);
-                    # clientes ven solo activos
                     is_member = qs.filter(usuario=user).exists() or obj.lider_id == user.id
                     if not is_member:
-                        # cliente: solo activos
                         qs = qs.filter(estado=EquipoMiembro.EstadoMiembro.ACTIVO)
                     else:
                         qs = qs.exclude(estado=EquipoMiembro.EstadoMiembro.INACTIVO)
@@ -574,18 +667,18 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
                 return EquipoMiembro.EstadoMiembro.ACTIVO
             return None
 
-    def get_roles_integrantes_requeridos(self, obj):
-        from .jerarquia import roles_integrantes_requeridos
+    def get_niveles_integrantes_requeridos(self, obj):
+        from .jerarquia import niveles_integrantes_requeridos
 
-        return [r.nombre for r in roles_integrantes_requeridos(obj)]
+        return [n.nombre for n in niveles_integrantes_requeridos(obj)]
 
-    def get_rol_equipo_nombre(self, obj):
-        rol = getattr(obj, "rol_equipo", None)
-        return rol.nombre if rol is not None else None
+    def get_nivel_nombre(self, obj):
+        nivel = getattr(obj, "nivel", None)
+        return nivel.nombre if nivel is not None else None
 
-    def get_rol_color(self, obj):
-        rol = getattr(obj, "rol_equipo", None)
-        color = getattr(rol, "color", "") if rol is not None else ""
+    def get_nivel_color(self, obj):
+        nivel = getattr(obj, "nivel", None)
+        color = getattr(nivel, "color", "") if nivel is not None else ""
         return color or None
 
 class EquipoCreateSerializer(serializers.ModelSerializer):
@@ -629,8 +722,8 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
         from .jerarquia import puede_ser_lider
         if not puede_ser_lider(usuario):
             raise serializers.ValidationError(
-                "El líder debe ser un usuario colaborador con un rol que tenga "
-                "el permiso de <Puede liderar equipos>."
+                "El líder debe ser un usuario colaborador con un nivel que "
+                "tenga el permiso de <Puede liderar equipos>."
             )
 
         return usuario

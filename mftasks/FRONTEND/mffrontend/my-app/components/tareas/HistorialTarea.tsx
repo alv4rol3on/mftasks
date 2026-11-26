@@ -36,7 +36,7 @@ const ETIQUETAS_EVENTO: Record<string, string> = {
     CAMBIO_PROGRESO: "Cambio de progreso",
     CANCELACION: "Cancelación",
     INFORMACION_ADICIONAL: "Información adicional",
-    CONFIRMACION_CLIENTE: "Confirmación del cliente",
+    CONFIRMACION_CLIENTE: "Confirmación del solicitante",
     CONFIRMACION_AUTOMATICA: "Confirmación automática",
     REAPERTURA: "Reapertura",
     CAMBIO_PRIORIDAD: "Cambio de prioridad",

@@ -383,9 +383,13 @@ export default function CampanasSection({ setMsg }: Props) {
         method: "PATCH",
         body: JSON.stringify({ activo: !target.activo }),
       });
-      setMsg(
-        `${target.nombre} ${target.activo ? "inhabilitada" : "habilitada"}`
-      );
+      const etiqueta =
+        target.tipo === "entidad"
+          ? "Entidad"
+          : target.tipo === "campana"
+            ? "Campaña"
+            : "Subcampaña";
+      setMsg(`${etiqueta} ${target.activo ? "inhabilitada" : "habilitada"}`);
       setAccionesTarget(null);
       await cargarCampanas();
     } catch (e) {
@@ -413,11 +417,17 @@ export default function CampanasSection({ setMsg }: Props) {
 
     setAccionEnCurso(true);
     try {
-      const resultado = await apiFetch<{ detalle?: string }>(
+      await apiFetch<{ detalle?: string }>(
         endpointCatalogo(target.tipo, target.id),
         { method: "DELETE" }
       );
-      setMsg(resultado.detalle ?? `${target.nombre} eliminada`);
+      const etiqueta =
+        target.tipo === "entidad"
+          ? "Entidad"
+          : target.tipo === "campana"
+            ? "Campaña"
+            : "Subcampaña";
+      setMsg(`${etiqueta} eliminada`);
       setAccionesTarget(null);
       await cargarCampanas();
     } catch (e) {
@@ -430,11 +440,17 @@ export default function CampanasSection({ setMsg }: Props) {
   const restaurar = async (target: AccionesTarget) => {
     setAccionEnCurso(true);
     try {
-      const resultado = await apiFetch<{ detalle?: string }>(
+      await apiFetch<{ detalle?: string }>(
         `${endpointCatalogo(target.tipo, target.id)}restaurar/`,
         { method: "POST" }
       );
-      setMsg(resultado.detalle ?? `${target.nombre} restaurada`);
+      const etiqueta =
+        target.tipo === "entidad"
+          ? "Entidad"
+          : target.tipo === "campana"
+            ? "Campaña"
+            : "Subcampaña";
+      setMsg(`${etiqueta} restaurada`);
       setAccionesTarget(null);
       await cargarCampanas();
     } catch (e) {

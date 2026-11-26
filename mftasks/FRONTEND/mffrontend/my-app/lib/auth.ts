@@ -13,7 +13,7 @@ import {
 } from "./persistencia";
 import { aplicarTemaUsuario } from "./tema";
 
-export type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+export type TipoUsuario = "COLABORADOR" | "ADMINISTRADOR";
 
 export interface DatosUsuario {
     id: number;
@@ -23,7 +23,10 @@ export interface DatosUsuario {
     apellidos: string;
     cargo?: string;
     tipo_usuario?: TipoUsuario;
-    roles?: string[];
+    nivel?: number | null;
+    nivel_nombre?: string | null;
+    nivel_color?: string | null;
+    puede_crear_solicitudes?: boolean;
     puede_liderar?: boolean;
     es_aprobador?: boolean;
     disponibilidad?: {
@@ -121,31 +124,22 @@ export function getUsuarioActual(): DatosUsuario | null {
     }
 }
 
-function rolesLower(roles?: string[]) {
-    return (roles ?? []).map((r) => r.toLowerCase());
-}
-
 export function esAdmin(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
-    if (usuario.tipo_usuario === "ADMINISTRADOR") return true;
-    return rolesLower(usuario.roles).includes("administrador");
+    return usuario.tipo_usuario === "ADMINISTRADOR";
 }
 
-export function esCliente(): boolean {
+export function puedeCrearSolicitudes(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
-    if (usuario.tipo_usuario === "CLIENTE") return true;
-    return rolesLower(usuario.roles).includes("cliente");
+    return esAdmin() || usuario.puede_crear_solicitudes === true;
 }
 
 export function esColaborador(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
-    if (usuario.tipo_usuario) return usuario.tipo_usuario === "COLABORADOR";
-    // Fallback para sesiones antiguas sin tipo_usuario en caché.
-    const roles = rolesLower(usuario.roles);
-    return !roles.includes("cliente") && !roles.includes("administrador");
+    return usuario.tipo_usuario === "COLABORADOR";
 }
 
 export function esAsignador(): boolean {

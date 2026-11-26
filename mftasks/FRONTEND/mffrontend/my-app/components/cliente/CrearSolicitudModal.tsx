@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { normalizeMediaUrls, tieneContenido } from "@/lib/richText";
 import RichTextEditor from "@/components/shared/RichTextEditor";
@@ -7,6 +8,7 @@ import SuccessModal from "@/components/shared/SuccessModal";
 import styles from "../tareas/TaskModalDesarrollo.module.css";
 import { CampanaInfo, EquipoInfo, SubCampanaInfo, Task } from "@/lib/types";
 import { useCatalogos } from "@/components/CatalogosProvider";
+import { getUsuarioActual } from "@/lib/auth";
 
 const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
 const EXTENSIONES_PERMITIDAS = ["pdf", "doc", "docx", "xls", "xlsx", "txt", "png", "jpg", "jpeg", "zip"];
@@ -31,6 +33,7 @@ interface Props {
 
 export default function CrearSolicitudModal({ open, onClose, onCreated }: Props) {
   const { tiposSolicitud, prioridades } = useCatalogos();
+  const esAdmin = getUsuarioActual()?.tipo_usuario === "ADMINISTRADOR";
   const [asunto, setAsunto] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [tipoSolicitud, setTipoSolicitud] = useState("");
@@ -81,19 +84,25 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
       setIntentoEnviar(false);
       return;
     }
-    apiFetch<CampanaInfo[]>("/api/campanas/campanas/")
+    const url = esAdmin
+      ? "/api/campanas/campanas/"
+      : "/api/campanas/campanas/mis-permisos/";
+    apiFetch<CampanaInfo[]>(url)
       .then((data) => {
         const arr: CampanaInfo[] = Array.isArray(data) ? data : (data as any).results ?? [];
         setCampanas(arr.filter((c) => c.activo));
       })
       .catch(() => setCampanas([]));
-  }, [open]);
+  }, [open, esAdmin]);
 
   // Equipos elegibles: solo aquellos cuyo líder tiene permiso a la subcampaña.
   useEffect(() => {
     if (!subcampanaId) return;
     let cancel = false;
-    apiFetch<EquipoInfo[]>(`/api/usuarios/equipos/?subcampana=${subcampanaId}`)
+    const exclusion = esAdmin ? "" : "&excluir_propios=1";
+    apiFetch<EquipoInfo[]>(
+      `/api/usuarios/equipos/?subcampana=${subcampanaId}${exclusion}`
+    )
       .then((data) => {
         if (cancel) return;
         setEquipos(Array.isArray(data) ? data : (data as any).results ?? []);
@@ -104,12 +113,17 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
     return () => {
       cancel = true;
     };
-  }, [subcampanaId]);
+  }, [subcampanaId, esAdmin]);
 
   useEffect(() => {
     if (!campanaId) {
       setSubcampanas([]);
       setSubcampanaId("");
+      return;
+    }
+    if (!esAdmin) {
+      const campana = campanas.find((c) => c.id === campanaId);
+      setSubcampanas((campana?.subcampanas ?? []).filter((s) => s.activo));
       return;
     }
     apiFetch<SubCampanaInfo[]>(`/api/campanas/subcampanas/?campana_id=${campanaId}`)
@@ -118,7 +132,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
         setSubcampanas(arr.filter((s) => s.activo));
       })
       .catch(() => setSubcampanas([]));
-  }, [campanaId]);
+  }, [campanaId, campanas, esAdmin]);
 
   if (!open) return null;
 
@@ -246,7 +260,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
 
 
 
-  return (
+  return createPortal(
     <div className={styles.modalOverlay}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
@@ -377,7 +391,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
                 value={prioridad}
                 onChange={(e) => setPrioridad(e.target.value)}
                 className={styles.inputField}
-                title="Prioridad propuesta por el cliente; el líder puede ajustarla"
+                title="Prioridad propuesta por el solicitante; el líder puede ajustarla"
               >
                 <option value="">--Elige el nivel de prioridad--</option>
                 {prioridades
@@ -579,6 +593,7 @@ export default function CrearSolicitudModal({ open, onClose, onCreated }: Props)
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

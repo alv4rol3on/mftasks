@@ -32,7 +32,7 @@ from usuarios.permissions import (
     EsAdministrador,
     IsAuthenticatedActivo,
     es_administrador,
-    es_cliente,
+    puede_crear_solicitudes,
     ids_equipos_visibles,
     ids_equipos_aprobables,
     es_lider_de_equipo
@@ -90,7 +90,7 @@ from .services.aprobaciones import (
 )
 
 from campanas.models import PermisoCampana
-from usuarios.models import Rol, EquipoMiembro
+from usuarios.models import EquipoMiembro
 from usuarios.disponibilidad import esta_disponible, excluir_no_disponibles
 
 
@@ -155,9 +155,10 @@ def _notificar_fase(tarea, fase):
 
         # Con autoaprobación la solicitud nace en revisión del líder, pero la
         # cadena de superiores conserva visibilidad y potestad de resolverla.
-        rol_equipo = getattr(tarea.equipo, "rol_equipo", None)
+        nivel_equipo = getattr(tarea.equipo, "nivel", None)
         auto_aprobar = bool(
-            rol_equipo is not None and getattr(rol_equipo, "auto_aprobar", False)
+            nivel_equipo is not None
+            and getattr(nivel_equipo, "auto_aprobar", False)
         )
         if auto_aprobar:
             correos += _correos_aprobadores(
@@ -174,7 +175,7 @@ def _notificar_fase(tarea, fase):
             destinatarios=correos,
             mensaje=(
                 f"La solicitud {tarea.ticket or tarea.id} espera revisión del "
-                "líder del equipo. Como superior de su rol, también puedes "
+                "líder del equipo. Como superior de su nivel, también puedes "
                 "aprobarla o rechazarla."
                 if auto_aprobar
                 else (
@@ -316,6 +317,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             .order_by("-fecha_creacion")
         )
 
+        # Pestaña "Mis solicitudes": solo las creadas por el propio usuario.
+        if self.request.query_params.get("mis_solicitudes") in (
+            "1",
+            "true",
+            "yes",
+        ):
+            return base_qs.filter(solicitante=user)
+
         # =========================================================
         # ADMINISTRADOR
         # =========================================================
@@ -323,17 +332,9 @@ class TaskViewSet(viewsets.ModelViewSet):
             return base_qs
 
         # =========================================================
-        # CLIENTE
-        # =========================================================
-        if es_cliente(user):
-            return base_qs.filter(
-                solicitante=user
-            )
-
-        # =========================================================
-        # USUARIO CON ROL JERÁRQUICO
+        # USUARIO CON NIVEL JERÁRQUICO
         #
-        # Los roles superiores pueden visualizar las solicitudes de los
+        # Los niveles superiores pueden visualizar las solicitudes de los
         # equipos inferiores: las pendientes que les corresponde aprobar y,
         # para seguimiento, todas las tareas de esos equipos.
         #
@@ -343,6 +344,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         equipos_aprobables = list(ids_equipos_aprobables(user))
 
         condicion = Q(equipo_id__in=ids_equipos)
+        # En detalle/acciones el solicitante siempre puede acceder a su
+        # solicitud; en listados solo aparece en "Mis solicitudes".
+        if self.action != "list":
+            condicion |= Q(solicitante=user)
 
         if equipos_aprobables:
             ids_subcampanas = set(
@@ -364,7 +369,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 ) | Q(
                     estado=Tarea.Estado.EN_ESPERA,
                     paso_aprobacion=Tarea.PasoAprobacion.LIDER,
-                    equipo__rol_equipo__auto_aprobar=True,
+                    equipo__nivel__auto_aprobar=True,
                 )
 
                 condicion |= (
@@ -534,24 +539,17 @@ class TaskViewSet(viewsets.ModelViewSet):
         permisos = super().get_permissions()
 
         if self.action == "create":
-            # CLIENTE puede crear solicitudes, Admin también
-            # Validación fina en perform_create / has_permission manual
+            # Puede crear solicitudes el admin o un colaborador con el
+            # permiso explícito "puede_crear_solicitudes".
             from rest_framework.permissions import BasePermission
 
-            class EsClienteOAdmin(BasePermission):
+            class PuedeCrearSolicitud(BasePermission):
                 def has_permission(self, request, view):
                     if not request.user or not request.user.is_authenticated:
                         return False
-                    if es_administrador(request.user):
-                        return True
-                    if es_cliente(request.user):
-                        return True
-                    # Admin ya cubre; asignador no debe crear solicitudes (según spec)
-                    return False
+                    return puede_crear_solicitudes(request.user)
 
-            # Reemplaza el check: mantenemos IsAuthenticatedActivo + cliente/admin
-            # permisos ya tiene IsAuthenticatedActivo, añadimos cliente/admin
-            permisos = [IsAuthenticatedActivo(), EsClienteOAdmin()]
+            permisos = [IsAuthenticatedActivo(), PuedeCrearSolicitud()]
 
         elif self.action in (
             "update",
@@ -576,10 +574,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 tarea,
                 request.user,
                 motivo,
-                solo_antes_de_iniciar=(
-                    es_cliente(request.user)
-                    and not es_administrador(request.user)
-                ),
+                solo_antes_de_iniciar=(not es_administrador(request.user)),
             )
         except CancelacionInvalida as exc:
             return Response(
@@ -604,18 +599,12 @@ class TaskViewSet(viewsets.ModelViewSet):
             validar_archivos(archivos)
 
         with transaction.atomic():
-            if es_cliente(user):
-                tarea = serializer.save(
-                    solicitante=user,
-                    estado=Tarea.Estado.EN_ESPERA,
-                    progreso=0,
-                    activo=True,
-                )
-            else:
-                tarea = serializer.save(
-                    solicitante=user,
-                    activo=True,
-                )
+            tarea = serializer.save(
+                solicitante=user,
+                estado=Tarea.Estado.EN_ESPERA,
+                progreso=0,
+                activo=True,
+            )
 
             guardar_archivos(tarea, archivos, user)
 
@@ -661,7 +650,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     def subir_imagen(self, request):
         """Sube una imagen usada dentro de la descripción enriquecida."""
 
-        if not (es_cliente(request.user) or es_administrador(request.user)):
+        if not puede_crear_solicitudes(request.user):
             return Response(
                 {"detail": "No tienes permiso para subir imágenes."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -1469,34 +1458,21 @@ class TaskViewSet(viewsets.ModelViewSet):
         user = request.user
         from usuarios.models import Equipo, EquipoMiembro
 
-        # CLIENTE siempre ve solo sus solicitudes, sin importar otros roles/miembro
-        if es_cliente(user):
-            qs = Tarea.objects.filter(solicitante=user)
-            return Response({
-                "tipo": "cliente",
-                "en_espera": qs.filter(estado=Tarea.Estado.EN_ESPERA).count(),
-                "aprobadas": qs.filter(estado=Tarea.Estado.APROBADO).count(),
-                "en_desarrollo": qs.filter(estado=Tarea.Estado.EN_DESARROLLO).count(),
-                "rechazadas": qs.filter(estado=Tarea.Estado.RECHAZADO).count(),
-                "solucionadas": qs.filter(estado=Tarea.Estado.SOLUCIONADO).count(),
-                "total": qs.count(),
-            })
-
         def _por_aprobar(usuario):
-            from usuarios.jerarquia import rol_efectivo, roles_subordinados
+            from usuarios.jerarquia import nivel_efectivo, niveles_subordinados
 
-            rol_usuario = rol_efectivo(usuario)
+            nivel_usuario = nivel_efectivo(usuario)
 
-            if rol_usuario is None:
+            if nivel_usuario is None:
                 return 0
 
-            ids_roles_sub = {
-                rol.pk for rol in roles_subordinados(rol_usuario) if rol.activo
+            ids_niveles_sub = {
+                nivel.pk for nivel in niveles_subordinados(nivel_usuario) if nivel.activo
             }
 
             total = 0
 
-            if ids_roles_sub:
+            if ids_niveles_sub:
                 ids_subcampanas = set(
                     PermisoCampana.objects.filter(
                         usuario=usuario,
@@ -1511,13 +1487,13 @@ class TaskViewSet(viewsets.ModelViewSet):
 
                 total = Tarea.objects.filter(
                     estado=Tarea.Estado.EN_ESPERA,
-                    equipo__rol_equipo_id__in=ids_roles_sub,
+                    equipo__nivel_id__in=ids_niveles_sub,
                     subcampana_id__in=ids_subcampanas,
                 ).filter(
                     Q(paso_aprobacion=Tarea.PasoAprobacion.APROBADORES)
                     | Q(
                         paso_aprobacion=Tarea.PasoAprobacion.LIDER,
-                        equipo__rol_equipo__auto_aprobar=True,
+                        equipo__nivel__auto_aprobar=True,
                     )
                 ).count()
 

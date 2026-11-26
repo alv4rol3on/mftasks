@@ -2,14 +2,12 @@ from rest_framework.permissions import BasePermission
 
 from usuarios.permissions import (
     es_administrador,
-    es_cliente,
     ids_equipos_visibles,
     es_lider_del_equipo,
     es_aprobador_del_equipo,
 )
-from usuarios.jerarquia import rol_efectivo, cadena_aprobacion
+from usuarios.jerarquia import nivel_efectivo, cadena_aprobacion
 from usuarios.models import EquipoMiembro
-from usuarios.permissions import es_cliente as _es_cliente
 from campanas.models import PermisoCampana
 
 
@@ -21,10 +19,6 @@ def es_miembro_del_equipo(user, equipo):
 
     if es_administrador(user):
         return True
-
-    # CLIENTE nunca es miembro de equipo
-    if es_cliente(user):
-        return False
 
     # Visibilidad jerárquica directa: propios + equipos de sus integrantes directos.
     return equipo.id in ids_equipos_visibles(user)
@@ -68,7 +62,7 @@ def es_asignador_del_equipo(user, equipo):
     - Sub-líder activo: su equipo.
     - Miembro: no puede gestionar.
 
-    El rol global del usuario no concede permisos de gestión por sí solo.
+    El nivel global del usuario no concede permisos de gestión por sí solo.
     """
 
     if not user or not user.is_authenticated or equipo is None:
@@ -102,10 +96,6 @@ def puede_gestionar_roles_equipo(user, equipo):
     return False
 
 
-def es_cliente(user):
-    return _es_cliente(user)
-
-
 def puede_observar_tarea(user, tarea):
     """Mismos criterios de visibilidad que TaskViewSet.get_queryset."""
     if not user or not user.is_authenticated:
@@ -114,9 +104,9 @@ def puede_observar_tarea(user, tarea):
     if es_administrador(user):
         return True
 
-    # CLIENTE: solo sus propias solicitudes
-    if es_cliente(user):
-        return tarea.solicitante_id == user.id
+    # El solicitante siempre puede observar su propia solicitud.
+    if tarea.solicitante_id == user.id:
+        return True
 
     if tarea.equipo_id in ids_equipos_visibles(user):
         return True
@@ -182,12 +172,6 @@ class EsAsignadorDeEquipoDeTarea(BasePermission):
         return es_asignador_del_equipo(request.user, obj.equipo)
 
 
-class EsCliente(BasePermission):
-
-    def has_permission(self, request, view):
-        return es_cliente(request.user)
-
-
 class EsSolicitanteDeTarea(BasePermission):
 
     def has_object_permission(self, request, view, obj):
@@ -198,50 +182,49 @@ class EsSolicitanteDeTarea(BasePermission):
         return obj.solicitante_id == request.user.id
 
 
-def roles_superiores_de_tarea(tarea):
-    """IDs de roles activos que forman la cadena de aprobación de la tarea.
+def niveles_superiores_de_tarea(tarea):
+    """IDs de niveles activos que forman la cadena de aprobación de la tarea.
 
-    Es la cadena de superiores del rol del equipo (superior directo -> raíz).
+    Es la cadena de superiores del nivel del equipo (superior directo -> raíz).
     """
     equipo = getattr(tarea, "equipo", None)
     if equipo is None:
         return set()
-    rol_equipo = getattr(equipo, "rol_equipo", None)
-    if rol_equipo is None:
+    nivel_equipo = getattr(equipo, "nivel", None)
+    if nivel_equipo is None:
         return set()
     return {
-        rol.pk
-        for rol in cadena_aprobacion(rol_equipo)
-        if rol.activo
+        nivel.pk
+        for nivel in cadena_aprobacion(nivel_equipo)
+        if nivel.activo
     }
 
 
 def usuarios_aprobadores_de_tarea(tarea):
     """Usuarios elegibles para aprobar la fase APROBADORES de la tarea.
 
-    Elegible = activo, su rol efectivo pertenece a la cadena de superiores del
+    Elegible = activo, su nivel efectivo pertenece a la cadena de superiores del
     equipo y tiene permiso a la subcampaña de la tarea. No depende de
     asignaciones por equipo: los aprobadores se derivan de la jerarquía.
     """
-    from usuarios.jerarquia import rol_efectivo
     from usuarios.models import User
 
-    ids_roles = roles_superiores_de_tarea(tarea)
-    if not ids_roles:
+    ids_niveles = niveles_superiores_de_tarea(tarea)
+    if not ids_niveles:
         return []
 
     subcampana = getattr(tarea, "subcampana", None)
 
     candidatos = (
         User.objects
-        .filter(roles__rol_id__in=ids_roles, is_active=True)
+        .filter(niveles__nivel_id__in=ids_niveles, is_active=True)
         .distinct()
     )
 
     elegibles = []
     for usuario in candidatos:
-        rol = rol_efectivo(usuario)
-        if rol is None or rol.pk not in ids_roles:
+        nivel = nivel_efectivo(usuario)
+        if nivel is None or nivel.pk not in ids_niveles:
             continue
         if not tiene_permiso_subcampana(usuario, subcampana):
             continue
@@ -261,8 +244,8 @@ def es_aprobador_de_tarea(user, tarea):
     la jerarquía organizacional.
 
     APROBADORES:
-        Puede aprobar un usuario cuyo rol sea superior al
-        rol del equipo de la tarea y tenga permiso a la subcampaña.
+        Puede aprobar un usuario cuyo nivel sea superior al
+        nivel del equipo de la tarea y tenga permiso a la subcampaña.
 
     LIDER:
         Solo el líder del equipo.
@@ -270,7 +253,7 @@ def es_aprobador_de_tarea(user, tarea):
     Administrador:
         Puede actuar como override.
 
-    No existen aprobadores asignados por equipo: toda la cadena de roles
+    No existen aprobadores asignados por equipo: toda la cadena de niveles
     superiores que cumpla con el permiso a la subcampaña puede aprobar.
     """
 
@@ -296,12 +279,12 @@ def es_aprobador_de_tarea(user, tarea):
 
         # Con autoaprobación, la cadena de superiores conserva la potestad de
         # aprobar o rechazar la solicitud aunque esté en revisión del líder.
-        rol_equipo = getattr(equipo, "rol_equipo", None)
-        if rol_equipo is not None and getattr(rol_equipo, "auto_aprobar", False):
-            rol_usuario = rol_efectivo(user)
+        nivel_equipo = getattr(equipo, "nivel", None)
+        if nivel_equipo is not None and getattr(nivel_equipo, "auto_aprobar", False):
+            nivel_usuario = nivel_efectivo(user)
             if (
-                rol_usuario is not None
-                and rol_usuario.pk in roles_superiores_de_tarea(tarea)
+                nivel_usuario is not None
+                and nivel_usuario.pk in niveles_superiores_de_tarea(tarea)
                 and tiene_permiso_subcampana(
                     user,
                     getattr(tarea, "subcampana", None),
@@ -316,13 +299,13 @@ def es_aprobador_de_tarea(user, tarea):
     # =========================================================
     if paso == "APROBADORES":
 
-        rol_usuario = rol_efectivo(user)
+        nivel_usuario = nivel_efectivo(user)
 
-        if rol_usuario is None:
+        if nivel_usuario is None:
             return False
 
-        # El rol efectivo del usuario debe ser superior al rol del equipo.
-        if rol_usuario.pk not in roles_superiores_de_tarea(tarea):
+        # El nivel efectivo del usuario debe ser superior al nivel del equipo.
+        if nivel_usuario.pk not in niveles_superiores_de_tarea(tarea):
             return False
 
         # Debe tener acceso a la subcampaña.

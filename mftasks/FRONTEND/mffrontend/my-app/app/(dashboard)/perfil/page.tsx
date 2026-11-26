@@ -80,7 +80,7 @@ export default function PerfilPage() {
   useEffect(() => {
     let cancel = false;
 
-    obtenerDatosMe()
+    obtenerDatosMe(true)
       .then((u) => { if (!cancel) setUsuario(u); })
       .catch(() => { /* mantiene datos en caché local */ });
 
@@ -115,10 +115,7 @@ export default function PerfilPage() {
     return () => { cancel = true; };
   }, []);
 
-  const roles = usuario?.roles ?? [];
-  const esAdmin =
-    usuario?.tipo_usuario === "ADMINISTRADOR" ||
-    roles.map((r) => r.toLowerCase()).includes("administrador");
+  const esAdmin = usuario?.tipo_usuario === "ADMINISTRADOR";
   const uid = usuario?.id;
 
   const misEquipos = equipos.filter((e) =>
@@ -127,9 +124,7 @@ export default function PerfilPage() {
     (uid != null && (e.miembros ?? []).some((m) => m.id_usuario === uid))
   );
 
-  const esCliente =
-    usuario?.tipo_usuario === "CLIENTE" ||
-    roles.map((r) => r.toLowerCase()).includes("cliente");
+  const puedeSolicitar = usuario?.puede_crear_solicitudes === true;
   const esEquipo = misEquipos.length > 0 || Boolean(usuario?.es_aprobador);
   const prefsSucias =
     prefs != null && prefsGuardadas != null &&
@@ -255,7 +250,13 @@ export default function PerfilPage() {
             <div className={styles.field}>
               <span className={styles.label}>Cargo</span>
               <span className={styles.badges}>
-                {usuario ? `${usuario.cargo}` : "—"}
+                {usuario?.cargo?.trim() || "—"}
+              </span>
+            </div>
+            <div className={styles.field}>
+              <span className={styles.label}>Nivel</span>
+              <span className={styles.badges}>
+                {usuario?.nivel_nombre?.trim() || "—"}
               </span>
             </div>
           </div>
@@ -453,7 +454,7 @@ export default function PerfilPage() {
       }
 
 
-      {tabPerfil === "preferencias" && prefs && (esCliente || esEquipo) && (
+      {tabPerfil === "preferencias" && prefs && (puedeSolicitar || esEquipo) && (
         <section className={styles.alertsCard}>
           <div className={styles.alertsHeader}>
             <span>Notificaciones por correo</span>
@@ -468,7 +469,7 @@ export default function PerfilPage() {
               onChange={(v) => actualizarPref("recibir_correos", v)}
             />
 
-            {esCliente && (
+            {puedeSolicitar && (
               <div className={styles.notifGroup}>
                 <h4 className={styles.notifGroupTitle}>Notificaciones de mis solicitudes</h4>
                 {CAMPOS_CLIENTE.map((campo) => (

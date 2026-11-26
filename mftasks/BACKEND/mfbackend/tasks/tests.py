@@ -16,10 +16,10 @@ from campanas.models import Campana, PermisoCampana, SubCampana
 from usuarios.models import (
     Equipo,
     EquipoMiembro,
+    Nivel,
     PreferenciaNotificacion,
-    Rol,
     User,
-    UserRol,
+    UserNivel,
 )
 
 from .models import AprobacionTarea, Subtarea, Tarea, TareaLog
@@ -40,10 +40,45 @@ def _crear_usuario(email, nombres="X", apellidos="Y"):
 
 
 def _asignar_rol(user, nombre):
-    rol = Rol.objects.filter(nombre__iexact=nombre).first()
-    if rol is None:
-        rol = Rol.objects.create(nombre=nombre)
-    return UserRol.objects.get_or_create(usuario=user, rol=rol)
+    if nombre.upper() == "CLIENTE":
+        user.tipo_usuario = "COLABORADOR"
+        user.puede_crear_solicitudes = True
+        user.save(update_fields=["tipo_usuario", "puede_crear_solicitudes"])
+        return None
+    jerarquia = {
+        "GERENTE": None,
+        "SUBGERENTE": "GERENTE",
+        "JEFE": "SUBGERENTE",
+        "COORDINADOR": "JEFE",
+        "GTR": "JEFE",
+        "MIEMBRO": "GTR",
+        "SUPERVISOR": "JEFE",
+    }
+    def _obtener_nivel(valor):
+        existente = Nivel.objects.filter(nombre__iexact=valor).first()
+        if existente is not None:
+            return existente
+        es_admin_nivel = valor.lower() == "administrador"
+        superior_nombre = jerarquia.get(valor.upper())
+        superior = (
+            _obtener_nivel(superior_nombre) if superior_nombre else None
+        )
+        return Nivel.objects.create(
+            nombre=valor,
+            es_sistema=es_admin_nivel,
+            superior=superior,
+            puede_liderar=(
+                not es_admin_nivel
+                and valor.upper() not in ("MIEMBRO", "CLIENTE")
+            ),
+        )
+
+    es_admin = nombre.lower() == "administrador"
+    nivel = _obtener_nivel(nombre)
+    if es_admin:
+        user.tipo_usuario = "ADMINISTRADOR"
+        user.save(update_fields=["tipo_usuario"])
+    return UserNivel.objects.get_or_create(usuario=user, nivel=nivel)
 
 
 class TareaFlujoTestCase(APITestCase):
@@ -1425,9 +1460,9 @@ class AprobacionPorEquipoTestCase(APITestCase):
 
     def test_rol_con_autoaprobacion_pasa_a_lider(self):
         # El rol del equipo con autoaprobación omite la fase de aprobadores.
-        rol_auto = Rol.objects.create(nombre="GTR_AUTO", auto_aprobar=True, puede_liderar=True)
+        rol_auto = Nivel.objects.create(nombre="GTR_AUTO", auto_aprobar=True, puede_liderar=True)
         lider_auto = _crear_usuario("liderauto@empresa.com")
-        UserRol.objects.create(usuario=lider_auto, rol=rol_auto)
+        UserNivel.objects.create(usuario=lider_auto, nivel=rol_auto)
         equipo_auto = Equipo.objects.create(nombre="Equipo Auto", lider=lider_auto)
         tarea_auto = Tarea.objects.create(
             asunto="Solicitud auto",
@@ -1442,15 +1477,15 @@ class AprobacionPorEquipoTestCase(APITestCase):
     def _crear_equipo_auto(self, nombre="Equipo Auto Sub"):
         """Crea un equipo con rol autoaprobado que sí tiene superiores reales."""
         slug = nombre.lower().replace(" ", "_")
-        rol_jefe = Rol.objects.get(nombre__iexact="JEFE")
-        rol_auto = Rol.objects.create(
+        rol_jefe = Nivel.objects.get(nombre__iexact="JEFE")
+        rol_auto = Nivel.objects.create(
             nombre=f"rol_{slug}",
             auto_aprobar=True,
             puede_liderar=True,
             superior=rol_jefe,
         )
         lider_auto = _crear_usuario(f"{slug}@empresa.com")
-        UserRol.objects.create(usuario=lider_auto, rol=rol_auto)
+        UserNivel.objects.create(usuario=lider_auto, nivel=rol_auto)
         equipo_auto = Equipo.objects.create(nombre=nombre, lider=lider_auto)
         tarea = Tarea.objects.create(
             asunto="Solicitud auto con superiores",

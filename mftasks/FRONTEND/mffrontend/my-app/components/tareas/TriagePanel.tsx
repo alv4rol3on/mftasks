@@ -46,7 +46,7 @@ export default function TriagePanel({ tarea, onSaved }: Props) {
         <div>
           <h3 className={styles.sectionTitle}>Triage de la solicitud</h3>
           <p className={styles.sectionHint}>
-            El cliente propone una prioridad inicial. Como líder del equipo
+            El solicitante propone una prioridad inicial. Como líder del equipo
             puedes ajustarla para ordenar la bandeja.
           </p>
         </div>

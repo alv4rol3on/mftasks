@@ -6,12 +6,12 @@ import { apiFetch } from "@/lib/api";
 import Modal from "@/components/ui/Modal";
 
 import styles from "./AdminSections.module.css";
-import type { RolJerarquico } from "./EditarUsuarioModal";
+import type { NivelJerarquico } from "./EditarUsuarioModal";
 
-type TipoUsuario = "" | "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+type TipoUsuario = "" | "COLABORADOR" | "ADMINISTRADOR";
 
 type Props = {
-  rolesJerarquicos: RolJerarquico[];
+  nivelesJerarquicos: NivelJerarquico[];
   onClose: () => void;
   onSaved: (msg: string) => void | Promise<void>;
 };
@@ -26,12 +26,12 @@ type FormState = {
   telefono: string;
   password: string;
   tipo_usuario: TipoUsuario;
-  rol: string;
+  nivel: string;
+  puede_crear_solicitudes: boolean;
 };
 
 const TIPOS_USUARIO: { value: TipoUsuario; label: string }[] = [
   { value: "COLABORADOR", label: "Colaborador" },
-  { value: "CLIENTE", label: "Cliente" },
   { value: "ADMINISTRADOR", label: "Administrador" },
 ];
 
@@ -45,11 +45,12 @@ const FORM_VACIO: FormState = {
   telefono: "",
   password: "",
   tipo_usuario: "",
-  rol: "",
+  nivel: "",
+  puede_crear_solicitudes: false,
 };
 
 export default function CrearUsuarioModal({
-  rolesJerarquicos,
+  nivelesJerarquicos,
   onClose,
   onSaved,
 }: Props) {
@@ -77,17 +78,13 @@ export default function CrearUsuarioModal({
       return;
     }
 
-    let roles: string[];
-    if (form.tipo_usuario === "CLIENTE") {
-      roles = ["Cliente"];
-    } else if (form.tipo_usuario === "ADMINISTRADOR") {
-      roles = ["Administrador"];
-    } else {
-      if (!form.rol) {
-        setError("Selecciona un rol para el colaborador.");
+    let nivel: number | undefined;
+    if (form.tipo_usuario === "COLABORADOR") {
+      if (!form.nivel) {
+        setError("Selecciona un nivel para el colaborador.");
         return;
       }
-      roles = [form.rol];
+      nivel = Number(form.nivel);
     }
 
     setGuardando(true);
@@ -106,13 +103,15 @@ export default function CrearUsuarioModal({
           telefono: form.telefono.trim(),
           password: form.password || undefined,
           tipo_usuario: form.tipo_usuario,
-          roles,
+          nivel,
+          puede_crear_solicitudes:
+            form.tipo_usuario === "COLABORADOR"
+              ? form.puede_crear_solicitudes
+              : false,
         }),
       });
 
-      await onSaved(
-        `Usuario ${form.email.trim()} creado (${form.tipo_usuario.toLowerCase()})`
-      );
+      await onSaved("Usuario creado");
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -223,7 +222,8 @@ export default function CrearUsuarioModal({
               setForm({
                 ...form,
                 tipo_usuario: e.target.value as TipoUsuario,
-                rol: "",
+                nivel: "",
+                puede_crear_solicitudes: false,
               })
             }
           >
@@ -240,21 +240,35 @@ export default function CrearUsuarioModal({
         </label>
 
         {form.tipo_usuario === "COLABORADOR" && (
-          <label className={styles.field}>
-            <select
-              className={styles.select}
-              value={form.rol}
-              onChange={(e) => setForm({ ...form, rol: e.target.value })}
-            >
-              <option value="">Selecciona un rol *</option>
+          <>
+            <label className={styles.field}>
+              <select
+                className={styles.select}
+                value={form.nivel}
+                onChange={(e) => setForm({ ...form, nivel: e.target.value })}
+              >
+                <option value="">Selecciona un nivel *</option>
 
-              {rolesJerarquicos.map((r) => (
-                <option key={r.id} value={r.nombre}>
-                  {r.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+                {nivelesJerarquicos.map((nivel) => (
+                  <option key={nivel.id} value={nivel.id}>
+                    {nivel.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.field} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={form.puede_crear_solicitudes}
+                onChange={(e) =>
+                  setForm({ ...form, puede_crear_solicitudes: e.target.checked })
+                }
+                style={{ width: 16, height: 16 }}
+              />
+              <span>Puede crear solicitudes (Mis solicitudes)</span>
+            </label>
+          </>
         )}
 
       </div>

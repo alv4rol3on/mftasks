@@ -62,6 +62,7 @@ export default function MisSolicitudesPage() {
   const cargar = useCallback(async () => {
     try {
       const params = new URLSearchParams();
+      params.set("mis_solicitudes", "1");
       normalizarEstados(filtro, OPCIONES_ESTADO_SOLICITUD).forEach(
         (estado) => params.append("estado", estado)
       );
@@ -243,7 +244,7 @@ export default function MisSolicitudesPage() {
           marginBottom: 12,
         }}
       >
-        <h2 className="text-lg font-medium" style={{ margin: 0 }}>Seguimiento de Solicitudes</h2>
+        <h2 className="text-lg font-medium" style={{ margin: 0 }}>Mis solicitudes</h2>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <button

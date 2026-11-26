@@ -8,8 +8,8 @@ from .views import (
     MeView,
     MiDisponibilidadView,
     MicrosoftLoginView,
+    NivelViewSet,
     PreferenciaNotificacionView,
-    RolViewSet,
     UserViewSet,
     MisPreferenciasNotificacionView
 )
@@ -22,8 +22,8 @@ router.register(
 )
 
 router.register(
-    "roles",
-    RolViewSet
+    "niveles",
+    NivelViewSet
 )
 
 router.register(

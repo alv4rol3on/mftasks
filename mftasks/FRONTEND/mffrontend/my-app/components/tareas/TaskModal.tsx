@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import styles from "./TaskModalDesarrollo.module.css";
 import { Task, EquipoInfo, EquipoMiembroDetallado } from "@/lib/types";
 import { getUsuarioActual } from "@/lib/auth";
@@ -305,11 +306,7 @@ export default function TaskModal({
         return local.toISOString().slice(0, 16);
     })();
 
-    // Determinar si el usuario puede ver historial: los clientes no lo ven.
-    const roles = (usuario?.roles ?? []).map((r: string) => r.toLowerCase());
-    const esClientePuro =
-        usuario?.tipo_usuario === "CLIENTE" || roles.includes("cliente");
-    const puedeVerHistorial = !esClientePuro;
+    const puedeVerHistorial = true;
     const puedeVerAsignaciones = !soloLectura && !!tarea?.puedo_operar;
     const solicitudNoEmpieza = tarea?.estado === "APROBADO" || tarea?.estado === "EN_ESPERA"
     const solicitudRechazada = tarea?.estado === "RECHAZADO"
@@ -385,7 +382,7 @@ export default function TaskModal({
         cursor: "pointer",
     });
 
-    return (
+    return createPortal(
         <>
             <div className={styles.modalOverlay}>
                 <div
@@ -735,6 +732,7 @@ export default function TaskModal({
                     }}
                 />
             )}
-        </>
+        </>,
+        document.body
     );
 }

@@ -154,8 +154,6 @@ class PermisoCampanaSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         campana = attrs.get("campana")
         subcampana = attrs.get("subcampana")
-        from usuarios.models import User
-        usuario = attrs.get("usuario")
         # Bloquear permisos a entidades inhabilitadas o eliminadas
         if campana is not None and (
             not campana.activo
@@ -174,22 +172,7 @@ class PermisoCampanaSerializer(serializers.ModelSerializer):
                 or subcampana.campana.entidad.eliminado
             ):
                 raise serializers.ValidationError({"subcampana": "La campaña/subcampaña está inhabilitada por Administración."})
-        # Si usuario es CLIENTE, solo permitir permiso puntual a subcampana
-        if usuario:
-            try:
-                from usuarios.permissions import es_cliente
-                u = usuario if isinstance(usuario, User) else User.objects.get(id=int(usuario))
-                if es_cliente(u):
-                    if campana and not subcampana:
-                        raise serializers.ValidationError({"campana": "Clientes solo pueden tener permiso puntual a subcampaña, no a campaña completa."})
-                    if not subcampana:
-                        raise serializers.ValidationError({"subcampana": "Para clientes debe indicar subcampaña."})
-            except Exception as e:
-                # si es ValidationError ya lanzado, re-lanzar
-                if isinstance(e, serializers.ValidationError):
-                    raise
-                pass
         # XOR ya validado por modelo, pero mensaje claro
         if (campana is None) == (subcampana is None):
-            raise serializers.ValidationError("Debe indicar campana o subcampana, no ambos ni ninguno. Para clientes use subcampana.")
+            raise serializers.ValidationError("Debe indicar campana o subcampana, no ambos ni ninguno.")
         return attrs

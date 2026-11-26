@@ -85,7 +85,7 @@ export default function TaskTableSolicitudes({
             <div className={styles.taskHeader}>
               <div>Fecha de solicitud</div>
               <div>Asunto</div>
-              <div>Cliente</div>
+              <div>Campaña</div>
               <div>Equipo</div>
               <div>Tiempo de revisión</div>
             </div>

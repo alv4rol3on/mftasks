@@ -128,14 +128,14 @@ export default function InformacionClientePanel({
         <div className={styles.historyEmpty}>
           <strong>Sin información adicional</strong>
           <p>
-            Cuando el cliente agregue notas o archivos aparecerán en esta
+            Cuando el solicitante agregue notas o archivos aparecerán en esta
             sección.
           </p>
         </div>
       )}
 
       {entradas && entradas.length > 0 && (
-        <ol className={styles.historyList} aria-label="Información adicional del cliente">
+        <ol className={styles.historyList} aria-label="Información adicional del solicitante">
           {entradas.map((entrada) => (
             <li key={entrada.id} className={styles.historyItem}>
               <span
@@ -153,11 +153,11 @@ export default function InformacionClientePanel({
                 <div className={styles.historyMeta}>
                   {mostrarAutor && (
                     <span className={styles.historyUser}>
-                      {entrada.usuario ?? "Cliente"}
+                      {entrada.usuario ?? "Solicitante"}
                     </span>
                   )}
                   <span className={styles.historyEntity}>
-                    {mostrarAutor ? "Cliente" : "Tu información"}
+                    {mostrarAutor ? "Solicitante" : "Tu información"}
                   </span>
                 </div>
 

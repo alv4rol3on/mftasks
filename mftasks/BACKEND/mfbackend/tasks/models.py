@@ -271,21 +271,21 @@ class Tarea(models.Model):
 
     def save(self, *args, **kwargs):
         # La solicitud nace directamente en revisión del líder cuando:
-        #   - el rol del equipo es la raíz (no tiene superiores), o
-        #   - el rol del equipo tiene autoaprobación, o
+        #   - el nivel del equipo es la raíz (no tiene superiores), o
+        #   - el nivel del equipo tiene autoaprobación, o
         #   - ningún superior de la cadena tiene permiso a la subcampaña.
         if self._state.adding and self.equipo_id and self.estado == self.Estado.EN_ESPERA:
-            from usuarios.jerarquia import roles_aprobador_de_equipo
+            from usuarios.jerarquia import niveles_aprobador_de_equipo
             from tasks.permissions import hay_aprobadores_con_permiso
 
-            rol_equipo = getattr(self.equipo, "rol_equipo", None)
+            nivel_equipo = getattr(self.equipo, "nivel", None)
             auto_aprobar = bool(
-                rol_equipo is not None
-                and getattr(rol_equipo, "auto_aprobar", False)
+                nivel_equipo is not None
+                and getattr(nivel_equipo, "auto_aprobar", False)
             )
 
             if (
-                not roles_aprobador_de_equipo(self.equipo)
+                not niveles_aprobador_de_equipo(self.equipo)
                 or auto_aprobar
                 or not hay_aprobadores_con_permiso(self)
             ):
@@ -680,6 +680,10 @@ class HorarioLaboral(models.Model):
         )
 
 class ConfiguracionAprobacion(models.Model):
+    class AlcanceIntegrantes(models.TextChoices):
+        DIRECTO = "DIRECTO", "Solo nivel inferior directo"
+        CUALQUIER = "CUALQUIER", "Cualquier nivel inferior"
+
     horas_limite = models.PositiveSmallIntegerField(
         default=72,
         validators=[
@@ -702,6 +706,17 @@ class ConfiguracionAprobacion(models.Model):
     hora_alerta_diaria = models.TimeField(
         default=time(9, 0),
         verbose_name="Hora de la alerta diaria",
+    )
+
+    alcance_integrantes = models.CharField(
+        max_length=20,
+        choices=AlcanceIntegrantes.choices,
+        default=AlcanceIntegrantes.DIRECTO,
+        verbose_name="Alcance de integrantes de equipo",
+        help_text=(
+            "Define si un líder puede agregar solo usuarios de sus niveles "
+            "inferiores directos o cualquier usuario de un nivel inferior."
+        ),
     )
 
     class Meta:

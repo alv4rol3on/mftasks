@@ -518,7 +518,7 @@ export default function TaskModal({
                             <div style={{ gridColumn: "1 / -1" }}>
                                 <h3>Solicitud de reapertura</h3>
                                 <div className={styles.descriptionBox}>
-                                    <strong>Motivo del cliente:</strong>
+                                    <strong>Motivo del solicitante:</strong>
                                     <p style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
                                         {tarea.motivo_reapertura || "Sin motivo registrado."}
                                     </p>

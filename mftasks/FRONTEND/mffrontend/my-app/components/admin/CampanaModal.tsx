@@ -153,7 +153,7 @@ export default function CampanaModal({
           direccion: nuevaEntidad.direccion.trim(),
         }),
       });
-      await onSaved(`Entidad "${nuevaEntidad.nombre.trim()}" creada`);
+      await onSaved("Entidad creada");
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -186,7 +186,7 @@ export default function CampanaModal({
           nombre: nuevaCampana.nombre.trim(),
         }),
       });
-      await onSaved(`Campaña "${nuevaCampana.nombre.trim()}" creada`);
+      await onSaved("Campaña creada");
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -219,7 +219,7 @@ export default function CampanaModal({
           nombre: nuevaSubcampana.nombre.trim(),
         }),
       });
-      await onSaved(`Subcampaña "${nuevaSubcampana.nombre.trim()}" creada`);
+      await onSaved("Subcampaña creada");
       onClose();
     } catch (e) {
       setError((e as Error).message);

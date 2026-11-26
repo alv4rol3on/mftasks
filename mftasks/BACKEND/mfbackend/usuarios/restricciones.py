@@ -1,12 +1,9 @@
-"""Reglas que restringen la edición de estado/rol de un usuario.
+"""Reglas que restringen la edición de estado/nivel de un usuario.
 
-- COLABORADOR: no se puede editar estado/rol si tiene subtareas activas no
-  solucionadas o si pertenece a algún equipo.
-- CLIENTE: no se puede editar estado/rol si tiene solicitudes no finalizadas.
+- COLABORADOR: no se puede editar estado/nivel si tiene subtareas activas no
+  solucionadas, si pertenece a algún equipo o si tiene solicitudes en proceso.
 - ADMINISTRADOR: ya dispone de su propio bloqueo (no se modifica).
 """
-
-from .models import TipoUsuario
 
 
 def tiene_pendientes(user):
@@ -31,7 +28,7 @@ def pertenece_a_equipo(user):
 
 
 def tiene_solicitudes_en_proceso(user):
-    """True si el usuario (cliente) tiene solicitudes no finalizadas."""
+    """True si el usuario (solicitante) tiene solicitudes no finalizadas."""
     from tasks.models import Tarea
 
     return Tarea.objects.filter(
@@ -42,8 +39,8 @@ def tiene_solicitudes_en_proceso(user):
     ).exists()
 
 
-def motivo_bloqueo_estado_rol(user, *, pendientes=None, equipo=None, proceso=None):
-    """Devuelve el motivo por el que no se puede editar estado/rol, o None.
+def motivo_bloqueo_estado_nivel(user, *, pendientes=None, equipo=None, proceso=None):
+    """Devuelve el motivo por el que no se puede editar estado/nivel, o None.
 
     Acepta flags precalculados (p. ej. anotaciones del queryset) para evitar
     consultas adicionales en el listado.
@@ -51,26 +48,24 @@ def motivo_bloqueo_estado_rol(user, *, pendientes=None, equipo=None, proceso=Non
     if user is None:
         return None
 
-    tipo = getattr(user, "tipo_usuario", None)
+    motivos = []
 
-    if tipo == TipoUsuario.CLIENTE:
+    if getattr(user, "puede_crear_solicitudes", False):
         if proceso is None:
             proceso = tiene_solicitudes_en_proceso(user)
         if proceso:
-            return "No se puede editar estado/rol: el cliente tiene solicitudes en proceso."
-        return None
+            motivos.append("tiene solicitudes en proceso")
 
     if pendientes is None:
         pendientes = tiene_pendientes(user)
     if equipo is None:
         equipo = pertenece_a_equipo(user)
 
-    motivos = []
     if pendientes:
         motivos.append("tiene subtareas pendientes")
     if equipo:
         motivos.append("pertenece a un equipo")
 
     if motivos:
-        return "No se puede editar estado/rol: " + " y ".join(motivos) + "."
+        return "No se puede editar estado/nivel: " + " y ".join(motivos) + "."
     return None

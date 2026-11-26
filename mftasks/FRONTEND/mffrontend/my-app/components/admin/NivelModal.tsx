@@ -9,19 +9,18 @@ import SearchableSelect, {
 } from "@/components/ui/SearchableSelect";
 import Switch from "@/components/ui/Switch";
 
-import type { RolInfo } from "@/lib/types";
+import type { NivelInfo } from "@/lib/types";
 
 import styles from "./AdminSections.module.css";
 
 type Props = {
-  rol: RolInfo | null;
+  nivel: NivelInfo | null;
   opcionesSuperior: SearchableOption[];
   onClose: () => void;
   onSaved: (msg: string) => void | Promise<void>;
 };
 
-type FormRol = {
-  nombre: string;
+type FormNivel = {
   descripcion: string;
   superior: string;
   puede_liderar: boolean;
@@ -32,32 +31,26 @@ type FormRol = {
 
 const HEX_RE = /^#(?:[0-9a-fA-F]{6})$/;
 
-export default function RolModal({
-  rol,
+export default function NivelModal({
+  nivel,
   opcionesSuperior,
   onClose,
   onSaved,
 }: Props) {
-  const [form, setForm] = useState<FormRol>({
-    nombre: rol?.nombre ?? "",
-    descripcion: rol?.descripcion ?? "",
-    superior: rol?.superior != null ? String(rol.superior) : "",
-    puede_liderar: rol?.puede_liderar ?? false,
-    auto_aprobar: rol?.auto_aprobar ?? false,
-    activo: rol?.activo ?? true,
-    color: rol?.color ?? "",
+  const [form, setForm] = useState<FormNivel>({
+    descripcion: nivel?.descripcion ?? "",
+    superior: nivel?.superior != null ? String(nivel.superior) : "",
+    puede_liderar: nivel?.puede_liderar ?? false,
+    auto_aprobar: nivel?.auto_aprobar ?? false,
+    activo: nivel?.activo ?? true,
+    color: nivel?.color ?? "",
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const esEdicion = rol != null;
+  const esEdicion = nivel != null;
 
   const guardar = async () => {
-    if (!form.nombre.trim()) {
-      setError("El nombre del rol es obligatorio.");
-      return;
-    }
-
     const color = form.color.trim();
     if (color && !HEX_RE.test(color)) {
       setError("El color debe tener formato #RRGGBB.");
@@ -65,7 +58,6 @@ export default function RolModal({
     }
 
     const payload = {
-      nombre: form.nombre.trim(),
       descripcion: form.descripcion.trim(),
       superior: form.superior ? Number(form.superior) : null,
       puede_liderar: form.puede_liderar,
@@ -78,18 +70,18 @@ export default function RolModal({
     setError(null);
 
     try {
-      if (esEdicion && rol) {
-        await apiFetch(`/api/usuarios/roles/${rol.id}/`, {
+      if (esEdicion && nivel) {
+        await apiFetch(`/api/usuarios/niveles/${nivel.id}/`, {
           method: "PATCH",
           body: JSON.stringify(payload),
         });
-        await onSaved(`Rol "${payload.nombre}" actualizado.`);
+        await onSaved("Nivel actualizado");
       } else {
-        await apiFetch("/api/usuarios/roles/", {
+        await apiFetch("/api/usuarios/niveles/", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        await onSaved(`Rol "${payload.nombre}" creado.`);
+        await onSaved("Nivel creado");
       }
       onClose();
     } catch (e) {
@@ -119,36 +111,36 @@ export default function RolModal({
           ? "Guardando..."
           : esEdicion
             ? "Guardar cambios"
-            : "Crear rol"}
+            : "Crear nivel"}
       </button>
     </>
   );
 
   return (
     <Modal
-      title={esEdicion ? `Editar rol: ${rol?.nombre ?? ""}` : "Crear nuevo rol"}
+      title={esEdicion ? `Editar ${nivel?.nombre ?? "nivel"}` : "Crear nuevo nivel"}
       onClose={onClose}
       footer={footer}
     >
-      <div className={styles.formGrid}>
-        <label className={styles.field}>
-          <input
-            className={styles.input}
-            placeholder="Nombre del rol(p. ej. Coordinador) *"
-            value={form.nombre}
-            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <input
-            className={styles.input}
-            placeholder="Descripción *"
-            value={form.descripcion}
-            onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-          />
-        </label>
+      <div className={styles.modalHint}>
+        El nombre se genera automáticamente como <strong>NIVEL n</strong> según
+        la posición en la jerarquía.
+        {esEdicion && nivel && (
+          <>
+            {" "}Nombre actual: <strong>{nivel.nombre}</strong>.
+          </>
+        )}
       </div>
+
+      <label className={styles.field} style={{ marginTop: 12 }}>
+        <span>Descripción</span>
+        <input
+          className={styles.input}
+          placeholder="Descripción del nivel (opcional)"
+          value={form.descripcion}
+          onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+        />
+      </label>
 
       <label className={styles.field} style={{ marginTop: 12 }}>
         <span>Superior directo (aprobador)</span>
@@ -157,7 +149,7 @@ export default function RolModal({
           onChange={(v) => setForm({ ...form, superior: v })}
           options={opcionesSuperior}
           placeholder="— Sin superior (raíz) —"
-          emptyText="Sin roles disponibles"
+          emptyText="Sin niveles disponibles"
         />
       </label>
 
@@ -169,7 +161,7 @@ export default function RolModal({
               checked={form.puede_liderar}
               onChange={(v) => setForm({ ...form, puede_liderar: v })}
               label="Puede liderar equipos"
-              title="Permite asignar usuarios con este rol como líderes de equipo"
+              title="Permite asignar usuarios con este nivel como líderes de equipo"
             />
             <span style={{ fontSize: 12, color: "var(--color-text)" }}>
               {form.puede_liderar ? "Sí" : "No"}
@@ -184,7 +176,7 @@ export default function RolModal({
               checked={form.auto_aprobar}
               onChange={(v) => setForm({ ...form, auto_aprobar: v })}
               label="Autoaprobación"
-              title="Las solicitudes de equipos de este rol saltan la fase de aprobadores y pasan directo a revisión del líder"
+              title="Las solicitudes de equipos de este nivel saltan la fase de aprobadores y pasan directo a revisión del líder"
             />
             <span style={{ fontSize: 12, color: "var(--color-text)" }}>
               {form.auto_aprobar ? "Sí" : "No"}

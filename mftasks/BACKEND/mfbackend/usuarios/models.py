@@ -13,11 +13,10 @@ from .managers import UserManager
 class TipoUsuario(models.TextChoices):
     """Comportamiento general y navegación del usuario.
 
-    Independiente del rol jerárquico: solo COLABORADOR requiere un Rol.
+    Solo COLABORADOR requiere un Nivel. ADMINISTRADOR usa el nivel de sistema.
     """
 
     COLABORADOR = "COLABORADOR", "Colaborador"
-    CLIENTE = "CLIENTE", "Cliente"
     ADMINISTRADOR = "ADMINISTRADOR", "Administrador"
 
 
@@ -46,6 +45,15 @@ class User(AbstractUser):
         choices=TipoUsuario.choices,
         default=TipoUsuario.COLABORADOR,
         db_index=True,
+    )
+
+    puede_crear_solicitudes = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "Permite al colaborador crear solicitudes y acceder a la pestaña "
+            "'Mis solicitudes'."
+        ),
     )
 
     nombres = models.CharField(max_length=150)
@@ -167,16 +175,25 @@ class DisponibilidadUsuario(models.Model):
         return f"{self.usuario} - {self.estado}"
 
 
-class Rol(models.Model):
+class Nivel(models.Model):
 
     nombre = models.CharField(
         max_length=50,
-        unique=True
+        unique=True,
+        help_text="Etiqueta generada automáticamente como NIVEL {número}.",
     )
 
     descripcion = models.TextField(blank=True)
 
     activo = models.BooleanField(default=True)
+
+    es_sistema = models.BooleanField(
+        default=False,
+        help_text=(
+            "Nivel interno (p. ej. Administrador) que no se gestiona desde "
+            "la pestaña Niveles."
+        ),
+    )
 
     superior = models.ForeignKey(
         "self",
@@ -185,20 +202,20 @@ class Rol(models.Model):
         null=True,
         blank=True,
         help_text=(
-            "Rol superior directo que aprueba las solicitudes de este rol. "
-            "Vacío en el rol raíz de la organización."
+            "Nivel superior directo que aprueba las solicitudes de este nivel. "
+            "Vacío en el nivel raíz de la organización."
         ),
     )
 
     puede_liderar = models.BooleanField(
         default=False,
-        help_text="Si está activo, los usuarios con este rol pueden ser líderes de un equipo.",
+        help_text="Si está activo, los usuarios con este nivel pueden ser líderes de un equipo.",
     )
 
     auto_aprobar = models.BooleanField(
         default=False,
         help_text=(
-            "Si está activo, las solicitudes de equipos de este rol saltan la "
+            "Si está activo, las solicitudes de equipos de este nivel saltan la "
             "fase de aprobadores y pasan directo a revisión del líder."
         ),
     )
@@ -214,15 +231,25 @@ class Rol(models.Model):
             )
         ],
         help_text=(
-            "Color hexadecimal (#RRGGBB) que heredan los equipos de este rol "
+            "Color hexadecimal (#RRGGBB) que heredan los equipos de este nivel "
             "para la barra de su tarjeta. Vacío = neutro."
         ),
     )
 
     class Meta:
         constraints = [
-            UniqueConstraint(Lower("nombre"), name="rol_nombre_unique_lower"),
+            UniqueConstraint(Lower("nombre"), name="nivel_nombre_unique_lower"),
         ]
+
+    def save(self, *args, **kwargs):
+        # El nombre es una etiqueta derivada. Si aún no se asignó (creación
+        # desde la API o admin), se usa un valor temporal único; el viewset
+        # ejecuta la renumeración jerárquica al terminar la operación.
+        if not self.nombre:
+            import uuid
+
+            self.nombre = f"__nivel_tmp_{uuid.uuid4().hex}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre
@@ -233,7 +260,7 @@ class Rol(models.Model):
         super().clean()
         if self.pk and self.superior_id == self.pk:
             raise ValidationError(
-                {"superior": "Un rol no puede ser su propio superior."}
+                {"superior": "Un nivel no puede ser su propio superior."}
             )
         # Detectar ciclos recorriendo la cadena de superiores.
         visitados = set()
@@ -253,29 +280,29 @@ class Rol(models.Model):
             actual = actual.superior
 
 
-class UserRol(models.Model):
+class UserNivel(models.Model):
 
     usuario = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="roles"
+        related_name="niveles"
     )
 
-    rol = models.ForeignKey(
-        Rol,
+    nivel = models.ForeignKey(
+        Nivel,
         on_delete=models.CASCADE,
         related_name="usuarios"
     )
 
     class Meta:
-        unique_together = ("usuario", "rol")
+        unique_together = ("usuario", "nivel")
         indexes = [
             models.Index(fields=["usuario"]),
-            models.Index(fields=["rol"]),
+            models.Index(fields=["nivel"]),
         ]
 
     def __str__(self):
-        return f"{self.usuario} - {self.rol}"
+        return f"{self.usuario} - {self.nivel}"
 
 
 class Equipo(models.Model):
@@ -291,13 +318,13 @@ class Equipo(models.Model):
         related_name="equipos_liderados"
     )
 
-    rol_equipo = models.ForeignKey(
-        Rol,
+    nivel = models.ForeignKey(
+        Nivel,
         on_delete=models.PROTECT,
         related_name="equipos",
         null=True,
         blank=True,
-        help_text="Rol del líder que determina la cadena de aprobación del equipo.",
+        help_text="Nivel del líder que determina la cadena de aprobación del equipo.",
     )
 
     activo = models.BooleanField(default=True)
@@ -317,7 +344,7 @@ class Equipo(models.Model):
 
     def save(self, *args, **kwargs):
         from django.db import transaction
-        from .jerarquia import rol_efectivo
+        from .jerarquia import nivel_efectivo
 
         is_new = self._state.adding
         old_lider_id = None
@@ -328,14 +355,14 @@ class Equipo(models.Model):
             except Equipo.DoesNotExist:
                 old_lider_id = None
 
-        # El rol del equipo se deriva del rol efectivo del líder.
+        # El nivel del equipo se deriva del nivel efectivo del líder.
         if self.lider_id:
             try:
-                rol = rol_efectivo(self.lider)
+                nivel = nivel_efectivo(self.lider)
             except Exception:
-                rol = None
-            if rol is not None:
-                self.rol_equipo = rol
+                nivel = None
+            if nivel is not None:
+                self.nivel = nivel
 
         with transaction.atomic():
             super().save(*args, **kwargs)

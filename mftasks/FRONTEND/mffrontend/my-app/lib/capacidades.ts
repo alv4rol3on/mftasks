@@ -3,8 +3,7 @@ import type { EquipoInfo } from "./types";
 
 export type Caps = {
   isAdmin: boolean;
-  isCliente: boolean;
-  isClientePuro: boolean;
+  puedeCrearSolicitudes: boolean;
   isAsignador: boolean;
   isLider: boolean;
   isSubLider: boolean;
@@ -20,14 +19,14 @@ export function calcularCaps(
   user: DatosUsuario | null,
   equipos: EquipoInfo[] | null
 ): Caps {
-  const roles = (user?.roles ?? []).map((r) => r.toLowerCase());
   const tipo = user?.tipo_usuario;
 
-  const isAdmin = tipo === "ADMINISTRADOR" || roles.includes("administrador");
-  const isCliente = tipo === "CLIENTE" || roles.includes("cliente");
+  const isAdmin = tipo === "ADMINISTRADOR";
+  const isColaborador = tipo === "COLABORADOR";
+  const puedeCrearSolicitudes =
+    isAdmin || user?.puede_crear_solicitudes === true;
 
   // Un colaborador es un usuario interno (con o sin equipo).
-  const isColaborador = tipo ? tipo === "COLABORADOR" : !isAdmin && !isCliente;
   const isMiembroGlobal = isColaborador;
   // Aprobador dinámico: lo determina el backend por jerarquía + permiso.
   const isAprobador = Boolean(user?.es_aprobador);
@@ -85,15 +84,12 @@ export function calcularCaps(
       isMiembro = true;
     }
   } else if (!equipos) {
-    if (!isCliente && isMiembroGlobal) isMiembro = true;
+    if (isMiembroGlobal) isMiembro = true;
   }
-
-  const isClientePuro = isCliente && !isAdmin && !isLider && !isSubLider && !isMiembro;
 
   return {
     isAdmin,
-    isCliente,
-    isClientePuro,
+    puedeCrearSolicitudes,
     isAsignador,
     isLider,
     isSubLider,
@@ -110,12 +106,11 @@ export const RUTAS_PROTEGIDAS: { ruta: string; permitido: (c: Caps) => boolean }
   { ruta: "/perfil", permitido: () => true },
   { ruta: "/equipos", permitido: () => true },
   { ruta: "/admin", permitido: (c) => c.isAdmin },
-  { ruta: "/solicitudes", permitido: (c) => c.isAdmin || !c.isClientePuro },
-  { ruta: "/tareas", permitido: (c) => c.isAdmin || !c.isClientePuro },
-  { ruta: "/cliente", permitido: (c) => c.isCliente && !c.isAdmin },
+  { ruta: "/solicitudes", permitido: (c) => c.isAdmin || c.isMiembro },
+  { ruta: "/tareas", permitido: (c) => c.isAdmin || c.isMiembro },
   {
-    ruta: "/cliente/mis-solicitudes",
-    permitido: (c) => c.isCliente && !c.isAdmin,
+    ruta: "/mis-solicitudes",
+    permitido: (c) => c.puedeCrearSolicitudes,
   },
 ];
 

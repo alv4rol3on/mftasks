@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
-import type { EquipoInfo, EquipoMiembroDetallado, RolInfo } from "@/lib/types";
+import type { EquipoInfo, EquipoMiembroDetallado, NivelInfo } from "@/lib/types";
 import RefreshButton from "@/components/ui/RefreshButton";
 import PageLoader from "@/components/ui/PageLoader";
 import Pagination from "@/components/ui/Pagination";
@@ -20,7 +19,7 @@ function extraerEquipos(data: EquipoApiResponse): EquipoInfo[] {
 
 type Pendiente = { subtarea_id: number; descripcion: string; tarea_id: number; tarea_asunto: string; estado: string };
 
-type TipoUsuario = "COLABORADOR" | "CLIENTE" | "ADMINISTRADOR";
+type TipoUsuario = "COLABORADOR" | "ADMINISTRADOR";
 
 const PAGE_SIZE_EQUIPOS = 10;
 
@@ -36,7 +35,8 @@ type UsuarioLista = {
   email: string;
   nombres: string;
   apellidos: string;
-  roles?: string[];
+  nivel?: number | null;
+  nivel_nombre?: string | null;
   tipo_usuario?: TipoUsuario;
   is_active?: boolean;
   activo?: boolean;
@@ -48,7 +48,8 @@ type UsuarioCandidato = {
   email: string;
   nombres: string;
   apellidos: string;
-  roles?: string[];
+  nivel?: number | null;
+  nivel_nombre?: string | null;
   tipo_usuario?: TipoUsuario;
   is_active?: boolean;
   activo?: boolean;
@@ -86,20 +87,15 @@ export default function EquiposPage() {
   // modal de integrante (ajustes: sub-líder, inactivar, eliminar)
   const [modalMiembro, setModalMiembro] = useState<{ equipo: EquipoInfo; miembro: EquipoMiembroDetallado } | null>(null);
   const [usuariosTodos, setUsuariosTodos] = useState<UsuarioLista[]>([]);
-  const [rolesCatalogo, setRolesCatalogo] = useState<RolInfo[]>([]);
+  const [rolesCatalogo, setRolesCatalogo] = useState<NivelInfo[]>([]);
   // Filtros del buscador de líder (modal crear equipo).
   const [liderBusqueda, setLiderBusqueda] = useState("");
   const [liderTipoFiltro, setLiderTipoFiltro] = useState<string>("todos");
   const [liderRolFiltro, setLiderRolFiltro] = useState<string>("todos");
 
   const usuario = getUsuarioActual();
-  const roles = (usuario?.roles ?? []).map((r) => r.toLowerCase());
-  const esAdmin =
-    usuario?.tipo_usuario === "ADMINISTRADOR" ||
-    roles.includes("administrador");
-  const esClientePuro =
-    (usuario?.tipo_usuario === "CLIENTE" || roles.includes("cliente")) &&
-    !esAdmin;
+  const esAdmin = usuario?.tipo_usuario === "ADMINISTRADOR";
+  const esClientePuro = false;
 
   const nombreMiembro = (m: EquipoMiembroDetallado) =>
     `${m.nombres ?? m.usuario?.nombres ?? ""} ${m.apellidos ?? m.usuario?.apellidos ?? ""
@@ -201,7 +197,7 @@ export default function EquiposPage() {
 
     if (esAdmin && rolesCatalogo.length === 0) {
       pendientes.push(
-        apiFetch<RolInfo[] | { results: RolInfo[] }>("/api/usuarios/roles/")
+        apiFetch<NivelInfo[] | { results: NivelInfo[] }>("/api/usuarios/niveles/")
           .then((data) =>
             setRolesCatalogo(Array.isArray(data) ? data : data.results ?? [])
           )
@@ -219,49 +215,24 @@ export default function EquiposPage() {
     }
   }, []);
 
-  const mapaRolesNombre = new Map<string, RolInfo>(
+  const mapaRolesNombre = new Map<string, NivelInfo>(
     rolesCatalogo.map((r) => [r.nombre.toLowerCase(), r])
   );
 
-  /** True si el usuario puede liderar un equipo (colaborador con rol que lidera). */
+  /** True si el usuario puede liderar un equipo (colaborador con nivel que lidera). */
   const puedeLiderar = (u: UsuarioLista) => {
-    if (u.tipo_usuario === "ADMINISTRADOR" || u.tipo_usuario === "CLIENTE") {
+    if (u.tipo_usuario === "ADMINISTRADOR") {
       return false;
     }
-    return (u.roles ?? []).some(
-      (r) => mapaRolesNombre.get(r.toLowerCase())?.puede_liderar === true
+    return (
+      mapaRolesNombre.get((u.nivel_nombre ?? "").toLowerCase())
+        ?.puede_liderar === true
     );
   };
 
-  /** Profundidad jerárquica de un rol (0 = raíz). */
-  const profundidadRol = (rol: RolInfo): number => {
-    const visitados = new Set<number>();
-    let actual: RolInfo | undefined = rol;
-    let profundidad = 0;
-
-    while (actual && actual.superior != null && !visitados.has(actual.id)) {
-      visitados.add(actual.id);
-      const superior: number = actual.superior;
-      actual = rolesCatalogo.find((r) => r.id === superior);
-      if (actual) profundidad += 1;
-    }
-
-    return profundidad;
-  };
-
-  /** Nombre del rol de mayor rango del usuario (misma regla que el backend). */
+  /** Nombre del nivel efectivo del usuario. */
   const rolEfectivoNombre = (u: UsuarioLista): string | null => {
-    const rolesUsuario = (u.roles ?? [])
-      .map((nombre) => mapaRolesNombre.get(nombre.toLowerCase()))
-      .filter((r): r is RolInfo => Boolean(r && r.activo));
-
-    if (rolesUsuario.length === 0) return null;
-
-    return [...rolesUsuario].sort(
-      (a, b) =>
-        profundidadRol(a) - profundidadRol(b) ||
-        a.nombre.localeCompare(b.nombre)
-    )[0].nombre;
+    return u.nivel_nombre ?? null;
   };
 
   const handleToggleSubLider = async (equipo: EquipoInfo, miembro: EquipoMiembroDetallado) => {
@@ -477,9 +448,7 @@ export default function EquiposPage() {
     }
     if (
       liderRolFiltro !== "todos" &&
-      !(u.roles ?? []).some(
-        (r) => r.toLowerCase() === liderRolFiltro.toLowerCase()
-      )
+      (u.nivel_nombre ?? "").toLowerCase() !== liderRolFiltro.toLowerCase()
     ) {
       return false;
     }
@@ -695,7 +664,7 @@ export default function EquiposPage() {
     if (!modalCambiarLider) return [] as UsuarioLista[];
 
     const { equipo, busqueda } = modalCambiarLider;
-    const rolRequerido = (equipo.rol_equipo_nombre ?? "").toLowerCase();
+    const rolRequerido = (equipo.nivel_nombre ?? "").toLowerCase();
     const q = normalizarBusqueda(busqueda.trim());
 
     return usuariosTodos
@@ -823,12 +792,6 @@ export default function EquiposPage() {
 
 
 
-      {esClientePuro && (
-        <div style={{ background: "color-mix(in srgb, var(--color-in-progress) 10%, var(--color-background))", border: "1px solid color-mix(in srgb, var(--color-in-progress) 28%, var(--color-background))", padding: 12, borderRadius: 8, fontSize: 13, color: "var(--color-in-progress)" }}>
-          Para crear una solicitud, elige uno de estos equipos en <Link href="/cliente/mis-solicitudes" style={{ textDecoration: "underline", color: "var(--color-in-progress)" }}>Seguimiento de Solicitudes</Link>.
-        </div>
-      )}
-
       {equiposFiltrados.length === 0 ? (
         <div style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24, textAlign: "center" }}>
           <p style={{ color: "var(--color-text-secondary)", fontSize: 14, margin: 0 }}>
@@ -880,7 +843,7 @@ export default function EquiposPage() {
                   <div
                     onClick={() => setEquipoExpandido(expandido ? null : equipo.id)}
                     className={styles.cardHeader}
-                    style={equipo.rol_color ? ({ "--rol-color": equipo.rol_color } as React.CSSProperties) : undefined}
+                    style={equipo.nivel_color ? ({ "--rol-color": equipo.nivel_color } as React.CSSProperties) : undefined}
                   >
                     <div className={styles.cardHeaderLeft}>
                       <div className={styles.cardTitleRow}>
@@ -1455,8 +1418,8 @@ export default function EquiposPage() {
                   ? `${modalCambiarLider.equipo.lider.nombres} ${modalCambiarLider.equipo.lider.apellidos}`
                   : "—"}
               </strong>
-              {modalCambiarLider.equipo.rol_equipo_nombre
-                ? ` · Rol: ${modalCambiarLider.equipo.rol_equipo_nombre}`
+                {modalCambiarLider.equipo.nivel_nombre
+                  ? ` · Nivel: ${modalCambiarLider.equipo.nivel_nombre}`
                 : ""}
             </p>
             <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
@@ -1510,7 +1473,7 @@ export default function EquiposPage() {
                           {u.nombres} {u.apellidos}
                         </span>
                         <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                          {u.email} • {u.codigo ?? "—"} • {(u.roles ?? []).join(", ") || "—"}
+                          {u.email} • {u.codigo ?? "—"} • {u.nivel_nombre ?? "—"}
                         </span>
                       </span>
                       <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
@@ -1647,7 +1610,7 @@ export default function EquiposPage() {
                     onChange={(e) => setLiderRolFiltro(e.target.value)}
                     style={{ flex: 1, border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
                   >
-                    <option value="todos">Todos los roles</option>
+                    <option value="todos">Todos los niveles</option>
                     {rolesLider.map((r) => (
                       <option key={r.id} value={r.nombre}>{r.nombre}</option>
                     ))}
@@ -1687,7 +1650,7 @@ export default function EquiposPage() {
                               {u.nombres} {u.apellidos}
                             </span>
                             <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                              {u.email} • {(u.roles ?? []).join(", ") || "—"}
+                              {u.email} • {u.nivel_nombre ?? "—"}
                             </span>
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 600, color: sel ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>

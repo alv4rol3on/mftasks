@@ -53,10 +53,18 @@ export default function AjustesSection({ setMsg }: Props) {
   const [horaAlerta, setHoraAlerta] = useState("09:00");
   const [horaOriginal, setHoraOriginal] = useState("09:00");
 
+  const [alcanceIntegrantes, setAlcanceIntegrantes] = useState<
+    "DIRECTO" | "CUALQUIER"
+  >("DIRECTO");
+  const [alcanceOriginal, setAlcanceOriginal] = useState<
+    "DIRECTO" | "CUALQUIER"
+  >("DIRECTO");
+
   const [cargandoConfig, setCargandoConfig] = useState(true);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [guardandoConfirmacion, setGuardandoConfirmacion] = useState(false);
   const [guardandoHora, setGuardandoHora] = useState(false);
+  const [guardandoAlcance, setGuardandoAlcance] = useState(false);
 
   const cargarConfiguracion = async () => {
     setCargandoConfig(true);
@@ -67,6 +75,7 @@ export default function AjustesSection({ setMsg }: Props) {
         horas_limite: number;
         horas_confirmacion: number;
         hora_alerta_diaria: string;
+        alcance_integrantes: "DIRECTO" | "CUALQUIER";
       }>("/api/tasks/configuracion-aprobacion/1/");
 
       setHorasLimite(data.horas_limite);
@@ -78,6 +87,10 @@ export default function AjustesSection({ setMsg }: Props) {
       const hora = (data.hora_alerta_diaria || "09:00").slice(0, 5);
       setHoraAlerta(hora);
       setHoraOriginal(hora);
+
+      const alcance = data.alcance_integrantes ?? "DIRECTO";
+      setAlcanceIntegrantes(alcance);
+      setAlcanceOriginal(alcance);
 
     } catch (e) {
       setMsg(
@@ -117,7 +130,7 @@ export default function AjustesSection({ setMsg }: Props) {
       );
 
       setHorasOriginales(horasLimite);
-      setMsg("Plazo de aprobación actualizado correctamente.");
+      setMsg("Plazo de aprobación actualizado");
 
     } catch (e) {
       setMsg(
@@ -160,11 +173,7 @@ export default function AjustesSection({ setMsg }: Props) {
 
       setHorasConfirmacionOriginales(horasConfirmacion);
 
-      setMsg(
-        horasConfirmacion === 0
-          ? "La confirmación automática inmediata fue configurada correctamente."
-          : "Plazo de confirmación del cliente actualizado correctamente."
-      );
+      setMsg("Plazo de confirmación actualizado");
 
     } catch (e) {
       setMsg(
@@ -200,7 +209,7 @@ export default function AjustesSection({ setMsg }: Props) {
       );
 
       setHoraOriginal(horaAlerta);
-      setMsg("Hora de la alerta diaria actualizada correctamente.");
+      setMsg("Hora de alerta actualizada");
 
     } catch (e) {
       setMsg(
@@ -208,6 +217,31 @@ export default function AjustesSection({ setMsg }: Props) {
       );
     } finally {
       setGuardandoHora(false);
+    }
+  };
+
+  const guardarAlcanceIntegrantes = async () => {
+    if (alcanceIntegrantes === alcanceOriginal) {
+      setMsg("No hay cambios pendientes.");
+      return;
+    }
+
+    setGuardandoAlcance(true);
+
+    try {
+      await apiFetch("/api/tasks/configuracion-aprobacion/1/", {
+        method: "PATCH",
+        body: JSON.stringify({
+          alcance_integrantes: alcanceIntegrantes,
+        }),
+      });
+
+      setAlcanceOriginal(alcanceIntegrantes);
+      setMsg("Configuración de integrantes actualizada");
+    } catch (e) {
+      setMsg(`Error al guardar configuración: ${(e as Error).message}`);
+    } finally {
+      setGuardandoAlcance(false);
     }
   };
 
@@ -356,7 +390,7 @@ export default function AjustesSection({ setMsg }: Props) {
         })
       );
 
-      setMsg("Horarios laborales actualizados correctamente.");
+      setMsg("Horarios actualizados");
       await cargarHorarios();
 
     } catch (e) {
@@ -464,11 +498,11 @@ export default function AjustesSection({ setMsg }: Props) {
         <div className={styles.settingsHeader}>
           <div>
             <h3 className={styles.settingsTitle}>
-              Plazo para confirmación del cliente
+              Plazo para confirmación del solicitante
             </h3>
 
             <p className={styles.settingsDescription}>
-              Define cuántas horas laborales tiene el cliente para confirmar o
+              Define cuántas horas laborales tiene el solicitante para confirmar o
               reabrir una solución.
             </p>
           </div>
@@ -500,7 +534,7 @@ export default function AjustesSection({ setMsg }: Props) {
 
             <div className={styles.settingsNote}>
               <strong>Importante:</strong>{" "}
-              Si el cliente no confirma ni reabre dentro del plazo, la solicitud
+              Si el solicitante no confirma ni reabre dentro del plazo, la solicitud
               será confirmada automáticamente como solucionada.
               El tiempo se cuenta únicamente durante los horarios laborales configurados.
               Al guardar, se recalcularán las soluciones pendientes de confirmación.
@@ -601,6 +635,83 @@ export default function AjustesSection({ setMsg }: Props) {
                 onClick={guardarHoraAlerta}
               >
                 {guardandoHora ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      <div className={`${styles.card} ${styles.settingsCard}`}>
+
+        <div className={styles.settingsHeader}>
+          <div>
+            <h3 className={styles.settingsTitle}>
+              Integrantes de equipos
+            </h3>
+
+            <p className={styles.settingsDescription}>
+              Define si el líder puede añadir solo usuarios de sus niveles
+              inferiores directos o cualquier usuario de un nivel inferior.
+            </p>
+          </div>
+        </div>
+
+        {cargandoConfig ? (
+          <p className={styles.settingsLoading}>
+            Cargando configuración...
+          </p>
+        ) : (
+          <div className={styles.settingsForm}>
+            <label className={styles.field}>
+              <span>Alcance de integrantes</span>
+
+              <select
+                className={styles.select}
+                value={alcanceIntegrantes}
+                disabled={guardandoAlcance}
+                onChange={(e) =>
+                  setAlcanceIntegrantes(
+                    e.target.value as "DIRECTO" | "CUALQUIER"
+                  )
+                }
+              >
+                <option value="DIRECTO">Solo nivel inferior directo</option>
+                <option value="CUALQUIER">Cualquier nivel inferior</option>
+              </select>
+            </label>
+
+            <div className={styles.settingsNote}>
+              <strong>Importante:</strong>{" "}
+              El cambio aplica a nuevas incorporaciones y a la lista de
+              candidatos. No expulsa a los miembros actuales del equipo.
+            </div>
+
+            <div className={styles.settingsActions}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                disabled={
+                  alcanceIntegrantes === alcanceOriginal ||
+                  guardandoAlcance ||
+                  cargandoConfig
+                }
+                onClick={() => setAlcanceIntegrantes(alcanceOriginal)}
+              >
+                Descartar
+              </button>
+
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={
+                  alcanceIntegrantes === alcanceOriginal ||
+                  guardandoAlcance ||
+                  cargandoConfig
+                }
+                onClick={guardarAlcanceIntegrantes}
+              >
+                {guardandoAlcance ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>

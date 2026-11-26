@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import styles from "./TaskModalDesarrollo.module.css";
 import TaskIniciarForm, { type IniciarTareaPayload } from "./TaskIniciarForm";
 import type { Task } from "@/lib/types";
@@ -17,7 +18,7 @@ export default function TaskIniciarModal({
     onClose,
     onSubmit,
 }: TaskIniciarModalProps) {
-    return (
+    return createPortal(
         <div className={styles.modalOverlay}>
             <div
                 className={styles.modal}
@@ -51,6 +52,7 @@ export default function TaskIniciarModal({
                     />
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

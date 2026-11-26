@@ -31,8 +31,7 @@ export default function SolicitudesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const user = getUsuarioActual();
-  const rolesLower = (user?.roles ?? []).map((r) => r.toLowerCase());
-  const isAdmin = rolesLower.includes("administrador");
+  const isAdmin = user?.tipo_usuario === "ADMINISTRADOR";
 
   // filtros
   const estadoPorDefecto = isAdmin

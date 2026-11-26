@@ -306,15 +306,20 @@ export interface UsuarioListItem {
     nombres: string;
     apellidos: string;
     cargo?: string;
+    tipo_usuario?: "COLABORADOR" | "ADMINISTRADOR";
+    nivel?: number | null;
+    nivel_nombre?: string | null;
+    puede_crear_solicitudes?: boolean;
     is_active: boolean;
     activo?: boolean; // alias compat
 }
 
-export interface RolInfo {
+export interface NivelInfo {
     id: number;
     nombre: string;
     descripcion?: string;
     activo: boolean;
+    es_sistema?: boolean;
     superior: number | null;
     puede_liderar: boolean;
     auto_aprobar: boolean;
@@ -326,10 +331,10 @@ export interface EquipoInfo {
     id: number;
     nombre: string;
     lider: EquipoMiembro | null;
-    rol_equipo?: number | null;
-    rol_equipo_nombre?: string | null;
-    rol_color?: string | null;
-    roles_integrantes_requeridos?: string[];
+    nivel?: number | null;
+    nivel_nombre?: string | null;
+    nivel_color?: string | null;
+    niveles_integrantes_requeridos?: string[];
     activo: boolean;
     fecha_creacion?: string;
     miembros: EquipoMiembroDetallado[]; miembros_count?: number;

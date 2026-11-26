@@ -277,7 +277,7 @@ export default function ReaperturaAprobarModal({
             fontSize: 13,
           }}
         >
-          <strong>Motivo del cliente:</strong>
+          <strong>Motivo del solicitante:</strong>
           <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>
             {tarea.motivo_reapertura || "Sin motivo registrado."}
           </p>
