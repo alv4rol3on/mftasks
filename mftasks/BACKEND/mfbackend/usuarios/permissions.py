@@ -35,13 +35,26 @@ def es_administrador(user):
 
 
 def puede_crear_solicitudes(user):
-    """True si el usuario puede crear solicitudes y ver 'Mis solicitudes'."""
+    """True si el nivel efectivo permite crear solicitudes y ver 'Mis solicitudes'."""
     if not user or not user.is_authenticated:
         return False
+
+    if not user.is_active:
+        return False
+
     if es_administrador(user):
         return True
-    return bool(getattr(user, "puede_crear_solicitudes", False))
 
+    from .jerarquia import nivel_efectivo
+
+    nivel = nivel_efectivo(user)
+
+    return bool(
+        nivel
+        and not nivel.es_sistema
+        and nivel.activo
+        and nivel.puede_crear_solicitudes
+    )
 
 def es_equipo_propio(user, equipo):
     """True si el usuario lidera o pertenece activamente al equipo."""

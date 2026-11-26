@@ -1,3 +1,5 @@
+from .jerarquia import nivel_efectivo
+
 """Reglas que restringen la edición de estado/nivel de un usuario.
 
 - COLABORADOR: no se puede editar estado/nivel si tiene subtareas activas no
@@ -50,7 +52,11 @@ def motivo_bloqueo_estado_nivel(user, *, pendientes=None, equipo=None, proceso=N
 
     motivos = []
 
-    if getattr(user, "puede_crear_solicitudes", False):
+    
+
+    nivel = nivel_efectivo(user)
+
+    if nivel and not nivel.es_sistema and nivel.puede_crear_solicitudes:
         if proceso is None:
             proceso = tiene_solicitudes_en_proceso(user)
         if proceso:

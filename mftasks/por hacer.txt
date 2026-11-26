@@ -1,7 +1,6 @@
-- conversión total de roles, pasa a llamarse NIVELES pero mantendrá todo lo que tenia ROLES antes, solo que esta vez ya no se le puede poner nombre, si creo un nivel quedará
-como "NIVEL [numero]" segun su posicion que lo coloque en la jerarquia
-- el tipo de usuario CLIENTE ya no existe, pero se reutilizará la pestaña de mis-solicitudes como un permiso otorgable a los usuarios tipo colaborador 
-- como mis-solicitudes ahora será un permiso para crear solicitudes y una pestaña para ver mis solicitudes creadas, el usuario tipo colaborador que genere solicitudes
-no deberia de elegir su propio equipo
-- algo pasa en PERFIL y es que no se esta cargando su cargo
-- tambien se deberia poder asignar un nivel a la hora de crear usuario y se le puede editar luego, 
+- si una solicitud llega para un equipo cuyo lider tiene autoaprobacion, no se deberia permitir la aprobacion de los superiores
+- si un usuario colaborador envia una solicitud a un usuario de nivel mas bajo comparado al suyo este omite la aprobacion de superiores
+- hay problemas con la aprobacion de superiores, esta persiste cuando el usuario receptor de la solicitud tiene autoaprobacion
+- al crearse niveles solo se pueden crear superiores al de mayor numero, por ejemplo si ya tengo 6 niveles por default el siguiente será el 7
+- estos niveles ya no deben ser configurables en su orden
+- opcion para borrar entidad

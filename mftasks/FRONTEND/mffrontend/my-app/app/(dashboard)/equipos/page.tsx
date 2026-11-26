@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { getUsuarioActual } from "@/lib/auth";
 import type { EquipoInfo, EquipoMiembroDetallado, NivelInfo } from "@/lib/types";
@@ -56,6 +57,12 @@ type UsuarioCandidato = {
 };
 
 export default function EquiposPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [equipos, setEquipos] = useState<EquipoInfo[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1136,501 +1143,227 @@ export default function EquiposPage() {
         </>
       )}
 
-      {/* Modal de integrante */}
-      {modalMiembro && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-              <div>
-                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>
-                  {modalMiembro.miembro.nombres} {modalMiembro.miembro.apellidos}
-                </h3>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
-                  {modalMiembro.miembro.email} · {modalMiembro.miembro.cargo || "—"}
-                </p>
-              </div>
-              <button onClick={() => setModalMiembro(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--color-text-secondary)", lineHeight: 1 }}>✕</button>
-            </div>
-
-            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-              {badgeRol(modalMiembro.miembro.rol_en_equipo)}
-              {badgeEstado(modalMiembro.miembro.estado)}
-              {badgeDisponibilidad(modalMiembro.miembro)}
-            </div>
-
-            {modalMiembro.miembro.disponibilidad?.estado === "INDISPONIBLE" && (
-              <div style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 10, background: "color-mix(in srgb, var(--color-waiting) 10%, var(--color-background))", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, var(--color-background))", borderRadius: 8, padding: 8 }}>
-                {modalMiembro.miembro.disponibilidad.motivo ? `Motivo: ${modalMiembro.miembro.disponibilidad.motivo}` : ""}
-                {modalMiembro.miembro.disponibilidad.fecha_inicio ? ` · ${modalMiembro.miembro.disponibilidad.fecha_inicio}` : ""}
-                {modalMiembro.miembro.disponibilidad.fecha_fin ? ` → ${modalMiembro.miembro.disponibilidad.fecha_fin}` : ""}
-              </div>
-            )}
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
-              <button
-                onClick={() => {
-                  const { equipo, miembro } = modalMiembro;
-                  setModalMiembro(null);
-                  handleToggleSubLider(equipo, miembro);
-                }}
-                disabled={!!accionando || !liderActivoModal || modalMiembro.miembro.estado !== "ACTIVO"}
-                title={
-                  !liderActivoModal
-                    ? "No puedes gestionar el equipo porque el líder está inactivo"
-                    : modalMiembro.miembro.estado !== "ACTIVO"
-                      ? "Solo miembros activos pueden ser sub-líder"
-                      : "Otorgar/revocar SUB-LÍDER"
-                }
-                style={{
-                  background: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))" : "var(--color-background)",
-                  color: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-text)",
-                  border: `1px solid ${modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-border)"}`,
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  cursor: modalMiembro.miembro.estado !== "ACTIVO" ? "not-allowed" : "pointer",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  opacity: modalMiembro.miembro.estado !== "ACTIVO" ? 0.5 : 1,
-                }}
-              >
-                {modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "Revocar sub-líder" : "Hacer sub-líder"}
-              </button>
-
-              <button
-                onClick={() => {
-                  const { equipo, miembro } = modalMiembro;
-                  setModalMiembro(null);
-                  handleBajaMiembro(equipo, miembro);
-                }}
-                disabled={!!accionando || !liderActivoModal}
-                title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
-                style={{ background: "var(--color-background)", color: "var(--color-danger)", border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
-              >
-                Eliminar del grupo
-              </button>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-              <button onClick={() => setModalMiembro(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal reasignar pendientes bloqueado */}
-      {modalReasignar && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-danger)" }}>Subtareas pendientes — reasignación requerida</h3>
-            <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--color-text)", background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: 10, borderRadius: 8 }}>
-              el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse: <strong>{modalReasignar.usuarioNombre}</strong>
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {modalReasignar.pendientes.map((p) => {
-                const opciones = modalReasignar.equipo.miembros.filter((m) => m.estado === "ACTIVO" && m.id_usuario !== modalReasignar.miembro.id_usuario);
-                return (
-                  <div key={p.subtarea_id} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: 10, background: "var(--color-surface)" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{p.descripcion}</div>
-                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Tarea #{p.tarea_id} — {p.tarea_asunto} • Estado: {p.estado}</div>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, fontSize: 12, fontWeight: 600 }}>
-                      Reasignar a:
-                      <select
-                        value={reassignments[p.subtarea_id] ?? ""}
-                        onChange={(e) => setReassignments((prev) => ({ ...prev, [p.subtarea_id]: Number(e.target.value) }))}
-                        style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
-                      >
-                        <option value="">— seleccionar —</option>
-                        {opciones.map((o) => (
-                          <option key={o.id_usuario} value={o.id_usuario}>
-                            {o.nombres} {o.apellidos} ({o.rol_en_equipo}) — {o.estado}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-              <button onClick={() => setModalReasignar(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
-              <button onClick={confirmarReasignarYMarcar} style={{ background: "var(--color-brand)", color: "var(--color-on-accent)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
-                Reasignar y dar de baja
-              </button>
-            </div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-text-secondary)" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal agregar integrante */}
-      {modalAgregar && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 560, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Agregar integrante</h3>
-            <input
-              value={busquedaUsuario}
-              onChange={(e) => setBusquedaUsuario(e.target.value)}
-              placeholder="Buscar por nombre, email o código"
-              style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
-            />
-
-            <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
-              {usuariosFiltrados.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>
-                  No hay usuarios disponibles para agregar.
-                </div>
-              ) : (
-                usuariosFiltrados.map((u) => {
-                  const valor = u.codigo ?? String(u.id);
-                  const seleccionado = agregarUsuarioId === valor;
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => setAgregarUsuarioId(valor)}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 8,
-                        width: "100%",
-                        textAlign: "left",
-                        background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
-                        border: `1px solid ${seleccionado ? "var(--color-detail-header)" : "var(--color-border)"}`,
-                        borderRadius: 8,
-                        padding: "8px 10px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span>
-                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                          {u.nombres} {u.apellidos}
-                        </span>
-                        <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                          {u.email} • {u.codigo ?? "—"}
-                        </span>
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
-                        {seleccionado ? "Seleccionado" : "Elegir"}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
-              o ingresa el código MFS manualmente
-              <input
-                value={agregarUsuarioId.toUpperCase().startsWith("MFS-") ? agregarUsuarioId : ""}
-                onChange={(e) => setAgregarUsuarioId(e.target.value.toUpperCase())}
-                placeholder="Ej. MFS-20250830-12345"
-                style={{ width: "100%", marginTop: 4, border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace", fontWeight: 400 }}
-              />
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalAgregar(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
-              <button
-                onClick={confirmarAgregar}
-                disabled={!agregarUsuarioId || !!accionando}
-                style={{ background: agregarUsuarioId ? "var(--color-brand)" : "var(--color-text-secondary)", color: "var(--color-on-accent)", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
-              >
-                Agregar al equipo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal renombrar equipo (admin) */}
-      {modalRenombrar && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 440, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Renombrar equipo</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-              Nombre actual: <strong>{modalRenombrar.equipo.nombre}</strong>
-            </p>
-
-            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-              Nuevo nombre
-              <input
-                value={modalRenombrar.nombre}
-                onChange={(e) => setModalRenombrar((prev) => prev ? { ...prev, nombre: e.target.value } : prev)}
-                placeholder="Nombre del equipo"
-                autoFocus
-                style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
-              />
-            </label>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button
-                type="button"
-                onClick={() => setModalRenombrar(null)}
-                style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={renombrarEquipo}
-                disabled={accionEquipo || !modalRenombrar.nombre.trim()}
-                style={{
-                  background: accionEquipo || !modalRenombrar.nombre.trim() ? "var(--color-disabled)" : "var(--color-brand)",
-                  color: accionEquipo || !modalRenombrar.nombre.trim() ? "var(--color-text-secondary)" : "var(--color-on-accent)",
-                  border: "1px solid var(--color-brand)",
-                  padding: "8px 14px",
-                  borderRadius: "var(--radius-control)",
-                  cursor: accionEquipo || !modalRenombrar.nombre.trim() ? "not-allowed" : "pointer",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                {accionEquipo ? "Guardando..." : "Guardar cambios"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal cambiar líder (admin) */}
-      {modalCambiarLider && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 520, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Cambiar líder del equipo</h3>
-            <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-              Equipo: <strong>{modalCambiarLider.equipo.nombre}</strong>
-            </p>
-            <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-              Líder actual:{" "}
-              <strong>
-                {modalCambiarLider.equipo.lider
-                  ? `${modalCambiarLider.equipo.lider.nombres} ${modalCambiarLider.equipo.lider.apellidos}`
-                  : "—"}
-              </strong>
-                {modalCambiarLider.equipo.nivel_nombre
-                  ? ` · Nivel: ${modalCambiarLider.equipo.nivel_nombre}`
-                : ""}
-            </p>
-            <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
-              Solo se muestran usuarios activos con el mismo rol que el líder actual.
-            </p>
-
-            <input
-              value={modalCambiarLider.busqueda}
-              onChange={(e) =>
-                setModalCambiarLider((prev) =>
-                  prev ? { ...prev, busqueda: e.target.value } : prev
-                )
-              }
-              placeholder="Buscar por nombre, email o código"
-              style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
-            />
-
-            <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
-              {candidatosCambiarLider.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>
-                  No hay usuarios activos con el mismo rol que el líder actual.
-                </div>
-              ) : (
-                candidatosCambiarLider.map((u) => {
-                  const seleccionado = modalCambiarLider.usuarioId === String(u.id);
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() =>
-                        setModalCambiarLider((prev) =>
-                          prev ? { ...prev, usuarioId: String(u.id) } : prev
-                        )
-                      }
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 8,
-                        width: "100%",
-                        textAlign: "left",
-                        background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
-                        border: `1px solid ${seleccionado ? "var(--color-detail-header)" : "var(--color-border)"}`,
-                        borderRadius: 8,
-                        padding: "8px 10px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span>
-                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                          {u.nombres} {u.apellidos}
-                        </span>
-                        <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                          {u.email} • {u.codigo ?? "—"} • {u.nivel_nombre ?? "—"}
-                        </span>
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
-                        {seleccionado ? "Seleccionado" : "Elegir"}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button
-                type="button"
-                onClick={() => setModalCambiarLider(null)}
-                style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={cambiarLider}
-                disabled={!modalCambiarLider.usuarioId || accionEquipo}
-                style={{
-                  background: !modalCambiarLider.usuarioId || accionEquipo ? "var(--color-disabled)" : "var(--color-brand)",
-                  color: !modalCambiarLider.usuarioId || accionEquipo ? "var(--color-text-secondary)" : "var(--color-on-accent)",
-                  border: "1px solid var(--color-brand)",
-                  padding: "8px 14px",
-                  borderRadius: "var(--radius-control)",
-                  cursor: !modalCambiarLider.usuarioId || accionEquipo ? "not-allowed" : "pointer",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                {accionEquipo ? "Guardando..." : "Cambiar líder"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal eliminar equipo (admin) */}
-      {modalEliminar && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 460, boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-danger)" }}>Eliminar equipo</h3>
-            <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--color-text)" }}>
-              ¿Deseas eliminar el equipo <strong>{modalEliminar.nombre}</strong>?
-            </p>
-            <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
-              El equipo quedará inactivo y se conservarán sus solicitudes e historial. No podrás eliminarlo si aún tiene solicitudes abiertas.
-            </p>
-
-            <div style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-              marginTop: 24,
-            }}>              <button
-              type="button"
-              onClick={() => setModalEliminar(null)}
-              className={styles.btnSecondary}
+      {mounted && createPortal(
+        <>
+          {/* Modal de integrante */}
+          {modalMiembro && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: 16,
+                boxSizing: "border-box",
+              }}
             >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={eliminarEquipo}
-                disabled={accionEquipo}
+              <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  background: accionEquipo ? "var(--color-disabled)" : "var(--color-danger)",
-                  color: accionEquipo ? "var(--color-text-secondary)" : "var(--color-on-accent)",
-                  border: "1px solid var(--color-danger)",
-                  padding: "8px 14px",
-                  borderRadius: "var(--radius-control)",
-                  cursor: accionEquipo ? "not-allowed" : "pointer",
-                  fontSize: 13,
-                  fontWeight: 700,
+                  background: "var(--color-background)",
+                  borderRadius: 12,
+                  padding: 20,
+                  width: "100%",
+                  maxWidth: 440,
+                  boxSizing: "border-box",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
                 }}
-              >
-                {accionEquipo ? "Eliminando..." : "Eliminar equipo"}
-              </button>
+              >                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div>
+                    <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>
+                      {modalMiembro.miembro.nombres} {modalMiembro.miembro.apellidos}
+                    </h3>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      {modalMiembro.miembro.email} · {modalMiembro.miembro.cargo || "—"}
+                    </p>
+                  </div>
+                  <button onClick={() => setModalMiembro(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--color-text-secondary)", lineHeight: 1 }}>✕</button>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                  {badgeRol(modalMiembro.miembro.rol_en_equipo)}
+                  {badgeEstado(modalMiembro.miembro.estado)}
+                  {badgeDisponibilidad(modalMiembro.miembro)}
+                </div>
+
+                {modalMiembro.miembro.disponibilidad?.estado === "INDISPONIBLE" && (
+                  <div style={{ fontSize: 12, color: "var(--color-waiting)", marginTop: 10, background: "color-mix(in srgb, var(--color-waiting) 10%, var(--color-background))", border: "1px solid color-mix(in srgb, var(--color-waiting) 30%, var(--color-background))", borderRadius: 8, padding: 8 }}>
+                    {modalMiembro.miembro.disponibilidad.motivo ? `Motivo: ${modalMiembro.miembro.disponibilidad.motivo}` : ""}
+                    {modalMiembro.miembro.disponibilidad.fecha_inicio ? ` · ${modalMiembro.miembro.disponibilidad.fecha_inicio}` : ""}
+                    {modalMiembro.miembro.disponibilidad.fecha_fin ? ` → ${modalMiembro.miembro.disponibilidad.fecha_fin}` : ""}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+                  <button
+                    onClick={() => {
+                      const { equipo, miembro } = modalMiembro;
+                      setModalMiembro(null);
+                      handleToggleSubLider(equipo, miembro);
+                    }}
+                    disabled={!!accionando || !liderActivoModal || modalMiembro.miembro.estado !== "ACTIVO"}
+                    title={
+                      !liderActivoModal
+                        ? "No puedes gestionar el equipo porque el líder está inactivo"
+                        : modalMiembro.miembro.estado !== "ACTIVO"
+                          ? "Solo miembros activos pueden ser sub-líder"
+                          : "Otorgar/revocar SUB-LÍDER"
+                    }
+                    style={{
+                      background: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "color-mix(in srgb, var(--color-waiting) 12%, var(--color-background))" : "var(--color-background)",
+                      color: modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-text)",
+                      border: `1px solid ${modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "var(--color-waiting)" : "var(--color-border)"}`,
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      cursor: modalMiembro.miembro.estado !== "ACTIVO" ? "not-allowed" : "pointer",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      opacity: modalMiembro.miembro.estado !== "ACTIVO" ? 0.5 : 1,
+                    }}
+                  >
+                    {modalMiembro.miembro.rol_en_equipo === "SUB_LIDER" ? "Revocar sub-líder" : "Hacer sub-líder"}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const { equipo, miembro } = modalMiembro;
+                      setModalMiembro(null);
+                      handleBajaMiembro(equipo, miembro);
+                    }}
+                    disabled={!!accionando || !liderActivoModal}
+                    title="ELIMINAR DEL GRUPO: ya no pertenecerá hasta re-agregarse como MIEMBRO. Si tiene subtareas pendientes, deberás reasignarlas."
+                    style={{ background: "var(--color-background)", color: "var(--color-danger)", border: "1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-background))", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                  >
+                    Eliminar del grupo
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+                  <button onClick={() => setModalMiembro(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Modal crear equipo */}
-      {modalCrear && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-background)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 480, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Crear equipo</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-              Selecciona un líder elegible (usuario colaborador con rol que puede liderar).
-            </p>
+          {/* Modal reasignar pendientes bloqueado */}
+          {modalReasignar && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: 16,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 2000,
+                  padding: 16,
+                  boxSizing: "border-box",
+                }}
+              >                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-danger)" }}>Subtareas pendientes — reasignación requerida</h3>
+                <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--color-text)", background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-background))", padding: 10, borderRadius: 8 }}>
+                  el siguiente usuario tiene subtareas pendientes, estas deben completarse o re-asignarse: <strong>{modalReasignar.usuarioNombre}</strong>
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {modalReasignar.pendientes.map((p) => {
+                    const opciones = modalReasignar.equipo.miembros.filter((m) => m.estado === "ACTIVO" && m.id_usuario !== modalReasignar.miembro.id_usuario);
+                    return (
+                      <div key={p.subtarea_id} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: 10, background: "var(--color-surface)" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{p.descripcion}</div>
+                        <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Tarea #{p.tarea_id} — {p.tarea_asunto} • Estado: {p.estado}</div>
+                        <label style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, fontSize: 12, fontWeight: 600 }}>
+                          Reasignar a:
+                          <select
+                            value={reassignments[p.subtarea_id] ?? ""}
+                            onChange={(e) => setReassignments((prev) => ({ ...prev, [p.subtarea_id]: Number(e.target.value) }))}
+                            style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
+                          >
+                            <option value="">— seleccionar —</option>
+                            {opciones.map((o) => (
+                              <option key={o.id_usuario} value={o.id_usuario}>
+                                {o.nombres} {o.apellidos} ({o.rol_en_equipo}) — {o.estado}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+                  <button onClick={() => setModalReasignar(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cerrar</button>
+                  <button onClick={confirmarReasignarYMarcar} style={{ background: "var(--color-brand)", color: "var(--color-on-accent)", border: "1px solid var(--color-brand)", padding: "8px 14px", borderRadius: "var(--radius-control)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                    Reasignar y dar de baja
+                  </button>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-text-secondary)" }}>Puedes reasignar todas a una misma persona seleccionando el mismo destino. Las subtareas deben reasignarse a miembros con estado ACTIVO.</div>
+              </div>
+            </div>
+          )}
 
-            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-              Nombre del equipo
-              <input
-                value={nuevo.nombre}
-                onChange={(e) => setNuevo((prev) => ({ ...prev, nombre: e.target.value }))}
-                placeholder="Nombre del equipo"
-                style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
-              />
-            </label>
-
-            {esAdmin && (
-              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Líder del equipo</span>
-
+          {/* Modal agregar integrante */}
+          {modalAgregar && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: 16,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "var(--color-background)",
+                  borderRadius: 12,
+                  padding: 20,
+                  width: "100%",
+                  maxWidth: 440,
+                  boxSizing: "border-box",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                }}
+              >                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Agregar integrante</h3>
                 <input
-                  value={liderBusqueda}
-                  onChange={(e) => setLiderBusqueda(e.target.value)}
+                  value={busquedaUsuario}
+                  onChange={(e) => setBusquedaUsuario(e.target.value)}
                   placeholder="Buscar por nombre, email o código"
-                  style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                  style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
                 />
 
-                <div style={{ display: "flex", gap: 8 }}>
-                  <select
-                    value={liderTipoFiltro}
-                    onChange={(e) => setLiderTipoFiltro(e.target.value)}
-                    style={{ flex: 1, border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
-                  >
-                    <option value="todos">Todos los tipos</option>
-                    <option value="COLABORADOR">Colaborador</option>
-                  </select>
-
-                  <select
-                    value={liderRolFiltro}
-                    onChange={(e) => setLiderRolFiltro(e.target.value)}
-                    style={{ flex: 1, border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
-                  >
-                    <option value="todos">Todos los niveles</option>
-                    {rolesLider.map((r) => (
-                      <option key={r.id} value={r.nombre}>{r.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
-                  {lideresFiltrados.length === 0 ? (
-                    <div style={{ padding: 10, fontSize: 12, color: "var(--color-text-secondary)", textAlign: "center" }}>
-                      No hay usuarios elegibles que coincidan.
+                <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
+                  {usuariosFiltrados.length === 0 ? (
+                    <div style={{ padding: 12, fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>
+                      No hay usuarios disponibles para agregar.
                     </div>
                   ) : (
-                    lideresFiltrados.map((u) => {
+                    usuariosFiltrados.map((u) => {
                       const valor = u.codigo ?? String(u.id);
-                      const sel = nuevo.lider === valor;
+                      const seleccionado = agregarUsuarioId === valor;
                       return (
                         <button
                           key={u.id}
                           type="button"
-                          onClick={() => setNuevo((prev) => ({ ...prev, lider: valor }))}
+                          onClick={() => setAgregarUsuarioId(valor)}
                           style={{
                             display: "flex",
                             justifyContent: "space-between",
@@ -1638,8 +1371,8 @@ export default function EquiposPage() {
                             gap: 8,
                             width: "100%",
                             textAlign: "left",
-                            background: sel ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
-                            border: `1px solid ${sel ? "var(--color-detail-header)" : "var(--color-border)"}`,
+                            background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
+                            border: `1px solid ${seleccionado ? "var(--color-detail-header)" : "var(--color-border)"}`,
                             borderRadius: 8,
                             padding: "8px 10px",
                             cursor: "pointer",
@@ -1650,11 +1383,11 @@ export default function EquiposPage() {
                               {u.nombres} {u.apellidos}
                             </span>
                             <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                              {u.email} • {u.nivel_nombre ?? "—"}
+                              {u.email} • {u.codigo ?? "—"}
                             </span>
                           </span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: sel ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
-                            {sel ? "Seleccionado" : "Elegir"}
+                          <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
+                            {seleccionado ? "Seleccionado" : "Elegir"}
                           </span>
                         </button>
                       );
@@ -1662,43 +1395,464 @@ export default function EquiposPage() {
                   )}
                 </div>
 
-                {nuevo.lider && (
-                  <span style={{ fontSize: 12, color: "var(--color-text)" }}>
-                    Líder seleccionado:{" "}
-                    <strong>
-                      {(() => {
-                        const u = lideresCandidatos.find(
-                          (x) => (x.codigo ?? String(x.id)) === nuevo.lider
-                        );
-                        return u ? `${u.nombres} ${u.apellidos}` : nuevo.lider;
-                      })()}
-                    </strong>
-                  </span>
-                )}
-              </div>
-            )}
+                <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>
+                  o ingresa el código MFS manualmente
+                  <input
+                    value={agregarUsuarioId.toUpperCase().startsWith("MFS-") ? agregarUsuarioId : ""}
+                    onChange={(e) => setAgregarUsuarioId(e.target.value.toUpperCase())}
+                    placeholder="Ej. MFS-20250830-12345"
+                    style={{ width: "100%", marginTop: 4, border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "monospace", fontWeight: 400 }}
+                  />
+                </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-              <button onClick={() => setModalCrear(false)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
-              <button
-                onClick={crearEquipo}
-                disabled={!nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim())}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+                  <button onClick={() => setModalAgregar(null)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+                  <button
+                    onClick={confirmarAgregar}
+                    disabled={!agregarUsuarioId || !!accionando}
+                    style={{ background: agregarUsuarioId ? "var(--color-brand)" : "var(--color-text-secondary)", color: "var(--color-on-accent)", border: "none", padding: "8px 14px", borderRadius: 8, cursor: agregarUsuarioId ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600 }}
+                  >
+                    Agregar al equipo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal renombrar equipo (admin) */}
+          {modalRenombrar && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: 16,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  background: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "var(--color-disabled)" : "var(--color-brand)",
-                  color: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "var(--color-text-secondary)" : "var(--color-background)",
-                  border: "1px solid var(--color-brand)",
-                  padding: "8px 14px",
-                  borderRadius: "var(--radius-control)",
-                  cursor: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "not-allowed" : "pointer",
-                  fontSize: 13,
-                  fontWeight: 700,
+                  background: "var(--color-background)",
+                  borderRadius: 12,
+                  padding: 20,
+                  width: "100%",
+                  maxWidth: 440,
+                  boxSizing: "border-box",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
                 }}
               >
-                Crear equipo
-              </button>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Renombrar equipo</h3>
+                <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  Nombre actual: <strong>{modalRenombrar.equipo.nombre}</strong>
+                </p>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                  Nuevo nombre
+                  <input
+                    value={modalRenombrar.nombre}
+                    onChange={(e) => setModalRenombrar((prev) => prev ? { ...prev, nombre: e.target.value } : prev)}
+                    placeholder="Nombre del equipo"
+                    autoFocus
+                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                  />
+                </label>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalRenombrar(null)}
+                    style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={renombrarEquipo}
+                    disabled={accionEquipo || !modalRenombrar.nombre.trim()}
+                    style={{
+                      background: accionEquipo || !modalRenombrar.nombre.trim() ? "var(--color-disabled)" : "var(--color-brand)",
+                      color: accionEquipo || !modalRenombrar.nombre.trim() ? "var(--color-text-secondary)" : "var(--color-on-accent)",
+                      border: "1px solid var(--color-brand)",
+                      padding: "8px 14px",
+                      borderRadius: "var(--radius-control)",
+                      cursor: accionEquipo || !modalRenombrar.nombre.trim() ? "not-allowed" : "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {accionEquipo ? "Guardando..." : "Guardar cambios"}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* Modal cambiar líder (admin) */}
+          {modalCambiarLider && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: 16,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "var(--color-background)",
+                  borderRadius: 12,
+                  padding: 20,
+                  width: "100%",
+                  maxWidth: 440,
+                  boxSizing: "border-box",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                }}
+              >                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Cambiar líder del equipo</h3>
+                <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  Equipo: <strong>{modalCambiarLider.equipo.nombre}</strong>
+                </p>
+                <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  Líder actual:{" "}
+                  <strong>
+                    {modalCambiarLider.equipo.lider
+                      ? `${modalCambiarLider.equipo.lider.nombres} ${modalCambiarLider.equipo.lider.apellidos}`
+                      : "—"}
+                  </strong>
+                  {modalCambiarLider.equipo.nivel_nombre
+                    ? ` · Nivel: ${modalCambiarLider.equipo.nivel_nombre}`
+                    : ""}
+                </p>
+                <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  Solo se muestran usuarios activos con el mismo rol que el líder actual.
+                </p>
+
+                <input
+                  value={modalCambiarLider.busqueda}
+                  onChange={(e) =>
+                    setModalCambiarLider((prev) =>
+                      prev ? { ...prev, busqueda: e.target.value } : prev
+                    )
+                  }
+                  placeholder="Buscar por nombre, email o código"
+                  style={{ width: "100%", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, marginBottom: 10 }}
+                />
+
+                <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
+                  {candidatosCambiarLider.length === 0 ? (
+                    <div style={{ padding: 12, fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>
+                      No hay usuarios activos con el mismo rol que el líder actual.
+                    </div>
+                  ) : (
+                    candidatosCambiarLider.map((u) => {
+                      const seleccionado = modalCambiarLider.usuarioId === String(u.id);
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() =>
+                            setModalCambiarLider((prev) =>
+                              prev ? { ...prev, usuarioId: String(u.id) } : prev
+                            )
+                          }
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 8,
+                            width: "100%",
+                            textAlign: "left",
+                            background: seleccionado ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
+                            border: `1px solid ${seleccionado ? "var(--color-detail-header)" : "var(--color-border)"}`,
+                            borderRadius: 8,
+                            padding: "8px 10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span>
+                            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                              {u.nombres} {u.apellidos}
+                            </span>
+                            <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
+                              {u.email} • {u.codigo ?? "—"} • {u.nivel_nombre ?? "—"}
+                            </span>
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: seleccionado ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
+                            {seleccionado ? "Seleccionado" : "Elegir"}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalCambiarLider(null)}
+                    style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cambiarLider}
+                    disabled={!modalCambiarLider.usuarioId || accionEquipo}
+                    style={{
+                      background: !modalCambiarLider.usuarioId || accionEquipo ? "var(--color-disabled)" : "var(--color-brand)",
+                      color: !modalCambiarLider.usuarioId || accionEquipo ? "var(--color-text-secondary)" : "var(--color-on-accent)",
+                      border: "1px solid var(--color-brand)",
+                      padding: "8px 14px",
+                      borderRadius: "var(--radius-control)",
+                      cursor: !modalCambiarLider.usuarioId || accionEquipo ? "not-allowed" : "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {accionEquipo ? "Guardando..." : "Cambiar líder"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal eliminar equipo (admin) */}
+          {modalEliminar && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: 16,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "var(--color-background)",
+                  borderRadius: 12,
+                  padding: 20,
+                  width: "100%",
+                  maxWidth: 440,
+                  boxSizing: "border-box",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                }}
+              >                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--color-danger)" }}>Eliminar equipo</h3>
+                <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--color-text)" }}>
+                  ¿Deseas eliminar el equipo <strong>{modalEliminar.nombre}</strong>?
+                </p>
+                <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  El equipo quedará inactivo y se conservarán sus solicitudes e historial. No podrás eliminarlo si aún tiene solicitudes abiertas.
+                </p>
+
+                <div style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                  marginTop: 24,
+                }}>              <button
+                  type="button"
+                  onClick={() => setModalEliminar(null)}
+                  className={styles.btnSecondary}
+                >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={eliminarEquipo}
+                    disabled={accionEquipo}
+                    style={{
+                      background: accionEquipo ? "var(--color-disabled)" : "var(--color-danger)",
+                      color: accionEquipo ? "var(--color-text-secondary)" : "var(--color-on-accent)",
+                      border: "1px solid var(--color-danger)",
+                      padding: "8px 14px",
+                      borderRadius: "var(--radius-control)",
+                      cursor: accionEquipo ? "not-allowed" : "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {accionEquipo ? "Eliminando..." : "Eliminar equipo"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal crear equipo */}
+          {modalCrear && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2000,
+                padding: 16,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: "var(--color-background)",
+                  borderRadius: 12,
+                  padding: 20,
+                  width: "100%",
+                  maxWidth: 440,
+                  boxSizing: "border-box",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                }}
+              >                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Crear equipo</h3>
+                <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  Selecciona un líder elegible (usuario colaborador con rol que puede liderar).
+                </p>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                  Nombre del equipo
+                  <input
+                    value={nuevo.nombre}
+                    onChange={(e) => setNuevo((prev) => ({ ...prev, nombre: e.target.value }))}
+                    placeholder="Nombre del equipo"
+                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                  />
+                </label>
+
+                {esAdmin && (
+                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Líder del equipo</span>
+
+                    <input
+                      value={liderBusqueda}
+                      onChange={(e) => setLiderBusqueda(e.target.value)}
+                      placeholder="Buscar por nombre, email o código"
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                    />
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <select
+                        value={liderTipoFiltro}
+                        onChange={(e) => setLiderTipoFiltro(e.target.value)}
+                        style={{ flex: 1, border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
+                      >
+                        <option value="todos">Todos los tipos</option>
+                        <option value="COLABORADOR">Colaborador</option>
+                      </select>
+
+                      <select
+                        value={liderRolFiltro}
+                        onChange={(e) => setLiderRolFiltro(e.target.value)}
+                        style={{ flex: 1, border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 8px", fontSize: 12 }}
+                      >
+                        <option value="todos">Todos los niveles</option>
+                        {rolesLider.map((r) => (
+                          <option key={r.id} value={r.nombre}>{r.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-surface)", borderRadius: 8, padding: 6 }}>
+                      {lideresFiltrados.length === 0 ? (
+                        <div style={{ padding: 10, fontSize: 12, color: "var(--color-text-secondary)", textAlign: "center" }}>
+                          No hay usuarios elegibles que coincidan.
+                        </div>
+                      ) : (
+                        lideresFiltrados.map((u) => {
+                          const valor = u.codigo ?? String(u.id);
+                          const sel = nuevo.lider === valor;
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => setNuevo((prev) => ({ ...prev, lider: valor }))}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 8,
+                                width: "100%",
+                                textAlign: "left",
+                                background: sel ? "color-mix(in srgb, var(--color-detail-header) 10%, var(--color-background))" : "var(--color-background)",
+                                border: `1px solid ${sel ? "var(--color-detail-header)" : "var(--color-border)"}`,
+                                borderRadius: 8,
+                                padding: "8px 10px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <span>
+                                <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                                  {u.nombres} {u.apellidos}
+                                </span>
+                                <span style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)" }}>
+                                  {u.email} • {u.nivel_nombre ?? "—"}
+                                </span>
+                              </span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: sel ? "var(--color-detail-header)" : "var(--color-text-secondary)" }}>
+                                {sel ? "Seleccionado" : "Elegir"}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {nuevo.lider && (
+                      <span style={{ fontSize: 12, color: "var(--color-text)" }}>
+                        Líder seleccionado:{" "}
+                        <strong>
+                          {(() => {
+                            const u = lideresCandidatos.find(
+                              (x) => (x.codigo ?? String(x.id)) === nuevo.lider
+                            );
+                            return u ? `${u.nombres} ${u.apellidos}` : nuevo.lider;
+                          })()}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+                  <button onClick={() => setModalCrear(false)} style={{ background: "var(--color-background)", border: "1px solid var(--color-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancelar</button>
+                  <button
+                    onClick={crearEquipo}
+                    disabled={!nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim())}
+                    style={{
+                      background: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "var(--color-disabled)" : "var(--color-brand)",
+                      color: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "var(--color-text-secondary)" : "var(--color-background)",
+                      border: "1px solid var(--color-brand)",
+                      padding: "8px 14px",
+                      borderRadius: "var(--radius-control)",
+                      cursor: !nuevo.nombre.trim() || (esAdmin && !nuevo.lider.trim()) ? "not-allowed" : "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Crear equipo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>,
+        document.body
       )}
 
     </div>

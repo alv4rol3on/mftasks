@@ -280,7 +280,6 @@ export default function UsuariosSection({ setMsg }: Props) {
                     <th>Nombre</th>
                     <th>Email</th>
                     <th>Nivel</th>
-                    <th>Solicitudes</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -359,16 +358,6 @@ export default function UsuariosSection({ setMsg }: Props) {
                             ) : (
                               <span style={badgeColab}>
                                 {u.nivel_nombre || "-"}
-                              </span>
-                            )}
-                          </td>
-
-                          <td>
-                            {esAdmin || u.puede_crear_solicitudes ? (
-                              <span style={badgeColab}>Sí</span>
-                            ) : (
-                              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-                                No
                               </span>
                             )}
                           </td>

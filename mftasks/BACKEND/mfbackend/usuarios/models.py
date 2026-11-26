@@ -47,15 +47,6 @@ class User(AbstractUser):
         db_index=True,
     )
 
-    puede_crear_solicitudes = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text=(
-            "Permite al colaborador crear solicitudes y acceder a la pestaña "
-            "'Mis solicitudes'."
-        ),
-    )
-
     nombres = models.CharField(max_length=150)
     apellidos = models.CharField(max_length=150)
 
@@ -217,6 +208,15 @@ class Nivel(models.Model):
         help_text=(
             "Si está activo, las solicitudes de equipos de este nivel saltan la "
             "fase de aprobadores y pasan directo a revisión del líder."
+        ),
+    )
+
+    puede_crear_solicitudes = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "Permite a los usuarios de este nivel crear solicitudes "
+            "y acceder a la pestaña 'Mis solicitudes'."
         ),
     )
 

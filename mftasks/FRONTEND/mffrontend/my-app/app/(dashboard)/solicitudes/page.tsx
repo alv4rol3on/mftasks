@@ -14,7 +14,7 @@ import {
   normalizarEstados,
 } from "@/lib/estadosTarea";
 import { apiFetch } from "@/lib/api";
-import { Task } from "@/lib/types";
+import { EquipoInfo, Task } from "@/lib/types";
 import type {
   AprobarReaperturaPayload,
   EstadoFiltro,
@@ -48,6 +48,9 @@ export default function SolicitudesPage() {
   const [filtroCampana, setFiltroCampana] = useState<number | "">("");
   const [filtroSubcampana, setFiltroSubcampana] = useState<number | "">("");
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  const [perteneceEquipo, setPerteneceEquipo] = useState<boolean | null>(null);
+  const [cargandoEquipo, setCargandoEquipo] = useState(true);
+
 
   useEffect(() => {
     const t = setTimeout(() => setBusquedaDebounced(busqueda), 350);
@@ -60,6 +63,45 @@ export default function SolicitudesPage() {
       router.replace("/");
     }
   }, [router]);
+
+  useEffect(() => {
+    if (!user || isAdmin) {
+      setPerteneceEquipo(true);
+      setCargandoEquipo(false);
+      return;
+    }
+
+    apiFetch<EquipoInfo[] | { results: EquipoInfo[] }>(
+      "/api/usuarios/equipos/"
+    )
+      .then((data) => {
+        const equipos = Array.isArray(data)
+          ? data
+          : data.results ?? [];
+
+        const pertenece = equipos.some((equipo) => {
+          if (!equipo.activo) return false;
+
+          // Verificar pertenencia activa
+          if (equipo.mi_estado === "ACTIVO") return true;
+
+          return equipo.miembros?.some(
+            (m) =>
+              m.id_usuario === user.id &&
+              m.estado === "ACTIVO"
+          ) ?? false;
+        });
+
+        setPerteneceEquipo(pertenece);
+      })
+      .catch((e) => {
+        setError((e as Error).message);
+      })
+      .finally(() => {
+        setCargandoEquipo(false);
+      });
+  }, [user?.id, isAdmin]);
+
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -327,8 +369,9 @@ export default function SolicitudesPage() {
   );
 
 
-  if (cargando) return <PageLoader label="Cargando solicitudes…" />;
-  if (error) return <div>Error al cargar las solicitudes: {error}</div>;
+  if (cargando || cargandoEquipo) {
+    return <PageLoader label="Cargando solicitudes…" />;
+  } if (error) return <div>Error al cargar las solicitudes: {error}</div>;
 
   if (isAdmin) {
     return (
@@ -362,14 +405,36 @@ export default function SolicitudesPage() {
 
       {filtrosUI}
 
-      <TaskTableSolicitudes
-        tareas={tareas}
-        onAprobar={aprobar}
-        onRechazar={rechazar}
-        onAprobarReapertura={aprobarReapertura}
-        onRechazarReapertura={rechazarReapertura}
-        onReload={cargar}
-      />
+      {!isAdmin && tareas.length === 0 && !perteneceEquipo ? (
+        <div
+          style={{
+            padding: 24,
+            textAlign: "center",
+            border: "1px solid var(--color-border)",
+            borderRadius: 12,
+            background: "var(--color-background)",
+          }}
+        >
+          <p
+            style={{
+              color: "var(--color-text-secondary)",
+              fontSize: 14,
+              margin: 0,
+            }}
+          >
+            Debes ser líder o parte de un equipo para recibir tareas.
+          </p>
+        </div>
+      ) : (
+        <TaskTableSolicitudes
+          tareas={tareas}
+          onAprobar={aprobar}
+          onRechazar={rechazar}
+          onAprobarReapertura={aprobarReapertura}
+          onRechazarReapertura={rechazarReapertura}
+          onReload={cargar}
+        />
+      )}
     </div>
   );
 }

@@ -292,10 +292,11 @@ export default function NivelesSection({ setMsg }: Props) {
               <thead>
                 <tr>
                   <th>Nivel</th>
-                  <th>Aprobador directo</th>
+                  {/*<th>Aprobador directo</th>*/}
                   {/*<th>Cadena de aprobación</th>*/}
                   <th>Lidera</th>
-                  <th>Autoaprob.</th>
+                  <th>Autoaprueba</th>
+                  <th>Solicita</th>
                   <th># Usuarios</th>
                   <th>Acciones</th>
                 </tr>
@@ -365,11 +366,11 @@ export default function NivelesSection({ setMsg }: Props) {
                           </div>
                         </td>
 
-                        <td>
+                        {/*<td>
                           {rol.superior != null
                             ? mapaRoles.get(rol.superior)?.nombre ?? "-"
                             : "— (raíz)"}
-                        </td>
+                        </td>*/}
 
                         {/*<td>
                           <span className={styles.chain}>
@@ -395,8 +396,25 @@ export default function NivelesSection({ setMsg }: Props) {
                           )}
                         </td>
 
+
                         <td>
                           {rol.auto_aprobar ? (
+                            <span
+                              className={`${styles.badgeActive} ${styles.badgeActiveOn}`}
+                            >
+                              ✓
+                            </span>
+                          ) : (
+                            <span
+                              className={`${styles.badgeActive} ${styles.badgeActiveOff}`}
+                            >
+                              X
+                            </span>
+                          )}
+                        </td>
+
+                        <td>
+                          {rol.puede_crear_solicitudes ? (
                             <span
                               className={`${styles.badgeActive} ${styles.badgeActiveOn}`}
                             >

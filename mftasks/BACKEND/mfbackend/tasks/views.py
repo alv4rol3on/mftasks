@@ -19,7 +19,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import ValidationError
-
+from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from tasks.services.notificaciones_email import (
     programar_correo_equipo,
@@ -317,12 +317,17 @@ class TaskViewSet(viewsets.ModelViewSet):
             .order_by("-fecha_creacion")
         )
 
-        # Pestaña "Mis solicitudes": solo las creadas por el propio usuario.
+        # Pestaña "Mis solicitudes": requiere permiso del nivel efectivo.
         if self.request.query_params.get("mis_solicitudes") in (
             "1",
             "true",
             "yes",
         ):
+            if not puede_crear_solicitudes(user):
+                raise PermissionDenied(
+                    "No tienes permiso para acceder a Mis solicitudes."
+                )
+
             return base_qs.filter(solicitante=user)
 
         # =========================================================
@@ -539,8 +544,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         permisos = super().get_permissions()
 
         if self.action == "create":
-            # Puede crear solicitudes el admin o un colaborador con el
-            # permiso explícito "puede_crear_solicitudes".
+            # Puede crear solicitudes el admin o un colaborador cuyo nivel
+            # efectivo tenga habilitado el permiso correspondiente.
             from rest_framework.permissions import BasePermission
 
             class PuedeCrearSolicitud(BasePermission):

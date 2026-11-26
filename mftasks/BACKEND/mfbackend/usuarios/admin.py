@@ -77,7 +77,6 @@ class UserAdmin(BaseUserAdmin):
         "dni",
         "cargo",
         "tipo_usuario",
-        "puede_crear_solicitudes",
         "is_active",
         "is_staff",
     )
@@ -126,7 +125,6 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "tipo_usuario",
-                    "puede_crear_solicitudes",
                     "is_active",
                     "is_staff",
                     "is_superuser",
@@ -160,7 +158,6 @@ class UserAdmin(BaseUserAdmin):
                     "dni",
                     "cargo",
                     "tipo_usuario",
-                    "puede_crear_solicitudes",
                     "password1",
                     "password2",
                     "is_staff",
@@ -178,6 +175,8 @@ class NivelAdmin(admin.ModelAdmin):
         "nombre",
         "superior",
         "puede_liderar",
+        "auto_aprobar",
+        "puede_crear_solicitudes",
         "es_sistema",
         "color",
         "activo",
@@ -186,6 +185,8 @@ class NivelAdmin(admin.ModelAdmin):
     list_filter = (
         "activo",
         "puede_liderar",
+        "auto_aprobar",
+        "puede_crear_solicitudes",
         "es_sistema",
     )
 

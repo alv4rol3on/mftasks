@@ -24,7 +24,6 @@ export type UsuarioEditable = {
   tipo_usuario?: TipoUsuario;
   nivel?: number | null;
   nivel_nombre?: string | null;
-  puede_crear_solicitudes?: boolean;
   bloqueo_estado_nivel?: string | null;
 };
 
@@ -47,7 +46,6 @@ type FormState = {
   telefono: string;
   tipo_usuario: TipoUsuario;
   nivel: string;
-  puede_crear_solicitudes: boolean;
   is_active: boolean;
 };
 
@@ -85,7 +83,6 @@ export default function EditarUsuarioModal({
     telefono: usuario.telefono ?? "",
     tipo_usuario: tipoInicial,
     nivel: nivelActual === "" ? "" : String(nivelActual),
-    puede_crear_solicitudes: usuario.puede_crear_solicitudes ?? false,
     is_active: usuario.is_active,
   });
   const [guardando, setGuardando] = useState(false);
@@ -119,22 +116,22 @@ export default function EditarUsuarioModal({
     // Estado/nivel/tipo solo se envían si no hay bloqueo.
     if (!bloqueo) {
       let nivel: number | undefined;
+
       if (form.tipo_usuario === "COLABORADOR") {
         const nivelAsignado = form.nivel;
+
         if (!nivelAsignado) {
           setError(
             "Selecciona un nivel. Si no hay niveles disponibles, créalo en la pestaña Niveles."
           );
           return;
         }
+
         nivel = Number(nivelAsignado);
       }
+
       payload.tipo_usuario = form.tipo_usuario;
       payload.nivel = nivel;
-      payload.puede_crear_solicitudes =
-        form.tipo_usuario === "COLABORADOR"
-          ? form.puede_crear_solicitudes
-          : false;
       payload.is_active = form.is_active;
     }
 
@@ -235,6 +232,7 @@ export default function EditarUsuarioModal({
           value={form.telefono}
           onChange={(e) => setForm({ ...form, telefono: e.target.value })}
         />
+
       </div>
 
       {/*<label className={styles.field} style={{ marginTop: 12 }}>
@@ -270,7 +268,6 @@ export default function EditarUsuarioModal({
               ...form,
               tipo_usuario: e.target.value as TipoUsuario,
               nivel: "",
-              puede_crear_solicitudes: false,
             })
           }
         >
@@ -299,20 +296,7 @@ export default function EditarUsuarioModal({
           </select>
         )}
 
-        {form.tipo_usuario === "COLABORADOR" && (
-          <label className={styles.field} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={form.puede_crear_solicitudes}
-              disabled={Boolean(bloqueo)}
-              onChange={(e) =>
-                setForm({ ...form, puede_crear_solicitudes: e.target.checked })
-              }
-              style={{ width: 16, height: 16 }}
-            />
-            <span>Puede crear solicitudes (Mis solicitudes)</span>
-          </label>
-        )}
+
 
         <div className={styles.field}>
           <span>Estado del usuario</span>

@@ -14,6 +14,7 @@ class NivelSerializer(serializers.ModelSerializer):
             "superior",
             "puede_liderar",
             "auto_aprobar",
+            "puede_crear_solicitudes",
             "color",
             "activo",
             "es_sistema",
@@ -107,8 +108,10 @@ class UserSerializer(serializers.ModelSerializer):
     activo = serializers.BooleanField(source="is_active", read_only=True)
     nivel = serializers.SerializerMethodField()
     nivel_nombre = serializers.SerializerMethodField()
+    puede_crear_solicitudes = serializers.SerializerMethodField()
     nivel_color = serializers.SerializerMethodField()
     bloqueo_estado_nivel = serializers.SerializerMethodField()
+    
 
     class Meta:
 
@@ -167,6 +170,17 @@ class UserSerializer(serializers.ModelSerializer):
             pendientes=getattr(obj, "_tiene_pendientes", None),
             equipo=equipo,
             proceso=getattr(obj, "_tiene_solicitudes_proceso", None),
+        )
+
+    def get_puede_crear_solicitudes(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+
+        return bool(
+            nivel
+            and not nivel.es_sistema
+            and nivel.puede_crear_solicitudes
         )
 
 class UsuarioCandidatoSerializer(serializers.ModelSerializer):
@@ -230,7 +244,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "is_active",
             "activo",
             "tipo_usuario",
-            "puede_crear_solicitudes",
             "password",
             "nivel",
             "equipo_id",
@@ -294,12 +307,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 nuevo.pk if nuevo else None
             ):
                 cambia = True
-        if (
-            "puede_crear_solicitudes" in attrs
-            and attrs["puede_crear_solicitudes"]
-            != self.instance.puede_crear_solicitudes
-        ):
-            cambia = True
 
         if cambia:
             motivo = motivo_bloqueo_estado_nivel(self.instance)
@@ -323,7 +330,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data["tipo_usuario"] = tipo
 
         if tipo == TipoUsuario.ADMINISTRADOR:
-            validated_data["puede_crear_solicitudes"] = False
             nivel = self._nivel_sistema()
 
         # compat activo -> is_active
@@ -379,7 +385,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         tipo = validated_data.get("tipo_usuario", instance.tipo_usuario)
 
         if tipo == TipoUsuario.ADMINISTRADOR:
-            validated_data["puede_crear_solicitudes"] = False
             if nivel is None:
                 nivel = self._nivel_sistema()
         elif tipo == TipoUsuario.COLABORADOR and nivel is None:
@@ -402,6 +407,9 @@ class UserMeSerializer(serializers.ModelSerializer):
 
     nivel = serializers.SerializerMethodField()
     nivel_nombre = serializers.SerializerMethodField()
+
+    puede_crear_solicitudes = serializers.SerializerMethodField()
+
     nivel_color = serializers.SerializerMethodField()
 
     puede_liderar = serializers.SerializerMethodField()
@@ -454,6 +462,17 @@ class UserMeSerializer(serializers.ModelSerializer):
     def get_es_aprobador(self, obj):
         from .permissions import es_aprobador_organizacional
         return es_aprobador_organizacional(obj)
+
+    def get_puede_crear_solicitudes(self, obj):
+        from .jerarquia import nivel_efectivo
+
+        nivel = nivel_efectivo(obj)
+
+        return bool(
+            nivel
+            and not nivel.es_sistema
+            and nivel.puede_crear_solicitudes
+        )
 
 class PreferenciaNotificacionSerializer(serializers.ModelSerializer):
 

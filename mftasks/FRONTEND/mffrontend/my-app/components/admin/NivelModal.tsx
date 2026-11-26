@@ -25,6 +25,7 @@ type FormNivel = {
   superior: string;
   puede_liderar: boolean;
   auto_aprobar: boolean;
+  puede_crear_solicitudes: boolean;
   activo: boolean;
   color: string;
 };
@@ -42,6 +43,7 @@ export default function NivelModal({
     superior: nivel?.superior != null ? String(nivel.superior) : "",
     puede_liderar: nivel?.puede_liderar ?? false,
     auto_aprobar: nivel?.auto_aprobar ?? false,
+    puede_crear_solicitudes: nivel?.puede_crear_solicitudes ?? false,
     activo: nivel?.activo ?? true,
     color: nivel?.color ?? "",
   });
@@ -62,6 +64,7 @@ export default function NivelModal({
       superior: form.superior ? Number(form.superior) : null,
       puede_liderar: form.puede_liderar,
       auto_aprobar: form.auto_aprobar,
+      puede_crear_solicitudes: form.puede_crear_solicitudes,
       activo: form.activo,
       color,
     };
@@ -180,6 +183,25 @@ export default function NivelModal({
             />
             <span style={{ fontSize: 12, color: "var(--color-text)" }}>
               {form.auto_aprobar ? "Sí" : "No"}
+            </span>
+          </div>
+        </label>
+
+        <label className={styles.field}>
+          <span>Puede crear solicitudes</span>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36 }}>
+            <Switch
+              checked={form.puede_crear_solicitudes}
+              onChange={(v) =>
+                setForm({ ...form, puede_crear_solicitudes: v })
+              }
+              label="Puede crear solicitudes"
+              title="Permite a los usuarios de este nivel acceder a Mis solicitudes y crear solicitudes."
+            />
+
+            <span style={{ fontSize: 12, color: "var(--color-text)" }}>
+              {form.puede_crear_solicitudes ? "Sí" : "No"}
             </span>
           </div>
         </label>

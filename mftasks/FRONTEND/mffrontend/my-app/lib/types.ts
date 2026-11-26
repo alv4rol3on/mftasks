@@ -323,6 +323,7 @@ export interface NivelInfo {
     superior: number | null;
     puede_liderar: boolean;
     auto_aprobar: boolean;
+    puede_crear_solicitudes: boolean;
     color?: string | null;
     usuarios_count?: number;
 }
