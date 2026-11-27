@@ -642,7 +642,6 @@ class ConfiguracionAprobacionSerializer(serializers.ModelSerializer):
             "horas_limite",
             "horas_confirmacion",
             "hora_alerta_diaria",
-            "alcance_integrantes",
         ]
         read_only_fields = ["id"]
 

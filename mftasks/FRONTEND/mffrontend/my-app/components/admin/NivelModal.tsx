@@ -4,9 +4,6 @@ import { useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 import Modal from "@/components/ui/Modal";
-import SearchableSelect, {
-  SearchableOption,
-} from "@/components/ui/SearchableSelect";
 import Switch from "@/components/ui/Switch";
 
 import type { NivelInfo } from "@/lib/types";
@@ -15,14 +12,12 @@ import styles from "./AdminSections.module.css";
 
 type Props = {
   nivel: NivelInfo | null;
-  opcionesSuperior: SearchableOption[];
   onClose: () => void;
   onSaved: (msg: string) => void | Promise<void>;
 };
 
 type FormNivel = {
   descripcion: string;
-  superior: string;
   puede_liderar: boolean;
   auto_aprobar: boolean;
   puede_crear_solicitudes: boolean;
@@ -34,13 +29,11 @@ const HEX_RE = /^#(?:[0-9a-fA-F]{6})$/;
 
 export default function NivelModal({
   nivel,
-  opcionesSuperior,
   onClose,
   onSaved,
 }: Props) {
   const [form, setForm] = useState<FormNivel>({
     descripcion: nivel?.descripcion ?? "",
-    superior: nivel?.superior != null ? String(nivel.superior) : "",
     puede_liderar: nivel?.puede_liderar ?? false,
     auto_aprobar: nivel?.auto_aprobar ?? false,
     puede_crear_solicitudes: nivel?.puede_crear_solicitudes ?? false,
@@ -61,7 +54,6 @@ export default function NivelModal({
 
     const payload = {
       descripcion: form.descripcion.trim(),
-      superior: form.superior ? Number(form.superior) : null,
       puede_liderar: form.puede_liderar,
       auto_aprobar: form.auto_aprobar,
       puede_crear_solicitudes: form.puede_crear_solicitudes,
@@ -126,8 +118,8 @@ export default function NivelModal({
       footer={footer}
     >
       <div className={styles.modalHint}>
-        El nombre se genera automáticamente como <strong>NIVEL n</strong> según
-        la posición en la jerarquía.
+        El nombre se genera automáticamente como <strong>NIVEL n</strong>. Los
+        nuevos niveles se crean siempre por encima del nivel de mayor número.
         {esEdicion && nivel && (
           <>
             {" "}Nombre actual: <strong>{nivel.nombre}</strong>.
@@ -142,17 +134,6 @@ export default function NivelModal({
           placeholder="Descripción del nivel (opcional)"
           value={form.descripcion}
           onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-        />
-      </label>
-
-      <label className={styles.field} style={{ marginTop: 12 }}>
-        <span>Superior directo (aprobador)</span>
-        <SearchableSelect
-          value={form.superior}
-          onChange={(v) => setForm({ ...form, superior: v })}
-          options={opcionesSuperior}
-          placeholder="— Sin superior (raíz) —"
-          emptyText="Sin niveles disponibles"
         />
       </label>
 

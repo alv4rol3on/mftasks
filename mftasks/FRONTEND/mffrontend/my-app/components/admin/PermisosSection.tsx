@@ -74,10 +74,6 @@ export default function PermisosSection({ setMsg }: Props) {
 
   const [filtroCampana, setFiltroCampana] = useState("");
 
-  const [filtroActivoCampana, setFiltroActivoCampana] = useState<
-    "activos" | "inactivos" | "todos"
-  >("activos");
-
   const [expandidas, setExpandidas] = useState<Set<number>>(new Set());
 
   const [pagePermisosCampanas, setPagePermisosCampanas] = useState(1);
@@ -229,20 +225,6 @@ export default function PermisosSection({ setMsg }: Props) {
   // ---------------------------------------------------------
 
   const campanasFiltradas = campanas.filter((camp) => {
-    if (
-      filtroActivoCampana === "activos" &&
-      !camp.activo
-    ) {
-      return false;
-    }
-
-    if (
-      filtroActivoCampana === "inactivos" &&
-      camp.activo
-    ) {
-      return false;
-    }
-
     if (!filtroCampana) {
       return true;
     }
@@ -283,7 +265,6 @@ export default function PermisosSection({ setMsg }: Props) {
     setPagePermisosCampanas(1);
   }, [
     filtroCampana,
-    filtroActivoCampana,
     selectedUsuarioId,
   ]);
 
@@ -565,43 +546,6 @@ export default function PermisosSection({ setMsg }: Props) {
               className={styles.input}
             />
 
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                marginTop: 6,
-              }}
-            >
-              <select
-                value={filtroActivoCampana}
-                onChange={(e) =>
-                  setFiltroActivoCampana(
-                    e.target.value as
-                    | "activos"
-                    | "inactivos"
-                    | "todos"
-                  )
-                }
-                className={styles.select}
-                style={{
-                  fontSize: 12,
-                  padding: "6px 8px",
-                }}
-              >
-                <option value="activos">
-                  Activas
-                </option>
-
-                <option value="inactivos">
-                  Inactivas
-                </option>
-
-                <option value="todos">
-                  Todas
-                </option>
-              </select>
-            </div>
-
             {selectedUsuarioId !== "" && (
               <div
                 className={`${styles.permisosStatus} ${buscandoPermisos
@@ -791,13 +735,7 @@ export default function PermisosSection({ setMsg }: Props) {
                         color: "var(--color-text-secondary)",
                       }}
                     >
-                      {filtroActivoCampana ===
-                        "activos"
-                        ? "No hay campañas activas que coincidan."
-                        : filtroActivoCampana ===
-                          "inactivos"
-                          ? "No hay campañas inactivas que coincidan."
-                          : "No hay campañas que coincidan."}
+                      No hay campañas que coincidan.
                     </div>
                   ) : (
                     campanasPaginadasPermisos.map(
@@ -936,9 +874,7 @@ export default function PermisosSection({ setMsg }: Props) {
                                           >
                                             {
                                               sub.codigo
-                                            }{" "}
-                                            {!sub.activo &&
-                                              "(inactiva)"}
+                                            }
                                           </div>
                                         </div>
 

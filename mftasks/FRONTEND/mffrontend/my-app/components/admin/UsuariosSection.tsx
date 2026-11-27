@@ -112,6 +112,8 @@ export default function UsuariosSection({ setMsg }: Props) {
   // --------------------------------------------------
 
   const usuariosFiltrados = usuarios.filter(u => {
+    if (u.is_active === false) return false;
+
     const q = filtro.toLowerCase().trim();
 
     const matchTexto =

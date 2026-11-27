@@ -248,7 +248,8 @@ def es_aprobador_de_tarea(user, tarea):
         nivel del equipo de la tarea y tenga permiso a la subcampaña.
 
     LIDER:
-        Solo el líder del equipo.
+        Solo el líder del equipo. Cuando el nivel del equipo tiene
+        autoaprobación, los superiores NO pueden intervenir en esta fase.
 
     Administrador:
         Puede actuar como override.
@@ -274,25 +275,9 @@ def es_aprobador_de_tarea(user, tarea):
     # FASE LÍDER
     # =========================================================
     if paso == "LIDER":
-        if es_lider_del_equipo(user, equipo):
-            return True
-
-        # Con autoaprobación, la cadena de superiores conserva la potestad de
-        # aprobar o rechazar la solicitud aunque esté en revisión del líder.
-        nivel_equipo = getattr(equipo, "nivel", None)
-        if nivel_equipo is not None and getattr(nivel_equipo, "auto_aprobar", False):
-            nivel_usuario = nivel_efectivo(user)
-            if (
-                nivel_usuario is not None
-                and nivel_usuario.pk in niveles_superiores_de_tarea(tarea)
-                and tiene_permiso_subcampana(
-                    user,
-                    getattr(tarea, "subcampana", None),
-                )
-            ):
-                return True
-
-        return False
+        # Con autoaprobación la solicitud nace directamente en revisión del
+        # líder y los superiores no pueden aprobar ni rechazar.
+        return es_lider_del_equipo(user, equipo)
 
     # =========================================================
     # FASE APROBACIÓN JERÁRQUICA

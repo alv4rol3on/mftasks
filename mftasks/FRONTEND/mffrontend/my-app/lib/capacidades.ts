@@ -23,8 +23,7 @@ export function calcularCaps(
 
   const isAdmin = tipo === "ADMINISTRADOR";
   const isColaborador = tipo === "COLABORADOR";
-  const puedeCrearSolicitudes =
-    isAdmin || user?.puede_crear_solicitudes === true;
+  const puedeCrearSolicitudes = !isAdmin && user?.puede_crear_solicitudes === true;
 
   // Un colaborador es un usuario interno (con o sin equipo).
   const isMiembroGlobal = isColaborador;
@@ -110,7 +109,7 @@ export const RUTAS_PROTEGIDAS: { ruta: string; permitido: (c: Caps) => boolean }
   { ruta: "/tareas", permitido: (c) => c.isAdmin || c.isMiembro },
   {
     ruta: "/mis-solicitudes",
-    permitido: (c) => c.puedeCrearSolicitudes,
+    permitido: (c) => c.puedeCrearSolicitudes && !c.isAdmin,
   },
 ];
 

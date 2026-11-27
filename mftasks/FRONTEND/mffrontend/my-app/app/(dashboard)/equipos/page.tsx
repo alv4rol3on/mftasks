@@ -86,11 +86,14 @@ export default function EquiposPage() {
   // modal crear equipo
   const [modalCrear, setModalCrear] = useState(false);
   // opciones de administrador sobre el equipo
-  const [modalRenombrar, setModalRenombrar] = useState<{ equipo: EquipoInfo; nombre: string } | null>(null);
+  const [modalRenombrar, setModalRenombrar] = useState<{
+    equipo: EquipoInfo;
+    nombre: string;
+    alcance_integrantes: "DIRECTO" | "CUALQUIER";
+  } | null>(null);
   const [modalCambiarLider, setModalCambiarLider] = useState<{ equipo: EquipoInfo; usuarioId: string; busqueda: string } | null>(null);
   const [modalEliminar, setModalEliminar] = useState<EquipoInfo | null>(null);
   const [accionEquipo, setAccionEquipo] = useState(false);
-  const [mostrarInactivos, setMostrarInactivos] = useState(false);
   // modal de integrante (ajustes: sub-líder, inactivar, eliminar)
   const [modalMiembro, setModalMiembro] = useState<{ equipo: EquipoInfo; miembro: EquipoMiembroDetallado } | null>(null);
   const [usuariosTodos, setUsuariosTodos] = useState<UsuarioLista[]>([]);
@@ -132,7 +135,7 @@ export default function EquiposPage() {
 
   const equiposVisibles = equipos
     .filter((e) => !soloMios || esMiEquipo(e))
-    .filter((e) => mostrarInactivos || e.activo);
+    .filter((e) => e.activo);
 
   const equiposFiltrados = equiposVisibles.filter((equipo) => {
     const q = normalizarBusqueda(busquedaEquipos.trim());
@@ -157,9 +160,14 @@ export default function EquiposPage() {
     paginaEquiposActual * PAGE_SIZE_EQUIPOS
   );
 
-  const [nuevo, setNuevo] = useState({
+  const [nuevo, setNuevo] = useState<{
+    nombre: string;
+    lider: string;
+    alcance_integrantes: "DIRECTO" | "CUALQUIER";
+  }>({
     nombre: "",
     lider: "",
+    alcance_integrantes: "DIRECTO",
   });
 
 
@@ -520,7 +528,11 @@ export default function EquiposPage() {
   })();
 
   const abrirModalCrear = async () => {
-    setNuevo({ nombre: "", lider: "" });
+    setNuevo({
+      nombre: "",
+      lider: "",
+      alcance_integrantes: "DIRECTO",
+    });
     setLiderBusqueda("");
     setLiderTipoFiltro("todos");
     setLiderRolFiltro("todos");
@@ -547,7 +559,14 @@ export default function EquiposPage() {
     try {
       setMensaje(null);
 
-      const body: { nombre: string; lider?: string } = { nombre };
+      const body: {
+        nombre: string;
+        lider?: string;
+        alcance_integrantes: "DIRECTO" | "CUALQUIER";
+      } = {
+        nombre,
+        alcance_integrantes: nuevo.alcance_integrantes,
+      };
       if (esAdmin) {
         body.lider = codigoLider;
       }
@@ -563,6 +582,7 @@ export default function EquiposPage() {
       setNuevo({
         nombre: "",
         lider: "",
+        alcance_integrantes: "DIRECTO",
       });
 
       await recargar();
@@ -574,7 +594,11 @@ export default function EquiposPage() {
 
   const abrirModalRenombrar = (equipo: EquipoInfo) => {
     setMensaje(null);
-    setModalRenombrar({ equipo, nombre: equipo.nombre });
+    setModalRenombrar({
+      equipo,
+      nombre: equipo.nombre,
+      alcance_integrantes: equipo.alcance_integrantes ?? "DIRECTO",
+    });
   };
 
   const renombrarEquipo = async () => {
@@ -590,13 +614,16 @@ export default function EquiposPage() {
     try {
       await apiFetch(`/api/usuarios/equipos/${modalRenombrar.equipo.id}/`, {
         method: "PATCH",
-        body: JSON.stringify({ nombre }),
+        body: JSON.stringify({
+          nombre,
+          alcance_integrantes: modalRenombrar.alcance_integrantes,
+        }),
       });
-      setMensaje(`Equipo renombrado a "${nombre}" correctamente.`);
+      setMensaje(`Equipo "${nombre}" actualizado correctamente.`);
       setModalRenombrar(null);
       await recargar();
     } catch (e) {
-      setMensaje(`Error al renombrar el equipo: ${(e as Error).message}`);
+      setMensaje(`Error al actualizar el equipo: ${(e as Error).message}`);
     } finally {
       setAccionEquipo(false);
     }
@@ -615,22 +642,6 @@ export default function EquiposPage() {
       await recargar();
     } catch (e) {
       setMensaje(`Error al eliminar el equipo: ${(e as Error).message}`);
-    } finally {
-      setAccionEquipo(false);
-    }
-  };
-
-  const reactivarEquipo = async (equipo: EquipoInfo) => {
-    setAccionEquipo(true);
-    try {
-      await apiFetch(`/api/usuarios/equipos/${equipo.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ activo: true }),
-      });
-      setMensaje(`Equipo "${equipo.nombre}" reactivado correctamente.`);
-      await recargar();
-    } catch (e) {
-      setMensaje(`Error al reactivar el equipo: ${(e as Error).message}`);
     } finally {
       setAccionEquipo(false);
     }
@@ -763,27 +774,6 @@ export default function EquiposPage() {
           >
             {soloMios ? "Filtro: solo mis equipos" : "Filtro: todos los equipos"}
           </button>
-          {esAdmin && (
-            <button
-              type="button"
-              onClick={() => {
-                setMostrarInactivos((v) => !v);
-                setPaginaEquipos(1);
-              }}
-              style={{
-                border: "1px solid var(--color-border)",
-                background: mostrarInactivos ? "var(--color-surface)" : "var(--color-background)",
-                color: "var(--color-text)",
-                borderRadius: 8,
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {mostrarInactivos ? "Ocultar equipos inactivos" : "Mostrar equipos inactivos"}
-            </button>
-          )}
           <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
             {equiposFiltrados.length} de {equipos.length} equipo(s)
           </span>
@@ -916,40 +906,28 @@ export default function EquiposPage() {
                             disabled={accionEquipo}
                             title={
                               esAdmin
-                                ? "Cambiar nombre del equipo"
-                                : "No se puede cambiar nombre del equipo"
+                                ? "Editar equipo"
+                                : "No se puede editar el equipo"
                             }
                             onClick={() => abrirModalRenombrar(equipo)}
                           />
 
-                          {equipo.activo ? (
-                            <>
-                              <IconButton
-                                icon="user"
-                                variant="info"
-                                disabled={accionEquipo}
-                                title="Cambiar líder del equipo"
-                                onClick={() => abrirModalCambiarLider(equipo)}
-                              />
-                              <IconButton
-                                icon="trash"
-                                variant="danger"
-                                title="Eliminar equipo"
-                                onClick={() => {
-                                  setMensaje(null);
-                                  setModalEliminar(equipo);
-                                }}
-                              />
-                            </>
-                          ) : (
-
-                            <IconButton
-                              icon="power"
-                              variant="success"
-                              title="Reactivar equipo"
-                              onClick={() => reactivarEquipo(equipo)}
-                            />
-                          )}
+                          <IconButton
+                            icon="user"
+                            variant="info"
+                            disabled={accionEquipo}
+                            title="Cambiar líder del equipo"
+                            onClick={() => abrirModalCambiarLider(equipo)}
+                          />
+                          <IconButton
+                            icon="trash"
+                            variant="danger"
+                            title="Eliminar equipo"
+                            onClick={() => {
+                              setMensaje(null);
+                              setModalEliminar(equipo);
+                            }}
+                          />
                         </div>
                       )}
                       <span className={`${styles.cardHeaderArrow} ${expandido ? styles.cardHeaderArrowOpen : ""}`}>▼</span>
@@ -1419,50 +1397,73 @@ export default function EquiposPage() {
             </div>
           )}
 
-          {/* Modal renombrar equipo (admin) */}
-          {modalRenombrar && (
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.45)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 2000,
-                padding: 16,
-                boxSizing: "border-box",
-              }}
-            >
+          {/* Modal editar equipo (admin) */}
+            {modalRenombrar && (
               <div
-                onClick={(e) => e.stopPropagation()}
                 style={{
-                  background: "var(--color-background)",
-                  borderRadius: 12,
-                  padding: 20,
-                  width: "100%",
-                  maxWidth: 440,
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 2000,
+                  padding: 16,
                   boxSizing: "border-box",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
                 }}
               >
-                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Renombrar equipo</h3>
-                <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-                  Nombre actual: <strong>{modalRenombrar.equipo.nombre}</strong>
-                </p>
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: "var(--color-background)",
+                    borderRadius: 12,
+                    padding: 20,
+                    width: "100%",
+                    maxWidth: 440,
+                    boxSizing: "border-box",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>Editar equipo</h3>
+                  <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+                    Configura el nombre y los integrantes admitidos.
+                  </p>
 
-                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                  Nuevo nombre
-                  <input
-                    value={modalRenombrar.nombre}
-                    onChange={(e) => setModalRenombrar((prev) => prev ? { ...prev, nombre: e.target.value } : prev)}
-                    placeholder="Nombre del equipo"
-                    autoFocus
-                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
-                  />
-                </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                    Nombre del equipo
+                    <input
+                      value={modalRenombrar.nombre}
+                      onChange={(e) => setModalRenombrar((prev) => prev ? { ...prev, nombre: e.target.value } : prev)}
+                      placeholder="Nombre del equipo"
+                      autoFocus
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                    />
+                  </label>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginTop: 12 }}>
+                    Integrantes admitidos
+                    <select
+                      value={modalRenombrar.alcance_integrantes}
+                      onChange={(e) =>
+                        setModalRenombrar((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                alcance_integrantes: e.target.value as
+                                  | "DIRECTO"
+                                  | "CUALQUIER",
+                              }
+                            : prev
+                        )
+                      }
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                    >
+                      <option value="DIRECTO">Solo niveles inferiores directos</option>
+                      <option value="CUALQUIER">Cualquier nivel inferior</option>
+                    </select>
+                  </label>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
                   <button
                     type="button"
                     onClick={() => setModalRenombrar(null)}
@@ -1725,17 +1726,36 @@ export default function EquiposPage() {
                   Selecciona un líder elegible (usuario colaborador con rol que puede liderar).
                 </p>
 
-                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-                  Nombre del equipo
-                  <input
-                    value={nuevo.nombre}
-                    onChange={(e) => setNuevo((prev) => ({ ...prev, nombre: e.target.value }))}
-                    placeholder="Nombre del equipo"
-                    style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
-                  />
-                </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                    Nombre del equipo
+                    <input
+                      value={nuevo.nombre}
+                      onChange={(e) => setNuevo((prev) => ({ ...prev, nombre: e.target.value }))}
+                      placeholder="Nombre del equipo"
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                    />
+                  </label>
 
-                {esAdmin && (
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginTop: 12 }}>
+                    Integrantes admitidos
+                    <select
+                      value={nuevo.alcance_integrantes}
+                      onChange={(e) =>
+                        setNuevo((prev) => ({
+                          ...prev,
+                          alcance_integrantes: e.target.value as
+                            | "DIRECTO"
+                            | "CUALQUIER",
+                        }))
+                      }
+                      style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 400 }}
+                    >
+                      <option value="DIRECTO">Solo niveles inferiores directos</option>
+                      <option value="CUALQUIER">Cualquier nivel inferior</option>
+                    </select>
+                  </label>
+
+                  {esAdmin && (
                   <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Líder del equipo</span>
 

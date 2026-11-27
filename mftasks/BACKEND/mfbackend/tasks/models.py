@@ -680,10 +680,6 @@ class HorarioLaboral(models.Model):
         )
 
 class ConfiguracionAprobacion(models.Model):
-    class AlcanceIntegrantes(models.TextChoices):
-        DIRECTO = "DIRECTO", "Solo nivel inferior directo"
-        CUALQUIER = "CUALQUIER", "Cualquier nivel inferior"
-
     horas_limite = models.PositiveSmallIntegerField(
         default=72,
         validators=[
@@ -706,17 +702,6 @@ class ConfiguracionAprobacion(models.Model):
     hora_alerta_diaria = models.TimeField(
         default=time(9, 0),
         verbose_name="Hora de la alerta diaria",
-    )
-
-    alcance_integrantes = models.CharField(
-        max_length=20,
-        choices=AlcanceIntegrantes.choices,
-        default=AlcanceIntegrantes.DIRECTO,
-        verbose_name="Alcance de integrantes de equipo",
-        help_text=(
-            "Define si un líder puede agregar solo usuarios de sus niveles "
-            "inferiores directos o cualquier usuario de un nivel inferior."
-        ),
     )
 
     class Meta:

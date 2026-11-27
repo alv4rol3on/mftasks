@@ -156,25 +156,68 @@ def niveles_aprobador_para(valor):
 
 
 def niveles_integrantes_requeridos(equipo):
-    """Niveles admitidos como integrantes según la configuración global.
+    """Niveles admitidos como integrantes según la configuración del equipo.
 
     - DIRECTO: hijos directos activos del nivel del líder.
     - CUALQUIER: todos los niveles activos que estén debajo del nivel del
       líder en la jerarquía.
     """
-    from .models import Nivel
+    from .models import Equipo, Nivel
 
     nivel = _nivel_de_equipo(equipo)
     if nivel is None:
         return []
 
-    from tasks.models import ConfiguracionAprobacion
+    alcance = (
+        equipo.alcance_integrantes
+        if isinstance(equipo, Equipo)
+        else Equipo.AlcanceIntegrantes.DIRECTO
+    )
 
-    config = ConfiguracionAprobacion.obtener()
-    if config.alcance_integrantes == ConfiguracionAprobacion.AlcanceIntegrantes.CUALQUIER:
+    if alcance == Equipo.AlcanceIntegrantes.CUALQUIER:
         return [n for n in niveles_subordinados(nivel) if n.activo]
 
     return list(Nivel.objects.filter(superior=nivel, activo=True))
+
+
+def _ordenar_niveles(niveles):
+    """Ordena niveles por jerarquía: raíz primero y desempate por pk desc.
+
+    Las raíces más recientes (pk mayor) quedan primero, de modo que un nivel
+    recién creado como superior del tope recibe el número más alto.
+    El primer elemento es el nivel de mayor número (mayor jerarquía).
+    """
+    mapa = {n.pk: n for n in niveles}
+
+    def _profundidad(nivel):
+        distancia = 0
+        vistos = set()
+        actual = nivel
+        while actual.superior_id and actual.superior_id in mapa:
+            if actual.superior_id in vistos:
+                break
+            vistos.add(actual.superior_id)
+            actual = mapa[actual.superior_id]
+            distancia += 1
+        return distancia
+
+    return sorted(niveles, key=lambda n: (_profundidad(n), -n.pk))
+
+
+def niveles_ordenados():
+    """Niveles no sistema ordenados de mayor a menor jerarquía."""
+    from .models import Nivel
+
+    return _ordenar_niveles(list(Nivel.objects.filter(es_sistema=False)))
+
+
+def nivel_tope():
+    """Nivel de mayor número; recibe los nuevos niveles como superiores.
+
+    Devuelve None si aún no existen niveles jerárquicos.
+    """
+    ordenados = niveles_ordenados()
+    return ordenados[0] if ordenados else None
 
 
 def renumerar_niveles():
@@ -193,24 +236,7 @@ def renumerar_niveles():
         if not niveles:
             return
 
-        mapa = {n.pk: n for n in niveles}
-
-        def _profundidad(nivel):
-            distancia = 0
-            vistos = set()
-            actual = nivel
-            while actual.superior_id and actual.superior_id in mapa:
-                if actual.superior_id in vistos:
-                    break
-                vistos.add(actual.superior_id)
-                actual = mapa[actual.superior_id]
-                distancia += 1
-            return distancia
-
-        ordenados = sorted(
-            niveles,
-            key=lambda n: (_profundidad(n), n.pk),
-        )
+        ordenados = _ordenar_niveles(niveles)
         total = len(ordenados)
 
         for nivel in ordenados:

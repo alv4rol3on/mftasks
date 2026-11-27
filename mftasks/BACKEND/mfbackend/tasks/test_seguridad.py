@@ -13,7 +13,14 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from campanas.models import Campana, SubCampana
-from usuarios.models import Equipo, EquipoMiembro, TipoUsuario, User
+from usuarios.models import (
+    Equipo,
+    EquipoMiembro,
+    Nivel,
+    TipoUsuario,
+    User,
+    UserNivel,
+)
 
 from .models import Subtarea, Tarea
 from .services.cancelacion import cancelar_tarea
@@ -251,7 +258,15 @@ class CuotaImagenesTestCase(_BaseTareas):
                 "tasks.views.default_storage",
                 FileSystemStorage(location=tmp),
             ):
-                self.client.force_authenticate(user=self.admin)
+                nivel, _ = Nivel.objects.get_or_create(
+                    nombre="NIVEL_SOLICITANTE_SEG",
+                    defaults={"puede_crear_solicitudes": True},
+                )
+                UserNivel.objects.get_or_create(
+                    usuario=self.lider,
+                    nivel=nivel,
+                )
+                self.client.force_authenticate(user=self.lider)
 
                 def subir(nombre):
                     return self.client.post(

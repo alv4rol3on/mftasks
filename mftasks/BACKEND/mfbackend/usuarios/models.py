@@ -307,6 +307,10 @@ class UserNivel(models.Model):
 
 class Equipo(models.Model):
 
+    class AlcanceIntegrantes(models.TextChoices):
+        DIRECTO = "DIRECTO", "Solo nivel inferior directo"
+        CUALQUIER = "CUALQUIER", "Cualquier nivel inferior"
+
     nombre = models.CharField(
         max_length=100,
         unique=True
@@ -325,6 +329,16 @@ class Equipo(models.Model):
         null=True,
         blank=True,
         help_text="Nivel del líder que determina la cadena de aprobación del equipo.",
+    )
+
+    alcance_integrantes = models.CharField(
+        max_length=20,
+        choices=AlcanceIntegrantes.choices,
+        default=AlcanceIntegrantes.DIRECTO,
+        help_text=(
+            "Define si el equipo admite solo integrantes de los niveles "
+            "inferiores directos del líder o de cualquier nivel inferior."
+        ),
     )
 
     activo = models.BooleanField(default=True)

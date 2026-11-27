@@ -153,20 +153,6 @@ def _notificar_fase(tarea, fase):
     if fase == Tarea.PasoAprobacion.LIDER:
         correos = _correos_lider(tarea.equipo, "EQUIPO_PENDIENTE_REVISION")
 
-        # Con autoaprobación la solicitud nace en revisión del líder, pero la
-        # cadena de superiores conserva visibilidad y potestad de resolverla.
-        nivel_equipo = getattr(tarea.equipo, "nivel", None)
-        auto_aprobar = bool(
-            nivel_equipo is not None
-            and getattr(nivel_equipo, "auto_aprobar", False)
-        )
-        if auto_aprobar:
-            correos += _correos_aprobadores(
-                tarea,
-                "SOLICITUD_PENDIENTE_LIDER",
-            )
-
-        correos = list(dict.fromkeys(correos))
         if not correos:
             return False
         return programar_correo_tarea(
@@ -174,14 +160,8 @@ def _notificar_fase(tarea, fase):
             tarea=tarea,
             destinatarios=correos,
             mensaje=(
-                f"La solicitud {tarea.ticket or tarea.id} espera revisión del "
-                "líder del equipo. Como superior de su nivel, también puedes "
-                "aprobarla o rechazarla."
-                if auto_aprobar
-                else (
-                    f"La solicitud {tarea.ticket or tarea.id} fue aprobada por "
-                    "los aprobadores y espera tu revisión como líder del equipo."
-                )
+                f"La solicitud {tarea.ticket or tarea.id} fue aprobada por "
+                "los aprobadores y espera tu revisión como líder del equipo."
             ),
             contexto_adicional={
                 "nivel_nombre": "Líder",
@@ -371,10 +351,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                 pendientes_aprobables = Q(
                     estado=Tarea.Estado.EN_ESPERA,
                     paso_aprobacion=Tarea.PasoAprobacion.APROBADORES,
-                ) | Q(
-                    estado=Tarea.Estado.EN_ESPERA,
-                    paso_aprobacion=Tarea.PasoAprobacion.LIDER,
-                    equipo__nivel__auto_aprobar=True,
                 )
 
                 condicion |= (
@@ -1494,15 +1470,10 @@ class TaskViewSet(viewsets.ModelViewSet):
                     estado=Tarea.Estado.EN_ESPERA,
                     equipo__nivel_id__in=ids_niveles_sub,
                     subcampana_id__in=ids_subcampanas,
-                ).filter(
-                    Q(paso_aprobacion=Tarea.PasoAprobacion.APROBADORES)
-                    | Q(
-                        paso_aprobacion=Tarea.PasoAprobacion.LIDER,
-                        equipo__nivel__auto_aprobar=True,
-                    )
+                    paso_aprobacion=Tarea.PasoAprobacion.APROBADORES,
                 ).count()
 
-            # Las tareas en fase LIDER sin autoaprobación siguen correspondiendo
+            # Las tareas en fase LIDER (con o sin autoaprobación) corresponden
             # únicamente al líder del equipo.
             total += Tarea.objects.filter(
                 estado=Tarea.Estado.EN_ESPERA,

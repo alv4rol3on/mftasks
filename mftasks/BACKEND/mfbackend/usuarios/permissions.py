@@ -35,7 +35,10 @@ def es_administrador(user):
 
 
 def puede_crear_solicitudes(user):
-    """True si el nivel efectivo permite crear solicitudes y ver 'Mis solicitudes'."""
+    """True si el nivel efectivo permite crear solicitudes y ver 'Mis solicitudes'.
+
+    Los administradores no crean solicitudes: gestionan las existentes.
+    """
     if not user or not user.is_authenticated:
         return False
 
@@ -43,7 +46,7 @@ def puede_crear_solicitudes(user):
         return False
 
     if es_administrador(user):
-        return True
+        return False
 
     from .jerarquia import nivel_efectivo
 

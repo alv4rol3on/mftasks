@@ -20,7 +20,7 @@ class NivelSerializer(serializers.ModelSerializer):
             "es_sistema",
             "usuarios_count",
         ]
-        read_only_fields = ["nombre", "es_sistema"]
+        read_only_fields = ["nombre", "es_sistema", "superior"]
 
     def get_usuarios_count(self, obj):
         return obj.usuarios.count()
@@ -219,7 +219,7 @@ class UsuarioCandidatoSerializer(serializers.ModelSerializer):
 
 class UserCreateSerializer(serializers.ModelSerializer):
     nivel = serializers.PrimaryKeyRelatedField(
-        queryset=Nivel.objects.filter(es_sistema=False),
+        queryset=Nivel.objects.filter(es_sistema=False, activo=True),
         write_only=True,
         required=False,
         allow_null=True,
@@ -584,6 +584,7 @@ class EquipoDetailSerializer(serializers.ModelSerializer):
             "nivel",
             "nivel_nombre",
             "nivel_color",
+            "alcance_integrantes",
             "niveles_integrantes_requeridos",
             "activo",
             "fecha_creacion",
@@ -705,7 +706,14 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipo
-        fields = ["id", "nombre", "lider", "activo", "fecha_creacion"]
+        fields = [
+            "id",
+            "nombre",
+            "lider",
+            "alcance_integrantes",
+            "activo",
+            "fecha_creacion",
+        ]
         read_only_fields = ["id", "activo", "fecha_creacion"]
 
     def validate_nombre(self, value):
@@ -753,6 +761,10 @@ class EquipoCreateSerializer(serializers.ModelSerializer):
         equipo = Equipo.objects.create(
             nombre=validated_data["nombre"],
             lider=usuario_lider,
+            alcance_integrantes=validated_data.get(
+                "alcance_integrantes",
+                Equipo.AlcanceIntegrantes.DIRECTO,
+            ),
         )
 
         return equipo

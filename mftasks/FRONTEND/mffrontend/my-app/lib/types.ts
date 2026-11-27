@@ -335,6 +335,7 @@ export interface EquipoInfo {
     nivel?: number | null;
     nivel_nombre?: string | null;
     nivel_color?: string | null;
+    alcance_integrantes?: "DIRECTO" | "CUALQUIER";
     niveles_integrantes_requeridos?: string[];
     activo: boolean;
     fecha_creacion?: string;

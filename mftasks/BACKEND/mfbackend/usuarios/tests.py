@@ -30,11 +30,6 @@ def _crear_usuario(email, nombres="X", apellidos="Y"):
 
 
 def _asignar_rol(user, nombre):
-    if nombre.upper() == "CLIENTE":
-        user.tipo_usuario = "COLABORADOR"
-        user.puede_crear_solicitudes = True
-        user.save(update_fields=["tipo_usuario", "puede_crear_solicitudes"])
-        return None
     jerarquia = {
         "GERENTE": None,
         "SUBGERENTE": "GERENTE",
@@ -49,6 +44,7 @@ def _asignar_rol(user, nombre):
         if existente is not None:
             return existente
         es_admin_nivel = valor.lower() == "administrador"
+        es_cliente = valor.upper() == "CLIENTE"
         superior_nombre = jerarquia.get(valor.upper())
         superior = (
             _obtener_nivel(superior_nombre) if superior_nombre else None
@@ -61,13 +57,21 @@ def _asignar_rol(user, nombre):
                 not es_admin_nivel
                 and valor.upper() not in ("MIEMBRO", "CLIENTE")
             ),
+            puede_crear_solicitudes=es_cliente,
         )
 
     es_admin = nombre.lower() == "administrador"
+    es_cliente = nombre.upper() == "CLIENTE"
     nivel = _obtener_nivel(nombre)
     if es_admin:
         user.tipo_usuario = "ADMINISTRADOR"
         user.save(update_fields=["tipo_usuario"])
+    elif es_cliente:
+        user.tipo_usuario = "COLABORADOR"
+        user.save(update_fields=["tipo_usuario"])
+        if not nivel.puede_crear_solicitudes:
+            nivel.puede_crear_solicitudes = True
+            nivel.save(update_fields=["puede_crear_solicitudes"])
     return UserNivel.objects.get_or_create(usuario=user, nivel=nivel)
 
 
@@ -320,14 +324,8 @@ class EquipoVisibilidadTestCase(APITestCase):
         self.assertEqual(ids, {self.equipo_a.id, self.equipo_b.id})
 
     def test_solicitante_ve_conteo_y_miembros_activos(self):
-        solicitante = User.objects.create_user(
-            email="cliente-count@empresa.com",
-            nombres="Solicitante",
-            apellidos="Count",
-            password="x",
-            tipo_usuario="COLABORADOR",
-            puede_crear_solicitudes=True,
-        )
+        solicitante = _crear_usuario("cliente-count@empresa.com")
+        _asignar_rol(solicitante, "CLIENTE")
         self.client.force_authenticate(user=solicitante)
 
         res = self.client.get(reverse("equipo-detail", args=[self.equipo_a.id]))
@@ -491,6 +489,30 @@ class EquipoCreacionPermisosTestCase(APITestCase):
         equipo = Equipo.objects.get(nombre="Equipo admin")
         self.assertEqual(equipo.lider_id, self.gtr.id)
 
+    def test_admin_crea_equipo_con_alcance(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            reverse("equipo-list"),
+            {
+                "nombre": "Equipo cualquier nivel",
+                "lider": self.gtr.codigo,
+                "alcance_integrantes": Equipo.AlcanceIntegrantes.CUALQUIER,
+            },
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        equipo = Equipo.objects.get(nombre="Equipo cualquier nivel")
+        self.assertEqual(
+            equipo.alcance_integrantes,
+            Equipo.AlcanceIntegrantes.CUALQUIER,
+        )
+        self.assertEqual(
+            res.data["alcance_integrantes"],
+            Equipo.AlcanceIntegrantes.CUALQUIER,
+        )
+
     def test_admin_requiere_lider(self):
         self.client.force_authenticate(user=self.admin)
 
@@ -556,6 +578,22 @@ class EquipoAdminAccionesTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         self.equipo.refresh_from_db()
         self.assertEqual(self.equipo.nombre, "Equipo renombrado")
+
+    def test_admin_edita_alcance_integrantes(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.patch(
+            reverse("equipo-detail", args=[self.equipo.id]),
+            {"alcance_integrantes": Equipo.AlcanceIntegrantes.CUALQUIER},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.equipo.refresh_from_db()
+        self.assertEqual(
+            self.equipo.alcance_integrantes,
+            Equipo.AlcanceIntegrantes.CUALQUIER,
+        )
 
     def test_admin_elimina_equipo_sin_solicitudes_abiertas(self):
         self.client.force_authenticate(user=self.admin)
@@ -807,13 +845,8 @@ class AgregarMiembroRolesTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_agregar_nieto_cuando_alcance_cualquiera(self):
-        from tasks.models import ConfiguracionAprobacion
-
-        config = ConfiguracionAprobacion.obtener()
-        config.alcance_integrantes = (
-            ConfiguracionAprobacion.AlcanceIntegrantes.CUALQUIER
-        )
-        config.save(update_fields=["alcance_integrantes"])
+        self.equipo.alcance_integrantes = Equipo.AlcanceIntegrantes.CUALQUIER
+        self.equipo.save(update_fields=["alcance_integrantes"])
 
         self.client.force_authenticate(user=self.jefe)
 
@@ -826,13 +859,8 @@ class AgregarMiembroRolesTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
 
     def test_candidatos_incluyen_nieto_cuando_alcance_cualquiera(self):
-        from tasks.models import ConfiguracionAprobacion
-
-        config = ConfiguracionAprobacion.obtener()
-        config.alcance_integrantes = (
-            ConfiguracionAprobacion.AlcanceIntegrantes.CUALQUIER
-        )
-        config.save(update_fields=["alcance_integrantes"])
+        self.equipo.alcance_integrantes = Equipo.AlcanceIntegrantes.CUALQUIER
+        self.equipo.save(update_fields=["alcance_integrantes"])
 
         self.client.force_authenticate(user=self.jefe)
 
@@ -843,6 +871,35 @@ class AgregarMiembroRolesTestCase(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         ids = {candidato["id"] for candidato in res.data}
         self.assertIn(self.miembro.id, ids)
+
+    def test_alcance_es_independiente_por_equipo(self):
+        equipo_cualquiera = Equipo.objects.create(
+            nombre="Equipo Jefe Cualquiera",
+            lider=self.jefe,
+            alcance_integrantes=Equipo.AlcanceIntegrantes.CUALQUIER,
+        )
+        self.client.force_authenticate(user=self.jefe)
+
+        res_directo = self.client.post(
+            reverse("equipo-agregar-miembro", args=[self.equipo.id]),
+            {"codigo": self.miembro.codigo},
+            format="json",
+        )
+        self.assertEqual(
+            res_directo.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        res_cualquiera = self.client.post(
+            reverse("equipo-agregar-miembro", args=[equipo_cualquiera.id]),
+            {"codigo": self.miembro.codigo},
+            format="json",
+        )
+        self.assertEqual(
+            res_cualquiera.status_code,
+            status.HTTP_201_CREATED,
+            res_cualquiera.data,
+        )
 
     def test_agregar_miembro_a_equipo_gtr(self):
         self.client.force_authenticate(user=self.gtr)
@@ -998,8 +1055,7 @@ class JerarquiaDinamicaTestCase(TestCase):
         self.assertTrue(puede_ser_lider(usuario))
 
         solicitante = _crear_usuario("clientedin@empresa.com")
-        solicitante.puede_crear_solicitudes = True
-        solicitante.save(update_fields=["puede_crear_solicitudes"])
+        _asignar_rol(solicitante, "CLIENTE")
         self.assertFalse(puede_ser_lider(solicitante))
 
     def test_equipo_deriva_rol_equipo_del_lider(self):
@@ -1464,3 +1520,43 @@ class LogoutBlacklistTestCase(APITestCase):
 
         self.assertEqual(primera.status_code, status.HTTP_205_RESET_CONTENT)
         self.assertEqual(segunda.status_code, status.HTTP_205_RESET_CONTENT)
+
+
+class NivelCreacionJerarquiaTestCase(APITestCase):
+    """Los niveles nuevos se crean siempre sobre el nivel de mayor número."""
+
+    def setUp(self):
+        self.admin = _crear_usuario("admin-niveles@empresa.com")
+        self.admin.tipo_usuario = "ADMINISTRADOR"
+        self.admin.save(update_fields=["tipo_usuario"])
+
+        self.nivel_a = Nivel.objects.create(nombre="A", puede_liderar=True)
+        self.nivel_b = Nivel.objects.create(
+            nombre="B",
+            superior=self.nivel_a,
+            puede_liderar=True,
+        )
+
+        from .jerarquia import renumerar_niveles
+
+        renumerar_niveles()
+        self.client.force_authenticate(user=self.admin)
+
+    def test_nuevo_nivel_queda_sobre_el_tope(self):
+        from .jerarquia import niveles_ordenados
+
+        res = self.client.post(
+            reverse("nivel-list"),
+            {"descripcion": "Nuevo tope"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+
+        nuevo = Nivel.objects.get(pk=res.data["id"])
+        self.nivel_a.refresh_from_db()
+
+        ordenados = niveles_ordenados()
+        self.assertEqual(ordenados[0].pk, nuevo.pk)
+        self.assertIsNone(nuevo.superior_id)
+        self.assertEqual(self.nivel_a.superior_id, nuevo.pk)
+        self.assertEqual(nuevo.nombre, f"NIVEL {len(ordenados)}")

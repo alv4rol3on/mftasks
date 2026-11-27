@@ -133,7 +133,7 @@ export function esAdmin(): boolean {
 export function puedeCrearSolicitudes(): boolean {
     const usuario = getUsuarioActual();
     if (!usuario) return false;
-    return esAdmin() || usuario.puede_crear_solicitudes === true;
+    return usuario.puede_crear_solicitudes === true;
 }
 
 export function esColaborador(): boolean {

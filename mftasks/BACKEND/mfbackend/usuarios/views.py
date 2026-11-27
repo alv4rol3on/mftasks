@@ -35,6 +35,7 @@ from .models import (
 )
 from .jerarquia import (
     nivel_efectivo,
+    nivel_tope,
     niveles_integrantes_requeridos,
     puede_ser_lider,
     renumerar_niveles,
@@ -366,7 +367,7 @@ class UserViewSet(ModelViewSet):
         from django.db.models import Exists, OuterRef
         from tasks.models import Subtarea, Tarea
 
-        base = User.objects.all()
+        base = User.objects.filter(is_active=True)
 
         if self.action in ("list", "retrieve"):
             pendientes = Subtarea.objects.filter(
@@ -414,7 +415,10 @@ class UserViewSet(ModelViewSet):
 
 class NivelViewSet(ModelViewSet):
 
-    queryset = Nivel.objects.filter(es_sistema=False).select_related("superior")
+    queryset = Nivel.objects.filter(
+        es_sistema=False,
+        activo=True,
+    ).select_related("superior")
 
     serializer_class = NivelSerializer
 
@@ -430,12 +434,20 @@ class NivelViewSet(ModelViewSet):
         return permisos
 
     def perform_create(self, serializer):
-        nivel = serializer.save()
-        renumerar_niveles()
+        # El nuevo nivel se inserta por encima del nivel de mayor número:
+        # queda como su superior y hereda el lugar de la raíz.
+        with transaction.atomic():
+            tope = nivel_tope()
+            nivel = serializer.save(superior=tope.superior if tope else None)
+            if tope is not None:
+                tope.superior = nivel
+                tope.save(update_fields=["superior"])
+            renumerar_niveles()
         nivel.refresh_from_db()
         serializer.instance = nivel
 
     def perform_update(self, serializer):
+        # El orden jerárquico no se modifica desde la API.
         nivel = serializer.save()
         renumerar_niveles()
         nivel.refresh_from_db()
@@ -545,10 +557,12 @@ class EquipoViewSet(ModelViewSet):
             )
             base = base.exclude(id__in=propios_ids)
 
-        # Administrador ve todos (incluye inactivos para poder reactivarlos)
+        # El listado solo muestra equipos activos; los inactivos/eliminados
+        # quedan únicamente accesibles desde la base de datos o el Django admin.
+        if self.action == "list":
+            return base.filter(activo=True)
         if es_administrador(user):
             return base
-        # Colaboradores: solo equipos activos.
         return base.filter(activo=True)
 
     @staticmethod
@@ -949,15 +963,15 @@ class EquipoViewSet(ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # Los niveles admitidos dependen de la configuración global de alcance.
+        # Los niveles admitidos dependen de la configuración de este equipo.
         niveles_requeridos = niveles_integrantes_requeridos(equipo)
         if not niveles_requeridos:
             return Response(
                 {
                     "detail": (
                         "El nivel del líder no tiene niveles inferiores "
-                        "disponibles según la configuración actual. "
-                        "Ajuste la jerarquía o el alcance de integrantes."
+                        "disponibles según el alcance configurado para este "
+                        "equipo. Ajuste la jerarquía o el alcance del equipo."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,

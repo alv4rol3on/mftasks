@@ -40,11 +40,6 @@ def _crear_usuario(email, nombres="X", apellidos="Y"):
 
 
 def _asignar_rol(user, nombre):
-    if nombre.upper() == "CLIENTE":
-        user.tipo_usuario = "COLABORADOR"
-        user.puede_crear_solicitudes = True
-        user.save(update_fields=["tipo_usuario", "puede_crear_solicitudes"])
-        return None
     jerarquia = {
         "GERENTE": None,
         "SUBGERENTE": "GERENTE",
@@ -59,6 +54,7 @@ def _asignar_rol(user, nombre):
         if existente is not None:
             return existente
         es_admin_nivel = valor.lower() == "administrador"
+        es_cliente = valor.upper() == "CLIENTE"
         superior_nombre = jerarquia.get(valor.upper())
         superior = (
             _obtener_nivel(superior_nombre) if superior_nombre else None
@@ -71,13 +67,21 @@ def _asignar_rol(user, nombre):
                 not es_admin_nivel
                 and valor.upper() not in ("MIEMBRO", "CLIENTE")
             ),
+            puede_crear_solicitudes=es_cliente,
         )
 
     es_admin = nombre.lower() == "administrador"
+    es_cliente = nombre.upper() == "CLIENTE"
     nivel = _obtener_nivel(nombre)
     if es_admin:
         user.tipo_usuario = "ADMINISTRADOR"
         user.save(update_fields=["tipo_usuario"])
+    elif es_cliente:
+        user.tipo_usuario = "COLABORADOR"
+        user.save(update_fields=["tipo_usuario"])
+        if not nivel.puede_crear_solicitudes:
+            nivel.puede_crear_solicitudes = True
+            nivel.save(update_fields=["puede_crear_solicitudes"])
     return UserNivel.objects.get_or_create(usuario=user, nivel=nivel)
 
 
@@ -388,7 +392,17 @@ class TareaFlujoTestCase(APITestCase):
     def test_crear_ignora_activo_false(self):
         # El campo activo es de solo lectura: un payload con activo=False no debe
         # crear la solicitud inactiva.
-        self.client.force_authenticate(user=self.admin)
+        solicitante = _crear_usuario("solicitante-activo@empresa.com")
+        _asignar_rol(solicitante, "CLIENTE")
+        PermisoCampana.objects.create(
+            usuario=solicitante,
+            subcampana=self.subcampana,
+        )
+        PermisoCampana.objects.create(
+            usuario=self.equipo1.lider,
+            subcampana=self.subcampana,
+        )
+        self.client.force_authenticate(user=solicitante)
 
         res = self.client.post(
             reverse("task-list"),
@@ -403,9 +417,36 @@ class TareaFlujoTestCase(APITestCase):
             format="json",
         )
 
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
         tarea = Tarea.objects.get(id=res.data["id"])
         self.assertTrue(tarea.activo)
+
+    def test_admin_no_crea_solicitud(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.post(
+            reverse("task-list"),
+            {
+                "asunto": "X",
+                "descripcion": "x",
+                "tipo_solicitud": "REPORTE",
+                "subcampana": self.subcampana.id,
+                "equipo": self.equipo1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_no_accede_a_mis_solicitudes(self):
+        self.client.force_authenticate(user=self.admin)
+
+        res = self.client.get(
+            reverse("task-list"),
+            {"mis_solicitudes": "1"},
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_crear_solo_admin(self):
 
@@ -1497,24 +1538,26 @@ class AprobacionPorEquipoTestCase(APITestCase):
         tarea.refresh_from_db()
         return lider_auto, tarea
 
-    def test_superior_ve_autoaprobada_en_bandeja(self):
+    def test_superior_no_ve_autoaprobada_en_bandeja(self):
         _, tarea = self._crear_equipo_auto("Equipo Auto Ver")
         self.assertEqual(tarea.paso_aprobacion, "LIDER")
 
         self.client.force_authenticate(user=self.jefe)
         res = self.client.get(reverse("task-list"), {"estado": "EN_ESPERA"})
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertIn(tarea.id, {t["id"] for t in res.data})
+        self.assertNotIn(tarea.id, {t["id"] for t in res.data})
 
-    def test_superior_aprueba_autoaprobada(self):
+    def test_superior_no_aprueba_autoaprobada(self):
         _, tarea = self._crear_equipo_auto("Equipo Auto Aprobar")
         self.client.force_authenticate(user=self.jefe)
         res = self.client.post(reverse("task-aprobar", args=[tarea.id]))
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertIn(
+            res.status_code,
+            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
         tarea.refresh_from_db()
-        self.assertEqual(tarea.estado, Tarea.Estado.APROBADO)
-        self.assertEqual(tarea.paso_aprobacion, "COMPLETADO")
-        self.assertEqual(tarea.aprobador, self.jefe)
+        self.assertEqual(tarea.estado, Tarea.Estado.EN_ESPERA)
+        self.assertEqual(tarea.paso_aprobacion, "LIDER")
 
     def test_superior_rechaza_autoaprobada(self):
         _, tarea = self._crear_equipo_auto("Equipo Auto Rechazar")
@@ -1524,9 +1567,12 @@ class AprobacionPorEquipoTestCase(APITestCase):
             {"motivo_rechazo": "No aplica"},
             format="json",
         )
-        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertIn(
+            res.status_code,
+            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
         tarea.refresh_from_db()
-        self.assertEqual(tarea.estado, Tarea.Estado.RECHAZADO)
+        self.assertEqual(tarea.estado, Tarea.Estado.EN_ESPERA)
 
     def test_lider_sigue_aprobando_autoaprobada(self):
         lider_auto, tarea = self._crear_equipo_auto("Equipo Auto Lider")

@@ -196,7 +196,7 @@ class CampanaViewSet(ModelViewSet):
         if es_administrador(user):
             if _incluir_eliminados(self.request) or self.action == "restaurar":
                 return qs
-            return qs.filter(eliminado=False)
+            return qs.filter(eliminado=False, activo=True)
         qs = qs.filter(eliminado=False, entidad__eliminado=False)
         # Colaboradores ven todas las campañas activas; el formulario de
         # solicitudes usa /mis-permisos para limitar las que pueden usar.
@@ -250,7 +250,7 @@ class SubCampanaViewSet(ModelViewSet):
             if _incluir_eliminados(self.request) or self.action == "restaurar":
                 incluir = qs
             else:
-                incluir = qs.filter(eliminado=False)
+                incluir = qs.filter(eliminado=False, activo=True)
         else:
             incluir = qs.filter(
                 eliminado=False,
@@ -288,13 +288,18 @@ class PermisoCampanaViewSet(ModelViewSet):
         qs = super().get_queryset().filter(
             Q(
                 campana__isnull=False,
+                campana__activo=True,
                 campana__eliminado=False,
+                campana__entidad__activo=True,
                 campana__entidad__eliminado=False,
             )
             | Q(
                 subcampana__isnull=False,
+                subcampana__activo=True,
                 subcampana__eliminado=False,
+                subcampana__campana__activo=True,
                 subcampana__campana__eliminado=False,
+                subcampana__campana__entidad__activo=True,
                 subcampana__campana__entidad__eliminado=False,
             )
         )

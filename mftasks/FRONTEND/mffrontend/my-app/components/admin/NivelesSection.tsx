@@ -14,21 +14,6 @@ type Props = {
   setMsg: (msg: string | null) => void;
 };
 
-/** Cadena de un rol: el propio rol y sus superiores directos, en orden. */
-function cadenaDe(rol: NivelInfo, mapa: Map<number, NivelInfo>): NivelInfo[] {
-  const cadena: NivelInfo[] = [rol];
-  const vistos = new Set<number>([rol.id]);
-  let actual = rol.superior;
-  while (actual != null && !vistos.has(actual)) {
-    const padre = mapa.get(actual);
-    if (!padre) break;
-    cadena.push(padre);
-    vistos.add(padre.id);
-    actual = padre.superior;
-  }
-  return cadena;
-}
-
 /** Roles ordenados por profundidad (árbol), con su nivel para indentar. */
 function ordenarPorArbol(
   roles: NivelInfo[]
@@ -76,9 +61,6 @@ export default function NivelesSection({ setMsg }: Props) {
   const [cargando, setCargando] = useState(false);
 
   const [filtro, setFiltro] = useState("");
-  const [filtroActivo, setFiltroActivo] = useState<
-    "activos" | "inactivos" | "todos"
-  >("activos");
 
   const [rolModalOpen, setRolModalOpen] = useState(false);
   const [rolEditando, setRolEditando] = useState<NivelInfo | null>(null);
@@ -110,11 +92,6 @@ export default function NivelesSection({ setMsg }: Props) {
   // DERIVADOS
   // --------------------------------------------------
 
-  const mapaRoles = useMemo(
-    () => new Map(roles.map((r) => [r.id, r])),
-    [roles]
-  );
-
   const contarUsuarios = (nivel: NivelInfo) =>
     nivel.usuarios_count ?? 0;
 
@@ -125,8 +102,7 @@ export default function NivelesSection({ setMsg }: Props) {
     const q = filtro.toLowerCase().trim();
 
     return arbol.filter(({ rol }) => {
-      if (filtroActivo === "activos" && !rol.activo) return false;
-      if (filtroActivo === "inactivos" && rol.activo) return false;
+      if (!rol.activo) return false;
 
       if (!q) return true;
 
@@ -135,45 +111,7 @@ export default function NivelesSection({ setMsg }: Props) {
         (rol.descripcion ?? "").toLowerCase().includes(q)
       );
     });
-  }, [arbol, filtro, filtroActivo]);
-
-
-  // Opciones de superior: excluye el propio rol y sus descendientes.
-  const opcionesSuperior = useMemo(() => {
-    const editandoId = rolEditando?.id ?? null;
-    const excluidos = new Set<number>();
-    if (editandoId != null) {
-      excluidos.add(editandoId);
-      for (const r of roles) {
-        const vistos = new Set<number>();
-        let actual = r.superior;
-        while (actual != null && !vistos.has(actual)) {
-          if (actual === editandoId) {
-            excluidos.add(r.id);
-            break;
-          }
-          vistos.add(actual);
-          actual = mapaRoles.get(actual)?.superior ?? null;
-        }
-      }
-    }
-    const opciones = roles
-      .filter(
-        (r) =>
-          !excluidos.has(r.id) &&
-          (r.activo || r.id === rolEditando?.superior)
-      )
-      .sort((a, b) => a.nombre.localeCompare(b.nombre))
-      .map((r) => ({
-        value: String(r.id),
-        label: r.nombre,
-        sublabel:
-          r.superior != null
-            ? `depende de ${mapaRoles.get(r.superior)?.nombre ?? "?"}`
-            : "raíz",
-      }));
-    return [{ value: "", label: "— Sin superior (raíz) —" }, ...opciones];
-  }, [roles, rolEditando, mapaRoles]);
+  }, [arbol, filtro]);
 
   // --------------------------------------------------
   // ACCIONES
@@ -212,31 +150,6 @@ export default function NivelesSection({ setMsg }: Props) {
     }
   };
 
-  const alternarActivo = async (rol: NivelInfo) => {
-    if (rol.activo) {
-      const cantidad = contarUsuarios(rol);
-      if (cantidad > 0) {
-        setMsg("Hay usuarios con este nivel");
-        return;
-      }
-    }
-    try {
-      await apiFetch(`/api/usuarios/niveles/${rol.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ activo: !rol.activo }),
-      });
-      setMsg(
-        rol.activo
-          ? "Nivel inhabilitado"
-          : "Nivel habilitado"
-      );
-      if (rolEditando?.id === rol.id) setRolModalOpen(false);
-      await cargarRoles();
-    } catch (e) {
-      setMsg(`Error: ${(e as Error).message}`);
-    }
-  };
-
   // --------------------------------------------------
   // RENDER
   // --------------------------------------------------
@@ -248,25 +161,10 @@ export default function NivelesSection({ setMsg }: Props) {
       <div className={styles.card}>
         <div className={styles.usersHeader}>
           <h3 className={styles.cardTitle} style={{ margin: 0 }}>
-            Niveles ({filas.length} / {roles.length})
+            Niveles ({filas.length})
           </h3>
 
           <div className={styles.usersFilters}>
-            <select
-              value={filtroActivo}
-              onChange={(e) =>
-                setFiltroActivo(
-                  e.target.value as "activos" | "inactivos" | "todos"
-                )
-              }
-              className={styles.select}
-              style={{ minWidth: 130, fontSize: 12, padding: "6px 8px" }}
-            >
-              <option value="todos">Todos</option>
-              <option value="activos">Activos</option>
-              <option value="inactivos">Inactivos</option>
-            </select>
-
             <input
               placeholder="Buscar nivel o descripción..."
               value={filtro}
@@ -318,11 +216,9 @@ export default function NivelesSection({ setMsg }: Props) {
                   </tr>
                 ) : (
                   filas.map(({ rol, depth }) => {
-                    const cadena = cadenaDe(rol, mapaRoles);
                     return (
                       <tr
                         key={rol.id}
-                        style={{ opacity: rol.activo ? 1 : 0.55 }}
                       >
                         <td>
                           <div
@@ -365,20 +261,6 @@ export default function NivelesSection({ setMsg }: Props) {
                             </div>
                           </div>
                         </td>
-
-                        {/*<td>
-                          {rol.superior != null
-                            ? mapaRoles.get(rol.superior)?.nombre ?? "-"
-                            : "— (raíz)"}
-                        </td>*/}
-
-                        {/*<td>
-                          <span className={styles.chain}>
-                            {cadena
-                              .map((r) => r.nombre)
-                              .join(" → ")}
-                          </span>
-                        </td>*/}
 
                         <td>
                           {rol.puede_liderar ? (
@@ -439,21 +321,6 @@ export default function NivelesSection({ setMsg }: Props) {
                               title="Editar nivel"
                               onClick={() => abrirEdicion(rol)}
                             />
-                            {rol.activo ? (
-                              <IconButton
-                                icon="ban"
-                                variant="warning"
-                                title="Inactivar nivel"
-                                onClick={() => alternarActivo(rol)}
-                              />
-                            ) : (
-                              <IconButton
-                                icon="power"
-                                variant="success"
-                                title="Reactivar nivel"
-                                onClick={() => alternarActivo(rol)}
-                              />
-                            )}
                             <IconButton
                               icon="trash"
                               variant="danger"
@@ -476,7 +343,6 @@ export default function NivelesSection({ setMsg }: Props) {
         <NivelModal
           key={rolEditando?.id ?? "nuevo"}
           nivel={rolEditando}
-          opcionesSuperior={opcionesSuperior}
           onClose={() => setRolModalOpen(false)}
           onSaved={async (m) => {
             setMsg(m);

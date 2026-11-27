@@ -24,7 +24,7 @@ class EntidadViewSet(ModelViewSet):
         qs = super().get_queryset()
         if self.action == "restaurar" or _incluir_eliminados(self.request):
             return qs
-        return qs.filter(eliminado=False)
+        return qs.filter(eliminado=False, activo=True)
 
     def destroy(self, request, *args, **kwargs):
         entidad = self.get_object()

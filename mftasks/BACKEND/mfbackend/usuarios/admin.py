@@ -243,6 +243,7 @@ class EquipoAdmin(admin.ModelAdmin):
     list_display = (
         "nombre",
         "nivel",
+        "alcance_integrantes",
         "lider",
         "activo",
         "fecha_creacion",
@@ -250,6 +251,7 @@ class EquipoAdmin(admin.ModelAdmin):
 
     list_filter = (
         "activo",
+        "alcance_integrantes",
         "nivel",
     )
 

@@ -124,7 +124,9 @@ export default function PerfilPage() {
     (uid != null && (e.miembros ?? []).some((m) => m.id_usuario === uid))
   );
 
-  const puedeSolicitar = usuario?.puede_crear_solicitudes === true;
+  const puedeSolicitar =
+    usuario?.tipo_usuario !== "ADMINISTRADOR" &&
+    usuario?.puede_crear_solicitudes === true;
   const esEquipo = misEquipos.length > 0 || Boolean(usuario?.es_aprobador);
   const prefsSucias =
     prefs != null && prefsGuardadas != null &&
